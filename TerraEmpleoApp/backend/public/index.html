@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TerraEmpleo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://unpkg.com/ionicons@7.2.2/dist/collection/components/icon/icon.css" rel="stylesheet">
+  <style>
+    /* ===== RESET & VARIABLES ===== */
+    :root {
+      --primary: #2E7D32;
+      --primaryDark: #1B5E20;
+      --primaryLight: #4CAF50;
+      --primarySoft: #E8F5E9;
+      --accent: #FF8F00;
+      --accentLight: #FFE082;
+      --white: #FFFFFF;
+      --background: #F5F7F5;
+      --textPrimary: #1A1A2E;
+      --textSecondary: #555555;
+      --textLight: #888888;
+      --success: #2E7D32;
+      --error: #D32F2F;
+      --warning: #F57C00;
+      --info: #1976D2;
+      --border: #E0E0E0;
+      --borderLight: #F0F0F0;
+      --urgent: #D32F2F;
+      --urgentBg: #FFEBEE;
+      --star: #FFB300;
+      --starEmpty: #E0E0E0;
+      --chipSelected: #2E7D32;
+      --chipUnselected: #F5F5F5;
+      --overlay: rgba(0,0,0,0.5);
+      --disabled: #BDBDBD;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      --radius-full: 999px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+      --shadow-md: 0 2px 6px rgba(0,0,0,0.15);
+      --shadow-lg: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--background);
+      color: var(--textPrimary);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    .screen { display:none; min-height:100vh; }
+    .screen.active { display:flex; flex-direction:column; }
+    .hidden { display:none !important; }
+
+    /* ===== WELCOME SCREEN ===== */
+    #welcome-screen {
+      background: var(--primary);
+      min-height: 100vh;
+      flex-direction: column;
+    }
+    .welcome-top {
+      flex:1; display:flex; justify-content:center; align-items:center;
+      padding-top:48px; flex-direction:column;
+    }
+    .welcome-top ion-icon { font-size:80px; color:var(--white); }
+    .welcome-app-name {
+      font-size:38px; font-weight:800; color:var(--white);
+      margin-top:16px; letter-spacing:1px;
+    }
+    .welcome-tagline {
+      font-size:16px; color:rgba(255,255,255,0.85);
+      margin-top:8px; font-weight:500;
+    }
+    .welcome-bottom {
+      background:var(--white);
+      border-top-left-radius:32px; border-top-right-radius:32px;
+      padding:32px 24px 48px; box-shadow: var(--shadow-lg);
+    }
+    .welcome-title {
+      font-size:26px; font-weight:800; text-align:center; color:var(--textPrimary);
+    }
+    .welcome-text {
+      font-size:16px; color:var(--textSecondary); text-align:center;
+      margin-top:8px; margin-bottom:32px; line-height:24px;
+    }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      display:flex; align-items:center; justify-content:center;
+      border:none; border-radius:var(--radius-md); font-weight:700;
+      cursor:pointer; transition:all 0.2s; font-family:inherit;
+      gap:8px; text-align:center; width:100%;
+    }
+    .btn:active { transform:scale(0.97); }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .btn-large { padding:18px 24px; min-height:58px; font-size:18px; }
+    .btn-medium { padding:14px 16px; min-height:48px; font-size:16px; }
+    .btn-small { padding:10px 16px; min-height:40px; font-size:14px; }
+    .btn-primary { background:var(--primary); color:var(--white); box-shadow:var(--shadow-sm); }
+    .btn-primary:hover { background:var(--primaryDark); }
+    .btn-secondary { background:var(--primarySoft); color:var(--primary); box-shadow:var(--shadow-sm); }
+    .btn-outline { background:transparent; color:var(--primary); border:2px solid var(--primary); }
+    .btn-outline:hover { background:var(--primarySoft); }
+    .btn-danger { background:var(--error); color:var(--white); box-shadow:var(--shadow-sm); }
+
+    /* ===== LOGIN SCREEN ===== */
+    #login-screen {
+      background: var(--background);
+      min-height:100vh; justify-content:center;
+    }
+    .login-scroll { flex:1; padding:24px; display:flex; flex-direction:column; justify-content:center; }
+    .login-header { text-align:center; margin-bottom:32px; }
+    .login-header ion-icon { font-size:50px; color:var(--primary); }
+    .login-title { font-size:28px; font-weight:800; color:var(--textPrimary); margin-top:16px; }
+    .login-subtitle { font-size:15px; color:var(--textSecondary); margin-top:4px; }
+    .login-form {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:24px; box-shadow:var(--shadow-md);
+    }
+
+    /* ===== INPUT COMPONENT ===== */
+    .input-group { margin-bottom:16px; }
+    .input-label {
+      font-size:15px; font-weight:600; color:var(--textPrimary);
+      margin-bottom:6px; display:block;
+    }
+    .input-label .required { color:var(--error); }
+    .input-wrap {
+      display:flex; align-items:center; background:var(--white);
+      border:1.5px solid var(--border); border-radius:var(--radius-md);
+      padding:0 16px; min-height:52px; transition:border-color 0.2s;
+    }
+    .input-wrap:focus-within { border-color:var(--primary); border-width:2px; }
+    .input-wrap.error { border-color:var(--error); }
+    .input-wrap ion-icon { font-size:20px; color:var(--textLight); margin-right:8px; flex-shrink:0; }
+    .input-wrap:focus-within ion-icon { color:var(--primary); }
+    .input-wrap input, .input-wrap textarea {
+      flex:1; border:none; outline:none; font-size:16px;
+      color:var(--textPrimary); font-family:inherit;
+      padding:8px 0; background:transparent;
+    }
+    .input-wrap input::placeholder, .input-wrap textarea::placeholder { color:var(--textLight); }
+    .input-wrap textarea { min-height:60px; resize:vertical; }
+    .input-wrap .eye-btn {
+      background:none; border:none; cursor:pointer; padding:4px;
+    }
+    .input-error { font-size:13px; color:var(--error); margin-top:4px; }
+
+    /* ===== ROLE SELECT SCREEN ===== */
+    #register-role-screen { background:var(--background); min-height:100vh; }
+    .role-content {
+      flex:1; padding:48px 24px 24px; display:flex;
+      flex-direction:column; align-items:center;
+    }
+    .role-content > ion-icon { font-size:50px; color:var(--primary); }
+    .role-title { font-size:28px; font-weight:800; color:var(--textPrimary); margin-top:16px; }
+    .role-subtitle { font-size:15px; color:var(--textSecondary); margin-top:4px; margin-bottom:32px; }
+    .role-cards { width:100%; display:flex; flex-direction:column; gap:24px; }
+    .role-card {
+      background:var(--white); border-radius:var(--radius-lg); padding:24px;
+      text-align:center; border:2px solid; box-shadow:var(--shadow-md);
+      cursor:pointer; transition:transform 0.2s;
+    }
+    .role-card:hover { transform:translateY(-2px); }
+    .role-card.trabajador { border-color:var(--primary); }
+    .role-card.empleador { border-color:var(--accent); }
+    .role-icon-circle {
+      width:80px; height:80px; border-radius:40px;
+      display:flex; justify-content:center; align-items:center;
+      margin:0 auto 16px;
+    }
+    .role-icon-circle ion-icon { font-size:40px; color:var(--white); }
+    .role-card-title { font-size:22px; font-weight:700; color:var(--textPrimary); }
+    .role-card-subtitle {
+      font-size:14px; color:var(--textSecondary);
+      margin-top:4px; margin-bottom:16px;
+    }
+    .role-select-btn {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:10px 24px; border-radius:var(--radius-full);
+      color:var(--white); font-size:16px; font-weight:700;
+      border:none; cursor:pointer;
+    }
+
+    /* ===== REGISTRATION SCREENS ===== */
+    #register-trabajador-screen, #register-empleador-screen {
+      background:var(--background); min-height:100vh;
+    }
+    .progress-bar-container { margin-bottom:24px; padding:0 16px; }
+    .progress-header {
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom:8px;
+    }
+    .progress-step-text { font-size:13px; font-weight:600; color:var(--primary); }
+    .progress-label-text { font-size:13px; color:var(--textSecondary); font-weight:500; }
+    .progress-track {
+      height:8px; background:var(--primarySoft);
+      border-radius:var(--radius-full); overflow:hidden;
+    }
+    .progress-fill {
+      height:100%; background:var(--primary);
+      border-radius:var(--radius-full); transition:width 0.3s ease;
+    }
+    .reg-scroll { flex:1; padding:16px; overflow-y:auto; }
+    .form-card {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:24px; box-shadow:var(--shadow-md);
+    }
+    .step-title { font-size:24px; font-weight:800; color:var(--textPrimary); margin-bottom:4px; }
+    .step-desc { font-size:15px; color:var(--textSecondary); margin-bottom:24px; }
+    .step-subtitle { font-size:16px; font-weight:600; color:var(--textPrimary); margin-bottom:8px; margin-top:24px; }
+    .reg-footer {
+      display:flex; padding:16px; gap:16px;
+      background:var(--white); border-top:1px solid var(--borderLight);
+      box-shadow:var(--shadow-sm);
+    }
+    .reg-footer .btn { flex:1; }
+
+    /* Picker button */
+    .picker-button {
+      display:flex; align-items:center; background:var(--white);
+      border:1.5px solid var(--border); border-radius:var(--radius-md);
+      padding:16px; margin-bottom:16px; min-height:52px; gap:8px;
+      cursor:pointer; transition:border-color 0.2s;
+    }
+    .picker-button:hover { border-color:var(--primary); }
+    .picker-button.disabled { opacity:0.5; cursor:not-allowed; }
+    .picker-button ion-icon { font-size:20px; flex-shrink:0; }
+    .picker-button .picker-text { flex:1; font-size:16px; color:var(--textPrimary); }
+    .picker-button .picker-text.placeholder { color:var(--textLight); }
+
+    /* Checkbox row */
+    .checkbox-row {
+      display:flex; align-items:center; background:var(--primarySoft);
+      padding:16px; border-radius:var(--radius-md); gap:16px; margin-top:16px;
+    }
+    .checkbox-row input[type="checkbox"] {
+      width:20px; height:20px; accent-color:var(--primary); flex-shrink:0;
+    }
+    .checkbox-text { flex:1; font-size:14px; color:var(--textPrimary); line-height:20px; }
+
+    /* SMS section */
+    .sms-container { text-align:center; padding:24px 0; }
+    .sms-text { font-size:16px; color:var(--textSecondary); }
+    .sms-phone { font-size:24px; font-weight:700; color:var(--primary); margin:16px 0; }
+    .sms-debug { font-size:14px; color:var(--info); font-weight:600; margin:8px 0; }
+
+    /* Photo buttons */
+    .photo-btn {
+      display:flex; align-items:center; background:var(--primarySoft);
+      border-radius:var(--radius-md); padding:24px; margin-bottom:16px;
+      gap:16px; border:2px dashed var(--primary); cursor:pointer;
+      transition:all 0.2s;
+    }
+    .photo-btn:hover { background:#DCF0DD; }
+    .photo-btn.done { border-style:solid; border-color:var(--success); background:#E8F5E9; }
+    .photo-btn ion-icon { font-size:32px; flex-shrink:0; }
+    .photo-btn-text { font-size:17px; font-weight:600; color:var(--textPrimary); }
+
+    /* Chip selector */
+    .chips-container { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip-label { font-size:15px; font-weight:600; color:var(--textPrimary); margin-bottom:8px; }
+    .chip {
+      display:inline-flex; align-items:center; gap:4px;
+      padding:10px 16px; border-radius:var(--radius-full);
+      background:var(--chipUnselected); border:1.5px solid var(--border);
+      font-size:15px; font-weight:500; color:#333; cursor:pointer;
+      transition:all 0.2s; user-select:none;
+    }
+    .chip:hover { border-color:var(--primary); }
+    .chip.selected {
+      background:var(--chipSelected); border-color:var(--chipSelected);
+      color:var(--white);
+    }
+    .chip.custom {
+      background:var(--accent); border-color:var(--accent); color:var(--white);
+    }
+    .chip.add {
+      border-style:dashed; border-color:var(--primary);
+      background:var(--primarySoft); color:var(--primary);
+    }
+
+    /* Summary */
+    .summary-card { background:var(--primarySoft); border-radius:var(--radius-md); padding:16px; }
+    .summary-row {
+      display:flex; padding:8px 0;
+      border-bottom:1px solid var(--borderLight);
+    }
+    .summary-row:last-child { border-bottom:none; }
+    .summary-label { width:110px; font-size:14px; font-weight:600; color:var(--textSecondary); }
+    .summary-value { flex:1; font-size:14px; color:var(--textPrimary); }
+
+    /* ===== PICKER MODAL ===== */
+    .modal-overlay {
+      position:fixed; top:0; left:0; right:0; bottom:0;
+      background:var(--overlay); display:flex; align-items:flex-end;
+      justify-content:center; z-index:1000;
+    }
+    .modal-content {
+      background:var(--white); border-top-left-radius:var(--radius-xl);
+      border-top-right-radius:var(--radius-xl); max-height:80vh;
+      width:100%; max-width:500px; padding:24px; box-shadow:var(--shadow-lg);
+      display:flex; flex-direction:column;
+    }
+    .modal-header {
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom:16px;
+    }
+    .modal-title { font-size:20px; font-weight:700; color:var(--textPrimary); }
+    .modal-close { background:none; border:none; cursor:pointer; padding:4px; }
+    .modal-close ion-icon { font-size:30px; color:var(--textLight); }
+    .modal-search { margin-bottom:8px; }
+    .modal-list {
+      flex:1; overflow-y:auto; max-height:50vh;
+    }
+    .modal-option {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:16px 8px; border-bottom:1px solid var(--borderLight);
+      cursor:pointer; transition:background 0.1s;
+    }
+    .modal-option:hover { background:var(--primarySoft); }
+    .modal-option.selected {
+      background:var(--primarySoft); border-radius:var(--radius-md);
+      padding:16px;
+    }
+    .modal-option-text { font-size:16px; color:var(--textPrimary); }
+    .modal-option.selected .modal-option-text { color:var(--primary); font-weight:600; }
+
+    /* Custom chip modal */
+    .chip-modal-overlay {
+      position:fixed; top:0; left:0; right:0; bottom:0;
+      background:var(--overlay); display:flex; align-items:center;
+      justify-content:center; z-index:1001; padding:24px;
+    }
+    .chip-modal {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:24px; width:100%; max-width:400px; box-shadow:var(--shadow-lg);
+    }
+    .chip-modal-title { font-size:18px; font-weight:700; margin-bottom:16px; }
+    .chip-modal-btns { display:flex; gap:12px; margin-top:16px; }
+    .chip-modal-btns .btn { flex:1; }
+
+    /* ===== DASHBOARD ===== */
+    .dash-header {
+      display:flex; justify-content:space-between; align-items:center;
+      background:var(--primary); padding:24px; padding-top:32px;
+    }
+    .dash-greeting { font-size:22px; font-weight:700; color:var(--white); }
+    .dash-subgreeting { font-size:14px; color:rgba(255,255,255,0.8); margin-top:2px; }
+    .dash-avatar {
+      width:44px; height:44px; border-radius:22px;
+      background:rgba(255,255,255,0.25); display:flex;
+      justify-content:center; align-items:center;
+    }
+    .dash-avatar ion-icon { font-size:24px; color:var(--white); }
+    .dash-add-btn {
+      width:48px; height:48px; border-radius:24px;
+      background:rgba(255,255,255,0.25); display:flex;
+      justify-content:center; align-items:center;
+      cursor:pointer; border:none; transition:background 0.2s;
+    }
+    .dash-add-btn:hover { background:rgba(255,255,255,0.4); }
+    .dash-add-btn ion-icon { font-size:28px; color:var(--white); }
+
+    /* Tab bar */
+    .tab-bar {
+      display:flex; background:var(--white); border-top:1px solid var(--borderLight);
+      box-shadow:0 -2px 8px rgba(0,0,0,0.05); position:sticky; bottom:0; z-index:100;
+    }
+    .tab-item {
+      flex:1; display:flex; flex-direction:column; align-items:center;
+      padding:10px 0 8px; cursor:pointer; border:none; background:none;
+      transition:color 0.2s; font-family:inherit;
+    }
+    .tab-item ion-icon { font-size:24px; color:var(--textLight); }
+    .tab-item span { font-size:11px; color:var(--textLight); margin-top:2px; font-weight:500; }
+    .tab-item.active ion-icon { color:var(--primary); }
+    .tab-item.active span { color:var(--primary); font-weight:600; }
+
+    /* Vacante cards */
+    .vacante-card {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:16px; margin-bottom:16px; box-shadow:var(--shadow-md);
+      cursor:pointer; transition:transform 0.15s;
+    }
+    .vacante-card:hover { transform:translateY(-1px); }
+    .vacante-card.urgent { border-left:4px solid var(--urgent); }
+    .urgent-badge {
+      display:inline-flex; align-items:center; background:var(--urgent);
+      padding:3px 8px; border-radius:var(--radius-full); gap:4px;
+      margin-bottom:8px;
+    }
+    .urgent-badge ion-icon { font-size:14px; color:var(--white); }
+    .urgent-badge span { color:var(--white); font-size:11px; font-weight:700; }
+    .card-title { font-size:18px; font-weight:700; color:var(--textPrimary); margin-bottom:8px; }
+    .card-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+    .card-row ion-icon { font-size:16px; flex-shrink:0; }
+    .card-row-text { font-size:14px; color:var(--textSecondary); }
+    .card-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .mini-chip {
+      background:var(--primarySoft); padding:3px 8px;
+      border-radius:var(--radius-full); font-size:12px;
+      color:var(--primary); font-weight:500;
+    }
+    .mini-chip.accent { background:var(--accentLight); color:var(--accent); }
+    .card-date { font-size:12px; color:var(--textLight); text-align:right; margin-top:8px; }
+
+    /* Empty state */
+    .empty-state {
+      text-align:center; padding:96px 24px;
+    }
+    .empty-state ion-icon { font-size:60px; color:var(--textLight); }
+    .empty-state h3 { font-size:18px; font-weight:600; color:var(--textSecondary); margin-top:8px; }
+    .empty-state p { font-size:14px; color:var(--textLight); margin-top:4px; }
+
+    /* Badge */
+    .badge {
+      display:inline-block; padding:3px 8px; border-radius:var(--radius-full);
+      font-size:11px; font-weight:700; color:var(--white); text-transform:capitalize;
+    }
+
+    /* ===== PROFILE ===== */
+    .profile-header-card {
+      background:var(--primary); border-radius:var(--radius-lg);
+      padding:32px; text-align:center; box-shadow:var(--shadow-md);
+    }
+    .profile-avatar {
+      width:88px; height:88px; border-radius:44px;
+      background:rgba(255,255,255,0.25); display:flex;
+      justify-content:center; align-items:center; margin:0 auto 16px;
+    }
+    .profile-avatar ion-icon { font-size:48px; color:var(--white); }
+    .profile-name { font-size:22px; font-weight:700; color:var(--white); }
+    .profile-role {
+      font-size:14px; color:rgba(255,255,255,0.8); margin-top:4px;
+      text-transform:capitalize;
+    }
+    .profile-rating { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px; }
+    .profile-rating-text { color:rgba(255,255,255,0.8); font-size:14px; }
+    .info-card {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:24px; margin-top:16px; box-shadow:var(--shadow-sm);
+    }
+    .info-item {
+      display:flex; align-items:center; gap:16px; padding:8px 0;
+      border-bottom:1px solid var(--borderLight);
+    }
+    .info-item:last-child { border-bottom:none; }
+    .info-item ion-icon { font-size:20px; color:var(--primary); flex-shrink:0; }
+    .info-item-label { font-size:12px; color:var(--textLight); font-weight:500; }
+    .info-item-value { font-size:15px; color:var(--textPrimary); font-weight:500; }
+    .section-title-text { font-size:18px; font-weight:700; color:var(--textPrimary); margin-bottom:16px; }
+    .chips-section { margin-top:16px; }
+    .chips-label { font-size:13px; color:var(--textLight); font-weight:500; margin-bottom:4px; }
+    .chips-row { display:flex; flex-wrap:wrap; gap:6px; }
+    .profile-chip {
+      background:var(--primarySoft); padding:4px 12px;
+      border-radius:var(--radius-full); font-size:13px;
+      color:var(--primary); font-weight:500;
+    }
+    .profile-chip.accent { background:var(--accentLight); color:var(--accent); }
+
+    /* ===== DETALLE VACANTE ===== */
+    .detalle-card {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:24px; box-shadow:var(--shadow-md);
+    }
+    .detalle-title { font-size:24px; font-weight:800; color:var(--textPrimary); margin-bottom:16px; }
+    .detalle-info-row {
+      display:flex; align-items:center; gap:8px; margin-bottom:8px;
+    }
+    .detalle-info-row ion-icon { font-size:18px; color:var(--primary); flex-shrink:0; }
+    .detalle-info-row span { font-size:15px; color:var(--textSecondary); }
+    .detalle-section { margin-top:24px; }
+    .detalle-section-title { font-size:16px; font-weight:700; color:var(--textPrimary); margin-bottom:8px; }
+    .detalle-desc { font-size:15px; color:var(--textSecondary); line-height:22px; }
+    .apply-card {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:24px; margin-top:16px; box-shadow:var(--shadow-md);
+    }
+    .apply-title { font-size:20px; font-weight:700; color:var(--textPrimary); margin-bottom:16px; }
+    .applied-card {
+      background:var(--primarySoft); border-radius:var(--radius-lg);
+      padding:24px; margin-top:16px; text-align:center;
+    }
+    .applied-card ion-icon { font-size:40px; color:var(--success); }
+    .applied-card p { font-size:18px; font-weight:600; color:var(--success); margin-top:8px; }
+
+    /* ===== POSTULACIONES (trabajador) ===== */
+    .postulaciones-header {
+      background:var(--primary); padding:24px; padding-top:32px;
+    }
+    .postulaciones-header h2 { font-size:22px; font-weight:700; color:var(--white); }
+    .post-card {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:16px; margin-bottom:16px; box-shadow:var(--shadow-sm);
+    }
+    .post-card-header {
+      display:flex; justify-content:space-between; align-items:flex-start;
+      margin-bottom:8px;
+    }
+    .post-card-title { font-size:16px; font-weight:700; color:var(--textPrimary); flex:1; margin-right:8px; }
+
+    /* ===== EMPLEADOR - VER POSTULACIONES ===== */
+    .postulante-card {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:16px; margin-bottom:16px; box-shadow:var(--shadow-sm);
+    }
+    .postulante-top { display:flex; align-items:center; gap:16px; }
+    .postulante-avatar {
+      width:44px; height:44px; border-radius:22px;
+      background:var(--primary); display:flex;
+      justify-content:center; align-items:center; flex-shrink:0;
+    }
+    .postulante-avatar ion-icon { font-size:22px; color:var(--white); }
+    .postulante-name { font-size:16px; font-weight:700; color:var(--textPrimary); }
+    .postulante-info { font-size:13px; color:var(--textSecondary); }
+    .match-row { display:flex; align-items:center; gap:6px; margin-top:8px; }
+    .match-text { font-size:14px; font-weight:600; color:var(--accent); }
+    .postulante-detail { font-size:13px; color:var(--textSecondary); margin-top:3px; }
+    .postulante-actions { display:flex; gap:8px; margin-top:16px; }
+    .postulante-actions .btn { flex:1; }
+    .calificar-box {
+      margin-top:16px; background:var(--primarySoft); border-radius:var(--radius-md);
+      padding:16px;
+    }
+    .calificar-title { font-size:15px; font-weight:600; color:var(--textPrimary); margin-bottom:8px; }
+    .star-rating { display:flex; align-items:center; gap:2px; margin:8px 0; }
+    .star-rating ion-icon {
+      font-size:28px; cursor:pointer; transition:color 0.15s;
+    }
+
+    /* ===== CREAR VACANTE ===== */
+    .crear-title { font-size:24px; font-weight:800; color:var(--textPrimary); margin-bottom:24px; }
+    .section-label { font-size:16px; font-weight:600; color:var(--textPrimary); margin-top:16px; margin-bottom:8px; }
+    .urgent-row {
+      display:flex; justify-content:space-between; align-items:center;
+      background:var(--urgentBg); padding:16px; border-radius:var(--radius-md);
+      margin-top:16px;
+    }
+    .urgent-label { font-size:16px; font-weight:600; color:var(--urgent); }
+    .urgent-desc { font-size:13px; color:var(--textSecondary); }
+
+    /* Toggle switch */
+    .toggle { position:relative; width:48px; height:26px; cursor:pointer; }
+    .toggle input { display:none; }
+    .toggle-slider {
+      position:absolute; top:0; left:0; right:0; bottom:0;
+      background:var(--border); border-radius:13px; transition:0.3s;
+    }
+    .toggle-slider::before {
+      content:''; position:absolute; height:20px; width:20px;
+      left:3px; bottom:3px; background:white; border-radius:50%;
+      transition:0.3s;
+    }
+    .toggle input:checked + .toggle-slider { background:var(--primary); }
+    .toggle input:checked + .toggle-slider::before { transform:translateX(22px); }
+    .toggle.urgent-toggle input:checked + .toggle-slider { background:var(--urgent); }
+
+    /* ===== ADMIN ===== */
+    .admin-header { font-size:26px; font-weight:700; color:var(--textPrimary); }
+    .admin-subtitle { font-size:14px; color:var(--textLight); margin-top:4px; margin-bottom:24px; }
+    .admin-grid { display:flex; flex-wrap:wrap; gap:8px; }
+    .admin-stat-card {
+      width:calc(50% - 4px); background:var(--white); border-radius:var(--radius-lg);
+      padding:24px; box-shadow:var(--shadow-sm);
+    }
+    .admin-stat-icon {
+      width:48px; height:48px; border-radius:var(--radius-md);
+      display:flex; justify-content:center; align-items:center; margin-bottom:8px;
+    }
+    .admin-stat-icon ion-icon { font-size:28px; }
+    .admin-stat-value { font-size:28px; font-weight:700; color:var(--textPrimary); }
+    .admin-stat-title { font-size:13px; color:var(--textLight); margin-top:2px; }
+    .quick-actions {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:24px; margin-top:24px; box-shadow:var(--shadow-sm);
+    }
+    .quick-action {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:16px 0; border-bottom:1px solid var(--borderLight);
+      cursor:pointer;
+    }
+    .quick-action:last-child { border-bottom:none; }
+    .quick-action-left { display:flex; align-items:center; gap:16px; }
+    .quick-action-left ion-icon { font-size:22px; color:var(--primary); }
+    .quick-action-left span { font-size:16px; font-weight:500; color:var(--textPrimary); }
+    .quick-action > ion-icon { font-size:20px; color:var(--textLight); }
+
+    /* Admin user card */
+    .admin-user-card {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:24px; margin-bottom:8px; box-shadow:var(--shadow-sm);
+    }
+    .admin-user-top { display:flex; justify-content:space-between; align-items:flex-start; }
+    .admin-user-name { font-size:16px; font-weight:700; color:var(--textPrimary); }
+    .admin-user-cel { font-size:13px; color:var(--textLight); margin-top:2px; }
+    .role-badge { padding:3px 10px; border-radius:var(--radius-full); font-size:12px; font-weight:600; }
+    .admin-user-info { display:flex; align-items:center; gap:4px; margin-top:8px; }
+    .admin-user-info ion-icon { font-size:14px; color:var(--textLight); }
+    .admin-user-info span { font-size:13px; color:var(--textLight); }
+    .admin-user-status {
+      display:flex; justify-content:space-between; align-items:center;
+      margin-top:16px; padding-top:8px; border-top:1px solid var(--borderLight);
+    }
+    .status-badges { display:flex; gap:6px; }
+    .status-badge { padding:2px 8px; border-radius:var(--radius-full); font-size:11px; font-weight:600; }
+    .admin-actions { display:flex; gap:8px; }
+    .admin-action-btn {
+      background:none; border:none; cursor:pointer; padding:4px;
+    }
+    .admin-action-btn ion-icon { font-size:24px; }
+
+    /* Admin vacante card */
+    .admin-vac-card {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:24px; margin-bottom:8px; box-shadow:var(--shadow-sm);
+    }
+    .admin-vac-top { display:flex; justify-content:space-between; align-items:flex-start; }
+    .admin-vac-titulo { font-size:16px; font-weight:700; color:var(--textPrimary); }
+    .admin-vac-empresa { font-size:13px; color:var(--textLight); margin-top:2px; }
+    .estado-badge { padding:3px 10px; border-radius:var(--radius-full); font-size:12px; font-weight:600; text-transform:capitalize; }
+    .admin-vac-footer {
+      display:flex; justify-content:space-between; align-items:center;
+      margin-top:16px; padding-top:8px; border-top:1px solid var(--borderLight);
+    }
+    .admin-vac-fecha { font-size:12px; color:var(--textLight); }
+
+    /* ===== BENEFICIO ROW ===== */
+    .beneficio-row {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:8px 0;
+    }
+    .beneficio-label { font-size:16px; color:var(--textPrimary); font-weight:500; }
+
+    /* ===== EMPLEADOR CARD ===== */
+    .emp-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .emp-card-title { font-size:17px; font-weight:700; color:var(--textPrimary); flex:1; }
+
+    /* ===== TOAST ===== */
+    .toast {
+      position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+      background:#333; color:white; padding:12px 24px; border-radius:var(--radius-full);
+      font-size:14px; font-weight:500; z-index:9999; box-shadow:var(--shadow-lg);
+      transition:opacity 0.3s; pointer-events:none;
+    }
+    .toast.hide { opacity:0; }
+
+    /* ===== LOADING ===== */
+    .spinner {
+      width:40px; height:40px; border:4px solid var(--borderLight);
+      border-top-color:var(--primary); border-radius:50%;
+      animation:spin 0.8s linear infinite; margin:0 auto;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .loading-center { display:flex; justify-content:center; align-items:center; padding:96px; }
+
+    /* ===== BACK LINK ===== */
+    .back-link {
+      display:inline-flex; align-items:center; gap:4px; padding:16px;
+      color:var(--primary); font-weight:600; font-size:15px;
+      cursor:pointer; background:none; border:none; font-family:inherit;
+    }
+    .back-link:hover { text-decoration:underline; }
+
+    /* ===== MAX WIDTH CONTAINER ===== */
+    .app-container { max-width:500px; margin:0 auto; min-height:100vh; }
+    .content-scroll { flex:1; padding:16px; overflow-y:auto; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (min-width:768px) {
+      body { background:#e8e8e8; }
+      .app-container {
+        box-shadow:0 0 30px rgba(0,0,0,0.15);
+        background:var(--background);
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <!-- ===== WELCOME SCREEN ===== -->
+  <div id="welcome-screen" class="screen active">
+    <div class="welcome-top">
+      <ion-icon name="leaf"></ion-icon>
+      <div class="welcome-app-name">TerraEmpleo</div>
+      <div class="welcome-tagline">Conectamos el campo colombiano</div>
+    </div>
+    <div class="welcome-bottom">
+      <div class="welcome-title">¡Bienvenido!</div>
+      <div class="welcome-text">Encuentra trabajo rural o los mejores trabajadores para tu finca.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-primary btn-large" onclick="showScreen('login-screen')">Iniciar Sesión</button>
+        <button class="btn btn-outline btn-large" onclick="showScreen('register-role-screen')">Crear Cuenta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== LOGIN SCREEN ===== -->
+  <div id="login-screen" class="screen">
+    <div class="login-scroll">
+      <div class="login-header">
+        <ion-icon name="leaf"></ion-icon>
+        <div class="login-title">Iniciar Sesión</div>
+        <div class="login-subtitle">Ingresa con tu celular y contraseña</div>
+      </div>
+      <div class="login-form">
+        <div class="input-group">
+          <label class="input-label">Número de celular <span class="required">*</span></label>
+          <div class="input-wrap">
+            <ion-icon name="call-outline"></ion-icon>
+            <input type="tel" id="login-celular" placeholder="Ej: 3001234567">
+          </div>
+          <div class="input-error" id="login-celular-error"></div>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Contraseña <span class="required">*</span></label>
+          <div class="input-wrap">
+            <ion-icon name="lock-closed-outline"></ion-icon>
+            <input type="password" id="login-password" placeholder="Tu contraseña">
+            <button class="eye-btn" onclick="togglePassword('login-password', this)">
+              <ion-icon name="eye-outline"></ion-icon>
+            </button>
+          </div>
+          <div class="input-error" id="login-password-error"></div>
+        </div>
+        <button class="btn btn-primary btn-large" onclick="handleLogin()" id="login-btn" style="margin-top:16px;">
+          Iniciar Sesión
+        </button>
+        <button class="btn btn-secondary btn-medium" onclick="showScreen('register-role-screen')" style="margin-top:16px;">
+          ¿No tienes cuenta? Regístrate
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ROLE SELECT SCREEN ===== -->
+  <div id="register-role-screen" class="screen">
+    <button class="back-link" onclick="showScreen('login-screen')">
+      <ion-icon name="arrow-back"></ion-icon> Volver
+    </button>
+    <div class="role-content">
+      <ion-icon name="leaf"></ion-icon>
+      <div class="role-title">¿Quién eres?</div>
+      <div class="role-subtitle">Selecciona tu tipo de cuenta</div>
+      <div class="role-cards">
+        <div class="role-card trabajador" onclick="startRegister('trabajador')">
+          <div class="role-icon-circle" style="background:var(--primary)">
+            <ion-icon name="person"></ion-icon>
+          </div>
+          <div class="role-card-title">Soy Trabajador</div>
+          <div class="role-card-subtitle">Busco trabajo en fincas y zonas rurales</div>
+          <button class="role-select-btn" style="background:var(--primary)">
+            Seleccionar <ion-icon name="arrow-forward"></ion-icon>
+          </button>
+        </div>
+        <div class="role-card empleador" onclick="startRegister('empleador')">
+          <div class="role-icon-circle" style="background:var(--accent)">
+            <ion-icon name="business"></ion-icon>
+          </div>
+          <div class="role-card-title">Soy Empleador</div>
+          <div class="role-card-subtitle">Tengo una finca o empresa y busco trabajadores</div>
+          <button class="role-select-btn" style="background:var(--accent)">
+            Seleccionar <ion-icon name="arrow-forward"></ion-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== REGISTER TRABAJADOR ===== -->
+  <div id="register-trabajador-screen" class="screen">
+    <button class="back-link" onclick="regTrabajadorBack()">
+      <ion-icon name="arrow-back"></ion-icon> Volver
+    </button>
+    <div class="progress-bar-container">
+      <div class="progress-header">
+        <span class="progress-step-text" id="trab-progress-step"></span>
+        <span class="progress-label-text" id="trab-progress-label"></span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="trab-progress-fill"></div></div>
+    </div>
+    <div class="reg-scroll" id="trab-form-area"></div>
+    <div class="reg-footer" id="trab-footer"></div>
+  </div>
+
+  <!-- ===== REGISTER EMPLEADOR ===== -->
+  <div id="register-empleador-screen" class="screen">
+    <button class="back-link" onclick="regEmpleadorBack()">
+      <ion-icon name="arrow-back"></ion-icon> Volver
+    </button>
+    <div class="progress-bar-container">
+      <div class="progress-header">
+        <span class="progress-step-text" id="emp-progress-step"></span>
+        <span class="progress-label-text" id="emp-progress-label"></span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="emp-progress-fill"></div></div>
+    </div>
+    <div class="reg-scroll" id="emp-form-area"></div>
+    <div class="reg-footer" id="emp-footer"></div>
+  </div>
+
+  <!-- ===== DASHBOARD TRABAJADOR ===== -->
+  <div id="dashboard-trabajador" class="screen">
+    <div class="dash-header">
+      <div>
+        <div class="dash-greeting" id="trab-greeting"></div>
+        <div class="dash-subgreeting">Encuentra trabajo cerca de ti</div>
+      </div>
+      <div class="dash-avatar"><ion-icon name="person"></ion-icon></div>
+    </div>
+    <div class="content-scroll" id="trab-vacantes-list"></div>
+    <div class="tab-bar">
+      <button class="tab-item active" onclick="showTrabTab('vacantes')">
+        <ion-icon name="briefcase"></ion-icon><span>Vacantes</span>
+      </button>
+      <button class="tab-item" onclick="showTrabTab('postulaciones')">
+        <ion-icon name="document-text"></ion-icon><span>Postulaciones</span>
+      </button>
+      <button class="tab-item" onclick="showTrabTab('perfil')">
+        <ion-icon name="person-circle"></ion-icon><span>Perfil</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== DASHBOARD EMPLEADOR ===== -->
+  <div id="dashboard-empleador" class="screen">
+    <div class="dash-header">
+      <div>
+        <div class="dash-greeting" id="emp-greeting"></div>
+        <div class="dash-subgreeting">Gestiona tus vacantes</div>
+      </div>
+      <button class="dash-add-btn" onclick="showScreen('crear-vacante-screen')">
+        <ion-icon name="add"></ion-icon>
+      </button>
+    </div>
+    <div class="content-scroll" id="emp-vacantes-list"></div>
+    <div class="tab-bar">
+      <button class="tab-item active" onclick="showEmpTab('vacantes')">
+        <ion-icon name="briefcase"></ion-icon><span>Vacantes</span>
+      </button>
+      <button class="tab-item" onclick="showEmpTab('perfil')">
+        <ion-icon name="person-circle"></ion-icon><span>Perfil</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== DASHBOARD ADMIN ===== -->
+  <div id="dashboard-admin" class="screen">
+    <div style="padding:16px 16px 0;">
+      <div class="admin-header">Panel de Administración</div>
+      <div class="admin-subtitle">Resumen general de TerraEmpleo</div>
+    </div>
+    <div class="content-scroll" id="admin-content"></div>
+    <div class="tab-bar">
+      <button class="tab-item active" onclick="showAdminTab('dashboard')">
+        <ion-icon name="grid"></ion-icon><span>Dashboard</span>
+      </button>
+      <button class="tab-item" onclick="showAdminTab('usuarios')">
+        <ion-icon name="people"></ion-icon><span>Usuarios</span>
+      </button>
+      <button class="tab-item" onclick="showAdminTab('vacantes')">
+        <ion-icon name="briefcase"></ion-icon><span>Vacantes</span>
+      </button>
+      <button class="tab-item" onclick="showAdminTab('perfil')">
+        <ion-icon name="person-circle"></ion-icon><span>Perfil</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== DETALLE VACANTE ===== -->
+  <div id="detalle-vacante-screen" class="screen">
+    <button class="back-link" id="detalle-back-btn">
+      <ion-icon name="arrow-back"></ion-icon> Volver
+    </button>
+    <div class="content-scroll" id="detalle-content"></div>
+  </div>
+
+  <!-- ===== VER POSTULACIONES (empleador) ===== -->
+  <div id="ver-postulaciones-screen" class="screen">
+    <button class="back-link" onclick="showDashboard()">
+      <ion-icon name="arrow-back"></ion-icon> Volver
+    </button>
+    <div id="ver-post-header"></div>
+    <div class="content-scroll" id="ver-post-list"></div>
+  </div>
+
+  <!-- ===== CREAR VACANTE ===== -->
+  <div id="crear-vacante-screen" class="screen">
+    <button class="back-link" onclick="showDashboard()">
+      <ion-icon name="arrow-back"></ion-icon> Volver
+    </button>
+    <div class="content-scroll" id="crear-vacante-content"></div>
+  </div>
+
+</div><!-- .app-container -->
+
+<div id="toast" class="toast hide"></div>
+
+<!-- Ionicons -->
+<script type="module" src="https://unpkg.com/ionicons@7.2.2/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.2.2/dist/ionicons/ionicons.js"></script>
+
+<script>
+// =========================================
+// ===== TERRAEMPLEO FRONTEND =====
+// =========================================
+const API = '/api';
+let currentUser = null;
+let authToken = null;
+let currentTrabTab = 'vacantes';
+let currentEmpTab = 'vacantes';
+let currentAdminTab = 'dashboard';
+
+// ===== DATA =====
+const DEPARTAMENTOS = ["Amazonas","Antioquia","Arauca","Atlántico","Bolívar","Boyacá","Caldas","Caquetá","Casanare","Cauca","Cesar","Chocó","Córdoba","Cundinamarca","Guainía","Guaviare","Huila","La Guajira","Magdalena","Meta","Nariño","Norte de Santander","Putumayo","Quindío","Risaralda","San Andrés y Providencia","Santander","Sucre","Tolima","Valle del Cauca","Vaupés","Vichada"];
+const COLOMBIA_DATA = {"Amazonas":["Leticia","El Encanto","La Chorrera","La Pedrera","Puerto Nariño"],"Antioquia":["Medellín","Abejorral","Andes","Apartadó","Barbosa","Bello","Caldas","Caucasia","Copacabana","Envigado","Itagüí","Jardín","Marinilla","Rionegro","Sabaneta","Santa Fe de Antioquia","Turbo","Yarumal"],"Arauca":["Arauca","Arauquita","Saravena","Tame"],"Atlántico":["Barranquilla","Galapa","Malambo","Soledad"],"Bolívar":["Cartagena de Indias","Magangué","Mompós","Turbaco"],"Boyacá":["Tunja","Chiquinquirá","Duitama","Paipa","Sogamoso","Villa de Leyva"],"Caldas":["Manizales","Chinchiná","La Dorada","Villamaría"],"Caquetá":["Florencia","San Vicente del Caguán"],"Casanare":["Yopal","Aguazul","Villanueva"],"Cauca":["Popayán","Santander de Quilichao","Puerto Tejada"],"Cesar":["Valledupar","Aguachica","Bosconia"],"Chocó":["Quibdó","Istmina"],"Córdoba":["Montería","Cereté","Lorica","Sahagún"],"Cundinamarca":["Bogotá D.C.","Chía","Facatativá","Fusagasugá","Girardot","Madrid","Mosquera","Soacha","Zipaquirá"],"Guainía":["Inírida"],"Guaviare":["San José del Guaviare"],"Huila":["Neiva","Garzón","Pitalito"],"La Guajira":["Riohacha","Maicao","Uribia"],"Magdalena":["Santa Marta","Ciénaga","Fundación"],"Meta":["Villavicencio","Acacías","Granada"],"Nariño":["Pasto","Ipiales","Tumaco"],"Norte de Santander":["Cúcuta","Ocaña","Pamplona"],"Putumayo":["Mocoa","Puerto Asís"],"Quindío":["Armenia","Calarcá","Montenegro"],"Risaralda":["Pereira","Dosquebradas","Santa Rosa de Cabal"],"San Andrés y Providencia":["San Andrés","Providencia"],"Santander":["Bucaramanga","Barrancabermeja","Floridablanca","Girón","Piedecuesta","San Gil"],"Sucre":["Sincelejo","Corozal"],"Tolima":["Ibagué","Espinal","Honda","Melgar"],"Valle del Cauca":["Cali","Buenaventura","Buga","Cartago","Palmira","Tuluá","Yumbo"],"Vaupés":["Mitú"],"Vichada":["Puerto Carreño"]};
+const CULTIVOS = ['Café','Plátano','Papa','Aguacate','Caña de azúcar','Ganadería','Caballos','Peces (piscicultura)','Frijol','Tomate','Flores','Arroz','Maíz','Yuca','Cacao','Palma de aceite','Frutas cítricas','Banano','Piña','Mango'];
+const LABORES = ['Recolección','Fumigación','Poda','Siembra','Riego','Mayordomo','Empaque','Transporte','Mantenimiento general','Ganadería','Administración de finca','Ordeño','Cercado','Manejo de maquinaria','Cuidado de animales'];
+const NIVELES_ESTUDIO = [{label:'Sin estudios',value:'sin_estudios'},{label:'Bachiller',value:'bachiller'},{label:'Técnico / Tecnólogo',value:'tecnico_tecnologo'},{label:'Universitario',value:'universitario'}];
+const TITULOS_SUGERIDOS = ['Técnico agropecuario','Tecnólogo agroindustrial','Técnico en producción animal','Ingeniero agrónomo','Ingeniero ambiental','Médico veterinario','Zootecnista','Administrador de empresas agropecuarias'];
+const EXPERIENCIA_OPTIONS = [{label:'Sin experiencia',value:'sin'},{label:'Menos de 1 año',value:'menos_1'},{label:'1 a 3 años',value:'1_3'},{label:'3 a 5 años',value:'3_5'},{label:'5 a 10 años',value:'5_10'},{label:'Más de 10 años',value:'mas_10'}];
+const DISPONIBILIDAD_OPTIONS = [{label:'Tiempo completo',value:'tiempo_completo'},{label:'Por días',value:'por_dias'},{label:'Temporada / Cosecha',value:'temporada_cosecha'},{label:'Fines de semana',value:'fines_semana'},{label:'Disponible inmediatamente',value:'disponible_inmediatamente'}];
+const TIPO_PAGO_OPTIONS = [{label:'Jornal (diario)',value:'jornal'},{label:'Semanal',value:'semanal'},{label:'Quincenal',value:'quincenal'},{label:'Mensual',value:'mensual'},{label:'Por tarea / Destajo',value:'destajo'}];
+function getMunicipios(dept) { return COLOMBIA_DATA[dept] || []; }
+
+// ===== UTILITIES =====
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.remove('hide');
+  setTimeout(() => t.classList.add('hide'), 3000);
+}
+function togglePassword(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const icon = btn.querySelector('ion-icon');
+  if (inp.type === 'password') { inp.type = 'text'; icon.setAttribute('name','eye-off-outline'); }
+  else { inp.type = 'password'; icon.setAttribute('name','eye-outline'); }
+}
+async function apiCall(endpoint, options = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  const res = await fetch(API + endpoint, { ...options, headers: { ...headers, ...options.headers } });
+  const data = await res.json();
+  if (!res.ok) throw { status: res.status, data };
+  return data;
+}
+
+// ===== SESSION =====
+function saveSession() {
+  if (currentUser && authToken) {
+    localStorage.setItem('terraempleo_session', JSON.stringify({ user: currentUser, token: authToken }));
+  }
+}
+function loadSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem('terraempleo_session'));
+    if (s && s.token && s.user) { currentUser = s.user; authToken = s.token; return true; }
+  } catch(e) {}
+  return false;
+}
+function handleLogout() {
+  currentUser = null; authToken = null;
+  localStorage.removeItem('terraempleo_session');
+  showScreen('welcome-screen');
+  showToast('Sesión cerrada');
+}
+
+// ===== LOGIN =====
+async function handleLogin() {
+  const celular = document.getElementById('login-celular').value.trim();
+  const password = document.getElementById('login-password').value;
+  document.getElementById('login-celular-error').textContent = '';
+  document.getElementById('login-password-error').textContent = '';
+  let valid = true;
+  if (!celular) { document.getElementById('login-celular-error').textContent = 'El celular es obligatorio'; valid = false; }
+  if (!password) { document.getElementById('login-password-error').textContent = 'La contraseña es obligatoria'; valid = false; }
+  if (!valid) return;
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:24px;height:24px;border-width:3px;"></div>';
+  try {
+    const data = await apiCall('/auth/login', { method:'POST', body: JSON.stringify({ celular, password }) });
+    currentUser = data.user; authToken = data.token; saveSession();
+    showToast('¡Bienvenido!');
+    showDashboard();
+  } catch(err) {
+    showToast(err.data?.error || 'Error al iniciar sesión');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Iniciar Sesión';
+  }
+}
+function showDashboard() {
+  if (!currentUser) return showScreen('welcome-screen');
+  if (currentUser.rol === 'trabajador') { showScreen('dashboard-trabajador'); loadTrabajadorDashboard(); }
+  else if (currentUser.rol === 'empleador') { showScreen('dashboard-empleador'); loadEmpleadorDashboard(); }
+  else if (currentUser.rol === 'admin') { showScreen('dashboard-admin'); loadAdminDashboard(); }
+}
+
+// ===== REGISTER =====
+let regData = {};
+let regStep = 1;
+let regRole = '';
+function startRegister(role) {
+  regRole = role; regStep = 1; regData = {};
+  if (role === 'trabajador') { showScreen('register-trabajador-screen'); renderTrabStep(); }
+  else { showScreen('register-empleador-screen'); renderEmpStep(); }
+}
+function regTrabajadorBack() {
+  if (regStep > 1) { regStep--; renderTrabStep(); }
+  else showScreen('register-role-screen');
+}
+function regEmpleadorBack() {
+  if (regStep > 1) { regStep--; renderEmpStep(); }
+  else showScreen('register-role-screen');
+}
+
+// ===== TRABAJADOR REGISTRATION (9 steps) =====
+const TRAB_STEPS = ['Datos personales','Ubicación','Cédula y datos legales','Verificación SMS','Fotos de verificación','Nivel de estudios','Experiencia y habilidades','Cultivos y disponibilidad','Resumen final'];
+function renderTrabStep() {
+  const total = 9;
+  document.getElementById('trab-progress-step').textContent = `Paso ${regStep} de ${total}`;
+  document.getElementById('trab-progress-label').textContent = TRAB_STEPS[regStep-1];
+  document.getElementById('trab-progress-fill').style.width = `${(regStep/total)*100}%`;
+  const area = document.getElementById('trab-form-area');
+  const footer = document.getElementById('trab-footer');
+  let html = '<div class="form-card">';
+  switch(regStep) {
+    case 1: html += `
+      <div class="step-title">Datos Personales</div><div class="step-desc">Cuéntanos quién eres</div>
+      ${inputHTML('trab-nombre','Nombre completo','person-outline','Ej: Juan Pérez García',true,'text',regData.nombre||'')}
+      ${inputHTML('trab-celular','Celular','call-outline','Ej: 3001234567',true,'tel',regData.celular||'')}
+      ${inputHTML('trab-correo','Correo electrónico (opcional)','mail-outline','correo@ejemplo.com',false,'email',regData.correo||'')}
+      ${inputHTML('trab-password','Contraseña','lock-closed-outline','Mínimo 6 caracteres',true,'password',regData.password||'')}
+      ${inputHTML('trab-confirmPassword','Confirmar contraseña','lock-closed-outline','Repite tu contraseña',true,'password',regData.confirmPassword||'')}
+    `; break;
+    case 2: html += `
+      <div class="step-title">Ubicación</div><div class="step-desc">¿Dónde te encuentras?</div>
+      ${pickerButtonHTML('trab-dept',regData.departamento||'','Seleccione departamento *','location-outline')}
+      ${pickerButtonHTML('trab-mun',regData.municipio||'','Seleccione municipio *','map-outline',!regData.departamento)}
+      ${inputHTML('trab-vereda','Vereda (opcional)','trail-sign-outline','Nombre de la vereda',false,'text',regData.vereda||'')}
+    `; break;
+    case 3: html += `
+      <div class="step-title">Cédula y Datos Legales</div>
+      ${inputHTML('trab-cedula','Número de cédula','card-outline','Ej: 1234567890',true,'number',regData.cedula||'')}
+      <div class="checkbox-row">
+        <input type="checkbox" id="trab-habeas" ${regData.habeas?'checked':''}>
+        <span class="checkbox-text">Autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012 (Habeas Data)</span>
+      </div>
+    `; break;
+    case 4:
+      const smsSent = regData.codigoEnviado;
+      html += `<div class="step-title">Verificación SMS</div><div class="step-desc">Verificaremos tu número de celular</div>`;
+      if (!smsSent) {
+        html += `<div class="sms-container"><div class="sms-text">Se enviará un código de 6 dígitos a:</div>
+          <div class="sms-phone">${regData.celular||''}</div>
+          <button class="btn btn-primary btn-large" onclick="enviarCodigoTrab()">Enviar Código</button></div>`;
+      } else {
+        html += `<div class="sms-text">Ingresa el código de 6 dígitos:</div>`;
+        if (regData.codigoDebug) html += `<div class="sms-debug">(Código debug: ${regData.codigoDebug})</div>`;
+        html += `${inputHTML('trab-codigo','Código','key-outline','000000',false,'number',regData.codigo||'')}
+          <button class="btn btn-outline btn-small" onclick="enviarCodigoTrab()" style="margin-top:8px;">Reenviar código</button>`;
+      }
+      break;
+    case 5: html += `
+      <div class="step-title">Fotos de Verificación</div><div class="step-desc">Necesitamos verificar tu identidad</div>
+      <div class="photo-btn ${regData.fotoSelfie?'done':''}" onclick="mockFoto('trab','selfie')">
+        <ion-icon name="${regData.fotoSelfie?'checkmark-circle':'camera'}" style="color:${regData.fotoSelfie?'var(--success)':'var(--primary)'}"></ion-icon>
+        <span class="photo-btn-text">${regData.fotoSelfie?'✓ Selfie tomada':'Tomar Selfie'}</span>
+      </div>
+      <div class="photo-btn ${regData.fotoCedula?'done':''}" onclick="mockFoto('trab','cedula')">
+        <ion-icon name="${regData.fotoCedula?'checkmark-circle':'card'}" style="color:${regData.fotoCedula?'var(--success)':'var(--primary)'}"></ion-icon>
+        <span class="photo-btn-text">${regData.fotoCedula?'✓ Foto de cédula tomada':'Foto de Cédula'}</span>
+      </div>
+      <div class="photo-btn ${regData.fotoSelfieCedula?'done':''}" onclick="mockFoto('trab','selfieCedula')">
+        <ion-icon name="${regData.fotoSelfieCedula?'checkmark-circle':'people'}" style="color:${regData.fotoSelfieCedula?'var(--success)':'var(--primary)'}"></ion-icon>
+        <span class="photo-btn-text">${regData.fotoSelfieCedula?'✓ Selfie con cédula tomada':'Selfie con Cédula'}</span>
+      </div>
+    `; break;
+    case 6: html += `
+      <div class="step-title">Nivel de Estudios</div><div class="step-desc">¿Cuál es tu formación?</div>
+      ${chipSelectorHTML('trab-estudios', NIVELES_ESTUDIO.map(n=>n.label), regData.nivelEstudios?[NIVELES_ESTUDIO.find(n=>n.value===regData.nivelEstudios)?.label]:[],false,false)}
+    `; break;
+    case 7: html += `
+      <div class="step-title">Experiencia y Habilidades</div><div class="step-desc">¿Qué labores sabes hacer?</div>
+      <div class="chip-label">Labores / Habilidades</div>
+      ${chipSelectorHTML('trab-habilidades', LABORES, regData.habilidades||[], true, true, '+ Otra labor')}
+    `; break;
+    case 8: html += `
+      <div class="step-title">Cultivos y Disponibilidad</div>
+      <div class="chip-label">¿En qué cultivos has trabajado?</div>
+      ${chipSelectorHTML('trab-cultivos', CULTIVOS, regData.cultivos||[], true, true, '+ Otro cultivo')}
+      <div class="step-subtitle">Años de experiencia</div>
+      ${chipSelectorHTML('trab-experiencia', EXPERIENCIA_OPTIONS.map(e=>e.label), regData.experiencia?[EXPERIENCIA_OPTIONS.find(e=>e.value===regData.experiencia)?.label]:[], false, false)}
+      <div class="step-subtitle">Disponibilidad</div>
+      ${chipSelectorHTML('trab-disponibilidad', DISPONIBILIDAD_OPTIONS.map(d=>d.label), regData.disponibilidad?[DISPONIBILIDAD_OPTIONS.find(d=>d.value===regData.disponibilidad)?.label]:[], false, false)}
+    `; break;
+    case 9: html += `
+      <div class="step-title">Resumen</div><div class="step-desc">Verifica que tus datos sean correctos</div>
+      <div class="summary-card">
+        ${summaryRow('Nombre',regData.nombre)}${summaryRow('Celular',regData.celular)}
+        ${regData.correo?summaryRow('Correo',regData.correo):''}
+        ${summaryRow('Ubicación',`${regData.municipio||''}, ${regData.departamento||''}`)}
+        ${regData.vereda?summaryRow('Vereda',regData.vereda):''}
+        ${summaryRow('Cédula',regData.cedula)}
+        ${summaryRow('Estudios',NIVELES_ESTUDIO.find(n=>n.value===regData.nivelEstudios)?.label||'N/A')}
+        ${summaryRow('Habilidades',(regData.habilidades||[]).join(', ')||'N/A')}
+        ${summaryRow('Cultivos',(regData.cultivos||[]).join(', ')||'N/A')}
+        ${summaryRow('Experiencia',EXPERIENCIA_OPTIONS.find(e=>e.value===regData.experiencia)?.label||'N/A')}
+        ${summaryRow('Disponibilidad',DISPONIBILIDAD_OPTIONS.find(d=>d.value===regData.disponibilidad)?.label||'N/A')}
+        ${summaryRow('Fotos','✓ Verificadas')}
+      </div>
+    `; break;
+  }
+  html += '</div>';
+  area.innerHTML = html;
+  // Footer
+  let fhtml = '';
+  if (regStep > 1) fhtml += `<button class="btn btn-outline btn-medium" onclick="regTrabajadorBack()">Anterior</button>`;
+  if (regStep < 9) fhtml += `<button class="btn btn-primary btn-medium" onclick="nextTrabStep()">Siguiente</button>`;
+  else fhtml += `<button class="btn btn-primary btn-large" onclick="finishRegTrab()" id="trab-finish-btn">Finalizar Registro</button>`;
+  footer.innerHTML = fhtml;
+  setupTrabListeners();
+}
+function setupTrabListeners() {
+  const deptBtn = document.getElementById('picker-trab-dept');
+  if (deptBtn) deptBtn.onclick = () => showPickerModal('Departamento', DEPARTAMENTOS, regData.departamento, v => { regData.departamento=v; regData.municipio=''; renderTrabStep(); });
+  const munBtn = document.getElementById('picker-trab-mun');
+  if (munBtn && regData.departamento) munBtn.onclick = () => showPickerModal('Municipio', getMunicipios(regData.departamento), regData.municipio, v => { regData.municipio=v; renderTrabStep(); });
+}
+function saveTrabFields() {
+  const g = id => { const el=document.getElementById(id); return el?el.value:''; };
+  if (regStep===1) { regData.nombre=g('trab-nombre'); regData.celular=g('trab-celular'); regData.correo=g('trab-correo'); regData.password=g('trab-password'); regData.confirmPassword=g('trab-confirmPassword'); }
+  if (regStep===2) { regData.vereda=g('trab-vereda'); }
+  if (regStep===3) { regData.cedula=g('trab-cedula'); regData.habeas=document.getElementById('trab-habeas')?.checked; }
+  if (regStep===4) { regData.codigo=g('trab-codigo'); }
+}
+function nextTrabStep() {
+  saveTrabFields();
+  const errs = validateTrabStep();
+  if (errs) { showToast(errs); return; }
+  regStep++; renderTrabStep();
+}
+function validateTrabStep() {
+  switch(regStep) {
+    case 1: if (!regData.nombre) return 'El nombre es obligatorio'; if (!regData.celular||regData.celular.length<7) return 'Celular inválido'; if (!regData.password||regData.password.length<6) return 'Contraseña mínimo 6 caracteres'; if (regData.password!==regData.confirmPassword) return 'Las contraseñas no coinciden'; break;
+    case 2: if (!regData.departamento) return 'Seleccione un departamento'; if (!regData.municipio) return 'Seleccione un municipio'; break;
+    case 3: if (!regData.cedula) return 'La cédula es obligatoria'; if (!regData.habeas) return 'Debe aceptar el tratamiento de datos'; break;
+    case 5: if (!regData.fotoSelfie||!regData.fotoCedula||!regData.fotoSelfieCedula) return 'Todas las fotos son obligatorias'; break;
+    case 6: if (!regData.nivelEstudios) return 'Seleccione su nivel de estudios'; break;
+  }
+  return null;
+}
+async function enviarCodigoTrab() {
+  try {
+    const data = await apiCall('/auth/sms/enviar', { method:'POST', body: JSON.stringify({ celular: regData.celular }) });
+    regData.codigoEnviado = true; regData.codigoDebug = data.codigo_debug;
+    showToast('Código enviado'); renderTrabStep();
+  } catch(e) { showToast('Error al enviar código'); }
+}
+function mockFoto(prefix, tipo) {
+  if (tipo==='selfie') regData.fotoSelfie = true;
+  if (tipo==='cedula') regData.fotoCedula = true;
+  if (tipo==='selfieCedula') regData.fotoSelfieCedula = true;
+  showToast('Foto capturada exitosamente');
+  if (prefix==='trab') renderTrabStep(); else renderEmpStep();
+}
+async function finishRegTrab() {
+  const btn = document.getElementById('trab-finish-btn');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:24px;height:24px;border-width:3px;"></div>';
+  try {
+    const body = {
+      rol:'trabajador', nombre_completo:regData.nombre, celular:regData.celular,
+      correo:regData.correo||undefined, password:regData.password, cedula:regData.cedula,
+      departamento:regData.departamento, municipio:regData.municipio, vereda:regData.vereda||undefined,
+      acepta_habeas_data:true, nivel_estudios:regData.nivelEstudios, titulo_estudio:regData.tituloEstudio||undefined,
+      anios_experiencia:regData.experiencia||undefined, disponibilidad:regData.disponibilidad||undefined,
+      habilidades:(regData.habilidades||[]).map(h=>({nombre:h,es_personalizada:!LABORES.includes(h)})),
+      cultivos_trabajador:(regData.cultivos||[]).map(c=>({nombre:c,es_personalizado:!CULTIVOS.includes(c)})),
+    };
+    const data = await apiCall('/auth/register', { method:'POST', body: JSON.stringify(body) });
+    currentUser = data.user; authToken = data.token; saveSession();
+    showToast('¡Registro exitoso!'); showDashboard();
+  } catch(err) { showToast(err.data?.error||'Error al registrarse'); }
+  finally { btn.disabled = false; btn.textContent = 'Finalizar Registro'; }
+}
+
+// ===== EMPLEADOR REGISTRATION (8 steps) =====
+const EMP_STEPS = ['Datos de finca','Ubicación','Datos de contacto','Cédula y datos legales','Verificación SMS','Fotos de verificación','Cultivos y labores','Resumen final'];
+function renderEmpStep() {
+  const total = 8;
+  document.getElementById('emp-progress-step').textContent = `Paso ${regStep} de ${total}`;
+  document.getElementById('emp-progress-label').textContent = EMP_STEPS[regStep-1];
+  document.getElementById('emp-progress-fill').style.width = `${(regStep/total)*100}%`;
+  const area = document.getElementById('emp-form-area');
+  const footer = document.getElementById('emp-footer');
+  let html = '<div class="form-card">';
+  switch(regStep) {
+    case 1: html += `
+      <div class="step-title">Datos de Finca / Empresa</div><div class="step-desc">¿Cómo se llama tu finca o empresa?</div>
+      ${inputHTML('emp-empresa','Nombre de la finca o empresa','home-outline','Ej: Finca La Esperanza',true,'text',regData.nombreEmpresa||'')}
+    `; break;
+    case 2: html += `
+      <div class="step-title">Ubicación</div><div class="step-desc">¿Dónde está ubicada la finca?</div>
+      ${pickerButtonHTML('emp-dept',regData.departamento||'','Seleccione departamento *','location-outline')}
+      ${pickerButtonHTML('emp-mun',regData.municipio||'','Seleccione municipio *','map-outline',!regData.departamento)}
+      ${inputHTML('emp-vereda','Vereda (opcional)','trail-sign-outline','Nombre de la vereda',false,'text',regData.vereda||'')}
+    `; break;
+    case 3: html += `
+      <div class="step-title">Datos de Contacto</div>
+      ${inputHTML('emp-nombre','Nombre completo (representante)','person-outline','Nombre del contacto',true,'text',regData.nombre||'')}
+      ${inputHTML('emp-celular','Celular','call-outline','3001234567',true,'tel',regData.celular||'')}
+      ${inputHTML('emp-correo','Correo (opcional)','mail-outline','correo@ejemplo.com',false,'email',regData.correo||'')}
+      ${inputHTML('emp-password','Contraseña','lock-closed-outline','Mínimo 6 caracteres',true,'password',regData.password||'')}
+      ${inputHTML('emp-confirmPassword','Confirmar contraseña','lock-closed-outline','Repite tu contraseña',true,'password',regData.confirmPassword||'')}
+    `; break;
+    case 4: html += `
+      <div class="step-title">Cédula y Datos Legales</div>
+      ${inputHTML('emp-cedula','Número de cédula','card-outline','1234567890',true,'number',regData.cedula||'')}
+      <div class="checkbox-row">
+        <input type="checkbox" id="emp-habeas" ${regData.habeas?'checked':''}>
+        <span class="checkbox-text">Autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012 (Habeas Data)</span>
+      </div>
+    `; break;
+    case 5:
+      const smsSent = regData.codigoEnviado;
+      html += `<div class="step-title">Verificación SMS</div>`;
+      if (!smsSent) {
+        html += `<div class="sms-container"><div class="sms-text">Se enviará un código a:</div>
+          <div class="sms-phone">${regData.celular||''}</div>
+          <button class="btn btn-primary btn-large" onclick="enviarCodigoEmp()">Enviar Código</button></div>`;
+      } else {
+        html += `<div class="sms-debug">Código debug: ${regData.codigoDebug||''}</div>
+          ${inputHTML('emp-codigo','Código','key-outline','000000',false,'number',regData.codigo||'')}
+          <button class="btn btn-outline btn-small" onclick="enviarCodigoEmp()">Reenviar</button>`;
+      }
+      break;
+    case 6: html += `
+      <div class="step-title">Fotos de Verificación</div>
+      <div class="photo-btn ${regData.fotoSelfie?'done':''}" onclick="mockFoto('emp','selfie')">
+        <ion-icon name="${regData.fotoSelfie?'checkmark-circle':'camera'}" style="color:${regData.fotoSelfie?'var(--success)':'var(--primary)'}"></ion-icon>
+        <span class="photo-btn-text">${regData.fotoSelfie?'✓ Selfie':'Tomar Selfie'}</span>
+      </div>
+      <div class="photo-btn ${regData.fotoCedula?'done':''}" onclick="mockFoto('emp','cedula')">
+        <ion-icon name="${regData.fotoCedula?'checkmark-circle':'card'}" style="color:${regData.fotoCedula?'var(--success)':'var(--primary)'}"></ion-icon>
+        <span class="photo-btn-text">${regData.fotoCedula?'✓ Cédula':'Foto Cédula'}</span>
+      </div>
+      <div class="photo-btn ${regData.fotoSelfieCedula?'done':''}" onclick="mockFoto('emp','selfieCedula')">
+        <ion-icon name="${regData.fotoSelfieCedula?'checkmark-circle':'people'}" style="color:${regData.fotoSelfieCedula?'var(--success)':'var(--primary)'}"></ion-icon>
+        <span class="photo-btn-text">${regData.fotoSelfieCedula?'✓ Selfie+Cédula':'Selfie con Cédula'}</span>
+      </div>
+    `; break;
+    case 7: html += `
+      <div class="step-title">Cultivos, Labores y Pago</div>
+      <div class="chip-label">¿Qué cultivos maneja?</div>
+      ${chipSelectorHTML('emp-cultivos', CULTIVOS, regData.cultivosEmp||[], true, true, '+ Otro cultivo')}
+      <div class="chip-label" style="margin-top:24px;">¿Qué labores necesita?</div>
+      ${chipSelectorHTML('emp-labores', LABORES, regData.labores||[], true, true, '+ Otra labor')}
+      <div class="step-subtitle">Tipo de pago</div>
+      ${chipSelectorHTML('emp-tipoPago', TIPO_PAGO_OPTIONS.map(t=>t.label), regData.tipoPago?[TIPO_PAGO_OPTIONS.find(t=>t.value===regData.tipoPago)?.label]:[], false, false)}
+      <div style="margin-top:24px">
+        <div class="beneficio-row"><span class="beneficio-label">¿Ofrece alojamiento?</span>
+          <label class="toggle"><input type="checkbox" id="emp-alojamiento" ${regData.ofreceAlojamiento?'checked':''}><span class="toggle-slider"></span></label></div>
+        <div class="beneficio-row"><span class="beneficio-label">¿Ofrece alimentación?</span>
+          <label class="toggle"><input type="checkbox" id="emp-alimentacion" ${regData.ofreceAlimentacion?'checked':''}><span class="toggle-slider"></span></label></div>
+        ${inputHTML('emp-beneficios','¿Qué más ofrece? (opcional)','gift-outline','Ej: Transporte incluido',false,'text',regData.beneficiosExtra||'')}
+      </div>
+    `; break;
+    case 8: html += `
+      <div class="step-title">Resumen</div>
+      <div class="summary-card">
+        ${summaryRow('Finca/Empresa',regData.nombreEmpresa)}${summaryRow('Representante',regData.nombre)}
+        ${summaryRow('Celular',regData.celular)}${summaryRow('Ubicación',`${regData.municipio||''}, ${regData.departamento||''}`)}
+        ${summaryRow('Cultivos',(regData.cultivosEmp||[]).join(', ')||'N/A')}
+        ${summaryRow('Labores',(regData.labores||[]).join(', ')||'N/A')}
+        ${summaryRow('Pago',TIPO_PAGO_OPTIONS.find(t=>t.value===regData.tipoPago)?.label||'N/A')}
+        ${summaryRow('Alojamiento',regData.ofreceAlojamiento?'Sí':'No')}
+        ${summaryRow('Alimentación',regData.ofreceAlimentacion?'Sí':'No')}
+      </div>
+    `; break;
+  }
+  html += '</div>';
+  area.innerHTML = html;
+  let fhtml = '';
+  if (regStep > 1) fhtml += `<button class="btn btn-outline btn-medium" onclick="regEmpleadorBack()">Anterior</button>`;
+  if (regStep < 8) fhtml += `<button class="btn btn-primary btn-medium" onclick="nextEmpStep()">Siguiente</button>`;
+  else fhtml += `<button class="btn btn-primary btn-large" onclick="finishRegEmp()" id="emp-finish-btn">Finalizar Registro</button>`;
+  footer.innerHTML = fhtml;
+  setupEmpListeners();
+}
+function setupEmpListeners() {
+  const deptBtn = document.getElementById('picker-emp-dept');
+  if (deptBtn) deptBtn.onclick = () => showPickerModal('Departamento', DEPARTAMENTOS, regData.departamento, v => { regData.departamento=v; regData.municipio=''; renderEmpStep(); });
+  const munBtn = document.getElementById('picker-emp-mun');
+  if (munBtn && regData.departamento) munBtn.onclick = () => showPickerModal('Municipio', getMunicipios(regData.departamento), regData.municipio, v => { regData.municipio=v; renderEmpStep(); });
+}
+function saveEmpFields() {
+  const g = id => { const el=document.getElementById(id); return el?el.value:''; };
+  if (regStep===1) { regData.nombreEmpresa=g('emp-empresa'); }
+  if (regStep===2) { regData.vereda=g('emp-vereda'); }
+  if (regStep===3) { regData.nombre=g('emp-nombre'); regData.celular=g('emp-celular'); regData.correo=g('emp-correo'); regData.password=g('emp-password'); regData.confirmPassword=g('emp-confirmPassword'); }
+  if (regStep===4) { regData.cedula=g('emp-cedula'); regData.habeas=document.getElementById('emp-habeas')?.checked; }
+  if (regStep===5) { regData.codigo=g('emp-codigo'); }
+  if (regStep===7) { regData.ofreceAlojamiento=document.getElementById('emp-alojamiento')?.checked; regData.ofreceAlimentacion=document.getElementById('emp-alimentacion')?.checked; regData.beneficiosExtra=g('emp-beneficios'); }
+}
+function nextEmpStep() {
+  saveEmpFields();
+  const errs = validateEmpStep();
+  if (errs) { showToast(errs); return; }
+  regStep++; renderEmpStep();
+}
+function validateEmpStep() {
+  switch(regStep) {
+    case 1: if (!regData.nombreEmpresa) return 'El nombre de la finca es obligatorio'; break;
+    case 2: if (!regData.departamento) return 'Seleccione un departamento'; if (!regData.municipio) return 'Seleccione un municipio'; break;
+    case 3: if (!regData.nombre) return 'El nombre es obligatorio'; if (!regData.celular) return 'El celular es obligatorio'; if (!regData.password||regData.password.length<6) return 'Contraseña mínimo 6 caracteres'; if (regData.password!==regData.confirmPassword) return 'Las contraseñas no coinciden'; break;
+    case 4: if (!regData.cedula) return 'La cédula es obligatoria'; if (!regData.habeas) return 'Debe aceptar'; break;
+    case 6: if (!regData.fotoSelfie||!regData.fotoCedula||!regData.fotoSelfieCedula) return 'Todas las fotos son obligatorias'; break;
+  }
+  return null;
+}
+async function enviarCodigoEmp() {
+  try {
+    const data = await apiCall('/auth/sms/enviar', { method:'POST', body: JSON.stringify({ celular: regData.celular }) });
+    regData.codigoEnviado = true; regData.codigoDebug = data.codigo_debug;
+    showToast('Código enviado'); renderEmpStep();
+  } catch(e) { showToast('Error al enviar código'); }
+}
+async function finishRegEmp() {
+  const btn = document.getElementById('emp-finish-btn');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:24px;height:24px;border-width:3px;"></div>';
+  try {
+    const body = {
+      rol:'empleador', nombre_completo:regData.nombre, celular:regData.celular,
+      correo:regData.correo||undefined, password:regData.password, cedula:regData.cedula,
+      departamento:regData.departamento, municipio:regData.municipio, vereda:regData.vereda||undefined,
+      acepta_habeas_data:true, nombre_empresa_finca:regData.nombreEmpresa,
+      tipo_pago:regData.tipoPago||undefined, ofrece_alojamiento:!!regData.ofreceAlojamiento,
+      ofrece_alimentacion:!!regData.ofreceAlimentacion, beneficios_extra:regData.beneficiosExtra||undefined,
+      cultivos_empleador:(regData.cultivosEmp||[]).map(c=>({nombre:c,es_personalizado:!CULTIVOS.includes(c)})),
+      labores:(regData.labores||[]).map(l=>({nombre:l,es_personalizada:!LABORES.includes(l)})),
+    };
+    const data = await apiCall('/auth/register', { method:'POST', body: JSON.stringify(body) });
+    currentUser = data.user; authToken = data.token; saveSession();
+    showToast('¡Registro exitoso!'); showDashboard();
+  } catch(err) { showToast(err.data?.error||'Error al registrarse'); }
+  finally { btn.disabled = false; btn.textContent = 'Finalizar Registro'; }
+}
+
+// ===== HTML HELPERS =====
+function inputHTML(id,label,icon,placeholder,required,type,value) {
+  return `<div class="input-group">
+    <label class="input-label">${label}${required?' <span class="required">*</span>':''}</label>
+    <div class="input-wrap"><ion-icon name="${icon}"></ion-icon>
+    <input type="${type}" id="${id}" placeholder="${placeholder}" value="${value||''}" ${type==='number'?'inputmode="numeric"':''}>
+    ${type==='password'?`<button class="eye-btn" onclick="togglePassword('${id}',this)"><ion-icon name="eye-outline"></ion-icon></button>`:''}
+    </div></div>`;
+}
+function pickerButtonHTML(id,value,placeholder,icon,disabled) {
+  return `<div class="picker-button ${disabled?'disabled':''}" id="picker-${id}">
+    <ion-icon name="${icon}" style="color:var(--primary)"></ion-icon>
+    <span class="picker-text ${!value?'placeholder':''}">${value||placeholder}</span>
+    <ion-icon name="chevron-down" style="color:var(--textLight)"></ion-icon>
+  </div>`;
+}
+function chipSelectorHTML(id,options,selected,multi,allowCustom,customLabel) {
+  let html = `<div class="chips-container" data-id="${id}" data-multi="${multi}" data-selected='${JSON.stringify(selected)}'>`;
+  options.forEach(opt => {
+    const sel = selected.includes(opt);
+    html += `<div class="chip ${sel?'selected':''}" onclick="toggleChip(this,'${id}',\`${opt}\`,${multi})">${sel?'<ion-icon name="checkmark-circle" style="font-size:18px;color:var(--white)"></ion-icon> ':''}${opt}</div>`;
+  });
+  // Custom chips
+  (selected||[]).filter(s=>!options.includes(s)).forEach(c => {
+    html += `<div class="chip custom" onclick="removeCustomChip(this,'${id}',\`${c}\`)">${c} <ion-icon name="close-circle" style="font-size:18px;color:var(--white);margin-left:4px;"></ion-icon></div>`;
+  });
+  if (allowCustom) {
+    html += `<div class="chip add" onclick="showCustomChipModal('${id}')"><ion-icon name="add-circle-outline" style="font-size:18px;"></ion-icon> ${customLabel||'+ Otro'}</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+function summaryRow(label,value) {
+  return `<div class="summary-row"><span class="summary-label">${label}:</span><span class="summary-value">${value||'N/A'}</span></div>`;
+}
+
+// ===== CHIP LOGIC =====
+function toggleChip(el,id,value,multi) {
+  const container = el.closest('.chips-container');
+  let selected = JSON.parse(container.dataset.selected||'[]');
+  if (multi) {
+    if (selected.includes(value)) selected = selected.filter(s=>s!==value);
+    else selected.push(value);
+  } else {
+    selected = [value];
+  }
+  container.dataset.selected = JSON.stringify(selected);
+  saveChipData(id, selected);
+  // Re-render in current registration context
+  if (regRole==='trabajador') { saveTrabFields(); renderTrabStep(); }
+  else if (regRole==='empleador') { saveEmpFields(); renderEmpStep(); }
+  else if (id.startsWith('cv-')) { /* crear vacante context - handled separately */ }
+}
+function removeCustomChip(el,id,value) {
+  const container = el.closest('.chips-container');
+  let selected = JSON.parse(container.dataset.selected||'[]');
+  selected = selected.filter(s=>s!==value);
+  container.dataset.selected = JSON.stringify(selected);
+  saveChipData(id, selected);
+  if (regRole==='trabajador') { saveTrabFields(); renderTrabStep(); }
+  else if (regRole==='empleador') { saveEmpFields(); renderEmpStep(); }
+}
+function saveChipData(id, selected) {
+  if (id==='trab-estudios') { const n = NIVELES_ESTUDIO.find(n=>n.label===selected[0]); regData.nivelEstudios=n?.value||''; }
+  else if (id==='trab-habilidades') regData.habilidades=selected;
+  else if (id==='trab-cultivos') regData.cultivos=selected;
+  else if (id==='trab-experiencia') { const e = EXPERIENCIA_OPTIONS.find(e=>e.label===selected[0]); regData.experiencia=e?.value||''; }
+  else if (id==='trab-disponibilidad') { const d = DISPONIBILIDAD_OPTIONS.find(d=>d.label===selected[0]); regData.disponibilidad=d?.value||''; }
+  else if (id==='emp-cultivos') regData.cultivosEmp=selected;
+  else if (id==='emp-labores') regData.labores=selected;
+  else if (id==='emp-tipoPago') { const t = TIPO_PAGO_OPTIONS.find(t=>t.label===selected[0]); regData.tipoPago=t?.value||''; }
+}
+function showCustomChipModal(id) {
+  const overlay = document.createElement('div');
+  overlay.className = 'chip-modal-overlay';
+  overlay.innerHTML = `<div class="chip-modal"><div class="chip-modal-title">Agregar opción</div>
+    <div class="input-wrap"><input type="text" id="custom-chip-input" placeholder="Escribe aquí..." autofocus></div>
+    <div class="chip-modal-btns">
+      <button class="btn btn-outline btn-small" onclick="this.closest('.chip-modal-overlay').remove()">Cancelar</button>
+      <button class="btn btn-primary btn-small" onclick="addCustomChip('${id}')">Agregar</button>
+    </div></div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = e => { if (e.target===overlay) overlay.remove(); };
+  setTimeout(() => document.getElementById('custom-chip-input')?.focus(), 100);
+}
+function addCustomChip(id) {
+  const input = document.getElementById('custom-chip-input');
+  const val = input?.value.trim();
+  if (!val) return;
+  if (id==='trab-habilidades') { regData.habilidades = [...(regData.habilidades||[]),val]; }
+  else if (id==='trab-cultivos') { regData.cultivos = [...(regData.cultivos||[]),val]; }
+  else if (id==='emp-cultivos') { regData.cultivosEmp = [...(regData.cultivosEmp||[]),val]; }
+  else if (id==='emp-labores') { regData.labores = [...(regData.labores||[]),val]; }
+  else if (id==='cv-cultivos') { crearVacanteData.cultivos = [...(crearVacanteData.cultivos||[]),val]; renderCrearVacante(); }
+  else if (id==='cv-labores') { crearVacanteData.labores = [...(crearVacanteData.labores||[]),val]; renderCrearVacante(); }
+  document.querySelector('.chip-modal-overlay')?.remove();
+  if (regRole==='trabajador') renderTrabStep();
+  else if (regRole==='empleador') renderEmpStep();
+}
+
+// ===== PICKER MODAL =====
+function showPickerModal(title, options, selectedValue, onSelect) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  let listHTML = '';
+  options.forEach(opt => {
+    const label = typeof opt==='string'?opt:opt.label;
+    const val = typeof opt==='string'?opt:opt.value;
+    const sel = val===selectedValue;
+    listHTML += `<div class="modal-option ${sel?'selected':''}" data-value="${val}">
+      <span class="modal-option-text">${label}</span>
+      ${sel?'<ion-icon name="checkmark-circle" style="font-size:22px;color:var(--primary);"></ion-icon>':''}
+    </div>`;
+  });
+  overlay.innerHTML = `<div class="modal-content">
+    <div class="modal-header"><span class="modal-title">${title}</span>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()"><ion-icon name="close-circle"></ion-icon></button></div>
+    <div class="modal-search"><div class="input-wrap"><ion-icon name="search"></ion-icon>
+      <input type="text" placeholder="Buscar..." oninput="filterPickerOptions(this)"></div></div>
+    <div class="modal-list">${listHTML}</div></div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = e => { if (e.target===overlay) overlay.remove(); };
+  overlay.querySelectorAll('.modal-option').forEach(opt => {
+    opt.onclick = () => { onSelect(opt.dataset.value); overlay.remove(); };
+  });
+}
+function filterPickerOptions(input) {
+  const search = input.value.toLowerCase();
+  input.closest('.modal-content').querySelectorAll('.modal-option').forEach(opt => {
+    opt.style.display = opt.textContent.toLowerCase().includes(search) ? '' : 'none';
+  });
+}
+
+// ===== TRABAJADOR DASHBOARD =====
+async function loadTrabajadorDashboard() {
+  document.getElementById('trab-greeting').textContent = `¡Hola, ${currentUser.nombre_completo.split(' ')[0]}!`;
+  currentTrabTab = 'vacantes';
+  updateTrabTabs();
+  await loadTrabVacantes();
+}
+function showTrabTab(tab) {
+  currentTrabTab = tab;
+  updateTrabTabs();
+  if (tab==='vacantes') loadTrabVacantes();
+  else if (tab==='postulaciones') loadTrabPostulaciones();
+  else if (tab==='perfil') loadPerfil('trab-vacantes-list');
+}
+function updateTrabTabs() {
+  document.querySelectorAll('#dashboard-trabajador .tab-item').forEach((t,i) => {
+    t.classList.toggle('active', ['vacantes','postulaciones','perfil'][i]===currentTrabTab);
+  });
+}
+async function loadTrabVacantes() {
+  const list = document.getElementById('trab-vacantes-list');
+  list.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall('/vacantes');
+    const vacantes = data.vacantes || [];
+    if (vacantes.length === 0) {
+      list.innerHTML = `<div class="empty-state"><ion-icon name="briefcase-outline"></ion-icon><h3>No hay vacantes disponibles aún</h3><p>Desliza hacia abajo para actualizar</p></div>`;
+      return;
+    }
+    list.innerHTML = vacantes.map(v => `
+      <div class="vacante-card ${v.urgente?'urgent':''}" onclick="showDetalleVacante(${v.id})">
+        ${v.urgente?'<div class="urgent-badge"><ion-icon name="alert-circle"></ion-icon><span>URGENTE</span></div>':''}
+        <div class="card-title">${v.titulo}</div>
+        ${v.nombre_empresa_finca?`<div class="card-row"><ion-icon name="business-outline" style="color:var(--textSecondary)"></ion-icon><span class="card-row-text">${v.nombre_empresa_finca}</span></div>`:''}
+        <div class="card-row"><ion-icon name="location-outline" style="color:var(--primary)"></ion-icon><span class="card-row-text">${v.municipio?v.municipio+', ':''}${v.departamento||'Sin ubicación'}</span></div>
+        ${v.tipo_pago?`<div class="card-row"><ion-icon name="cash-outline" style="color:var(--accent)"></ion-icon><span class="card-row-text">Pago: ${v.tipo_pago}</span></div>`:''}
+        <div class="card-chips">
+          ${(v.cultivos||[]).slice(0,3).map(c=>`<span class="mini-chip">${c.cultivo||c}</span>`).join('')}
+          ${(v.labores||[]).slice(0,2).map(l=>`<span class="mini-chip accent">${l.labor||l}</span>`).join('')}
+        </div>
+        <div class="card-date">${new Date(v.created_at).toLocaleDateString('es-CO')}</div>
+      </div>
+    `).join('');
+  } catch(err) { list.innerHTML = `<div class="empty-state"><ion-icon name="alert-circle-outline"></ion-icon><h3>Error cargando vacantes</h3></div>`; }
+}
+async function loadTrabPostulaciones() {
+  const list = document.getElementById('trab-vacantes-list');
+  list.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall('/vacantes/mis-postulaciones/lista');
+    const posts = data.postulaciones || [];
+    if (posts.length === 0) {
+      list.innerHTML = `<div class="empty-state"><ion-icon name="document-outline"></ion-icon><h3>No tienes postulaciones aún</h3></div>`;
+      return;
+    }
+    list.innerHTML = posts.map(p => {
+      const ec = p.estado==='aceptada'?'var(--success)':p.estado==='rechazada'?'var(--error)':p.estado==='match_auto'?'var(--info)':'var(--warning)';
+      const el = p.estado==='aceptada'?'Aceptada':p.estado==='rechazada'?'Rechazada':p.estado==='match_auto'?'Match automático':'Pendiente';
+      return `<div class="post-card">
+        <div class="post-card-header"><span class="post-card-title">${p.titulo}</span>
+          <span class="badge" style="background:${ec}">${el}</span></div>
+        ${p.nombre_empresa_finca?`<div class="card-row"><ion-icon name="business-outline" style="font-size:15px;color:var(--textSecondary)"></ion-icon><span class="card-row-text">${p.nombre_empresa_finca}</span></div>`:''}
+        <div class="card-row"><ion-icon name="location-outline" style="font-size:15px;color:var(--textSecondary)"></ion-icon><span class="card-row-text">${p.municipio}, ${p.departamento}</span></div>
+        ${p.puntaje_match>0?`<div class="card-row"><ion-icon name="flash-outline" style="font-size:15px;color:var(--accent)"></ion-icon><span class="card-row-text" style="color:var(--accent)">Match: ${Math.round(p.puntaje_match)}%</span></div>`:''}
+        <div class="card-date">${new Date(p.created_at).toLocaleDateString('es-CO')}</div>
+      </div>`;
+    }).join('');
+  } catch(err) { list.innerHTML = `<div class="empty-state"><h3>Error cargando postulaciones</h3></div>`; }
+}
+
+// ===== DETALLE VACANTE =====
+let currentVacante = null;
+async function showDetalleVacante(id) {
+  showScreen('detalle-vacante-screen');
+  const content = document.getElementById('detalle-content');
+  content.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  document.getElementById('detalle-back-btn').onclick = () => showDashboard();
+  try {
+    const data = await apiCall(`/vacantes/${id}`);
+    currentVacante = data.vacante || data;
+    const v = currentVacante;
+    let html = `<div class="detalle-card">
+      ${v.urgente?'<div class="urgent-badge"><ion-icon name="alert-circle"></ion-icon><span>URGENTE</span></div>':''}
+      <div class="detalle-title">${v.titulo}</div>
+      ${v.nombre_empresa_finca?`<div class="detalle-info-row"><ion-icon name="business-outline"></ion-icon><span>${v.nombre_empresa_finca}</span></div>`:''}
+      <div class="detalle-info-row"><ion-icon name="person-outline"></ion-icon><span>Publicada por: ${v.nombre_empleador||'Empleador'}</span></div>
+      <div class="detalle-info-row"><ion-icon name="location-outline"></ion-icon><span>${v.municipio||''}, ${v.departamento||''}</span></div>
+      ${v.tipo_pago?`<div class="detalle-info-row"><ion-icon name="cash-outline"></ion-icon><span>Pago: ${v.tipo_pago}</span></div>`:''}
+      ${v.ofrece_alojamiento!==undefined?`<div class="detalle-info-row"><ion-icon name="home-outline"></ion-icon><span>Alojamiento: ${v.ofrece_alojamiento?'Sí':'No'}</span></div>`:''}
+      ${v.ofrece_alimentacion!==undefined?`<div class="detalle-info-row"><ion-icon name="restaurant-outline"></ion-icon><span>Alimentación: ${v.ofrece_alimentacion?'Sí':'No'}</span></div>`:''}
+      ${v.descripcion?`<div class="detalle-section"><div class="detalle-section-title">Descripción</div><div class="detalle-desc">${v.descripcion}</div></div>`:''}
+      ${(v.cultivos||[]).length?`<div class="detalle-section"><div class="detalle-section-title">Cultivos</div><div class="card-chips">${v.cultivos.map(c=>`<span class="mini-chip">${c.cultivo||c}</span>`).join('')}</div></div>`:''}
+      ${(v.labores||[]).length?`<div class="detalle-section"><div class="detalle-section-title">Labores requeridas</div><div class="card-chips">${v.labores.map(l=>`<span class="mini-chip accent">${l.labor||l}</span>`).join('')}</div></div>`:''}
+    </div>`;
+    if (currentUser?.rol==='trabajador') {
+      html += `<div class="apply-card" id="apply-section">
+        <div class="apply-title">¿Te interesa?</div>
+        ${inputHTML('apply-mensaje','Mensaje (opcional)','chatbubble-outline','Escribe un mensaje al empleador...',false,'text','')}
+        <button class="btn btn-primary btn-large" onclick="postularse(${v.id})" id="apply-btn">Postularme</button>
+      </div>`;
+    }
+    content.innerHTML = html;
+  } catch(err) { content.innerHTML = `<div class="empty-state"><h3>Error cargando vacante</h3></div>`; }
+}
+async function postularse(vacanteId) {
+  const btn = document.getElementById('apply-btn');
+  btn.disabled = true;
+  try {
+    await apiCall('/vacantes/postularse', { method:'POST', body: JSON.stringify({ vacante_id: vacanteId, mensaje: document.getElementById('apply-mensaje')?.value||'' }) });
+    document.getElementById('apply-section').innerHTML = `<div class="applied-card"><ion-icon name="checkmark-circle"></ion-icon><p>¡Ya te postulaste!</p></div>`;
+    showToast('¡Te has postulado exitosamente!');
+  } catch(err) { showToast(err.data?.error||'Error al postularse'); btn.disabled = false; }
+}
+
+// ===== EMPLEADOR DASHBOARD =====
+async function loadEmpleadorDashboard() {
+  document.getElementById('emp-greeting').textContent = `¡Hola, ${currentUser.nombre_completo.split(' ')[0]}!`;
+  currentEmpTab = 'vacantes';
+  updateEmpTabs();
+  await loadEmpVacantes();
+}
+function showEmpTab(tab) {
+  currentEmpTab = tab;
+  updateEmpTabs();
+  if (tab==='vacantes') loadEmpVacantes();
+  else if (tab==='perfil') loadPerfil('emp-vacantes-list');
+}
+function updateEmpTabs() {
+  document.querySelectorAll('#dashboard-empleador .tab-item').forEach((t,i) => {
+    t.classList.toggle('active', ['vacantes','perfil'][i]===currentEmpTab);
+  });
+}
+async function loadEmpVacantes() {
+  const list = document.getElementById('emp-vacantes-list');
+  list.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall('/vacantes/mis-vacantes');
+    const vacantes = data.vacantes || [];
+    if (vacantes.length === 0) {
+      list.innerHTML = `<div class="empty-state"><ion-icon name="document-text-outline"></ion-icon><h3>No tienes vacantes publicadas</h3>
+        <button class="btn btn-primary btn-medium" style="max-width:250px;margin:16px auto 0;" onclick="showScreen('crear-vacante-screen');renderCrearVacante();">Crear primera vacante</button></div>`;
+      return;
+    }
+    list.innerHTML = vacantes.map(v => `
+      <div class="vacante-card" onclick="showVerPostulaciones(${v.id},'${(v.titulo||'').replace(/'/g,"\\'")}')">
+        <div class="emp-card-header"><span class="emp-card-title">${v.titulo}</span>
+          <span class="badge" style="background:${v.estado==='activa'?'var(--success)':'var(--textLight)'}">${v.estado}</span></div>
+        <div class="card-row"><ion-icon name="people-outline" style="color:var(--primary)"></ion-icon><span class="card-row-text">${v.total_postulaciones||0} postulantes</span></div>
+        <div class="card-row"><ion-icon name="location-outline" style="color:var(--textSecondary)"></ion-icon><span class="card-row-text">${v.municipio}, ${v.departamento}</span></div>
+        ${v.urgente?'<div class="card-row" style="margin-top:8px;"><ion-icon name="alert-circle" style="font-size:12px;color:var(--urgent);"></ion-icon><span style="font-size:12px;color:var(--urgent);font-weight:600;">Urgente</span></div>':''}
+      </div>
+    `).join('');
+  } catch(err) { list.innerHTML = `<div class="empty-state"><h3>Error cargando vacantes</h3></div>`; }
+}
+
+// ===== VER POSTULACIONES (empleador) =====
+let currentVacanteId = null;
+async function showVerPostulaciones(vacanteId, titulo) {
+  currentVacanteId = vacanteId;
+  showScreen('ver-postulaciones-screen');
+  document.getElementById('ver-post-header').innerHTML = `<div class="postulaciones-header"><h2>${titulo}</h2></div>`;
+  const list = document.getElementById('ver-post-list');
+  list.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall(`/vacantes/postulaciones/${vacanteId}`);
+    const posts = data.postulaciones || [];
+    if (posts.length === 0) {
+      list.innerHTML = `<div class="empty-state"><ion-icon name="people-outline"></ion-icon><h3>Aún no hay postulantes</h3></div>`;
+      return;
+    }
+    list.innerHTML = posts.map(p => {
+      const ec = p.estado==='aceptada'?'var(--success)':p.estado==='rechazada'?'var(--error)':p.estado==='match_auto'?'var(--info)':'var(--warning)';
+      return `<div class="postulante-card">
+        <div class="postulante-top">
+          <div class="postulante-avatar"><ion-icon name="person"></ion-icon></div>
+          <div style="flex:1"><div class="postulante-name">${p.nombre_completo}</div>
+            <div class="postulante-info">${p.celular}</div>
+            <div class="postulante-info">${p.municipio}, ${p.departamento}</div></div>
+          <span class="badge" style="background:${ec}">${p.estado}</span>
+        </div>
+        ${p.puntaje_match>0?`<div class="match-row"><ion-icon name="flash" style="font-size:16px;color:var(--accent);"></ion-icon><span class="match-text">Match: ${Math.round(p.puntaje_match)}%</span></div>`:''}
+        ${p.nivel_estudios?`<div class="postulante-detail">Estudios: ${p.nivel_estudios}</div>`:''}
+        ${p.disponibilidad?`<div class="postulante-detail">Disponibilidad: ${p.disponibilidad}</div>`:''}
+        ${(p.estado==='pendiente'||p.estado==='match_auto')?`
+          <div class="postulante-actions">
+            <button class="btn btn-primary btn-small" onclick="cambiarEstadoPost(${p.id},'aceptada')">Aceptar</button>
+            <button class="btn btn-danger btn-small" onclick="cambiarEstadoPost(${p.id},'rechazada')">Rechazar</button>
+          </div>`:''}
+        ${p.estado==='aceptada'?`<button class="btn btn-outline btn-small" style="margin-top:8px;" onclick="showCalificarBox(${p.trabajador_id},'${(p.nombre_completo||'').replace(/'/g,"\\'")}',this)">Calificar</button>`:''}
+      </div>`;
+    }).join('');
+  } catch(err) { list.innerHTML = `<div class="empty-state"><h3>Error cargando postulaciones</h3></div>`; }
+}
+async function cambiarEstadoPost(postId, estado) {
+  try {
+    await apiCall(`/vacantes/postulaciones/${postId}/estado`, { method:'PUT', body: JSON.stringify({ estado }) });
+    showToast(`Postulación ${estado}`);
+    showVerPostulaciones(currentVacanteId, document.querySelector('#ver-post-header h2')?.textContent||'');
+  } catch(err) { showToast('Error al actualizar'); }
+}
+function showCalificarBox(trabajadorId, nombre, btn) {
+  const card = btn.closest('.postulante-card');
+  btn.style.display = 'none';
+  const box = document.createElement('div');
+  box.className = 'calificar-box';
+  box.innerHTML = `<div class="calificar-title">Calificar a ${nombre}</div>
+    <div class="star-rating" id="stars-${trabajadorId}">${[1,2,3,4,5].map(s=>`<ion-icon name="star-outline" style="color:var(--starEmpty);font-size:32px;cursor:pointer;" onclick="setStars(${trabajadorId},${s})"></ion-icon>`).join('')}</div>
+    ${inputHTML('cal-comment-'+trabajadorId,'Comentario (opcional)','chatbubble-outline','...',false,'text','')}
+    <div class="postulante-actions">
+      <button class="btn btn-primary btn-small" onclick="enviarCalificacion(${trabajadorId})">Enviar</button>
+      <button class="btn btn-outline btn-small" onclick="this.closest('.calificar-box').remove();document.querySelector('[onclick*=showCalificarBox]')&&(document.querySelector('[onclick*=showCalificarBox]').style.display='')">Cancelar</button>
+    </div>`;
+  card.appendChild(box);
+}
+let currentStars = {};
+function setStars(id, count) {
+  currentStars[id] = count;
+  document.querySelectorAll(`#stars-${id} ion-icon`).forEach((star,i) => {
+    star.setAttribute('name', i<count?'star':'star-outline');
+    star.style.color = i<count?'var(--star)':'var(--starEmpty)';
+  });
+}
+async function enviarCalificacion(trabajadorId) {
+  if (!currentStars[trabajadorId]) { showToast('Selecciona las estrellas'); return; }
+  try {
+    await apiCall('/calificaciones', { method:'POST', body: JSON.stringify({
+      calificado_id: trabajadorId, vacante_id: currentVacanteId,
+      estrellas: currentStars[trabajadorId],
+      comentario: document.getElementById('cal-comment-'+trabajadorId)?.value||''
+    }) });
+    showToast('¡Calificación enviada!');
+    showVerPostulaciones(currentVacanteId, document.querySelector('#ver-post-header h2')?.textContent||'');
+  } catch(err) { showToast('Error al calificar'); }
+}
+
+// ===== CREAR VACANTE =====
+let crearVacanteData = {};
+function renderCrearVacante() {
+  const content = document.getElementById('crear-vacante-content');
+  const d = crearVacanteData;
+  content.innerHTML = `<div class="form-card">
+    <div class="crear-title">Nueva Vacante</div>
+    ${inputHTML('cv-titulo','Título de la vacante','briefcase-outline','Ej: Recolector de café',true,'text',d.titulo||'')}
+    <div class="input-group"><label class="input-label">Descripción</label>
+      <div class="input-wrap"><textarea id="cv-descripcion" placeholder="Describe el trabajo..." rows="4">${d.descripcion||''}</textarea></div></div>
+    <div class="chip-label">Cultivo relacionado</div>
+    ${chipSelectorHTML('cv-cultivos', CULTIVOS, d.cultivos||[], true, true, '+ Otro')}
+    <div class="chip-label" style="margin-top:16px;">Tipo de labor</div>
+    ${chipSelectorHTML('cv-labores', LABORES, d.labores||[], true, true, '+ Otra')}
+    <div class="section-label">Tipo de pago</div>
+    ${chipSelectorHTML('cv-tipoPago', TIPO_PAGO_OPTIONS.map(t=>t.label), d.tipoPago?[TIPO_PAGO_OPTIONS.find(t=>t.value===d.tipoPago)?.label]:[], false, false)}
+    ${inputHTML('cv-monto','Monto de pago (COP)','cash-outline','Ej: 50000',false,'number',d.monto||'')}
+    <div class="section-label">Ubicación</div>
+    ${pickerButtonHTML('cv-dept',d.departamento||'','Departamento','location-outline')}
+    ${pickerButtonHTML('cv-mun',d.municipio||'','Municipio','map-outline',!d.departamento)}
+    ${inputHTML('cv-vereda','Vereda (opcional)','trail-sign-outline','Vereda',false,'text',d.vereda||'')}
+    <div class="urgent-row">
+      <div><div class="urgent-label">¿Es urgente?</div><div class="urgent-desc">Se destacará en las búsquedas</div></div>
+      <label class="toggle urgent-toggle"><input type="checkbox" id="cv-urgente" ${d.urgente?'checked':''}><span class="toggle-slider"></span></label>
+    </div>
+    <button class="btn btn-primary btn-large" style="margin-top:24px;" onclick="crearVacante()" id="cv-submit-btn">Publicar Vacante</button>
+  </div>`;
+  // Setup pickers
+  const deptBtn = document.getElementById('picker-cv-dept');
+  if (deptBtn) deptBtn.onclick = () => showPickerModal('Departamento', DEPARTAMENTOS, d.departamento, v => { d.departamento=v; d.municipio=''; renderCrearVacante(); });
+  const munBtn = document.getElementById('picker-cv-mun');
+  if (munBtn && d.departamento) munBtn.onclick = () => showPickerModal('Municipio', getMunicipios(d.departamento), d.municipio, v => { d.municipio=v; renderCrearVacante(); });
+  // Setup chip listeners for crear vacante
+  setupCVChipListeners();
+}
+function setupCVChipListeners() {
+  document.querySelectorAll('#crear-vacante-content .chips-container').forEach(container => {
+    const id = container.dataset.id;
+    container.querySelectorAll('.chip:not(.add):not(.custom)').forEach(chip => {
+      chip.onclick = function() {
+        const multi = container.dataset.multi === 'true';
+        let selected = JSON.parse(container.dataset.selected || '[]');
+        const value = this.textContent.trim();
+        if (multi) {
+          if (selected.includes(value)) selected = selected.filter(s=>s!==value);
+          else selected.push(value);
+        } else { selected = [value]; }
+        container.dataset.selected = JSON.stringify(selected);
+        saveCVChipData(id, selected);
+        renderCrearVacante();
+      };
+    });
+  });
+}
+function saveCVChipData(id, selected) {
+  if (id==='cv-cultivos') crearVacanteData.cultivos = selected;
+  else if (id==='cv-labores') crearVacanteData.labores = selected;
+  else if (id==='cv-tipoPago') { const t = TIPO_PAGO_OPTIONS.find(t=>t.label===selected[0]); crearVacanteData.tipoPago=t?.value||''; }
+}
+async function crearVacante() {
+  const titulo = document.getElementById('cv-titulo')?.value.trim();
+  if (!titulo) { showToast('El título es obligatorio'); return; }
+  const btn = document.getElementById('cv-submit-btn');
+  btn.disabled = true;
+  try {
+    await apiCall('/vacantes', { method:'POST', body: JSON.stringify({
+      titulo, descripcion: document.getElementById('cv-descripcion')?.value||'',
+      cultivos: (crearVacanteData.cultivos||[]), labores: (crearVacanteData.labores||[]),
+      tipo_pago: crearVacanteData.tipoPago||undefined,
+      monto_pago: document.getElementById('cv-monto')?.value?parseFloat(document.getElementById('cv-monto').value):undefined,
+      departamento: crearVacanteData.departamento||undefined, municipio: crearVacanteData.municipio||undefined,
+      vereda: document.getElementById('cv-vereda')?.value||undefined,
+      urgente: document.getElementById('cv-urgente')?.checked||false,
+    }) });
+    showToast('¡Vacante creada!');
+    crearVacanteData = {};
+    showDashboard();
+  } catch(err) { showToast(err.data?.error||'Error al crear vacante'); btn.disabled = false; }
+}
+
+// ===== PROFILE =====
+async function loadPerfil(containerId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall('/auth/perfil');
+    const u = data.user; const p = data.perfil;
+    const roleLabel = u.rol==='trabajador'?'Trabajador':u.rol==='empleador'?'Empleador':'Admin';
+    let html = `<div class="profile-header-card">
+      <div class="profile-avatar"><ion-icon name="person"></ion-icon></div>
+      <div class="profile-name">${u.nombre_completo}</div>
+      <div class="profile-role">${roleLabel}</div>
+      ${u.calificacion_promedio>0?`<div class="profile-rating">${renderStars(Math.round(parseFloat(u.calificacion_promedio)))}<span class="profile-rating-text">(${u.calificacion_promedio})</span></div>`:''}
+    </div>`;
+    html += `<div class="info-card">
+      <div class="info-item"><ion-icon name="call-outline"></ion-icon><div><div class="info-item-label">Celular</div><div class="info-item-value">${u.celular}</div></div></div>
+      ${u.correo?`<div class="info-item"><ion-icon name="mail-outline"></ion-icon><div><div class="info-item-label">Correo</div><div class="info-item-value">${u.correo}</div></div></div>`:''}
+      <div class="info-item"><ion-icon name="location-outline"></ion-icon><div><div class="info-item-label">Ubicación</div><div class="info-item-value">${u.municipio||''}, ${u.departamento||''}</div></div></div>
+      <div class="info-item"><ion-icon name="shield-checkmark-outline"></ion-icon><div><div class="info-item-label">Verificado</div><div class="info-item-value">${u.verificado_sms?'Sí':'No'}</div></div></div>
+    </div>`;
+    if (p && u.rol==='trabajador') {
+      html += `<div class="info-card"><div class="section-title-text">Perfil Trabajador</div>
+        ${p.nivel_estudios?`<div class="info-item"><ion-icon name="school-outline"></ion-icon><div><div class="info-item-label">Estudios</div><div class="info-item-value">${p.nivel_estudios}</div></div></div>`:''}
+        ${p.titulo_estudio?`<div class="info-item"><ion-icon name="ribbon-outline"></ion-icon><div><div class="info-item-label">Título</div><div class="info-item-value">${p.titulo_estudio}</div></div></div>`:''}
+        ${p.anios_experiencia?`<div class="info-item"><ion-icon name="time-outline"></ion-icon><div><div class="info-item-label">Experiencia</div><div class="info-item-value">${p.anios_experiencia}</div></div></div>`:''}
+        ${p.disponibilidad?`<div class="info-item"><ion-icon name="calendar-outline"></ion-icon><div><div class="info-item-label">Disponibilidad</div><div class="info-item-value">${p.disponibilidad}</div></div></div>`:''}
+        ${(p.habilidades||[]).length?`<div class="chips-section"><div class="chips-label">Habilidades:</div><div class="chips-row">${p.habilidades.map(h=>`<span class="profile-chip">${h.habilidad}</span>`).join('')}</div></div>`:''}
+        ${(p.cultivos||[]).length?`<div class="chips-section"><div class="chips-label">Cultivos:</div><div class="chips-row">${p.cultivos.map(c=>`<span class="profile-chip accent">${c.cultivo}</span>`).join('')}</div></div>`:''}
+      </div>`;
+    }
+    if (p && u.rol==='empleador') {
+      html += `<div class="info-card"><div class="section-title-text">Perfil Empleador</div>
+        <div class="info-item"><ion-icon name="business-outline"></ion-icon><div><div class="info-item-label">Finca/Empresa</div><div class="info-item-value">${p.nombre_empresa_finca}</div></div></div>
+        ${p.tipo_pago?`<div class="info-item"><ion-icon name="cash-outline"></ion-icon><div><div class="info-item-label">Tipo pago</div><div class="info-item-value">${p.tipo_pago}</div></div></div>`:''}
+        <div class="info-item"><ion-icon name="home-outline"></ion-icon><div><div class="info-item-label">Alojamiento</div><div class="info-item-value">${p.ofrece_alojamiento?'Sí':'No'}</div></div></div>
+        <div class="info-item"><ion-icon name="restaurant-outline"></ion-icon><div><div class="info-item-label">Alimentación</div><div class="info-item-value">${p.ofrece_alimentacion?'Sí':'No'}</div></div></div>
+      </div>`;
+    }
+    html += `<button class="btn btn-danger btn-large" style="margin-top:24px;" onclick="handleLogout()">Cerrar Sesión</button>`;
+    container.innerHTML = html;
+  } catch(err) { container.innerHTML = `<div class="empty-state"><h3>Error cargando perfil</h3></div>`; }
+}
+function renderStars(count) {
+  return [1,2,3,4,5].map(s=>`<ion-icon name="${s<=count?'star':'star-outline'}" style="font-size:20px;color:${s<=count?'var(--star)':'var(--starEmpty)'}"></ion-icon>`).join('');
+}
+
+// ===== ADMIN DASHBOARD =====
+async function loadAdminDashboard() {
+  currentAdminTab = 'dashboard';
+  updateAdminTabs();
+  const content = document.getElementById('admin-content');
+  content.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall('/admin/dashboard');
+    const cards = [
+      {title:'Trabajadores',value:data.trabajadores||0,icon:'people',color:'#2E7D32'},
+      {title:'Empleadores',value:data.empleadores||0,icon:'business',color:'#FF8F00'},
+      {title:'Vacantes Activas',value:data.vacantes_activas||0,icon:'briefcase',color:'#1565C0'},
+      {title:'Vacantes Totales',value:data.vacantes_total||0,icon:'layers',color:'#6A1B9A'},
+      {title:'Postulaciones',value:data.postulaciones||0,icon:'document-text',color:'#00838F'},
+      {title:'Calificaciones',value:data.calificaciones||0,icon:'star',color:'#EF6C00'},
+    ];
+    content.innerHTML = `<div class="admin-grid">${cards.map(c=>`
+      <div class="admin-stat-card">
+        <div class="admin-stat-icon" style="background:${c.color}18"><ion-icon name="${c.icon}" style="color:${c.color}"></ion-icon></div>
+        <div class="admin-stat-value">${c.value}</div>
+        <div class="admin-stat-title">${c.title}</div>
+      </div>`).join('')}</div>
+      <div class="quick-actions"><div class="section-title-text">Acciones Rápidas</div>
+        <div class="quick-action" onclick="showAdminTab('usuarios')"><div class="quick-action-left"><ion-icon name="people-outline"></ion-icon><span>Gestionar Usuarios</span></div><ion-icon name="chevron-forward"></ion-icon></div>
+        <div class="quick-action" onclick="showAdminTab('vacantes')"><div class="quick-action-left"><ion-icon name="briefcase-outline"></ion-icon><span>Gestionar Vacantes</span></div><ion-icon name="chevron-forward"></ion-icon></div>
+      </div>`;
+  } catch(err) { content.innerHTML = `<div class="empty-state"><h3>Error cargando dashboard</h3></div>`; }
+}
+function showAdminTab(tab) {
+  currentAdminTab = tab;
+  updateAdminTabs();
+  if (tab==='dashboard') loadAdminDashboard();
+  else if (tab==='usuarios') loadAdminUsuarios();
+  else if (tab==='vacantes') loadAdminVacantes();
+  else if (tab==='perfil') loadPerfil('admin-content');
+}
+function updateAdminTabs() {
+  document.querySelectorAll('#dashboard-admin .tab-item').forEach((t,i) => {
+    t.classList.toggle('active', ['dashboard','usuarios','vacantes','perfil'][i]===currentAdminTab);
+  });
+}
+async function loadAdminUsuarios() {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall('/admin/usuarios');
+    if (!data.length) { content.innerHTML = `<div class="empty-state"><h3>No hay usuarios.</h3></div>`; return; }
+    content.innerHTML = data.map(u => {
+      const rc = u.rol==='trabajador'?'#2E7D32':u.rol==='empleador'?'#FF8F00':'#6A1B9A';
+      const rl = u.rol==='trabajador'?'Trabajador':u.rol==='empleador'?'Empleador':'Admin';
+      return `<div class="admin-user-card">
+        <div class="admin-user-top"><div><div class="admin-user-name">${u.nombre_completo}</div><div class="admin-user-cel">${u.celular}</div></div>
+          <span class="role-badge" style="background:${rc}18;color:${rc}">${rl}</span></div>
+        <div class="admin-user-info"><ion-icon name="location-outline"></ion-icon><span>${u.municipio}, ${u.departamento}</span></div>
+        <div class="admin-user-status">
+          <div class="status-badges">
+            <span class="status-badge" style="background:${u.activo?'#E8F5E9':'#FFEBEE'};color:${u.activo?'#2E7D32':'#D32F2F'}">${u.activo?'Activo':'Inactivo'}</span>
+            ${u.verificado_sms?'<span class="status-badge" style="background:#E3F2FD;color:#1565C0">Verificado</span>':''}
+          </div>
+          <div class="admin-actions">
+            <button class="admin-action-btn" onclick="toggleUsuarioActivo(${u.id},${u.activo})"><ion-icon name="${u.activo?'pause-circle':'play-circle'}" style="color:${u.activo?'#FF8F00':'#2E7D32'}"></ion-icon></button>
+            ${u.rol!=='admin'?`<button class="admin-action-btn" onclick="eliminarUsuario(${u.id})"><ion-icon name="trash-outline" style="color:#D32F2F"></ion-icon></button>`:''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(err) { content.innerHTML = `<div class="empty-state"><h3>Error cargando usuarios</h3></div>`; }
+}
+async function toggleUsuarioActivo(id, activo) {
+  try { await apiCall(`/admin/usuarios/${id}`, { method:'PUT', body: JSON.stringify({ activo: !activo }) }); loadAdminUsuarios(); }
+  catch(err) { showToast('Error al actualizar'); }
+}
+async function eliminarUsuario(id) {
+  if (!confirm('¿Eliminar usuario? Esta acción no se puede deshacer.')) return;
+  try { await apiCall(`/admin/usuarios/${id}`, { method:'DELETE' }); loadAdminUsuarios(); showToast('Usuario eliminado'); }
+  catch(err) { showToast('Error al eliminar'); }
+}
+async function loadAdminVacantes() {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall('/admin/vacantes');
+    if (!data.length) { content.innerHTML = `<div class="empty-state"><h3>No hay vacantes.</h3></div>`; return; }
+    content.innerHTML = data.map(v => {
+      const ec = v.estado==='activa'?{bg:'#E8F5E9',fg:'#2E7D32'}:v.estado==='cerrada'?{bg:'#FFEBEE',fg:'#D32F2F'}:{bg:'#FFF3E0',fg:'#FF8F00'};
+      return `<div class="admin-vac-card">
+        <div class="admin-vac-top"><div><div class="admin-vac-titulo">${v.titulo}</div><div class="admin-vac-empresa">${v.nombre_empresa_finca||'Sin nombre'}</div></div>
+          <span class="estado-badge" style="background:${ec.bg};color:${ec.fg}">${v.estado}</span></div>
+        <div class="admin-user-info" style="margin-top:8px"><ion-icon name="location-outline"></ion-icon><span>${v.municipio}, ${v.departamento}</span></div>
+        <div class="admin-user-info"><ion-icon name="cash-outline"></ion-icon><span>$${v.salario_ofrecido?Number(v.salario_ofrecido).toLocaleString():'N/A'} - ${v.tipo_pago||'N/A'}</span></div>
+        ${v.urgente?`<div style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;background:#FFEBEE;padding:3px 8px;border-radius:999px;"><ion-icon name="alert-circle" style="font-size:14px;color:#D32F2F"></ion-icon><span style="font-size:12px;font-weight:600;color:#D32F2F">Urgente</span></div>`:''}
+        <div class="admin-vac-footer">
+          <span class="admin-vac-fecha">${new Date(v.fecha_creacion).toLocaleDateString('es-CO')}</span>
+          <button class="admin-action-btn" onclick="eliminarVacante(${v.id})"><ion-icon name="trash-outline" style="color:#D32F2F"></ion-icon></button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(err) { content.innerHTML = `<div class="empty-state"><h3>Error cargando vacantes</h3></div>`; }
+}
+async function eliminarVacante(id) {
+  if (!confirm('¿Eliminar vacante?')) return;
+  try { await apiCall(`/admin/vacantes/${id}`, { method:'DELETE' }); loadAdminVacantes(); showToast('Vacante eliminada'); }
+  catch(err) { showToast('Error al eliminar'); }
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  // Setup crear vacante 
+  document.querySelector('[onclick="showScreen(\'crear-vacante-screen\')"]')?.addEventListener('click', () => {
+    crearVacanteData = {}; setTimeout(renderCrearVacante, 50);
+  });
+  // Check session
+  if (loadSession()) {
+    showDashboard();
+  }
+  // Enter key on login
+  document.getElementById('login-password')?.addEventListener('keypress', e => { if (e.key==='Enter') handleLogin(); });
+  document.getElementById('login-celular')?.addEventListener('keypress', e => { if (e.key==='Enter') document.getElementById('login-password')?.focus(); });
+});
+</script>
+</body>
+</html>
