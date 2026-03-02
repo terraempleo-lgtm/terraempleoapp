@@ -134,6 +134,13 @@ async function misVacantes(req, res) {
     `, [empleadorId]);
 
     for (const v of vacantes) {
+      // COUNT(*) y campos numéricos pueden venir como BigInt dependiendo del driver, así que normalizamos.
+      v.total_postulaciones = Number(v.total_postulaciones || 0);
+      if (v.monto_pago !== null && v.monto_pago !== undefined) {
+        v.monto_pago = Number(v.monto_pago);
+      }
+      v.urgente = Boolean(v.urgente);
+
       v.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [v.id]);
       v.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [v.id]);
     }
@@ -148,7 +155,7 @@ async function misVacantes(req, res) {
 // Obtener todas las vacantes activas (para trabajadores)
 async function listarVacantes(req, res) {
   try {
-    const { departamento, municipio } = req.query;
+    const { departamento, municipio, cultivo, labor, urgente } = req.query;
     let sql = `
       SELECT v.*, u.nombre_completo as nombre_empleador,
         pe.nombre_empresa_finca,
@@ -168,12 +175,29 @@ async function listarVacantes(req, res) {
       sql += ' AND v.municipio = ?';
       params.push(municipio);
     }
+    if (urgente === 'true' || urgente === '1') {
+      sql += ' AND v.urgente = 1';
+    }
+    if (cultivo) {
+      sql += ' AND v.id IN (SELECT vacante_id FROM vacante_cultivos WHERE LOWER(cultivo) = LOWER(?))';
+      params.push(cultivo);
+    }
+    if (labor) {
+      sql += ' AND v.id IN (SELECT vacante_id FROM vacante_labores WHERE LOWER(labor) = LOWER(?))';
+      params.push(labor);
+    }
 
     sql += ' ORDER BY v.urgente DESC, v.created_at DESC';
 
     const vacantes = await query(sql, params);
 
     for (const v of vacantes) {
+      // Normalizar BigInt y campos numéricos
+      v.total_postulaciones = Number(v.total_postulaciones || 0);
+      if (v.monto_pago !== null && v.monto_pago !== undefined) {
+        v.monto_pago = Number(v.monto_pago);
+      }
+      v.urgente = Boolean(v.urgente);
       v.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [v.id]);
       v.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [v.id]);
     }
@@ -203,6 +227,13 @@ async function detalleVacante(req, res) {
     }
 
     const vacante = vacantes[0];
+    // Normalizar BigInt
+    if (vacante.monto_pago !== null && vacante.monto_pago !== undefined) {
+      vacante.monto_pago = Number(vacante.monto_pago);
+    }
+    vacante.urgente = Boolean(vacante.urgente);
+    vacante.ofrece_alojamiento = Boolean(vacante.ofrece_alojamiento);
+    vacante.ofrece_alimentacion = Boolean(vacante.ofrece_alimentacion);
     vacante.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [id]);
     vacante.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [id]);
 

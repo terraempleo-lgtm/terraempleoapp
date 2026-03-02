@@ -679,6 +679,31 @@
         background:var(--background);
       }
     }
+    /* Filtros panel */
+    .filters-panel { background:var(--surfaceLight); padding:12px 16px; border-bottom:1px solid var(--border); }
+    .filters-panel.hidden { display:none; }
+    .filters-row { display:flex; gap:12px; margin-bottom:10px; }
+    .filters-row:last-child { margin-bottom:0; align-items:center; }
+    .filter-item { flex:1; }
+    .filter-label { display:block; font-size:11px; color:var(--textSecondary); margin-bottom:4px; font-weight:500; }
+    .filter-picker { padding:8px 10px; font-size:13px; border-radius:8px; background:#fff; display:flex; align-items:center; gap:6px; border:1px solid var(--border); cursor:pointer; }
+    .filter-picker span { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .filter-checkbox { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--textPrimary); cursor:pointer; }
+    .filter-checkbox input { width:16px; height:16px; accent-color:var(--primary); }
+    .btn-outline { background:transparent; border:1px solid var(--primary); color:var(--primary); }
+    .btn-small { padding:8px 14px; font-size:12px; }
+    /* Postulaciones filter bar */
+    .postulaciones-filter-bar { display:flex; align-items:center; gap:10px; padding:10px 16px; background:var(--surfaceLight); border-bottom:1px solid var(--border); margin:-16px -16px 12px -16px; }
+    .filter-bar-label { font-size:13px; color:var(--textSecondary); }
+    .postulaciones-filter-bar select { flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); font-size:13px; background:#fff; }
+    /* Admin filter bar */
+    .admin-filter-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; margin-bottom:4px; }
+    .admin-filter-bar select { padding:8px 10px; border-radius:8px; border:1px solid var(--border); font-size:13px; background:#fff; }
+    .admin-mini-item { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--borderLight); cursor:pointer; }
+    .admin-mini-item:last-child { border-bottom:none; }
+    .admin-mini-item span:first-child { font-size:14px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .btn-warning { background:#FF8F00; color:#fff; }
+    .btn-danger { background:#D32F2F; color:#fff; }
   </style>
 </head>
 <body>
@@ -811,7 +836,52 @@
         <div class="dash-greeting" id="trab-greeting"></div>
         <div class="dash-subgreeting">Encuentra trabajo cerca de ti</div>
       </div>
-      <div class="dash-avatar"><ion-icon name="person"></ion-icon></div>
+      <button class="dash-add-btn" onclick="toggleTrabFilters()" id="trab-filter-btn">
+        <ion-icon name="filter"></ion-icon>
+      </button>
+    </div>
+    <!-- Panel de filtros -->
+    <div id="trab-filters-panel" class="filters-panel hidden">
+      <div class="filters-row">
+        <div class="filter-item">
+          <label class="filter-label">Departamento</label>
+          <div class="picker-button filter-picker" id="filter-dept-btn" onclick="showFilterDeptPicker()">
+            <ion-icon name="location-outline" style="color:var(--primary)"></ion-icon>
+            <span class="picker-text" id="filter-dept-text">Todos</span>
+            <ion-icon name="chevron-down" style="color:var(--textLight)"></ion-icon>
+          </div>
+        </div>
+        <div class="filter-item">
+          <label class="filter-label">Municipio</label>
+          <div class="picker-button filter-picker" id="filter-mun-btn" onclick="showFilterMunPicker()">
+            <ion-icon name="map-outline" style="color:var(--primary)"></ion-icon>
+            <span class="picker-text" id="filter-mun-text">Todos</span>
+            <ion-icon name="chevron-down" style="color:var(--textLight)"></ion-icon>
+          </div>
+        </div>
+      </div>
+      <div class="filters-row">
+        <div class="filter-item">
+          <label class="filter-label">Cultivo</label>
+          <div class="picker-button filter-picker" id="filter-cultivo-btn" onclick="showFilterCultivoPicker()">
+            <ion-icon name="leaf-outline" style="color:var(--primary)"></ion-icon>
+            <span class="picker-text" id="filter-cultivo-text">Todos</span>
+            <ion-icon name="chevron-down" style="color:var(--textLight)"></ion-icon>
+          </div>
+        </div>
+        <div class="filter-item">
+          <label class="filter-label">Labor</label>
+          <div class="picker-button filter-picker" id="filter-labor-btn" onclick="showFilterLaborPicker()">
+            <ion-icon name="hammer-outline" style="color:var(--primary)"></ion-icon>
+            <span class="picker-text" id="filter-labor-text">Todas</span>
+            <ion-icon name="chevron-down" style="color:var(--textLight)"></ion-icon>
+          </div>
+        </div>
+      </div>
+      <div class="filters-row">
+        <label class="filter-checkbox"><input type="checkbox" id="filter-urgente" onchange="applyTrabFilters()"> <span>Solo urgentes</span></label>
+        <button class="btn btn-outline btn-small" onclick="clearTrabFilters()">Limpiar filtros</button>
+      </div>
     </div>
     <div class="content-scroll" id="trab-vacantes-list"></div>
     <div class="tab-bar">
@@ -841,7 +911,10 @@
     <div class="content-scroll" id="emp-vacantes-list"></div>
     <div class="tab-bar">
       <button class="tab-item active" onclick="showEmpTab('vacantes')">
-        <ion-icon name="briefcase"></ion-icon><span>Vacantes</span>
+        <ion-icon name="briefcase"></ion-icon><span>Mis Vacantes</span>
+      </button>
+      <button class="tab-item" onclick="showEmpTab('explorar')">
+        <ion-icon name="search"></ion-icon><span>Explorar</span>
       </button>
       <button class="tab-item" onclick="showEmpTab('perfil')">
         <ion-icon name="person-circle"></ion-icon><span>Perfil</span>
@@ -851,20 +924,28 @@
 
   <!-- ===== DASHBOARD ADMIN ===== -->
   <div id="dashboard-admin" class="screen">
-    <div style="padding:16px 16px 0;">
-      <div class="admin-header">Panel de Administración</div>
-      <div class="admin-subtitle">Resumen general de TerraEmpleo</div>
+    <div class="dash-header" style="background:linear-gradient(135deg,#1B5E20,#2E7D32);color:#fff;">
+      <div>
+        <div class="dash-greeting" style="color:#fff;">Panel Admin</div>
+        <div class="dash-subgreeting" style="color:rgba(255,255,255,0.85);">Administra TerraEmpleo</div>
+      </div>
+      <button class="dash-add-btn" style="background:rgba(255,255,255,0.2);" onclick="showAdminTab('crear-vacante')">
+        <ion-icon name="add" style="color:#fff;"></ion-icon>
+      </button>
     </div>
     <div class="content-scroll" id="admin-content"></div>
     <div class="tab-bar">
       <button class="tab-item active" onclick="showAdminTab('dashboard')">
-        <ion-icon name="grid"></ion-icon><span>Dashboard</span>
+        <ion-icon name="grid"></ion-icon><span>Inicio</span>
       </button>
       <button class="tab-item" onclick="showAdminTab('usuarios')">
         <ion-icon name="people"></ion-icon><span>Usuarios</span>
       </button>
       <button class="tab-item" onclick="showAdminTab('vacantes')">
         <ion-icon name="briefcase"></ion-icon><span>Vacantes</span>
+      </button>
+      <button class="tab-item" onclick="showAdminTab('preview')">
+        <ion-icon name="eye"></ion-icon><span>Vistas</span>
       </button>
       <button class="tab-item" onclick="showAdminTab('perfil')">
         <ion-icon name="person-circle"></ion-icon><span>Perfil</span>
@@ -1488,6 +1569,9 @@ function filterPickerOptions(input) {
 }
 
 // ===== TRABAJADOR DASHBOARD =====
+let trabFilters = { departamento:'', municipio:'', cultivo:'', labor:'', urgente:false };
+let showPostulacionesFilter = 'todas'; // 'todas', 'disponibles', 'match'
+
 async function loadTrabajadorDashboard() {
   document.getElementById('trab-greeting').textContent = `¡Hola, ${currentUser.nombre_completo.split(' ')[0]}!`;
   currentTrabTab = 'vacantes';
@@ -1497,23 +1581,92 @@ async function loadTrabajadorDashboard() {
 function showTrabTab(tab) {
   currentTrabTab = tab;
   updateTrabTabs();
-  if (tab==='vacantes') loadTrabVacantes();
-  else if (tab==='postulaciones') loadTrabPostulaciones();
-  else if (tab==='perfil') loadPerfil('trab-vacantes-list');
+  // Mostrar/ocultar filtros según tab
+  const filtersPanel = document.getElementById('trab-filters-panel');
+  const filterBtn = document.getElementById('trab-filter-btn');
+  if (tab==='vacantes') {
+    filterBtn.style.display = '';
+    loadTrabVacantes();
+  } else if (tab==='postulaciones') {
+    filterBtn.style.display = 'none';
+    filtersPanel.classList.add('hidden');
+    loadTrabPostulaciones();
+  } else if (tab==='perfil') {
+    filterBtn.style.display = 'none';
+    filtersPanel.classList.add('hidden');
+    loadPerfil('trab-vacantes-list');
+  }
 }
 function updateTrabTabs() {
   document.querySelectorAll('#dashboard-trabajador .tab-item').forEach((t,i) => {
     t.classList.toggle('active', ['vacantes','postulaciones','perfil'][i]===currentTrabTab);
   });
 }
+function toggleTrabFilters() {
+  const panel = document.getElementById('trab-filters-panel');
+  panel.classList.toggle('hidden');
+}
+function showFilterDeptPicker() {
+  showPickerModal('Departamento', ['Todos', ...DEPARTAMENTOS], trabFilters.departamento || 'Todos', v => {
+    trabFilters.departamento = v === 'Todos' ? '' : v;
+    trabFilters.municipio = '';
+    document.getElementById('filter-dept-text').textContent = v;
+    document.getElementById('filter-mun-text').textContent = 'Todos';
+    applyTrabFilters();
+  });
+}
+function showFilterMunPicker() {
+  if (!trabFilters.departamento) { showToast('Selecciona un departamento primero'); return; }
+  const muns = ['Todos', ...getMunicipios(trabFilters.departamento)];
+  showPickerModal('Municipio', muns, trabFilters.municipio || 'Todos', v => {
+    trabFilters.municipio = v === 'Todos' ? '' : v;
+    document.getElementById('filter-mun-text').textContent = v;
+    applyTrabFilters();
+  });
+}
+function showFilterCultivoPicker() {
+  showPickerModal('Cultivo', ['Todos', ...CULTIVOS], trabFilters.cultivo || 'Todos', v => {
+    trabFilters.cultivo = v === 'Todos' ? '' : v;
+    document.getElementById('filter-cultivo-text').textContent = v;
+    applyTrabFilters();
+  });
+}
+function showFilterLaborPicker() {
+  showPickerModal('Labor', ['Todas', ...LABORES], trabFilters.labor || 'Todas', v => {
+    trabFilters.labor = v === 'Todas' ? '' : v;
+    document.getElementById('filter-labor-text').textContent = v;
+    applyTrabFilters();
+  });
+}
+function clearTrabFilters() {
+  trabFilters = { departamento:'', municipio:'', cultivo:'', labor:'', urgente:false };
+  document.getElementById('filter-dept-text').textContent = 'Todos';
+  document.getElementById('filter-mun-text').textContent = 'Todos';
+  document.getElementById('filter-cultivo-text').textContent = 'Todos';
+  document.getElementById('filter-labor-text').textContent = 'Todas';
+  document.getElementById('filter-urgente').checked = false;
+  applyTrabFilters();
+}
+function applyTrabFilters() {
+  trabFilters.urgente = document.getElementById('filter-urgente')?.checked || false;
+  loadTrabVacantes();
+}
 async function loadTrabVacantes() {
   const list = document.getElementById('trab-vacantes-list');
   list.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
   try {
-    const data = await apiCall('/vacantes');
+    // Construir query string con filtros
+    const params = new URLSearchParams();
+    if (trabFilters.departamento) params.append('departamento', trabFilters.departamento);
+    if (trabFilters.municipio) params.append('municipio', trabFilters.municipio);
+    if (trabFilters.cultivo) params.append('cultivo', trabFilters.cultivo);
+    if (trabFilters.labor) params.append('labor', trabFilters.labor);
+    if (trabFilters.urgente) params.append('urgente', '1');
+    const qs = params.toString();
+    const data = await apiCall('/vacantes' + (qs ? '?' + qs : ''));
     const vacantes = data.vacantes || [];
     if (vacantes.length === 0) {
-      list.innerHTML = `<div class="empty-state"><ion-icon name="briefcase-outline"></ion-icon><h3>No hay vacantes disponibles aún</h3><p>Desliza hacia abajo para actualizar</p></div>`;
+      list.innerHTML = `<div class="empty-state"><ion-icon name="briefcase-outline"></ion-icon><h3>No hay vacantes disponibles</h3><p>Intenta cambiar los filtros</p></div>`;
       return;
     }
     list.innerHTML = vacantes.map(v => `
@@ -1537,12 +1690,34 @@ async function loadTrabPostulaciones() {
   list.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
   try {
     const data = await apiCall('/vacantes/mis-postulaciones/lista');
-    const posts = data.postulaciones || [];
-    if (posts.length === 0) {
-      list.innerHTML = `<div class="empty-state"><ion-icon name="document-outline"></ion-icon><h3>No tienes postulaciones aún</h3></div>`;
+    let posts = data.postulaciones || [];
+    
+    // Filtrar según selección
+    let filteredPosts = posts;
+    if (showPostulacionesFilter === 'disponibles') {
+      filteredPosts = posts.filter(p => p.estado === 'pendiente' || p.estado === 'match_auto');
+    } else if (showPostulacionesFilter === 'match') {
+      filteredPosts = posts.filter(p => p.estado === 'match_auto');
+    } else if (showPostulacionesFilter === 'aceptadas') {
+      filteredPosts = posts.filter(p => p.estado === 'aceptada');
+    }
+    
+    // Crear filtro selector HTML
+    let filterHTML = `<div class="postulaciones-filter-bar">
+      <span class="filter-bar-label">Mostrar:</span>
+      <select id="post-filter-select" onchange="changePostFilter(this.value)">
+        <option value="todas" ${showPostulacionesFilter==='todas'?'selected':''}>Todas</option>
+        <option value="disponibles" ${showPostulacionesFilter==='disponibles'?'selected':''}>Pendientes</option>
+        <option value="match" ${showPostulacionesFilter==='match'?'selected':''}>Solo Match</option>
+        <option value="aceptadas" ${showPostulacionesFilter==='aceptadas'?'selected':''}>Aceptadas</option>
+      </select>
+    </div>`;
+    
+    if (filteredPosts.length === 0) {
+      list.innerHTML = filterHTML + `<div class="empty-state"><ion-icon name="document-outline"></ion-icon><h3>No hay postulaciones con este filtro</h3></div>`;
       return;
     }
-    list.innerHTML = posts.map(p => {
+    list.innerHTML = filterHTML + filteredPosts.map(p => {
       const ec = p.estado==='aceptada'?'var(--success)':p.estado==='rechazada'?'var(--error)':p.estado==='match_auto'?'var(--info)':'var(--warning)';
       const el = p.estado==='aceptada'?'Aceptada':p.estado==='rechazada'?'Rechazada':p.estado==='match_auto'?'Match automático':'Pendiente';
       return `<div class="post-card">
@@ -1555,6 +1730,10 @@ async function loadTrabPostulaciones() {
       </div>`;
     }).join('');
   } catch(err) { list.innerHTML = `<div class="empty-state"><h3>Error cargando postulaciones</h3></div>`; }
+}
+function changePostFilter(value) {
+  showPostulacionesFilter = value;
+  loadTrabPostulaciones();
 }
 
 // ===== DETALLE VACANTE =====
@@ -1612,11 +1791,12 @@ function showEmpTab(tab) {
   currentEmpTab = tab;
   updateEmpTabs();
   if (tab==='vacantes') loadEmpVacantes();
+  else if (tab==='explorar') loadEmpExplorar();
   else if (tab==='perfil') loadPerfil('emp-vacantes-list');
 }
 function updateEmpTabs() {
   document.querySelectorAll('#dashboard-empleador .tab-item').forEach((t,i) => {
-    t.classList.toggle('active', ['vacantes','perfil'][i]===currentEmpTab);
+    t.classList.toggle('active', ['vacantes','explorar','perfil'][i]===currentEmpTab);
   });
 }
 async function loadEmpVacantes() {
@@ -1637,6 +1817,34 @@ async function loadEmpVacantes() {
         <div class="card-row"><ion-icon name="people-outline" style="color:var(--primary)"></ion-icon><span class="card-row-text">${v.total_postulaciones||0} postulantes</span></div>
         <div class="card-row"><ion-icon name="location-outline" style="color:var(--textSecondary)"></ion-icon><span class="card-row-text">${v.municipio}, ${v.departamento}</span></div>
         ${v.urgente?'<div class="card-row" style="margin-top:8px;"><ion-icon name="alert-circle" style="font-size:12px;color:var(--urgent);"></ion-icon><span style="font-size:12px;color:var(--urgent);font-weight:600;">Urgente</span></div>':''}
+      </div>
+    `).join('');
+  } catch(err) { list.innerHTML = `<div class="empty-state"><h3>Error cargando vacantes</h3></div>`; }
+}
+// Explorar todas las vacantes (empleador)
+async function loadEmpExplorar() {
+  const list = document.getElementById('emp-vacantes-list');
+  list.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall('/vacantes');
+    const vacantes = data.vacantes || [];
+    if (vacantes.length === 0) {
+      list.innerHTML = `<div class="empty-state"><ion-icon name="briefcase-outline"></ion-icon><h3>No hay vacantes publicadas</h3></div>`;
+      return;
+    }
+    list.innerHTML = `<div style="padding:12px 16px 0;"><div class="section-title-text" style="margin-bottom:4px;">Todas las vacantes publicadas</div><div style="font-size:12px;color:var(--textSecondary);margin-bottom:8px;">${vacantes.length} vacante(s) activa(s)</div></div>` + vacantes.map(v => `
+      <div class="vacante-card ${v.urgente?'urgent':''}" onclick="showDetalleVacante(${v.id})">
+        ${v.urgente?'<div class="urgent-badge"><ion-icon name="alert-circle"></ion-icon><span>URGENTE</span></div>':''}
+        <div class="card-title">${v.titulo}</div>
+        ${v.nombre_empresa_finca?`<div class="card-row"><ion-icon name="business-outline" style="color:var(--textSecondary)"></ion-icon><span class="card-row-text">${v.nombre_empresa_finca}</span></div>`:''}
+        <div class="card-row"><ion-icon name="location-outline" style="color:var(--primary)"></ion-icon><span class="card-row-text">${v.municipio?v.municipio+', ':''}${v.departamento||'Sin ubicación'}</span></div>
+        <div class="card-row"><ion-icon name="person-outline" style="color:var(--textSecondary)"></ion-icon><span class="card-row-text">Por: ${v.nombre_empleador||'Empleador'}</span></div>
+        ${v.tipo_pago?`<div class="card-row"><ion-icon name="cash-outline" style="color:var(--accent)"></ion-icon><span class="card-row-text">Pago: ${v.tipo_pago}</span></div>`:''}
+        <div class="card-chips">
+          ${(v.cultivos||[]).slice(0,3).map(c=>`<span class="mini-chip">${c.cultivo||c}</span>`).join('')}
+          ${(v.labores||[]).slice(0,2).map(l=>`<span class="mini-chip accent">${l.labor||l}</span>`).join('')}
+        </div>
+        <div class="card-date">${new Date(v.created_at).toLocaleDateString('es-CO')}</div>
       </div>
     `).join('');
   } catch(err) { list.innerHTML = `<div class="empty-state"><h3>Error cargando vacantes</h3></div>`; }
@@ -1849,6 +2057,7 @@ function renderStars(count) {
 }
 
 // ===== ADMIN DASHBOARD =====
+let adminEmpleadores = []; // cache para select de empleadores
 async function loadAdminDashboard() {
   currentAdminTab = 'dashboard';
   updateAdminTabs();
@@ -1872,7 +2081,9 @@ async function loadAdminDashboard() {
       </div>`).join('')}</div>
       <div class="quick-actions"><div class="section-title-text">Acciones Rápidas</div>
         <div class="quick-action" onclick="showAdminTab('usuarios')"><div class="quick-action-left"><ion-icon name="people-outline"></ion-icon><span>Gestionar Usuarios</span></div><ion-icon name="chevron-forward"></ion-icon></div>
-        <div class="quick-action" onclick="showAdminTab('vacantes')"><div class="quick-action-left"><ion-icon name="briefcase-outline"></ion-icon><span>Gestionar Vacantes</span></div><ion-icon name="chevron-forward"></ion-icon></div>
+        <div class="quick-action" onclick="showAdminTab('vacantes')"><div class="quick-action-left"><ion-icon name="briefcase-outline"></ion-icon><span>Ver Todas las Vacantes</span></div><ion-icon name="chevron-forward"></ion-icon></div>
+        <div class="quick-action" onclick="showAdminTab('crear-vacante')"><div class="quick-action-left"><ion-icon name="add-circle-outline"></ion-icon><span>Crear Vacante (Admin)</span></div><ion-icon name="chevron-forward"></ion-icon></div>
+        <div class="quick-action" onclick="showAdminTab('preview')"><div class="quick-action-left"><ion-icon name="eye-outline"></ion-icon><span>Vista Previa de Usuarios</span></div><ion-icon name="chevron-forward"></ion-icon></div>
       </div>`;
   } catch(err) { content.innerHTML = `<div class="empty-state"><h3>Error cargando dashboard</h3></div>`; }
 }
@@ -1882,42 +2093,72 @@ function showAdminTab(tab) {
   if (tab==='dashboard') loadAdminDashboard();
   else if (tab==='usuarios') loadAdminUsuarios();
   else if (tab==='vacantes') loadAdminVacantes();
+  else if (tab==='crear-vacante') loadAdminCrearVacante();
+  else if (tab==='preview') loadAdminPreview();
   else if (tab==='perfil') loadPerfil('admin-content');
 }
 function updateAdminTabs() {
+  const tabs = ['dashboard','usuarios','vacantes','preview','perfil'];
   document.querySelectorAll('#dashboard-admin .tab-item').forEach((t,i) => {
-    t.classList.toggle('active', ['dashboard','usuarios','vacantes','perfil'][i]===currentAdminTab);
+    t.classList.toggle('active', tabs[i]===currentAdminTab || (currentAdminTab==='crear-vacante' && tabs[i]==='vacantes'));
   });
 }
+
+// Admin: Listar usuarios
 async function loadAdminUsuarios() {
   const content = document.getElementById('admin-content');
   content.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
   try {
     const data = await apiCall('/admin/usuarios');
-    if (!data.length) { content.innerHTML = `<div class="empty-state"><h3>No hay usuarios.</h3></div>`; return; }
-    content.innerHTML = data.map(u => {
+    const usuarios = Array.isArray(data) ? data : (data.usuarios || []);
+    if (usuarios.length===0) { content.innerHTML = `<div class="empty-state"><h3>No hay usuarios.</h3></div>`; return; }
+    
+    // Filtro por rol
+    let filterHTML = `<div class="admin-filter-bar">
+      <span style="font-size:13px;color:var(--textSecondary);">Filtrar:</span>
+      <select id="admin-user-filter" onchange="filterAdminUsers()">
+        <option value="todos">Todos (${usuarios.length})</option>
+        <option value="trabajador">Trabajadores (${usuarios.filter(u=>u.rol==='trabajador').length})</option>
+        <option value="empleador">Empleadores (${usuarios.filter(u=>u.rol==='empleador').length})</option>
+        <option value="admin">Admins (${usuarios.filter(u=>u.rol==='admin').length})</option>
+      </select>
+    </div>`;
+    
+    content.innerHTML = filterHTML + `<div id="admin-users-container">` + usuarios.map(u => {
       const rc = u.rol==='trabajador'?'#2E7D32':u.rol==='empleador'?'#FF8F00':'#6A1B9A';
       const rl = u.rol==='trabajador'?'Trabajador':u.rol==='empleador'?'Empleador':'Admin';
-      return `<div class="admin-user-card">
-        <div class="admin-user-top"><div><div class="admin-user-name">${u.nombre_completo}</div><div class="admin-user-cel">${u.celular}</div></div>
-          <span class="role-badge" style="background:${rc}18;color:${rc}">${rl}</span></div>
-        <div class="admin-user-info"><ion-icon name="location-outline"></ion-icon><span>${u.municipio}, ${u.departamento}</span></div>
+      return `<div class="admin-user-card" data-rol="${u.rol}">
+        <div class="admin-user-top">
+          <div style="flex:1;min-width:0;">
+            <div class="admin-user-name">${u.nombre_completo}</div>
+            <div class="admin-user-cel">${u.celular} ${u.nombre_empresa_finca?'• '+u.nombre_empresa_finca:''}</div>
+          </div>
+          <span class="role-badge" style="background:${rc}18;color:${rc}">${rl}</span>
+        </div>
+        <div class="admin-user-info"><ion-icon name="location-outline"></ion-icon><span>${u.municipio||'N/A'}, ${u.departamento||'N/A'}</span></div>
         <div class="admin-user-status">
           <div class="status-badges">
             <span class="status-badge" style="background:${u.activo?'#E8F5E9':'#FFEBEE'};color:${u.activo?'#2E7D32':'#D32F2F'}">${u.activo?'Activo':'Inactivo'}</span>
             ${u.verificado_sms?'<span class="status-badge" style="background:#E3F2FD;color:#1565C0">Verificado</span>':''}
           </div>
           <div class="admin-actions">
-            <button class="admin-action-btn" onclick="toggleUsuarioActivo(${u.id},${u.activo})"><ion-icon name="${u.activo?'pause-circle':'play-circle'}" style="color:${u.activo?'#FF8F00':'#2E7D32'}"></ion-icon></button>
-            ${u.rol!=='admin'?`<button class="admin-action-btn" onclick="eliminarUsuario(${u.id})"><ion-icon name="trash-outline" style="color:#D32F2F"></ion-icon></button>`:''}
+            <button class="admin-action-btn" title="Ver detalle" onclick="showAdminUserDetail(${u.id})"><ion-icon name="eye-outline" style="color:#1565C0"></ion-icon></button>
+            <button class="admin-action-btn" title="${u.activo?'Desactivar':'Activar'}" onclick="toggleUsuarioActivo(${u.id},${u.activo})"><ion-icon name="${u.activo?'pause-circle':'play-circle'}" style="color:${u.activo?'#FF8F00':'#2E7D32'}"></ion-icon></button>
+            ${u.rol!=='admin'?`<button class="admin-action-btn" title="Eliminar" onclick="eliminarUsuario(${u.id})"><ion-icon name="trash-outline" style="color:#D32F2F"></ion-icon></button>`:''}
           </div>
         </div>
       </div>`;
-    }).join('');
+    }).join('') + `</div>`;
   } catch(err) { content.innerHTML = `<div class="empty-state"><h3>Error cargando usuarios</h3></div>`; }
 }
+function filterAdminUsers() {
+  const filter = document.getElementById('admin-user-filter').value;
+  document.querySelectorAll('#admin-users-container .admin-user-card').forEach(card => {
+    card.style.display = (filter==='todos' || card.dataset.rol===filter) ? '' : 'none';
+  });
+}
 async function toggleUsuarioActivo(id, activo) {
-  try { await apiCall(`/admin/usuarios/${id}`, { method:'PUT', body: JSON.stringify({ activo: !activo }) }); loadAdminUsuarios(); }
+  try { await apiCall(`/admin/usuarios/${id}/toggle`, { method:'PUT', body: JSON.stringify({ activo: !activo }) }); loadAdminUsuarios(); }
   catch(err) { showToast('Error al actualizar'); }
 }
 async function eliminarUsuario(id) {
@@ -1925,32 +2166,391 @@ async function eliminarUsuario(id) {
   try { await apiCall(`/admin/usuarios/${id}`, { method:'DELETE' }); loadAdminUsuarios(); showToast('Usuario eliminado'); }
   catch(err) { showToast('Error al eliminar'); }
 }
+
+// Admin: Detalle de usuario
+async function showAdminUserDetail(userId) {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall(`/admin/usuarios/${userId}`);
+    const u = data.user; const p = data.perfil;
+    const roleLabel = u.rol==='trabajador'?'Trabajador':u.rol==='empleador'?'Empleador':'Admin';
+    let html = `<div style="padding:8px 0;">
+      <button class="btn btn-outline btn-small" style="max-width:150px;margin-bottom:12px;" onclick="loadAdminUsuarios()"><ion-icon name="arrow-back" style="font-size:16px;"></ion-icon> Volver</button>
+    </div>`;
+    html += `<div class="profile-header-card">
+      <div class="profile-avatar"><ion-icon name="person"></ion-icon></div>
+      <div class="profile-name">${u.nombre_completo}</div>
+      <div class="profile-role">${roleLabel}</div>
+      <span class="status-badge" style="background:${u.activo?'#E8F5E9':'#FFEBEE'};color:${u.activo?'#2E7D32':'#D32F2F'};margin-top:6px;">${u.activo?'Activo':'Inactivo'}</span>
+    </div>`;
+    html += `<div class="info-card">
+      <div class="info-item"><ion-icon name="call-outline"></ion-icon><div><div class="info-item-label">Celular</div><div class="info-item-value">${u.celular}</div></div></div>
+      ${u.correo?`<div class="info-item"><ion-icon name="mail-outline"></ion-icon><div><div class="info-item-label">Correo</div><div class="info-item-value">${u.correo}</div></div></div>`:''}
+      <div class="info-item"><ion-icon name="location-outline"></ion-icon><div><div class="info-item-label">Ubicación</div><div class="info-item-value">${u.municipio||'N/A'}, ${u.departamento||'N/A'}</div></div></div>
+      <div class="info-item"><ion-icon name="card-outline"></ion-icon><div><div class="info-item-label">Cédula</div><div class="info-item-value">${u.cedula}</div></div></div>
+      <div class="info-item"><ion-icon name="calendar-outline"></ion-icon><div><div class="info-item-label">Registro</div><div class="info-item-value">${new Date(u.created_at).toLocaleDateString('es-CO')}</div></div></div>
+    </div>`;
+    if (p && u.rol==='trabajador') {
+      html += `<div class="info-card"><div class="section-title-text">Perfil Trabajador</div>
+        ${p.nivel_estudios?`<div class="info-item"><ion-icon name="school-outline"></ion-icon><div><div class="info-item-label">Estudios</div><div class="info-item-value">${p.nivel_estudios}</div></div></div>`:''}
+        ${p.anios_experiencia?`<div class="info-item"><ion-icon name="time-outline"></ion-icon><div><div class="info-item-label">Experiencia</div><div class="info-item-value">${p.anios_experiencia}</div></div></div>`:''}
+        ${p.disponibilidad?`<div class="info-item"><ion-icon name="calendar-outline"></ion-icon><div><div class="info-item-label">Disponibilidad</div><div class="info-item-value">${p.disponibilidad}</div></div></div>`:''}
+        ${(p.habilidades||[]).length?`<div class="chips-section"><div class="chips-label">Habilidades:</div><div class="chips-row">${p.habilidades.map(h=>`<span class="profile-chip">${h.habilidad}</span>`).join('')}</div></div>`:''}
+        ${(p.cultivos||[]).length?`<div class="chips-section"><div class="chips-label">Cultivos:</div><div class="chips-row">${p.cultivos.map(c=>`<span class="profile-chip accent">${c.cultivo}</span>`).join('')}</div></div>`:''}
+      </div>`;
+    }
+    if (p && u.rol==='empleador') {
+      html += `<div class="info-card"><div class="section-title-text">Perfil Empleador</div>
+        <div class="info-item"><ion-icon name="business-outline"></ion-icon><div><div class="info-item-label">Finca/Empresa</div><div class="info-item-value">${p.nombre_empresa_finca}</div></div></div>
+        ${p.tipo_pago?`<div class="info-item"><ion-icon name="cash-outline"></ion-icon><div><div class="info-item-label">Tipo pago</div><div class="info-item-value">${p.tipo_pago}</div></div></div>`:''}
+        <div class="info-item"><ion-icon name="home-outline"></ion-icon><div><div class="info-item-label">Alojamiento</div><div class="info-item-value">${p.ofrece_alojamiento?'Sí':'No'}</div></div></div>
+        <div class="info-item"><ion-icon name="restaurant-outline"></ion-icon><div><div class="info-item-label">Alimentación</div><div class="info-item-value">${p.ofrece_alimentacion?'Sí':'No'}</div></div></div>
+        ${(p.cultivos||[]).length?`<div class="chips-section"><div class="chips-label">Cultivos:</div><div class="chips-row">${p.cultivos.map(c=>`<span class="profile-chip">${c.cultivo}</span>`).join('')}</div></div>`:''}
+        ${(p.labores||[]).length?`<div class="chips-section"><div class="chips-label">Labores:</div><div class="chips-row">${p.labores.map(l=>`<span class="profile-chip accent">${l.labor}</span>`).join('')}</div></div>`:''}
+      </div>`;
+    }
+    // Vacantes del empleador
+    if ((data.vacantes||[]).length) {
+      html += `<div class="info-card"><div class="section-title-text">Vacantes (${data.vacantes.length})</div>`;
+      data.vacantes.forEach(v => {
+        html += `<div class="admin-mini-item" onclick="showDetalleVacante(${v.id})">
+          <span>${v.titulo}</span><span class="badge" style="background:${v.estado==='activa'?'var(--success)':'var(--textLight)'};">${v.estado}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    // Postulaciones del trabajador
+    if ((data.postulaciones||[]).length) {
+      html += `<div class="info-card"><div class="section-title-text">Postulaciones (${data.postulaciones.length})</div>`;
+      data.postulaciones.forEach(p => {
+        const ec = p.estado==='aceptada'?'var(--success)':p.estado==='rechazada'?'var(--error)':'var(--warning)';
+        html += `<div class="admin-mini-item">
+          <span>${p.titulo}</span><span class="badge" style="background:${ec};">${p.estado}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    // Acciones admin
+    html += `<div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn ${u.activo?'btn-warning':'btn-primary'} btn-medium" onclick="toggleUsuarioActivo(${u.id},${u.activo}).then(()=>showAdminUserDetail(${u.id}))">${u.activo?'Desactivar':'Activar'}</button>
+      ${u.rol!=='admin'?`<button class="btn btn-danger btn-medium" onclick="eliminarUsuario(${u.id})">Eliminar</button>`:''}
+    </div>`;
+    content.innerHTML = html;
+  } catch(err) { content.innerHTML = `<div class="empty-state"><h3>Error cargando usuario</h3></div>`; }
+}
+
+// Admin: Listar vacantes
 async function loadAdminVacantes() {
   const content = document.getElementById('admin-content');
   content.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
   try {
     const data = await apiCall('/admin/vacantes');
-    if (!data.length) { content.innerHTML = `<div class="empty-state"><h3>No hay vacantes.</h3></div>`; return; }
-    content.innerHTML = data.map(v => {
+    const vacantes = Array.isArray(data) ? data : (data.vacantes || []);
+    if (vacantes.length===0) { content.innerHTML = `<div class="empty-state"><ion-icon name="briefcase-outline"></ion-icon><h3>No hay vacantes</h3>
+      <button class="btn btn-primary btn-medium" style="max-width:240px;margin:16px auto 0;" onclick="showAdminTab('crear-vacante')">Crear Vacante</button></div>`; return; }
+    
+    let html = `<div class="admin-filter-bar">
+      <span style="font-size:13px;color:var(--textSecondary);">${vacantes.length} vacante(s)</span>
+      <button class="btn btn-primary btn-small" style="max-width:160px;" onclick="showAdminTab('crear-vacante')"><ion-icon name="add" style="font-size:16px;"></ion-icon> Crear Nueva</button>
+    </div>`;
+    html += vacantes.map(v => {
       const ec = v.estado==='activa'?{bg:'#E8F5E9',fg:'#2E7D32'}:v.estado==='cerrada'?{bg:'#FFEBEE',fg:'#D32F2F'}:{bg:'#FFF3E0',fg:'#FF8F00'};
-      return `<div class="admin-vac-card">
-        <div class="admin-vac-top"><div><div class="admin-vac-titulo">${v.titulo}</div><div class="admin-vac-empresa">${v.nombre_empresa_finca||'Sin nombre'}</div></div>
-          <span class="estado-badge" style="background:${ec.bg};color:${ec.fg}">${v.estado}</span></div>
-        <div class="admin-user-info" style="margin-top:8px"><ion-icon name="location-outline"></ion-icon><span>${v.municipio}, ${v.departamento}</span></div>
-        <div class="admin-user-info"><ion-icon name="cash-outline"></ion-icon><span>$${v.salario_ofrecido?Number(v.salario_ofrecido).toLocaleString():'N/A'} - ${v.tipo_pago||'N/A'}</span></div>
-        ${v.urgente?`<div style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;background:#FFEBEE;padding:3px 8px;border-radius:999px;"><ion-icon name="alert-circle" style="font-size:14px;color:#D32F2F"></ion-icon><span style="font-size:12px;font-weight:600;color:#D32F2F">Urgente</span></div>`:''}
-        <div class="admin-vac-footer">
-          <span class="admin-vac-fecha">${new Date(v.fecha_creacion).toLocaleDateString('es-CO')}</span>
-          <button class="admin-action-btn" onclick="eliminarVacante(${v.id})"><ion-icon name="trash-outline" style="color:#D32F2F"></ion-icon></button>
+      return `<div class="vacante-card" style="cursor:default;">
+        <div class="emp-card-header"><span class="emp-card-title">${v.titulo}</span>
+          <span class="badge" style="background:${ec.fg}">${v.estado}</span></div>
+        <div class="card-row"><ion-icon name="business-outline" style="color:var(--textSecondary);"></ion-icon><span class="card-row-text">${v.nombre_empresa_finca||'Admin'} (${v.nombre_empleador})</span></div>
+        <div class="card-row"><ion-icon name="location-outline" style="color:var(--primary);"></ion-icon><span class="card-row-text">${v.municipio||'N/A'}, ${v.departamento||'N/A'}</span></div>
+        <div class="card-row"><ion-icon name="people-outline" style="color:var(--info);"></ion-icon><span class="card-row-text">${v.total_postulaciones||0} postulantes</span></div>
+        ${v.urgente?'<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;background:#FFEBEE;padding:3px 8px;border-radius:999px;"><ion-icon name="alert-circle" style="font-size:14px;color:#D32F2F"></ion-icon><span style="font-size:12px;font-weight:600;color:#D32F2F">Urgente</span></div>':''}
+        <div class="card-chips" style="margin-top:6px;">
+          ${(v.cultivos||[]).slice(0,3).map(c=>`<span class="mini-chip">${c.cultivo||c}</span>`).join('')}
+          ${(v.labores||[]).slice(0,2).map(l=>`<span class="mini-chip accent">${l.labor||l}</span>`).join('')}
+        </div>
+        <div class="admin-vac-footer" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;">
+          <span class="card-date">${new Date(v.created_at).toLocaleDateString('es-CO')}</span>
+          <div class="admin-actions">
+            <button class="admin-action-btn" title="Ver detalle" onclick="showDetalleVacante(${v.id})"><ion-icon name="eye-outline" style="color:#1565C0"></ion-icon></button>
+            <button class="admin-action-btn" title="Ver postulaciones" onclick="showAdminVacPostulaciones(${v.id},'${(v.titulo||'').replace(/'/g,"\\'")}')"><ion-icon name="people-outline" style="color:#2E7D32"></ion-icon></button>
+            <button class="admin-action-btn" title="${v.estado==='activa'?'Pausar':'Activar'}" onclick="adminCambiarEstadoVacante(${v.id},'${v.estado==='activa'?'pausada':'activa'}')"><ion-icon name="${v.estado==='activa'?'pause-circle':'play-circle'}" style="color:${v.estado==='activa'?'#FF8F00':'#2E7D32'}"></ion-icon></button>
+            <button class="admin-action-btn" title="Eliminar" onclick="eliminarVacante(${v.id})"><ion-icon name="trash-outline" style="color:#D32F2F"></ion-icon></button>
+          </div>
         </div>
       </div>`;
     }).join('');
+    content.innerHTML = html;
   } catch(err) { content.innerHTML = `<div class="empty-state"><h3>Error cargando vacantes</h3></div>`; }
 }
 async function eliminarVacante(id) {
   if (!confirm('¿Eliminar vacante?')) return;
   try { await apiCall(`/admin/vacantes/${id}`, { method:'DELETE' }); loadAdminVacantes(); showToast('Vacante eliminada'); }
   catch(err) { showToast('Error al eliminar'); }
+}
+async function adminCambiarEstadoVacante(id, estado) {
+  try { await apiCall(`/admin/vacantes/${id}/estado`, { method:'PUT', body: JSON.stringify({ estado }) }); loadAdminVacantes(); showToast(`Vacante ${estado}`); }
+  catch(err) { showToast('Error al cambiar estado'); }
+}
+// Admin: ver postulaciones de una vacante
+async function showAdminVacPostulaciones(vacanteId, titulo) {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall(`/admin/vacantes/${vacanteId}/postulaciones`);
+    const posts = data.postulaciones || [];
+    let html = `<div style="padding:8px 0;">
+      <button class="btn btn-outline btn-small" style="max-width:150px;margin-bottom:12px;" onclick="loadAdminVacantes()"><ion-icon name="arrow-back" style="font-size:16px;"></ion-icon> Volver</button>
+      <div class="section-title-text">${titulo}</div>
+      <div style="font-size:12px;color:var(--textSecondary);margin-bottom:8px;">${posts.length} postulante(s)</div>
+    </div>`;
+    if (posts.length===0) { content.innerHTML = html + `<div class="empty-state"><ion-icon name="people-outline"></ion-icon><h3>Sin postulantes</h3></div>`; return; }
+    html += posts.map(p => {
+      const ec = p.estado==='aceptada'?'var(--success)':p.estado==='rechazada'?'var(--error)':p.estado==='match_auto'?'var(--info)':'var(--warning)';
+      return `<div class="postulante-card">
+        <div class="postulante-top">
+          <div class="postulante-avatar"><ion-icon name="person"></ion-icon></div>
+          <div style="flex:1"><div class="postulante-name">${p.nombre_completo}</div>
+            <div class="postulante-info">${p.celular}</div>
+            <div class="postulante-info">${p.municipio||''}, ${p.departamento||''}</div></div>
+          <span class="badge" style="background:${ec}">${p.estado}</span>
+        </div>
+        ${p.puntaje_match>0?`<div class="match-row"><ion-icon name="flash" style="font-size:16px;color:var(--accent);"></ion-icon><span class="match-text">Match: ${Math.round(p.puntaje_match)}%</span></div>`:''}
+        ${p.nivel_estudios?`<div class="postulante-detail">Estudios: ${p.nivel_estudios}</div>`:''}
+        ${p.disponibilidad?`<div class="postulante-detail">Disponibilidad: ${p.disponibilidad}</div>`:''}
+        <button class="btn btn-outline btn-small" style="margin-top:8px;max-width:200px;" onclick="showAdminUserDetail(${p.trabajador_id})">Ver perfil completo</button>
+      </div>`;
+    }).join('');
+    content.innerHTML = html;
+  } catch(err) { content.innerHTML = `<div class="empty-state"><h3>Error cargando postulaciones</h3></div>`; }
+}
+
+// Admin: Crear vacante
+let adminVacanteData = {};
+async function loadAdminCrearVacante() {
+  // Cargar empleadores si no los tenemos
+  if (adminEmpleadores.length===0) {
+    try { adminEmpleadores = await apiCall('/admin/empleadores'); } catch(e) {}
+  }
+  renderAdminCrearVacante();
+}
+function renderAdminCrearVacante() {
+  const content = document.getElementById('admin-content');
+  const d = adminVacanteData;
+  
+  // Select de empleadores
+  let empSelectHTML = `<div class="input-group"><label class="input-label">Publicar a nombre de</label>
+    <div class="input-wrap"><ion-icon name="business-outline"></ion-icon>
+    <select id="adm-cv-empleador" style="flex:1;border:none;outline:none;font-size:14px;background:transparent;">
+      <option value="">Admin (prueba propia)</option>
+      ${adminEmpleadores.map(e=>`<option value="${e.id}" ${d.empleador_id==e.id?'selected':''}>${e.nombre_completo} - ${e.nombre_empresa_finca||'N/A'}</option>`).join('')}
+    </select></div></div>`;
+  
+  content.innerHTML = `<div class="form-card">
+    <div class="crear-title">🔧 Crear Vacante (Admin)</div>
+    <div style="font-size:12px;color:var(--textSecondary);margin-bottom:16px;">Puedes crear vacantes a nombre propio o a nombre de una finca registrada.</div>
+    ${empSelectHTML}
+    ${inputHTML('adm-cv-titulo','Título de la vacante','briefcase-outline','Ej: Recolector de café',true,'text',d.titulo||'')}
+    <div class="input-group"><label class="input-label">Descripción</label>
+      <div class="input-wrap"><textarea id="adm-cv-descripcion" placeholder="Describe el trabajo..." rows="3">${d.descripcion||''}</textarea></div></div>
+    <div class="chip-label">Cultivos</div>
+    ${chipSelectorAdminHTML('adm-cultivos', CULTIVOS, d.cultivos||[])}
+    <div class="chip-label" style="margin-top:12px;">Labores</div>
+    ${chipSelectorAdminHTML('adm-labores', LABORES, d.labores||[])}
+    <div class="section-label">Tipo de pago</div>
+    ${chipSelectorAdminHTML('adm-tipoPago', TIPO_PAGO_OPTIONS.map(t=>t.label), d.tipoPago?[TIPO_PAGO_OPTIONS.find(t=>t.value===d.tipoPago)?.label]:[], false)}
+    ${inputHTML('adm-cv-monto','Monto de pago (COP)','cash-outline','Ej: 50000',false,'number',d.monto||'')}
+    <div class="section-label">Ubicación</div>
+    ${pickerButtonHTML('adm-cv-dept',d.departamento||'','Departamento','location-outline')}
+    ${pickerButtonHTML('adm-cv-mun',d.municipio||'','Municipio','map-outline',!d.departamento)}
+    <div class="urgent-row">
+      <div><div class="urgent-label">¿Es urgente?</div></div>
+      <label class="toggle urgent-toggle"><input type="checkbox" id="adm-cv-urgente" ${d.urgente?'checked':''}><span class="toggle-slider"></span></label>
+    </div>
+    <button class="btn btn-primary btn-large" style="margin-top:24px;" onclick="adminCrearVacante()" id="adm-cv-submit-btn">Publicar Vacante</button>
+    <button class="btn btn-outline btn-medium" style="margin-top:8px;" onclick="showAdminTab('vacantes')">Cancelar</button>
+  </div>`;
+  
+  // Setup pickers
+  const deptBtn = document.getElementById('picker-adm-cv-dept');
+  if (deptBtn) deptBtn.onclick = () => showPickerModal('Departamento', DEPARTAMENTOS, d.departamento, v => { d.departamento=v; d.municipio=''; renderAdminCrearVacante(); });
+  const munBtn = document.getElementById('picker-adm-cv-mun');
+  if (munBtn && d.departamento) munBtn.onclick = () => showPickerModal('Municipio', getMunicipios(d.departamento), d.municipio, v => { d.municipio=v; renderAdminCrearVacante(); });
+  
+  // Chip click listeners
+  content.querySelectorAll('.chips-container[data-admin]').forEach(container => {
+    const id = container.dataset.id;
+    const multi = container.dataset.multi === 'true';
+    container.querySelectorAll('.chip').forEach(chip => {
+      chip.onclick = function() {
+        let selected = JSON.parse(container.dataset.selected || '[]');
+        const value = this.textContent.trim();
+        if (multi) {
+          if (selected.includes(value)) selected = selected.filter(s=>s!==value);
+          else selected.push(value);
+        } else { selected = [value]; }
+        container.dataset.selected = JSON.stringify(selected);
+        saveAdminCVChipData(id, selected);
+        renderAdminCrearVacante();
+      };
+    });
+  });
+}
+function chipSelectorAdminHTML(id, options, selected, multi=true) {
+  let html = `<div class="chips-container" data-admin="true" data-id="${id}" data-multi="${multi}" data-selected='${JSON.stringify(selected)}'>`;
+  options.forEach(opt => {
+    const sel = selected.includes(opt);
+    html += `<div class="chip ${sel?'selected':''}">${sel?'<ion-icon name="checkmark-circle" style="font-size:16px;color:var(--white)"></ion-icon> ':''}${opt}</div>`;
+  });
+  html += '</div>';
+  return html;
+}
+function saveAdminCVChipData(id, selected) {
+  if (id==='adm-cultivos') adminVacanteData.cultivos = selected;
+  else if (id==='adm-labores') adminVacanteData.labores = selected;
+  else if (id==='adm-tipoPago') { const t = TIPO_PAGO_OPTIONS.find(t=>t.label===selected[0]); adminVacanteData.tipoPago=t?.value||''; }
+}
+async function adminCrearVacante() {
+  const titulo = document.getElementById('adm-cv-titulo')?.value.trim();
+  if (!titulo) { showToast('El título es obligatorio'); return; }
+  const btn = document.getElementById('adm-cv-submit-btn');
+  btn.disabled = true;
+  const empleadorId = document.getElementById('adm-cv-empleador')?.value || '';
+  try {
+    await apiCall('/admin/vacantes', { method:'POST', body: JSON.stringify({
+      titulo,
+      descripcion: document.getElementById('adm-cv-descripcion')?.value||'',
+      cultivos: adminVacanteData.cultivos||[],
+      labores: adminVacanteData.labores||[],
+      tipo_pago: adminVacanteData.tipoPago||undefined,
+      monto_pago: document.getElementById('adm-cv-monto')?.value?parseFloat(document.getElementById('adm-cv-monto').value):undefined,
+      departamento: adminVacanteData.departamento||undefined,
+      municipio: adminVacanteData.municipio||undefined,
+      urgente: document.getElementById('adm-cv-urgente')?.checked||false,
+      empleador_id: empleadorId || undefined,
+    }) });
+    showToast('¡Vacante creada por admin!');
+    adminVacanteData = {};
+    showAdminTab('vacantes');
+  } catch(err) { showToast(err.data?.error||'Error al crear vacante'); btn.disabled=false; }
+}
+
+// Admin: Vista previa (Preview) de vistas de usuario
+function loadAdminPreview() {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = `<div style="padding:12px 0;">
+    <div class="section-title-text">Previsualización de Vistas</div>
+    <div style="font-size:13px;color:var(--textSecondary);margin-bottom:16px;">Visualiza cómo se ve la app para cada tipo de usuario sin cerrar sesión.</div>
+    
+    <div class="quick-action" onclick="adminPreviewTrabajador()">
+      <div class="quick-action-left">
+        <div style="width:40px;height:40px;border-radius:50%;background:#E8F5E9;display:flex;align-items:center;justify-content:center;">
+          <ion-icon name="person" style="font-size:22px;color:#2E7D32;"></ion-icon>
+        </div>
+        <div>
+          <div style="font-weight:600;">Vista Trabajador</div>
+          <div style="font-size:12px;color:var(--textSecondary);">Ver vacantes, filtros, postulaciones</div>
+        </div>
+      </div>
+      <ion-icon name="chevron-forward"></ion-icon>
+    </div>
+    
+    <div class="quick-action" onclick="adminPreviewEmpleador()">
+      <div class="quick-action-left">
+        <div style="width:40px;height:40px;border-radius:50%;background:#FFF3E0;display:flex;align-items:center;justify-content:center;">
+          <ion-icon name="business" style="font-size:22px;color:#FF8F00;"></ion-icon>
+        </div>
+        <div>
+          <div style="font-weight:600;">Vista Empleador</div>
+          <div style="font-size:12px;color:var(--textSecondary);">Ver mis vacantes, postulaciones</div>
+        </div>
+      </div>
+      <ion-icon name="chevron-forward"></ion-icon>
+    </div>
+    
+    <div class="quick-action" onclick="adminPreviewPublicVacantes()">
+      <div class="quick-action-left">
+        <div style="width:40px;height:40px;border-radius:50%;background:#E3F2FD;display:flex;align-items:center;justify-content:center;">
+          <ion-icon name="briefcase" style="font-size:22px;color:#1565C0;"></ion-icon>
+        </div>
+        <div>
+          <div style="font-weight:600;">Vacantes Públicas</div>
+          <div style="font-size:12px;color:var(--textSecondary);">Ver todas las vacantes como las ven los usuarios</div>
+        </div>
+      </div>
+      <ion-icon name="chevron-forward"></ion-icon>
+    </div>
+  </div>`;
+}
+
+// Admin preview: simula vista trabajador
+async function adminPreviewTrabajador() {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall('/vacantes');
+    const vacantes = data.vacantes || [];
+    let html = `<div style="padding:8px 0;">
+      <button class="btn btn-outline btn-small" style="max-width:180px;margin-bottom:12px;" onclick="loadAdminPreview()"><ion-icon name="arrow-back" style="font-size:16px;"></ion-icon> Volver a Vistas</button>
+      <div class="preview-banner" style="background:#E8F5E9;padding:10px 14px;border-radius:10px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+        <ion-icon name="eye" style="font-size:20px;color:#2E7D32;"></ion-icon>
+        <span style="font-size:13px;color:#2E7D32;font-weight:600;">Vista Trabajador - Así ven las vacantes</span>
+      </div>
+    </div>`;
+    if (vacantes.length===0) { html += `<div class="empty-state"><h3>No hay vacantes</h3></div>`; }
+    else {
+      html += vacantes.map(v => `
+        <div class="vacante-card ${v.urgente?'urgent':''}" onclick="showDetalleVacante(${v.id})">
+          ${v.urgente?'<div class="urgent-badge"><ion-icon name="alert-circle"></ion-icon><span>URGENTE</span></div>':''}
+          <div class="card-title">${v.titulo}</div>
+          ${v.nombre_empresa_finca?`<div class="card-row"><ion-icon name="business-outline" style="color:var(--textSecondary)"></ion-icon><span class="card-row-text">${v.nombre_empresa_finca}</span></div>`:''}
+          <div class="card-row"><ion-icon name="location-outline" style="color:var(--primary)"></ion-icon><span class="card-row-text">${v.municipio?v.municipio+', ':''}${v.departamento||'Sin ubicación'}</span></div>
+          ${v.tipo_pago?`<div class="card-row"><ion-icon name="cash-outline" style="color:var(--accent)"></ion-icon><span class="card-row-text">Pago: ${v.tipo_pago}</span></div>`:''}
+          <div class="card-chips">
+            ${(v.cultivos||[]).slice(0,3).map(c=>`<span class="mini-chip">${c.cultivo||c}</span>`).join('')}
+            ${(v.labores||[]).slice(0,2).map(l=>`<span class="mini-chip accent">${l.labor||l}</span>`).join('')}
+          </div>
+          <div class="card-date">${new Date(v.created_at).toLocaleDateString('es-CO')}</div>
+        </div>
+      `).join('');
+    }
+    content.innerHTML = html;
+  } catch(err) { content.innerHTML = `<div class="empty-state"><h3>Error</h3></div>`; }
+}
+
+// Admin preview: simula vista empleador
+async function adminPreviewEmpleador() {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall('/admin/vacantes');
+    const vacantes = Array.isArray(data) ? data : (data.vacantes || []);
+    let html = `<div style="padding:8px 0;">
+      <button class="btn btn-outline btn-small" style="max-width:180px;margin-bottom:12px;" onclick="loadAdminPreview()"><ion-icon name="arrow-back" style="font-size:16px;"></ion-icon> Volver a Vistas</button>
+      <div class="preview-banner" style="background:#FFF3E0;padding:10px 14px;border-radius:10px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+        <ion-icon name="eye" style="font-size:20px;color:#FF8F00;"></ion-icon>
+        <span style="font-size:13px;color:#FF8F00;font-weight:600;">Vista Empleador - Vacantes con postulantes</span>
+      </div>
+    </div>`;
+    if (vacantes.length===0) { html += `<div class="empty-state"><h3>No hay vacantes</h3></div>`; }
+    else {
+      html += vacantes.map(v => `
+        <div class="vacante-card" onclick="showAdminVacPostulaciones(${v.id},'${(v.titulo||'').replace(/'/g,"\\'")}')">
+          <div class="emp-card-header"><span class="emp-card-title">${v.titulo}</span>
+            <span class="badge" style="background:${v.estado==='activa'?'var(--success)':'var(--textLight)'}">${v.estado}</span></div>
+          <div class="card-row"><ion-icon name="business-outline" style="color:var(--textSecondary);"></ion-icon><span class="card-row-text">${v.nombre_empresa_finca||'Admin'}</span></div>
+          <div class="card-row"><ion-icon name="people-outline" style="color:var(--primary)"></ion-icon><span class="card-row-text">${v.total_postulaciones||0} postulantes</span></div>
+          <div class="card-row"><ion-icon name="location-outline" style="color:var(--textSecondary)"></ion-icon><span class="card-row-text">${v.municipio||'N/A'}, ${v.departamento||'N/A'}</span></div>
+          ${v.urgente?'<div style="margin-top:6px;"><span style="font-size:12px;color:#D32F2F;font-weight:600;">⚡ Urgente</span></div>':''}
+        </div>
+      `).join('');
+    }
+    content.innerHTML = html;
+  } catch(err) { content.innerHTML = `<div class="empty-state"><h3>Error</h3></div>`; }
+}
+
+// Admin preview: vacantes públicas
+async function adminPreviewPublicVacantes() {
+  // Reutilizar la vista de trabajador ya que es la misma
+  await adminPreviewTrabajador();
 }
 
 // ===== INIT =====
