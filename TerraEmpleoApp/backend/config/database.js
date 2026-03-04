@@ -9,6 +9,9 @@ const pool = mariadb.createPool({
   database: process.env.DB_NAME || 'terraempleo',
   connectionLimit: 10,
   acquireTimeout: 30000,
+  bigNumberStrings: true,
+  supportBigNumbers: true,
+  decimalNumbers: true,
 });
 
 async function getConnection() {

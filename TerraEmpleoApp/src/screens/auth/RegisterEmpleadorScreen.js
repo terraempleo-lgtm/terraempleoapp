@@ -47,6 +47,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
   const [codigoSMS, setCodigoSMS] = useState('');
   const [codigoEnviado, setCodigoEnviado] = useState(false);
   const [codigoDebug, setCodigoDebug] = useState('');
+  
 
   // Step 6: Fotos
   const [fotoSelfie, setFotoSelfie] = useState(false);
@@ -101,15 +102,15 @@ export default function RegisterEmpleadorScreen({ navigation }) {
   const prevStep = () => step > 1 && setStep(step - 1);
 
   const enviarCodigo = async () => {
-    try {
-      const res = await authAPI.enviarSMS(celular);
-      setCodigoEnviado(true);
-      setCodigoDebug(res.data.codigo_debug);
-      Alert.alert('Código enviado', `Código debug: ${res.data.codigo_debug}`);
-    } catch (err) {
-      Alert.alert('Error', 'No se pudo enviar el código');
-    }
-  };
+  try {
+    const res = await authAPI.enviarSMS(celular);
+    setCodigoEnviado(true);
+    setCodigoDebug(res.data.codigo_debug);
+    Alert.alert('Código enviado', `Código debug: ${res.data.codigo_debug}`);
+  } catch (err) {
+    Alert.alert('Error', 'No se pudo enviar el código');
+  }
+};
 
   const mockFoto = (tipo) => {
     Alert.alert('Foto capturada', `${tipo} simulada exitosamente.`);
