@@ -1,21 +1,22 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Modal, SafeAreaView, Alert, Image, ActivityIndicator
+  Modal, Alert, Image, ActivityIndicator
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { authAPI } from '../services/api';
 import { COLORS, SPACING, RADIUS } from '../theme';
 
-export default function CamaraFoto({ tipo, onFotoGuardada, label }) {
+export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = false }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [modalVisible, setModalVisible] = useState(false);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const cameraRef = useRef(null);
 
-  const facing = tipo === 'selfie' ? 'front' : 'back';
+  const facing = (tipo === 'selfie' || tipo === 'selfie_cedula') ? 'front' : 'back';
 
   const abrirCamara = async () => {
     if (!permission?.granted) {
@@ -41,6 +42,12 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label }) {
 
   const confirmarFoto = async () => {
     if (!preview) return;
+    if (modoLocal) {
+      setModalVisible(false);
+      onFotoGuardada(tipo, preview);
+      Alert.alert('Foto tomada', `${label} lista.`);
+      return;
+    }
     setLoading(true);
     try {
       const formData = new FormData();
@@ -51,7 +58,7 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label }) {
       });
       await authAPI.subirFoto(tipo, formData);
       setModalVisible(false);
-      onFotoGuardada(tipo);
+      onFotoGuardada(tipo, preview);
       Alert.alert('Foto guardada', `${label} guardada correctamente.`);
     } catch (err) {
       Alert.alert('Error', 'No se pudo guardar la foto. Verifica tu conexión.');
@@ -79,14 +86,13 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label }) {
 
           {!preview ? (
             <View style={{ flex: 1 }}>
-              <CameraView ref={cameraRef} style={{ flex: 1 }} facing={facing}>
-                <View style={styles.overlay}>
-                  <View style={styles.guideBox} />
-                  <Text style={styles.guideText}>
-                    {tipo === 'selfie' ? 'Centra tu cara' : tipo === 'cedula' ? 'Coloca tu cédula' : 'Cara y cédula juntas'}
-                  </Text>
-                </View>
-              </CameraView>
+              <CameraView ref={cameraRef} style={{ flex: 1 }} facing={facing} />
+              <View style={[styles.overlay, StyleSheet.absoluteFillObject]}>
+                <View style={styles.guideBox} />
+                <Text style={styles.guideText}>
+                  {tipo === 'selfie' ? 'Centra tu cara' : tipo === 'cedula' ? 'Coloca tu cédula' : 'Cara y cédula juntas'}
+                </Text>
+              </View>
               <View style={styles.captureBar}>
                 <TouchableOpacity style={styles.captureBtn} onPress={tomarFoto}>
                   <View style={styles.captureBtnInner} />

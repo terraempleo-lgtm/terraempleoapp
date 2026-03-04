@@ -273,7 +273,7 @@ async function subirFotos(req, res) {
     const columna = columnas[tipo];
     if (!columna) return res.status(400).json({ error: 'Tipo de foto inválido. Use: selfie, cedula, selfie_cedula' });
 
-    const filePath = `/uploads/${req.file.filename}`;
+    const filePath = req.file.path; // Cloudinary secure_url
     await query(`UPDATE usuarios SET ${columna} = ? WHERE id = ?`, [filePath, userId]);
 
     res.json({ message: 'Foto subida exitosamente', path: filePath });

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, StarRating } from '../../components/ui';
 import { authAPI } from '../../services/api';
@@ -71,7 +72,14 @@ export default function PerfilScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerCard}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={48} color={COLORS.white} />
+            {u?.foto_selfie && u.foto_selfie.startsWith('http') ? (
+              <Image
+                source={{ uri: u.foto_selfie }}
+                style={{ width: 88, height: 88, borderRadius: 44 }}
+              />
+            ) : (
+              <Ionicons name="person" size={48} color={COLORS.white} />
+            )}
           </View>
           <Text style={styles.name}>{u?.nombre_completo}</Text>
           <Text style={styles.role}>

@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, SafeAreaView, ScrollView, Alert,
+  View, Text, StyleSheet, ScrollView, Alert,
   KeyboardAvoidingView, Platform, TouchableOpacity, Switch
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input, ChipSelector, ProgressBar, PickerModal } from '../../components/ui';
 import { DEPARTAMENTOS, getMunicipios } from '../../data/colombia';
 import { CULTIVOS, LABORES, NIVELES_ESTUDIO, TITULOS_SUGERIDOS, EXPERIENCIA_OPTIONS, DISPONIBILIDAD_OPTIONS } from '../../data/options';
-import { authAPI } from '../../services/api';
+import { authAPI, setAuthToken } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import CamaraFoto from '../../components/CamaraFoto';
 
 const TOTAL_STEPS = 9;
 const STEP_LABELS = [
-  'Datos personales', 'Ubicación', 'Cédula y datos legales', 'Verificación SMS',
-  'Fotos de verificación', 'Nivel de estudios', 'Experiencia y habilidades',
-  'Cultivos y disponibilidad', 'Resumen final'
+  'Datos personales', 'Ubicación', 'Cédula y datos legales', 'Nivel de estudios',
+  'Experiencia y habilidades', 'Cultivos y disponibilidad', 'Verificación SMS',
+  'Fotos de verificación', 'Resumen final'
 ];
 
 export default function RegisterTrabajadorScreen({ navigation }) {
@@ -47,10 +48,10 @@ export default function RegisterTrabajadorScreen({ navigation }) {
   const [codigoEnviado, setCodigoEnviado] = useState(false);
   const [codigoDebug, setCodigoDebug] = useState('');
 
-  // Step 5: Fotos reales
-  const [fotoSelfie, setFotoSelfie] = useState(false);
-  const [fotoCedula, setFotoCedula] = useState(false);
-  const [fotoSelfieCedula, setFotoSelfieCedula] = useState(false);
+  // Step 8: Fotos (guardadas localmente hasta después del registro)
+  const [fotoSelfie, setFotoSelfie] = useState(null);
+  const [fotoCedula, setFotoCedula] = useState(null);
+  const [fotoSelfieCedula, setFotoSelfieCedula] = useState(null);
 
   // Step 6: Estudios
   const [nivelEstudios, setNivelEstudios] = useState('');
@@ -87,15 +88,15 @@ export default function RegisterTrabajadorScreen({ navigation }) {
         if (!aceptaHabeasData) errs.habeas = 'Debe aceptar el tratamiento de datos';
         break;
       case 4:
+        if (!nivelEstudios) errs.estudios = 'Seleccione su nivel de estudios';
+        break;
+      case 7:
         if (!codigoSMS.trim()) errs.codigo = 'Ingrese el código';
         break;
-      case 5:
+      case 8:
         if (!fotoSelfie) errs.selfie = 'La selfie es obligatoria';
         if (!fotoCedula) errs.cedFoto = 'La foto de cédula es obligatoria';
         if (!fotoSelfieCedula) errs.selfieCed = 'La foto con cédula es obligatoria';
-        break;
-      case 6:
-        if (!nivelEstudios) errs.estudios = 'Seleccione su nivel de estudios';
         break;
     }
     setErrors(errs);
@@ -118,10 +119,10 @@ export default function RegisterTrabajadorScreen({ navigation }) {
     }
   };
 
-  const handleFotoGuardada = (tipo) => {
-    if (tipo === 'selfie') setFotoSelfie(true);
-    if (tipo === 'cedula') setFotoCedula(true);
-    if (tipo === 'selfie_cedula') setFotoSelfieCedula(true);
+  const handleFotoGuardada = (tipo, uri) => {
+    if (tipo === 'selfie') setFotoSelfie(uri);
+    if (tipo === 'cedula') setFotoCedula(uri);
+    if (tipo === 'selfie_cedula') setFotoSelfieCedula(uri);
   };
 
   const handleRegister = async () => {
@@ -154,6 +155,24 @@ export default function RegisterTrabajadorScreen({ navigation }) {
 
       const response = await authAPI.register(data);
       const { token, user } = response.data;
+
+      // Activar token para subir fotos
+      setAuthToken(token);
+      const fotos = [
+        { tipo: 'selfie', uri: fotoSelfie },
+        { tipo: 'cedula', uri: fotoCedula },
+        { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
+      ].filter(f => f.uri);
+      for (const { tipo, uri } of fotos) {
+        try {
+          const formData = new FormData();
+          formData.append('foto', { uri, type: 'image/jpeg', name: `${tipo}_${Date.now()}.jpg` });
+          await authAPI.subirFoto(tipo, formData);
+        } catch {
+          // No bloqueamos el registro si falla la subida de una foto
+        }
+      }
+
       Alert.alert('¡Registro exitoso!', 'Tu cuenta ha sido creada.', [
         { text: 'Continuar', onPress: () => signIn(user, token) }
       ]);
@@ -246,111 +265,6 @@ export default function RegisterTrabajadorScreen({ navigation }) {
       case 4:
         return (
           <View>
-            <Text style={styles.stepTitle}>Verificación SMS</Text>
-            <Text style={styles.stepDesc}>Verificaremos tu número de celular</Text>
-
-            {!codigoEnviado ? (
-              <View style={styles.smsContainer}>
-                <Text style={styles.smsText}>Se enviará un código de 6 dígitos a:</Text>
-                <Text style={styles.smsPhone}>{celular}</Text>
-                <Button title="Enviar Código" onPress={enviarCodigo} size="large" />
-              </View>
-            ) : (
-              <View>
-                <Text style={styles.smsText}>Ingresa el código de 6 dígitos:</Text>
-                {codigoDebug ? (
-                  <Text style={[styles.smsText, { color: COLORS.info, fontWeight: '600' }]}>
-                    (Código debug: {codigoDebug})
-                  </Text>
-                ) : null}
-                <Input label="Código" value={codigoSMS} onChangeText={setCodigoSMS}
-                  placeholder="000000" keyboardType="numeric" maxLength={6}
-                  icon="key-outline" error={errors.codigo} />
-                <Button title="Reenviar código" onPress={enviarCodigo} variant="outline" size="small"
-                  style={{ marginTop: SPACING.sm }} />
-              </View>
-            )}
-          </View>
-        );
-
-      case 5:
-        return (
-          <View>
-            <Text style={styles.stepTitle}>Fotos de Verificación</Text>
-            <Text style={styles.stepDesc}>Necesitamos verificar tu identidad</Text>
-
-            <Text style={styles.fotoHint}>
-              Solo puedes tomar la foto en el momento, no se permite subir desde galería.
-            </Text>
-
-            {/* Selfie */}
-            <View style={[styles.fotoRow, fotoSelfie && styles.fotoRowDone]}>
-              <View style={styles.fotoInfo}>
-                <Ionicons
-                  name={fotoSelfie ? 'checkmark-circle' : 'camera-outline'}
-                  size={28}
-                  color={fotoSelfie ? COLORS.success : COLORS.primary}
-                />
-                <View>
-                  <Text style={styles.fotoLabel}>Selfie</Text>
-                  <Text style={styles.fotoDesc}>Foto de tu cara</Text>
-                </View>
-              </View>
-              {!fotoSelfie ? (
-                <CamaraFoto tipo="selfie" label="Selfie" onFotoGuardada={handleFotoGuardada} />
-              ) : (
-                <Text style={styles.fotoOk}>✓ Guardada</Text>
-              )}
-            </View>
-            {errors.selfie && <Text style={styles.errorText}>{errors.selfie}</Text>}
-
-            {/* Foto cedula */}
-            <View style={[styles.fotoRow, fotoCedula && styles.fotoRowDone]}>
-              <View style={styles.fotoInfo}>
-                <Ionicons
-                  name={fotoCedula ? 'checkmark-circle' : 'card-outline'}
-                  size={28}
-                  color={fotoCedula ? COLORS.success : COLORS.primary}
-                />
-                <View>
-                  <Text style={styles.fotoLabel}>Foto de Cédula</Text>
-                  <Text style={styles.fotoDesc}>Foto de tu documento</Text>
-                </View>
-              </View>
-              {!fotoCedula ? (
-                <CamaraFoto tipo="cedula" label="Foto de Cédula" onFotoGuardada={handleFotoGuardada} />
-              ) : (
-                <Text style={styles.fotoOk}>✓ Guardada</Text>
-              )}
-            </View>
-            {errors.cedFoto && <Text style={styles.errorText}>{errors.cedFoto}</Text>}
-
-            {/* Selfie con cedula */}
-            <View style={[styles.fotoRow, fotoSelfieCedula && styles.fotoRowDone]}>
-              <View style={styles.fotoInfo}>
-                <Ionicons
-                  name={fotoSelfieCedula ? 'checkmark-circle' : 'people-outline'}
-                  size={28}
-                  color={fotoSelfieCedula ? COLORS.success : COLORS.primary}
-                />
-                <View>
-                  <Text style={styles.fotoLabel}>Selfie con Cédula</Text>
-                  <Text style={styles.fotoDesc}>Tú sosteniendo tu cédula</Text>
-                </View>
-              </View>
-              {!fotoSelfieCedula ? (
-                <CamaraFoto tipo="selfie_cedula" label="Selfie con Cédula" onFotoGuardada={handleFotoGuardada} />
-              ) : (
-                <Text style={styles.fotoOk}>✓ Guardada</Text>
-              )}
-            </View>
-            {errors.selfieCed && <Text style={styles.errorText}>{errors.selfieCed}</Text>}
-          </View>
-        );
-
-      case 6:
-        return (
-          <View>
             <Text style={styles.stepTitle}>Nivel de Estudios</Text>
             <Text style={styles.stepDesc}>¿Cuál es tu formación?</Text>
             <ChipSelector
@@ -381,7 +295,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
           </View>
         );
 
-      case 7:
+      case 5:
         return (
           <View>
             <Text style={styles.stepTitle}>Experiencia y Habilidades</Text>
@@ -397,7 +311,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
           </View>
         );
 
-      case 8:
+      case 6:
         return (
           <View>
             <Text style={styles.stepTitle}>Cultivos y Disponibilidad</Text>
@@ -434,6 +348,111 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               multiSelect={false}
               allowCustom={false}
             />
+          </View>
+        );
+
+      case 7:
+        return (
+          <View>
+            <Text style={styles.stepTitle}>Verificación SMS</Text>
+            <Text style={styles.stepDesc}>Verificaremos tu número de celular</Text>
+
+            {!codigoEnviado ? (
+              <View style={styles.smsContainer}>
+                <Text style={styles.smsText}>Se enviará un código de 6 dígitos a:</Text>
+                <Text style={styles.smsPhone}>{celular}</Text>
+                <Button title="Enviar Código" onPress={enviarCodigo} size="large" />
+              </View>
+            ) : (
+              <View>
+                <Text style={styles.smsText}>Ingresa el código de 6 dígitos:</Text>
+                {codigoDebug ? (
+                  <Text style={[styles.smsText, { color: COLORS.info, fontWeight: '600' }]}>
+                    (Código debug: {codigoDebug})
+                  </Text>
+                ) : null}
+                <Input label="Código" value={codigoSMS} onChangeText={setCodigoSMS}
+                  placeholder="000000" keyboardType="numeric" maxLength={6}
+                  icon="key-outline" error={errors.codigo} />
+                <Button title="Reenviar código" onPress={enviarCodigo} variant="outline" size="small"
+                  style={{ marginTop: SPACING.sm }} />
+              </View>
+            )}
+          </View>
+        );
+
+      case 8:
+        return (
+          <View>
+            <Text style={styles.stepTitle}>Fotos de Verificación</Text>
+            <Text style={styles.stepDesc}>Necesitamos verificar tu identidad</Text>
+
+            <Text style={styles.fotoHint}>
+              Solo puedes tomar la foto en el momento, no se permite subir desde galería.
+            </Text>
+
+            {/* Selfie */}
+            <View style={[styles.fotoRow, fotoSelfie && styles.fotoRowDone]}>
+              <View style={styles.fotoInfo}>
+                <Ionicons
+                  name={fotoSelfie ? 'checkmark-circle' : 'camera-outline'}
+                  size={28}
+                  color={fotoSelfie ? COLORS.success : COLORS.primary}
+                />
+                <View>
+                  <Text style={styles.fotoLabel}>Selfie</Text>
+                  <Text style={styles.fotoDesc}>Foto de tu cara</Text>
+                </View>
+              </View>
+              {!fotoSelfie ? (
+                <CamaraFoto tipo="selfie" label="Selfie" onFotoGuardada={handleFotoGuardada} modoLocal={true} />
+              ) : (
+                <Text style={styles.fotoOk}>✓ Lista</Text>
+              )}
+            </View>
+            {errors.selfie && <Text style={styles.errorText}>{errors.selfie}</Text>}
+
+            {/* Foto cedula */}
+            <View style={[styles.fotoRow, fotoCedula && styles.fotoRowDone]}>
+              <View style={styles.fotoInfo}>
+                <Ionicons
+                  name={fotoCedula ? 'checkmark-circle' : 'card-outline'}
+                  size={28}
+                  color={fotoCedula ? COLORS.success : COLORS.primary}
+                />
+                <View>
+                  <Text style={styles.fotoLabel}>Foto de Cédula</Text>
+                  <Text style={styles.fotoDesc}>Foto de tu documento</Text>
+                </View>
+              </View>
+              {!fotoCedula ? (
+                <CamaraFoto tipo="cedula" label="Foto de Cédula" onFotoGuardada={handleFotoGuardada} modoLocal={true} />
+              ) : (
+                <Text style={styles.fotoOk}>✓ Lista</Text>
+              )}
+            </View>
+            {errors.cedFoto && <Text style={styles.errorText}>{errors.cedFoto}</Text>}
+
+            {/* Selfie con cedula */}
+            <View style={[styles.fotoRow, fotoSelfieCedula && styles.fotoRowDone]}>
+              <View style={styles.fotoInfo}>
+                <Ionicons
+                  name={fotoSelfieCedula ? 'checkmark-circle' : 'people-outline'}
+                  size={28}
+                  color={fotoSelfieCedula ? COLORS.success : COLORS.primary}
+                />
+                <View>
+                  <Text style={styles.fotoLabel}>Selfie con Cédula</Text>
+                  <Text style={styles.fotoDesc}>Tú sosteniendo tu cédula</Text>
+                </View>
+              </View>
+              {!fotoSelfieCedula ? (
+                <CamaraFoto tipo="selfie_cedula" label="Selfie con Cédula" onFotoGuardada={handleFotoGuardada} modoLocal={true} />
+              ) : (
+                <Text style={styles.fotoOk}>✓ Lista</Text>
+              )}
+            </View>
+            {errors.selfieCed && <Text style={styles.errorText}>{errors.selfieCed}</Text>}
           </View>
         );
 
