@@ -3,6 +3,9 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
 require('dotenv').config();
 
+// Helper para convertir 0/1 de MariaDB a boolean real (soporta entero o string)
+const toBool = (val) => Number(val) === 1;
+
 // Registro de usuario
 async function register(req, res) {
   try {
@@ -51,7 +54,6 @@ async function register(req, res) {
 
       const perfilId = Number(perfilResult.insertId);
 
-      // Insertar habilidades
       if (habilidades && Array.isArray(habilidades)) {
         for (const h of habilidades) {
           await query('INSERT INTO trabajador_habilidades (perfil_trabajador_id, habilidad, es_personalizada) VALUES (?, ?, ?)',
@@ -59,7 +61,6 @@ async function register(req, res) {
         }
       }
 
-      // Insertar cultivos
       if (cultivos_trabajador && Array.isArray(cultivos_trabajador)) {
         for (const c of cultivos_trabajador) {
           await query('INSERT INTO trabajador_cultivos (perfil_trabajador_id, cultivo, es_personalizado) VALUES (?, ?, ?)',
@@ -82,7 +83,6 @@ async function register(req, res) {
 
       const perfilId = Number(perfilResult.insertId);
 
-      // Insertar cultivos
       if (cultivos_empleador && Array.isArray(cultivos_empleador)) {
         for (const c of cultivos_empleador) {
           await query('INSERT INTO empleador_cultivos (perfil_empleador_id, cultivo, es_personalizado) VALUES (?, ?, ?)',
@@ -90,7 +90,6 @@ async function register(req, res) {
         }
       }
 
-      // Insertar labores
       if (labores && Array.isArray(labores)) {
         for (const l of labores) {
           await query('INSERT INTO empleador_labores (perfil_empleador_id, labor, es_personalizada) VALUES (?, ?, ?)',
@@ -99,7 +98,6 @@ async function register(req, res) {
       }
     }
 
-    // Generar token
     const token = jwt.sign(
       { id: userId, rol, celular, nombre_completo },
       process.env.JWT_SECRET,
@@ -161,8 +159,9 @@ async function login(req, res) {
         correo: user.correo,
         departamento: user.departamento,
         municipio: user.municipio,
-        verificado_sms: user.verificado_sms,
-        calificacion_promedio: user.calificacion_promedio
+        verificado_sms: toBool(user.verificado_sms),
+        calificacion_promedio: user.calificacion_promedio,
+        foto_selfie: user.foto_selfie || null,
       }
     });
   } catch (err) {
@@ -171,38 +170,42 @@ async function login(req, res) {
   }
 }
 
-// Enviar código SMS (mock)
+// Enviar código SMS via Twilio Verify
 async function enviarCodigoSMS(req, res) {
   try {
     const { celular } = req.body;
     if (!celular) return res.status(400).json({ error: 'Celular requerido' });
 
-    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-    await query('UPDATE usuarios SET codigo_sms = ? WHERE celular = ?', [codigo, celular]);
+    const celularFormateado = celular.startsWith('+') ? celular : `+57${celular}`;
 
-    console.log(`[MOCK SMS] Código para ${celular}: ${codigo}`);
+    const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
+      .verifications.create({ to: celularFormateado, channel: 'sms' });
 
-    res.json({ message: 'Código enviado (mock)', codigo_debug: codigo });
+    res.json({ message: 'Código enviado' });
   } catch (err) {
     console.error('Error enviando SMS:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
 
-// Verificar código SMS
+// Verificar código SMS via Twilio Verify
 async function verificarCodigoSMS(req, res) {
   try {
     const { celular, codigo } = req.body;
     if (!celular || !codigo) return res.status(400).json({ error: 'Celular y código requeridos' });
 
-    const users = await query('SELECT id, codigo_sms FROM usuarios WHERE celular = ?', [celular]);
-    if (!users || users.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const celularFormateado = celular.startsWith('+') ? celular : `+57${celular}`;
 
-    if (users[0].codigo_sms !== codigo) {
+    const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    const verification = await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
+      .verificationChecks.create({ to: celularFormateado, code: codigo });
+
+    if (verification.status !== 'approved') {
       return res.status(400).json({ error: 'Código incorrecto' });
     }
 
-    await query('UPDATE usuarios SET verificado_sms = 1, codigo_sms = NULL WHERE celular = ?', [celular]);
+    await query('UPDATE usuarios SET verificado_sms = 1 WHERE celular = ?', [celular]);
     res.json({ message: 'Celular verificado exitosamente' });
   } catch (err) {
     console.error('Error verificando SMS:', err);
@@ -221,6 +224,11 @@ async function getPerfil(req, res) {
     delete user.password_hash;
     delete user.codigo_sms;
 
+    // Convertir booleanos del usuario
+    user.verificado_sms = toBool(user.verificado_sms);
+    user.activo = toBool(user.activo);
+    user.acepta_habeas_data = toBool(user.acepta_habeas_data);
+
     let perfil = null;
     if (user.rol === 'trabajador') {
       const perfiles = await query('SELECT * FROM perfil_trabajador WHERE usuario_id = ?', [userId]);
@@ -233,6 +241,9 @@ async function getPerfil(req, res) {
       const perfiles = await query('SELECT * FROM perfil_empleador WHERE usuario_id = ?', [userId]);
       if (perfiles.length > 0) {
         perfil = perfiles[0];
+        // Convertir booleanos del empleador
+        perfil.ofrece_alojamiento = toBool(perfil.ofrece_alojamiento);
+        perfil.ofrece_alimentacion = toBool(perfil.ofrece_alimentacion);
         perfil.cultivos = await query('SELECT * FROM empleador_cultivos WHERE perfil_empleador_id = ?', [perfil.id]);
         perfil.labores = await query('SELECT * FROM empleador_labores WHERE perfil_empleador_id = ?', [perfil.id]);
       }
@@ -249,7 +260,7 @@ async function getPerfil(req, res) {
 async function subirFotos(req, res) {
   try {
     const userId = req.user.id;
-    const { tipo } = req.params; // selfie, cedula, selfie_cedula
+    const { tipo } = req.params;
 
     if (!req.file) return res.status(400).json({ error: 'Archivo de imagen requerido' });
 

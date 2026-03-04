@@ -10,6 +10,7 @@ import { CULTIVOS, LABORES, NIVELES_ESTUDIO, TITULOS_SUGERIDOS, EXPERIENCIA_OPTI
 import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import CamaraFoto from '../../components/CamaraFoto';
 
 const TOTAL_STEPS = 9;
 const STEP_LABELS = [
@@ -46,7 +47,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
   const [codigoEnviado, setCodigoEnviado] = useState(false);
   const [codigoDebug, setCodigoDebug] = useState('');
 
-  // Step 5: Fotos (mock para MVP)
+  // Step 5: Fotos reales
   const [fotoSelfie, setFotoSelfie] = useState(false);
   const [fotoCedula, setFotoCedula] = useState(false);
   const [fotoSelfieCedula, setFotoSelfieCedula] = useState(false);
@@ -117,12 +118,10 @@ export default function RegisterTrabajadorScreen({ navigation }) {
     }
   };
 
-  const mockFoto = (tipo) => {
-    // En el MVP simulamos la captura de foto
-    Alert.alert('Foto capturada', `Se simuló la captura de ${tipo} exitosamente.`);
+  const handleFotoGuardada = (tipo) => {
     if (tipo === 'selfie') setFotoSelfie(true);
-    if (tipo === 'cédula') setFotoCedula(true);
-    if (tipo === 'selfie con cédula') setFotoSelfieCedula(true);
+    if (tipo === 'cedula') setFotoCedula(true);
+    if (tipo === 'selfie_cedula') setFotoSelfieCedula(true);
   };
 
   const handleRegister = async () => {
@@ -233,7 +232,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               placeholder="Ej: 1234567890" keyboardType="numeric" icon="card-outline" required error={errors.cedula} />
 
             <View style={styles.checkboxRow}>
-              <Switch value={aceptaHabeasData} onValueChange={setAceptaHabeasData}
+              <Switch value={!!aceptaHabeasData} onValueChange={setAceptaHabeasData}
                 trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
                 thumbColor={aceptaHabeasData ? COLORS.primary : '#f4f3f4'} />
               <Text style={styles.checkboxText}>
@@ -280,34 +279,71 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <Text style={styles.stepTitle}>Fotos de Verificación</Text>
             <Text style={styles.stepDesc}>Necesitamos verificar tu identidad</Text>
 
-            <TouchableOpacity style={[styles.photoBtn, fotoSelfie && styles.photoBtnDone]}
-              onPress={() => mockFoto('selfie')}>
-              <Ionicons name={fotoSelfie ? 'checkmark-circle' : 'camera'}
-                size={32} color={fotoSelfie ? COLORS.success : COLORS.primary} />
-              <Text style={styles.photoBtnText}>
-                {fotoSelfie ? '✓ Selfie tomada' : 'Tomar Selfie'}
-              </Text>
-            </TouchableOpacity>
+            <Text style={styles.fotoHint}>
+              Solo puedes tomar la foto en el momento, no se permite subir desde galería.
+            </Text>
+
+            {/* Selfie */}
+            <View style={[styles.fotoRow, fotoSelfie && styles.fotoRowDone]}>
+              <View style={styles.fotoInfo}>
+                <Ionicons
+                  name={fotoSelfie ? 'checkmark-circle' : 'camera-outline'}
+                  size={28}
+                  color={fotoSelfie ? COLORS.success : COLORS.primary}
+                />
+                <View>
+                  <Text style={styles.fotoLabel}>Selfie</Text>
+                  <Text style={styles.fotoDesc}>Foto de tu cara</Text>
+                </View>
+              </View>
+              {!fotoSelfie ? (
+                <CamaraFoto tipo="selfie" label="Selfie" onFotoGuardada={handleFotoGuardada} />
+              ) : (
+                <Text style={styles.fotoOk}>✓ Guardada</Text>
+              )}
+            </View>
             {errors.selfie && <Text style={styles.errorText}>{errors.selfie}</Text>}
 
-            <TouchableOpacity style={[styles.photoBtn, fotoCedula && styles.photoBtnDone]}
-              onPress={() => mockFoto('cédula')}>
-              <Ionicons name={fotoCedula ? 'checkmark-circle' : 'card'}
-                size={32} color={fotoCedula ? COLORS.success : COLORS.primary} />
-              <Text style={styles.photoBtnText}>
-                {fotoCedula ? '✓ Foto de cédula tomada' : 'Foto de Cédula'}
-              </Text>
-            </TouchableOpacity>
+            {/* Foto cedula */}
+            <View style={[styles.fotoRow, fotoCedula && styles.fotoRowDone]}>
+              <View style={styles.fotoInfo}>
+                <Ionicons
+                  name={fotoCedula ? 'checkmark-circle' : 'card-outline'}
+                  size={28}
+                  color={fotoCedula ? COLORS.success : COLORS.primary}
+                />
+                <View>
+                  <Text style={styles.fotoLabel}>Foto de Cédula</Text>
+                  <Text style={styles.fotoDesc}>Foto de tu documento</Text>
+                </View>
+              </View>
+              {!fotoCedula ? (
+                <CamaraFoto tipo="cedula" label="Foto de Cédula" onFotoGuardada={handleFotoGuardada} />
+              ) : (
+                <Text style={styles.fotoOk}>✓ Guardada</Text>
+              )}
+            </View>
             {errors.cedFoto && <Text style={styles.errorText}>{errors.cedFoto}</Text>}
 
-            <TouchableOpacity style={[styles.photoBtn, fotoSelfieCedula && styles.photoBtnDone]}
-              onPress={() => mockFoto('selfie con cédula')}>
-              <Ionicons name={fotoSelfieCedula ? 'checkmark-circle' : 'people'}
-                size={32} color={fotoSelfieCedula ? COLORS.success : COLORS.primary} />
-              <Text style={styles.photoBtnText}>
-                {fotoSelfieCedula ? '✓ Selfie con cédula tomada' : 'Selfie con Cédula'}
-              </Text>
-            </TouchableOpacity>
+            {/* Selfie con cedula */}
+            <View style={[styles.fotoRow, fotoSelfieCedula && styles.fotoRowDone]}>
+              <View style={styles.fotoInfo}>
+                <Ionicons
+                  name={fotoSelfieCedula ? 'checkmark-circle' : 'people-outline'}
+                  size={28}
+                  color={fotoSelfieCedula ? COLORS.success : COLORS.primary}
+                />
+                <View>
+                  <Text style={styles.fotoLabel}>Selfie con Cédula</Text>
+                  <Text style={styles.fotoDesc}>Tú sosteniendo tu cédula</Text>
+                </View>
+              </View>
+              {!fotoSelfieCedula ? (
+                <CamaraFoto tipo="selfie_cedula" label="Selfie con Cédula" onFotoGuardada={handleFotoGuardada} />
+              ) : (
+                <Text style={styles.fotoOk}>✓ Guardada</Text>
+              )}
+            </View>
             {errors.selfieCed && <Text style={styles.errorText}>{errors.selfieCed}</Text>}
           </View>
         );
@@ -420,7 +456,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               <SummaryRow label="Cultivos" value={cultivos.join(', ') || 'N/A'} />
               <SummaryRow label="Experiencia" value={EXPERIENCIA_OPTIONS.find(e => e.value === experiencia)?.label || 'N/A'} />
               <SummaryRow label="Disponibilidad" value={DISPONIBILIDAD_OPTIONS.find(d => d.value === disponibilidad)?.label || 'N/A'} />
-              <SummaryRow label="Fotos" value="✓ Verificadas" />
+              <SummaryRow label="Fotos"
+                value={`${fotoSelfie ? '✓' : '✗'} Selfie  ${fotoCedula ? '✓' : '✗'} Cédula  ${fotoSelfieCedula ? '✓' : '✗'} Selfie+Cédula`} />
             </View>
           </View>
         );
@@ -442,7 +479,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" style={{ flex: 1 }} />
           )}
           {step < TOTAL_STEPS ? (
-            <Button title="Siguiente" onPress={nextStep} size="medium" style={{ flex: step > 1 ? 1 : undefined, width: step === 1 ? '100%' : undefined }} />
+            <Button title="Siguiente" onPress={nextStep} size="medium"
+              style={{ flex: step > 1 ? 1 : undefined, width: step === 1 ? '100%' : undefined }} />
           ) : (
             <Button title="Finalizar Registro" onPress={handleRegister} loading={loading}
               size="large" style={{ flex: 1 }} />
@@ -469,142 +507,59 @@ const summaryStyles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.borderLight,
   },
-  label: {
-    width: 110,
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  value: {
-    flex: 1,
-    fontSize: 14,
-    color: COLORS.textPrimary,
-  },
+  label: { width: 110, fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
+  value: { flex: 1, fontSize: 14, color: COLORS.textPrimary },
 });
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: SPACING.md,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  scrollContent: { flexGrow: 1, padding: SPACING.md },
   formCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    ...SHADOWS.medium,
+    backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
+    padding: SPACING.lg, ...SHADOWS.medium,
   },
-  stepTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.xs,
-  },
-  stepDesc: {
-    fontSize: 15,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.lg,
-  },
-  stepSubtitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.sm,
-  },
+  stepTitle: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary, marginBottom: SPACING.xs },
+  stepDesc: { fontSize: 15, color: COLORS.textSecondary, marginBottom: SPACING.lg },
+  stepSubtitle: { fontSize: 16, fontWeight: '600', color: COLORS.textPrimary, marginBottom: SPACING.sm },
   pickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    marginBottom: SPACING.md,
-    minHeight: 52,
-    gap: SPACING.sm,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
+    marginBottom: SPACING.md, minHeight: 52, gap: SPACING.sm,
   },
-  pickerDisabled: {
-    opacity: 0.5,
-  },
-  pickerText: {
-    flex: 1,
-    fontSize: 16,
-    color: COLORS.textPrimary,
-  },
+  pickerDisabled: { opacity: 0.5 },
+  pickerText: { flex: 1, fontSize: 16, color: COLORS.textPrimary },
   checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primarySoft,
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    gap: SPACING.md,
-    marginTop: SPACING.md,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primarySoft,
+    padding: SPACING.md, borderRadius: RADIUS.md, gap: SPACING.md, marginTop: SPACING.md,
   },
-  checkboxText: {
-    flex: 1,
-    fontSize: 14,
-    color: COLORS.textPrimary,
-    lineHeight: 20,
+  checkboxText: { flex: 1, fontSize: 14, color: COLORS.textPrimary, lineHeight: 20 },
+  errorText: { fontSize: 13, color: COLORS.error, marginTop: -SPACING.sm, marginBottom: SPACING.sm },
+  smsContainer: { alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.lg },
+  smsText: { fontSize: 16, color: COLORS.textSecondary, textAlign: 'center' },
+  smsPhone: { fontSize: 24, fontWeight: '700', color: COLORS.primary },
+  fotoHint: {
+    fontSize: 13, color: COLORS.textLight, fontStyle: 'italic',
+    marginBottom: SPACING.md, textAlign: 'center',
   },
-  errorText: {
-    fontSize: 13,
-    color: COLORS.error,
-    marginTop: -SPACING.sm,
-    marginBottom: SPACING.sm,
-  },
-  smsContainer: {
-    alignItems: 'center',
-    gap: SPACING.md,
-    paddingVertical: SPACING.lg,
-  },
-  smsText: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  smsPhone: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  photoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primarySoft,
-    borderRadius: RADIUS.md,
-    padding: SPACING.lg,
-    marginBottom: SPACING.md,
-    gap: SPACING.md,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    borderStyle: 'dashed',
-  },
-  photoBtnDone: {
-    borderStyle: 'solid',
-    borderColor: COLORS.success,
-    backgroundColor: '#E8F5E9',
-  },
-  photoBtnText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-  },
-  summaryCard: {
-    backgroundColor: COLORS.primarySoft,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-  },
-  footer: {
-    flexDirection: 'row',
-    padding: SPACING.md,
-    gap: SPACING.md,
+  fotoRow: {
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md,
+    padding: SPACING.md, marginBottom: SPACING.md,
     backgroundColor: COLORS.white,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-    ...SHADOWS.small,
+  },
+  fotoRowDone: {
+    borderColor: COLORS.success, backgroundColor: '#E8F5E9',
+  },
+  fotoInfo: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginBottom: SPACING.sm,
+  },
+  fotoLabel: { fontSize: 16, fontWeight: '600', color: COLORS.textPrimary },
+  fotoDesc: { fontSize: 13, color: COLORS.textLight },
+  fotoOk: { fontSize: 15, color: COLORS.success, fontWeight: '600', textAlign: 'center' },
+  summaryCard: { backgroundColor: COLORS.primarySoft, borderRadius: RADIUS.md, padding: SPACING.md },
+  footer: {
+    flexDirection: 'row', padding: SPACING.md, gap: SPACING.md,
+    backgroundColor: COLORS.white, borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight, ...SHADOWS.small,
   },
 });

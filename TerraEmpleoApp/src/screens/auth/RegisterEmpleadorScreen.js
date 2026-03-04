@@ -234,7 +234,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
             <Input label="Número de cédula" value={cedula} onChangeText={setCedula}
               placeholder="1234567890" keyboardType="numeric" icon="card-outline" required error={errors.cedula} />
             <View style={styles.checkboxRow}>
-              <Switch value={aceptaHabeasData} onValueChange={setAceptaHabeasData}
+              <Switch value={!!aceptaHabeasData} onValueChange={setAceptaHabeasData}
                 trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
                 thumbColor={aceptaHabeasData ? COLORS.primary : '#f4f3f4'} />
               <Text style={styles.checkboxText}>
@@ -317,13 +317,13 @@ export default function RegisterEmpleadorScreen({ navigation }) {
             <View style={styles.beneficiosSection}>
               <View style={styles.beneficioRow}>
                 <Text style={styles.beneficioLabel}>¿Ofrece alojamiento?</Text>
-                <Switch value={ofreceAlojamiento} onValueChange={setOfreceAlojamiento}
+                <Switch value={!!ofreceAlojamiento} onValueChange={setOfreceAlojamiento}
                   trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
                   thumbColor={ofreceAlojamiento ? COLORS.primary : '#f4f3f4'} />
               </View>
               <View style={styles.beneficioRow}>
                 <Text style={styles.beneficioLabel}>¿Ofrece alimentación?</Text>
-                <Switch value={ofreceAlimentacion} onValueChange={setOfreceAlimentacion}
+                <Switch value={!!ofreceAlimentacion} onValueChange={setOfreceAlimentacion}
                   trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
                   thumbColor={ofreceAlimentacion ? COLORS.primary : '#f4f3f4'} />
               </View>

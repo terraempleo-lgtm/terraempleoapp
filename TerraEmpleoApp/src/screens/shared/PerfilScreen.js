@@ -6,6 +6,38 @@ import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
+const LABELS_EXPERIENCIA = {
+  sin_experiencia: 'Sin experiencia',
+  menos_1: 'Menos de 1 año',
+  '1_3': '1 a 3 años',
+  '3_5': '3 a 5 años',
+  '5_10': '5 a 10 años',
+  mas_10: 'Más de 10 años',
+};
+
+const LABELS_DISPONIBILIDAD = {
+  tiempo_completo: 'Tiempo completo',
+  por_dias: 'Por días',
+  por_temporada: 'Por temporada / cosecha',
+  fines_semana: 'Fines de semana',
+  inmediato: 'Disponible inmediatamente',
+};
+
+const LABELS_ESTUDIOS = {
+  sin_estudios: 'Sin estudios',
+  bachiller: 'Bachiller',
+  tecnico: 'Técnico / Tecnólogo',
+  universitario: 'Universitario',
+};
+
+const LABELS_PAGO = {
+  jornal: 'Jornal (diario)',
+  semanal: 'Semanal',
+  quincenal: 'Quincenal',
+  mensual: 'Mensual',
+  destajo: 'Por tarea / destajo',
+};
+
 export default function PerfilScreen() {
   const { user, signOut } = useAuth();
   const [perfil, setPerfil] = useState(null);
@@ -66,16 +98,19 @@ export default function PerfilScreen() {
           <View style={styles.infoCard}>
             <Text style={styles.sectionTitle}>Perfil Trabajador</Text>
             {perfil.nivel_estudios && (
-              <InfoItem icon="school-outline" label="Estudios" value={perfil.nivel_estudios} />
+              <InfoItem icon="school-outline" label="Estudios"
+                value={LABELS_ESTUDIOS[perfil.nivel_estudios] || perfil.nivel_estudios} />
             )}
             {perfil.titulo_estudio && (
               <InfoItem icon="ribbon-outline" label="Título" value={perfil.titulo_estudio} />
             )}
             {perfil.anios_experiencia && (
-              <InfoItem icon="time-outline" label="Experiencia" value={perfil.anios_experiencia} />
+              <InfoItem icon="time-outline" label="Experiencia"
+                value={LABELS_EXPERIENCIA[perfil.anios_experiencia] || perfil.anios_experiencia} />
             )}
             {perfil.disponibilidad && (
-              <InfoItem icon="calendar-outline" label="Disponibilidad" value={perfil.disponibilidad} />
+              <InfoItem icon="calendar-outline" label="Disponibilidad"
+                value={LABELS_DISPONIBILIDAD[perfil.disponibilidad] || perfil.disponibilidad} />
             )}
             {perfil.habilidades?.length > 0 && (
               <View style={styles.chipsSection}>
@@ -108,7 +143,10 @@ export default function PerfilScreen() {
           <View style={styles.infoCard}>
             <Text style={styles.sectionTitle}>Perfil Empleador</Text>
             <InfoItem icon="business-outline" label="Finca/Empresa" value={perfil.nombre_empresa_finca} />
-            {perfil.tipo_pago && <InfoItem icon="cash-outline" label="Tipo pago" value={perfil.tipo_pago} />}
+            {perfil.tipo_pago && (
+              <InfoItem icon="cash-outline" label="Tipo pago"
+                value={LABELS_PAGO[perfil.tipo_pago] || perfil.tipo_pago} />
+            )}
             <InfoItem icon="home-outline" label="Alojamiento" value={perfil.ofrece_alojamiento ? 'Sí' : 'No'} />
             <InfoItem icon="restaurant-outline" label="Alimentación" value={perfil.ofrece_alimentacion ? 'Sí' : 'No'} />
           </View>

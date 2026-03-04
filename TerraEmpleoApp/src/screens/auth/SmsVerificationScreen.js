@@ -1,7 +1,3 @@
-// SmsVerificationScreen.js
-// Pantalla de verificación de celular por SMS usando Firebase Auth
-// Compatible con Expo (sin expo-firebase-recaptcha necesario en SDK 49+)
-
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -14,21 +10,15 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
-import { PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
-import { auth } from '../firebaseConfig'; // ajusta la ruta según tu proyecto
-import app from '../firebaseConfig';
+import { COLORS } from '../../theme';
+import { authAPI } from '../../services/api';
 
-const VERDE = '#2E7D32';
-const VERDE_CLARO = '#4CAF50';
+const VERDE = COLORS.primary;
+const VERDE_CLARO = COLORS.primaryLight;
 
 export default function SmsVerificationScreen({ route, navigation }) {
-  // Recibe el número de celular desde la pantalla anterior
-  // Ejemplo: navigation.navigate('SmsVerification', { celular: '+573001234567' })
-  const { celular } = route.params || {};
+  const { celular, onVerificado, siguienteRuta, siguienteParams } = route.params || {};
 
-  const recaptchaVerifier = useRef(null);
-  const [verificationId, setVerificationId] = useState(null);
   const [codigo, setCodigo] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
   const [loading, setLoading] = useState(false);
@@ -39,6 +29,8 @@ export default function SmsVerificationScreen({ route, navigation }) {
   useEffect(() => {
     if (celular) {
       enviarCodigo();
+    } else {
+      Alert.alert('Error', 'No se recibió el número de celular');
     }
   }, []);
 
@@ -51,22 +43,17 @@ export default function SmsVerificationScreen({ route, navigation }) {
   }, [countdown]);
 
   const enviarCodigo = async () => {
-    if (enviando) return;
+    if (enviando || !celular) return;
     try {
       setEnviando(true);
-      const phoneProvider = new PhoneAuthProvider(auth);
-      const id = await phoneProvider.verifyPhoneNumber(
-        celular,
-        recaptchaVerifier.current
-      );
-      setVerificationId(id);
+      await authAPI.enviarSMS(celular);
       setCountdown(60); // esperar 60s para reenviar
       Alert.alert('✅ Código enviado', `Se envió un SMS al ${celular}`);
     } catch (error) {
-      console.error('Error al enviar SMS:', error);
+      const mensaje = error.response?.data?.error || 'No se pudo enviar el código. Verifica el número e intenta de nuevo.';
       Alert.alert(
         'Error',
-        'No se pudo enviar el código. Verifica el número e intenta de nuevo.'
+        mensaje
       );
     } finally {
       setEnviando(false);
@@ -105,25 +92,28 @@ export default function SmsVerificationScreen({ route, navigation }) {
       Alert.alert('Error', 'Ingresa los 6 dígitos del código');
       return;
     }
-    if (!verificationId) {
-      Alert.alert('Error', 'Primero debes solicitar el código SMS');
+    if (!celular) {
+      Alert.alert('Error', 'Celular inválido para verificación');
       return;
     }
 
     try {
       setLoading(true);
-      const credential = PhoneAuthProvider.credential(verificationId, codigoFinal);
-      await signInWithCredential(auth, credential);
+      await authAPI.verificarSMS(celular, codigoFinal);
 
-      // ✅ Verificación exitosa — navegar al siguiente paso
-      // Ajusta la navegación según tu flujo de registro
-      navigation.navigate('FotoVerificacion'); // o el paso que sigue
-    } catch (error) {
-      console.error('Error al verificar código:', error);
-      let mensaje = 'Código incorrecto. Intenta de nuevo.';
-      if (error.code === 'auth/code-expired') {
-        mensaje = 'El código expiró. Solicita uno nuevo.';
+      if (typeof onVerificado === 'function') {
+        onVerificado();
+        return;
       }
+
+      if (siguienteRuta) {
+        navigation.navigate(siguienteRuta, siguienteParams || {});
+        return;
+      }
+
+      navigation.goBack();
+    } catch (error) {
+      const mensaje = error.response?.data?.error || 'Código incorrecto. Intenta de nuevo.';
       Alert.alert('Error', mensaje);
       setCodigo(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
@@ -137,13 +127,6 @@ export default function SmsVerificationScreen({ route, navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* reCAPTCHA invisible — requerido por Firebase */}
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={app.options}
-        attemptInvisibleVerification={true}
-      />
-
       <View style={styles.contenido}>
         {/* Ícono */}
         <View style={styles.icono}>
@@ -214,7 +197,7 @@ export default function SmsVerificationScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
   },
   contenido: {
     flex: 1,
@@ -237,13 +220,13 @@ const styles = StyleSheet.create({
   titulo: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: COLORS.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitulo: {
     fontSize: 15,
-    color: '#666',
+    color: COLORS.textSecondary,
     textAlign: 'center',
     marginBottom: 4,
   },
@@ -262,17 +245,17 @@ const styles = StyleSheet.create({
     width: 48,
     height: 56,
     borderWidth: 1.5,
-    borderColor: '#ddd',
+    borderColor: COLORS.border,
     borderRadius: 12,
     textAlign: 'center',
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#1a1a1a',
-    backgroundColor: '#f9f9f9',
+    color: COLORS.textPrimary,
+    backgroundColor: COLORS.surface,
   },
   otpInputActivo: {
     borderColor: VERDE_CLARO,
-    backgroundColor: '#F1F8E9',
+    backgroundColor: COLORS.primarySoft,
   },
   boton: {
     backgroundColor: VERDE,
@@ -287,7 +270,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#A5D6A7',
   },
   botonTexto: {
-    color: '#fff',
+    color: COLORS.textOnPrimary,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -296,7 +279,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   reenviarTexto: {
-    color: '#666',
+    color: COLORS.textSecondary,
     fontSize: 14,
   },
   reenviarLink: {
@@ -305,7 +288,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   countdown: {
-    color: '#999',
+    color: COLORS.textLight,
     fontSize: 14,
   },
 });

@@ -37,6 +37,10 @@ async function listarUsuarios(req, res) {
       LEFT JOIN perfil_empleador pe ON pe.usuario_id = u.id
       ORDER BY u.created_at DESC
     `);
+    for (const u of usuarios) {
+      u.activo = Number(u.activo) === 1;
+      u.verificado_sms = Number(u.verificado_sms) === 1;
+    }
     res.json(usuarios);
   } catch (err) {
     console.error('Error listando usuarios:', err);

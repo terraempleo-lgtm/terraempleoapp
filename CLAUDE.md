@@ -50,7 +50,7 @@ No test suite or linter is configured in either frontend or backend.
 - **API URL** ([src/config/index.js](TerraEmpleoApp/src/config/index.js)): `http://10.0.2.2:3000/api` (Android emulator). Change to LAN IP (e.g. `http://192.168.x.x:3000/api`) for physical devices.
 - **SMS mock** ([src/config/index.js](TerraEmpleoApp/src/config/index.js)): `SMS_MOCK: true` — backend returns `codigo_debug` in response instead of sending a real SMS.
 - **Backend env** ([backend/.env](TerraEmpleoApp/backend/.env)): `DB_HOST=127.0.0.1`, `DB_PORT=3306`, `DB_USER=root`, `DB_PASSWORD=12345`, `DB_NAME=terraempleo`, `PORT=3000`, `JWT_EXPIRES_IN=7d`.
-- **Firebase** ([firebaseConfig.js](TerraEmpleoApp/firebaseConfig.js)): Configured for project `terraempleo-737ce` but **not yet wired** into main navigation. `SmsVerificationScreen.js` is an alternative SMS flow pending integration.
+- **SMS verification screen** ([src/screens/auth/SmsVerificationScreen.js](TerraEmpleoApp/src/screens/auth/SmsVerificationScreen.js)): Uses backend endpoints `/api/auth/sms/enviar` and `/api/auth/sms/verificar` with OTP de 6 dígitos.
 
 ### Screen Organization
 
@@ -69,7 +69,7 @@ Both registration wizards use `ProgressBar` for step tracking. Step 5 = SMS veri
 
 ## Known Issues / Pending Work
 
-- **SMS**: Firebase phone auth is configured but not integrated; backend mock (`SMS_MOCK: true`) is active.
+- **SMS**: Backend mock (`SMS_MOCK: true`) is active; falta proveedor real de mensajería para producción.
 - **Camera**: `expo-camera` is installed but photo capture shows an `Alert` placeholder.
 - **Profile editing UI**: Not yet implemented.
 - **Label formatting**: Raw DB values (e.g. `"menos_1"`) render without human-readable mapping in profile view.

@@ -112,7 +112,7 @@ export default function CrearVacanteScreen({ navigation }) {
                 <Text style={styles.urgentLabel}>¿Es urgente?</Text>
                 <Text style={styles.urgentDesc}>Se destacará en las búsquedas</Text>
               </View>
-              <Switch value={urgente} onValueChange={setUrgente}
+              <Switch value={!!urgente} onValueChange={setUrgente}
                 trackColor={{ false: COLORS.border, true: COLORS.urgent }}
                 thumbColor={urgente ? '#fff' : '#f4f3f4'} />
             </View>

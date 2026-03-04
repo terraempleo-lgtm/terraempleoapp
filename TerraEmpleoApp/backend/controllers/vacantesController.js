@@ -139,7 +139,7 @@ async function misVacantes(req, res) {
       if (v.monto_pago !== null && v.monto_pago !== undefined) {
         v.monto_pago = Number(v.monto_pago);
       }
-      v.urgente = Boolean(v.urgente);
+      v.urgente = Number(v.urgente) === 1;
 
       v.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [v.id]);
       v.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [v.id]);
@@ -197,7 +197,7 @@ async function listarVacantes(req, res) {
       if (v.monto_pago !== null && v.monto_pago !== undefined) {
         v.monto_pago = Number(v.monto_pago);
       }
-      v.urgente = Boolean(v.urgente);
+      v.urgente = Number(v.urgente) === 1;
       v.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [v.id]);
       v.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [v.id]);
     }
@@ -232,8 +232,8 @@ async function detalleVacante(req, res) {
       vacante.monto_pago = Number(vacante.monto_pago);
     }
     vacante.urgente = Boolean(vacante.urgente);
-    vacante.ofrece_alojamiento = Boolean(vacante.ofrece_alojamiento);
-    vacante.ofrece_alimentacion = Boolean(vacante.ofrece_alimentacion);
+    vacante.ofrece_alojamiento = Number(vacante.ofrece_alojamiento) === 1;
+    vacante.ofrece_alimentacion = Number(vacante.ofrece_alimentacion) === 1;
     vacante.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [id]);
     vacante.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [id]);
 
@@ -354,6 +354,11 @@ async function misPostulaciones(req, res) {
       WHERE p.trabajador_id = ?
       ORDER BY p.created_at DESC
     `, [trabajadorId]);
+
+    for (const p of postulaciones) {
+      p.urgente = Number(p.urgente) === 1;
+      p.es_match_automatico = Number(p.es_match_automatico) === 1;
+    }
 
     res.json({ postulaciones });
   } catch (err) {
