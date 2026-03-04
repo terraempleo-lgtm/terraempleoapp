@@ -149,6 +149,19 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Fotos de vacante
+  await query(`
+    CREATE TABLE IF NOT EXISTS vacante_fotos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      vacante_id INT NOT NULL,
+      url VARCHAR(500) NOT NULL,
+      descripcion VARCHAR(255) DEFAULT NULL,
+      orden INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (vacante_id) REFERENCES vacantes(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Postulaciones
   await query(`
     CREATE TABLE IF NOT EXISTS postulaciones (

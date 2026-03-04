@@ -6,7 +6,7 @@ import { vacantesAPI, calificacionesAPI } from '../../services/api';
 import { StarRating, Button, Input } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function VerPostulacionesScreen({ route }) {
+export default function VerPostulacionesScreen({ route, navigation }) {
   const { vacante } = route.params;
   const [postulaciones, setPostulaciones] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -75,7 +75,11 @@ export default function VerPostulacionesScreen({ route }) {
         data={postulaciones}
         keyExtractor={(item) => item.id?.toString()}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.trabajador_id })}
+          >
             <View style={styles.cardTop}>
               <View style={styles.avatarCircle}>
                 <Ionicons name="person" size={22} color={COLORS.white} />
@@ -138,7 +142,7 @@ export default function VerPostulacionesScreen({ route }) {
                 </View>
               </View>
             )}
-          </View>
+          </TouchableOpacity>
         )}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar(); }} colors={[COLORS.primary]} />}

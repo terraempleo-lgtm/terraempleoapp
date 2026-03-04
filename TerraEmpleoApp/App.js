@@ -24,6 +24,7 @@ import MisPostulacionesScreen from './src/screens/trabajador/MisPostulacionesScr
 // Empleador
 import EmpleadorVacantesScreen from './src/screens/empleador/EmpleadorVacantesScreen';
 import CrearVacanteScreen from './src/screens/empleador/CrearVacanteScreen';
+import EditarVacanteScreen from './src/screens/empleador/EditarVacanteScreen';
 import VerPostulacionesScreen from './src/screens/empleador/VerPostulacionesScreen';
 
 // Admin
@@ -33,6 +34,8 @@ import AdminVacantesScreen from './src/screens/admin/AdminVacantesScreen';
 
 // Shared
 import PerfilScreen from './src/screens/shared/PerfilScreen';
+import EditarPerfilScreen from './src/screens/shared/EditarPerfilScreen';
+import PerfilPublicoTrabajadorScreen from './src/screens/shared/PerfilPublicoTrabajadorScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -72,6 +75,15 @@ const tabScreenOptions = ({ route }) => ({
   headerShown: false,
 });
 
+function PerfilStack() {
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen name="PerfilHome" component={PerfilScreen} options={{ title: 'Mi Perfil' }} />
+      <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ title: 'Editar Perfil' }} />
+    </Stack.Navigator>
+  );
+}
+
 // ── Trabajador Tabs ──
 function TrabajadorTabs() {
   return (
@@ -80,8 +92,8 @@ function TrabajadorTabs() {
         options={{ tabBarLabel: 'Vacantes' }} />
       <Tab.Screen name="Postulaciones" component={MisPostulacionesScreen}
         options={{ tabBarLabel: 'Mis Postulaciones', headerShown: true, ...screenOptions, title: 'Mis Postulaciones' }} />
-      <Tab.Screen name="Perfil" component={PerfilScreen}
-        options={{ tabBarLabel: 'Perfil', headerShown: true, ...screenOptions, title: 'Mi Perfil' }} />
+      <Tab.Screen name="Perfil" component={PerfilStack}
+        options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );
 }
@@ -103,8 +115,8 @@ function EmpleadorTabs() {
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="MisVacantes" component={EmpleadorVacantesStack}
         options={{ tabBarLabel: 'Mis Vacantes' }} />
-      <Tab.Screen name="Perfil" component={PerfilScreen}
-        options={{ tabBarLabel: 'Perfil', headerShown: true, ...screenOptions, title: 'Mi Perfil' }} />
+      <Tab.Screen name="Perfil" component={PerfilStack}
+        options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );
 }
@@ -116,8 +128,12 @@ function EmpleadorVacantesStack() {
         options={{ title: 'Mis Vacantes' }} />
       <Stack.Screen name="CrearVacante" component={CrearVacanteScreen}
         options={{ title: 'Nueva Vacante' }} />
+      <Stack.Screen name="EditarVacante" component={EditarVacanteScreen}
+        options={{ title: 'Editar Vacante' }} />
       <Stack.Screen name="VerPostulaciones" component={VerPostulacionesScreen}
         options={{ title: 'Postulaciones' }} />
+      <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
+        options={{ title: 'Perfil del Trabajador' }} />
     </Stack.Navigator>
   );
 }
@@ -132,8 +148,8 @@ function AdminTabs() {
         options={{ tabBarLabel: 'Usuarios', headerShown: true, ...screenOptions, title: 'Usuarios' }} />
       <Tab.Screen name="AdminVacantes" component={AdminVacantesScreen}
         options={{ tabBarLabel: 'Vacantes', headerShown: true, ...screenOptions, title: 'Vacantes' }} />
-      <Tab.Screen name="Perfil" component={PerfilScreen}
-        options={{ tabBarLabel: 'Perfil', headerShown: true, ...screenOptions, title: 'Mi Perfil' }} />
+      <Tab.Screen name="Perfil" component={PerfilStack}
+        options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );
 }

@@ -50,9 +50,19 @@ export default function EmpleadorVacantesScreen({ navigation }) {
             activeOpacity={0.7}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>{item.titulo}</Text>
-              <View style={[styles.estadoBadge,
-                { backgroundColor: item.estado === 'activa' ? COLORS.success : COLORS.textLight }]}>
-                <Text style={styles.estadoText}>{item.estado}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={[styles.estadoBadge,
+                  { backgroundColor: item.estado === 'activa' ? COLORS.success : COLORS.textLight }]}>
+                  <Text style={styles.estadoText}>{item.estado}</Text>
+                </View>
+                {item.estado === 'activa' && (
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('EditarVacante', { vacante: item })}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
             <View style={styles.cardRow}>

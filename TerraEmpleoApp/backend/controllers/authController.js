@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
+const { ejecutarMatchingParaTrabajador } = require('./vacantesController');
 require('dotenv').config();
 
 // Helper para convertir 0/1 de MariaDB a boolean real (soporta entero o string)
@@ -67,6 +68,11 @@ async function register(req, res) {
             [perfilId, c.nombre, c.es_personalizado ? 1 : 0]);
         }
       }
+
+      // Matching automático en background: no bloqueamos la respuesta de registro
+      ejecutarMatchingParaTrabajador(userId).catch(err =>
+        console.error('Error en matching post-registro:', err)
+      );
     }
 
     // Si es empleador, crear perfil
@@ -256,6 +262,95 @@ async function getPerfil(req, res) {
   }
 }
 
+// Actualizar perfil
+async function actualizarPerfil(req, res) {
+  try {
+    const userId = req.user.id;
+    const rol = req.user.rol;
+
+    if (rol === 'trabajador') {
+      const {
+        nombre_completo, departamento, municipio, vereda,
+        nivel_estudios, titulo_estudio, anios_experiencia, disponibilidad,
+        habilidades, cultivos_trabajador
+      } = req.body;
+
+      await query(
+        'UPDATE usuarios SET nombre_completo=?, departamento=?, municipio=?, vereda=? WHERE id=?',
+        [nombre_completo, departamento || null, municipio || null, vereda || null, userId]
+      );
+
+      await query(
+        'UPDATE perfil_trabajador SET nivel_estudios=?, titulo_estudio=?, anios_experiencia=?, disponibilidad=? WHERE usuario_id=?',
+        [nivel_estudios || null, titulo_estudio || null, anios_experiencia || null, disponibilidad || null, userId]
+      );
+
+      const perfiles = await query('SELECT id FROM perfil_trabajador WHERE usuario_id=?', [userId]);
+      if (perfiles.length > 0) {
+        const perfilId = Number(perfiles[0].id);
+        await query('DELETE FROM trabajador_habilidades WHERE perfil_trabajador_id=?', [perfilId]);
+        if (habilidades && Array.isArray(habilidades)) {
+          for (const h of habilidades) {
+            await query('INSERT INTO trabajador_habilidades (perfil_trabajador_id, habilidad, es_personalizada) VALUES (?, ?, ?)',
+              [perfilId, h.nombre, h.es_personalizada ? 1 : 0]);
+          }
+        }
+        await query('DELETE FROM trabajador_cultivos WHERE perfil_trabajador_id=?', [perfilId]);
+        if (cultivos_trabajador && Array.isArray(cultivos_trabajador)) {
+          for (const c of cultivos_trabajador) {
+            await query('INSERT INTO trabajador_cultivos (perfil_trabajador_id, cultivo, es_personalizado) VALUES (?, ?, ?)',
+              [perfilId, c.nombre, c.es_personalizado ? 1 : 0]);
+          }
+        }
+      }
+
+    } else if (rol === 'empleador') {
+      const {
+        nombre_completo, departamento, municipio, vereda,
+        nombre_empresa_finca, tipo_pago, ofrece_alojamiento, ofrece_alimentacion,
+        beneficios_extra, cultivos_empleador, labores
+      } = req.body;
+
+      await query(
+        'UPDATE usuarios SET nombre_completo=?, departamento=?, municipio=?, vereda=? WHERE id=?',
+        [nombre_completo, departamento || null, municipio || null, vereda || null, userId]
+      );
+
+      await query(
+        'UPDATE perfil_empleador SET nombre_empresa_finca=?, tipo_pago=?, ofrece_alojamiento=?, ofrece_alimentacion=?, beneficios_extra=? WHERE usuario_id=?',
+        [nombre_empresa_finca, tipo_pago || null, ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, beneficios_extra || null, userId]
+      );
+
+      const perfiles = await query('SELECT id FROM perfil_empleador WHERE usuario_id=?', [userId]);
+      if (perfiles.length > 0) {
+        const perfilId = Number(perfiles[0].id);
+        await query('DELETE FROM empleador_cultivos WHERE perfil_empleador_id=?', [perfilId]);
+        if (cultivos_empleador && Array.isArray(cultivos_empleador)) {
+          for (const c of cultivos_empleador) {
+            await query('INSERT INTO empleador_cultivos (perfil_empleador_id, cultivo, es_personalizado) VALUES (?, ?, ?)',
+              [perfilId, c.nombre, c.es_personalizado ? 1 : 0]);
+          }
+        }
+        await query('DELETE FROM empleador_labores WHERE perfil_empleador_id=?', [perfilId]);
+        if (labores && Array.isArray(labores)) {
+          for (const l of labores) {
+            await query('INSERT INTO empleador_labores (perfil_empleador_id, labor, es_personalizada) VALUES (?, ?, ?)',
+              [perfilId, l.nombre, l.es_personalizada ? 1 : 0]);
+          }
+        }
+      }
+
+    } else {
+      return res.status(403).json({ error: 'Solo trabajadores y empleadores pueden editar su perfil' });
+    }
+
+    res.json({ message: 'Perfil actualizado exitosamente' });
+  } catch (err) {
+    console.error('Error actualizando perfil:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 // Subir fotos
 async function subirFotos(req, res) {
   try {
@@ -283,4 +378,4 @@ async function subirFotos(req, res) {
   }
 }
 
-module.exports = { register, login, enviarCodigoSMS, verificarCodigoSMS, getPerfil, subirFotos };
+module.exports = { register, login, enviarCodigoSMS, verificarCodigoSMS, getPerfil, actualizarPerfil, subirFotos };

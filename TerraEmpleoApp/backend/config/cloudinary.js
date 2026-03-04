@@ -17,4 +17,13 @@ const storage = new CloudinaryStorage({
   },
 });
 
-module.exports = { cloudinary, storage };
+const storageVacantes = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'terraempleo/vacantes',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    resource_type: 'image',
+  },
+});
+
+module.exports = { cloudinary, storage, storageVacantes };

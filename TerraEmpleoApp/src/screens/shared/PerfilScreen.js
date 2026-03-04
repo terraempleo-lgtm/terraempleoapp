@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Image, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, StarRating } from '../../components/ui';
@@ -39,7 +39,7 @@ const LABELS_PAGO = {
   destajo: 'Por tarea / destajo',
 };
 
-export default function PerfilScreen() {
+export default function PerfilScreen({ navigation }) {
   const { user, signOut } = useAuth();
   const [perfil, setPerfil] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -47,6 +47,20 @@ export default function PerfilScreen() {
   useEffect(() => {
     loadPerfil();
   }, []);
+
+  useEffect(() => {
+    if (!user || user.rol === 'admin') return;
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}
+          style={{ marginRight: 16 }}
+        >
+          <Ionicons name="create-outline" size={24} color={COLORS.white} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, userData, perfil, user]);
 
   const loadPerfil = async () => {
     try {

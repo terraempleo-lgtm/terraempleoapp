@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { vacantesAPI } from '../../services/api';
@@ -44,6 +44,11 @@ export default function TrabajadorVacantesScreen({ navigation }) {
       onPress={() => navigation.navigate('DetalleVacante', { vacante: item })}
       activeOpacity={0.7}
     >
+      {item.foto_portada ? (
+        <Image source={{ uri: item.foto_portada }} style={styles.cardThumb} resizeMode="cover" />
+      ) : null}
+
+      <View style={styles.cardBody}>
       {item.urgente ? (
         <View style={styles.urgentBadge}>
           <Ionicons name="alert-circle" size={14} color={COLORS.white} />
@@ -90,6 +95,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
       <Text style={styles.cardDate}>
         {new Date(item.created_at).toLocaleDateString('es-CO')}
       </Text>
+      </View>
     </TouchableOpacity>
   );
 
@@ -138,8 +144,10 @@ const styles = StyleSheet.create({
   list: { padding: SPACING.md, paddingBottom: 100 },
   card: {
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
-    padding: SPACING.md, marginBottom: SPACING.md, ...SHADOWS.medium,
+    marginBottom: SPACING.md, ...SHADOWS.medium, overflow: 'hidden',
   },
+  cardThumb: { width: '100%', height: 140 },
+  cardBody: { padding: SPACING.md },
   cardUrgent: { borderLeftWidth: 4, borderLeftColor: COLORS.urgent },
   urgentBadge: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.urgent,

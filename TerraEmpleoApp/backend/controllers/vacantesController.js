@@ -65,7 +65,7 @@ async function ejecutarMatching(vacanteId) {
         pt.id as perfil_id, pt.disponibilidad
       FROM usuarios u
       JOIN perfil_trabajador pt ON pt.usuario_id = u.id
-      WHERE u.rol = 'trabajador' AND u.activo = 1 AND u.verificado_sms = 1
+      WHERE u.rol = 'trabajador' AND u.activo = 1
     `);
 
     for (const trabajador of trabajadores) {
@@ -143,6 +143,8 @@ async function misVacantes(req, res) {
 
       v.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [v.id]);
       v.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [v.id]);
+      const portada = await query('SELECT url FROM vacante_fotos WHERE vacante_id = ? ORDER BY orden ASC LIMIT 1', [v.id]);
+      v.foto_portada = portada.length > 0 ? portada[0].url : null;
     }
 
     res.json({ vacantes });
@@ -200,6 +202,8 @@ async function listarVacantes(req, res) {
       v.urgente = Number(v.urgente) === 1;
       v.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [v.id]);
       v.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [v.id]);
+      const portada = await query('SELECT url FROM vacante_fotos WHERE vacante_id = ? ORDER BY orden ASC LIMIT 1', [v.id]);
+      v.foto_portada = portada.length > 0 ? portada[0].url : null;
     }
 
     res.json({ vacantes });
@@ -236,6 +240,7 @@ async function detalleVacante(req, res) {
     vacante.ofrece_alimentacion = Number(vacante.ofrece_alimentacion) === 1;
     vacante.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [id]);
     vacante.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [id]);
+    vacante.fotos = await query('SELECT id, url, descripcion, orden FROM vacante_fotos WHERE vacante_id = ? ORDER BY orden ASC', [id]);
 
     res.json({ vacante });
   } catch (err) {
@@ -367,6 +372,157 @@ async function misPostulaciones(req, res) {
   }
 }
 
+// Matching inverso: dado un trabajador nuevo, busca todas las vacantes activas que le coincidan
+async function ejecutarMatchingParaTrabajador(trabajadorId) {
+  try {
+    const trabajadores = await query(`
+      SELECT u.id, u.departamento, u.municipio,
+        pt.id as perfil_id
+      FROM usuarios u
+      JOIN perfil_trabajador pt ON pt.usuario_id = u.id
+      WHERE u.id = ? AND u.rol = 'trabajador' AND u.activo = 1
+    `, [trabajadorId]);
+
+    if (!trabajadores || trabajadores.length === 0) return;
+    const trabajador = trabajadores[0];
+
+    const tCultivos = await query('SELECT cultivo FROM trabajador_cultivos WHERE perfil_trabajador_id = ?', [trabajador.perfil_id]);
+    const tHabilidades = await query('SELECT habilidad FROM trabajador_habilidades WHERE perfil_trabajador_id = ?', [trabajador.perfil_id]);
+    const cultivosTrabajador = tCultivos.map(c => c.cultivo.toLowerCase());
+    const habilidadesTrabajador = tHabilidades.map(h => h.habilidad.toLowerCase());
+
+    const vacantes = await query("SELECT * FROM vacantes WHERE estado = 'activa'");
+
+    for (const vacante of vacantes) {
+      let puntaje = 0;
+      const vacanteId = Number(vacante.id);
+
+      // 1. Cultivos (40 pts max)
+      const vCultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [vacanteId]);
+      const cultivosVacante = vCultivos.map(c => c.cultivo.toLowerCase());
+      const cultivosMatch = cultivosVacante.filter(c => cultivosTrabajador.includes(c));
+      if (cultivosVacante.length > 0) {
+        puntaje += (cultivosMatch.length / cultivosVacante.length) * 40;
+      }
+
+      // 2. Labores/habilidades (30 pts max)
+      const vLabores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [vacanteId]);
+      const laboresVacante = vLabores.map(l => l.labor.toLowerCase());
+      const laboresMatch = laboresVacante.filter(l => habilidadesTrabajador.includes(l));
+      if (laboresVacante.length > 0) {
+        puntaje += (laboresMatch.length / laboresVacante.length) * 30;
+      }
+
+      // 3. Ubicación (30 pts max)
+      if (vacante.departamento && trabajador.departamento) {
+        if (vacante.departamento.toLowerCase() === trabajador.departamento.toLowerCase()) {
+          puntaje += 15;
+          if (vacante.municipio && trabajador.municipio &&
+              vacante.municipio.toLowerCase() === trabajador.municipio.toLowerCase()) {
+            puntaje += 15;
+          }
+        }
+      }
+
+      if (puntaje >= 30) {
+        const existing = await query(
+          'SELECT id FROM postulaciones WHERE vacante_id = ? AND trabajador_id = ?',
+          [vacanteId, trabajadorId]
+        );
+        if (!existing || existing.length === 0) {
+          await query(`
+            INSERT INTO postulaciones (vacante_id, trabajador_id, estado, es_match_automatico, puntaje_match)
+            VALUES (?, ?, 'match_auto', 1, ?)
+          `, [vacanteId, trabajadorId, puntaje]);
+        }
+      }
+    }
+
+    console.log(`Matching por trabajador ejecutado para usuario ${trabajadorId}`);
+  } catch (err) {
+    console.error('Error en matching por trabajador:', err);
+  }
+}
+
+// Endpoint para ejecutar matching manualmente sobre una vacante existente
+async function ejecutarMatchingEndpoint(req, res) {
+  try {
+    const { id } = req.params;
+    const empleadorId = req.user.id;
+
+    const vacantes = await query('SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?', [id, empleadorId]);
+    if (!vacantes || vacantes.length === 0) {
+      return res.status(404).json({ error: 'Vacante no encontrada' });
+    }
+
+    const vacanteId = Number(id);
+    const antes = await query(
+      'SELECT COUNT(*) as total FROM postulaciones WHERE vacante_id = ? AND es_match_automatico = 1',
+      [vacanteId]
+    );
+    const totalAntes = Number(antes[0].total);
+
+    await ejecutarMatching(vacanteId);
+
+    const despues = await query(
+      'SELECT COUNT(*) as total FROM postulaciones WHERE vacante_id = ? AND es_match_automatico = 1',
+      [vacanteId]
+    );
+    const totalDespues = Number(despues[0].total);
+
+    res.json({
+      message: 'Matching ejecutado exitosamente',
+      matches_nuevos: totalDespues - totalAntes,
+      total_matches: totalDespues
+    });
+  } catch (err) {
+    console.error('Error ejecutando matching endpoint:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// Actualizar vacante
+async function actualizarVacante(req, res) {
+  try {
+    const { id } = req.params;
+    const empleadorId = req.user.id;
+
+    const vacantes = await query('SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?', [id, empleadorId]);
+    if (!vacantes || vacantes.length === 0) {
+      return res.status(404).json({ error: 'Vacante no encontrada' });
+    }
+
+    const { titulo, descripcion, tipo_pago, monto_pago, departamento, municipio, vereda, urgente, cultivos, labores } = req.body;
+
+    if (!titulo) return res.status(400).json({ error: 'El título es obligatorio' });
+
+    await query(
+      'UPDATE vacantes SET titulo=?, descripcion=?, tipo_pago=?, monto_pago=?, departamento=?, municipio=?, vereda=?, urgente=? WHERE id=?',
+      [titulo, descripcion || null, tipo_pago || null, monto_pago || null,
+       departamento || null, municipio || null, vereda || null, urgente ? 1 : 0, id]
+    );
+
+    await query('DELETE FROM vacante_cultivos WHERE vacante_id=?', [id]);
+    if (cultivos && Array.isArray(cultivos)) {
+      for (const c of cultivos) {
+        await query('INSERT INTO vacante_cultivos (vacante_id, cultivo) VALUES (?, ?)', [id, c]);
+      }
+    }
+
+    await query('DELETE FROM vacante_labores WHERE vacante_id=?', [id]);
+    if (labores && Array.isArray(labores)) {
+      for (const l of labores) {
+        await query('INSERT INTO vacante_labores (vacante_id, labor) VALUES (?, ?)', [id, l]);
+      }
+    }
+
+    res.json({ message: 'Vacante actualizada exitosamente' });
+  } catch (err) {
+    console.error('Error actualizando vacante:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 // Cerrar vacante
 async function cerrarVacante(req, res) {
   try {
@@ -381,8 +537,149 @@ async function cerrarVacante(req, res) {
   }
 }
 
+// Subir fotos a vacante
+async function subirFotosVacante(req, res) {
+  try {
+    const { id } = req.params;
+    const empleadorId = req.user.id;
+
+    const vacantes = await query('SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?', [id, empleadorId]);
+    if (!vacantes || vacantes.length === 0) {
+      return res.status(404).json({ error: 'Vacante no encontrada' });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No se subieron fotos' });
+    }
+
+    const currentFotos = await query('SELECT COUNT(*) as count FROM vacante_fotos WHERE vacante_id = ?', [id]);
+    const currentCount = Number(currentFotos[0].count);
+
+    if (currentCount + req.files.length > 5) {
+      return res.status(400).json({ error: `Solo puedes tener 5 fotos por vacante. Tienes ${currentCount} actualmente.` });
+    }
+
+    const fotosGuardadas = [];
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i];
+      const orden = currentCount + i;
+      const result = await query(
+        'INSERT INTO vacante_fotos (vacante_id, url, orden) VALUES (?, ?, ?)',
+        [id, file.path, orden]
+      );
+      fotosGuardadas.push({ id: Number(result.insertId), url: file.path, orden });
+    }
+
+    res.status(201).json({ message: 'Fotos subidas exitosamente', fotos: fotosGuardadas });
+  } catch (err) {
+    console.error('Error subiendo fotos vacante:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// Eliminar foto de vacante
+async function eliminarFotoVacante(req, res) {
+  try {
+    const { id, fotoId } = req.params;
+    const empleadorId = req.user.id;
+
+    const vacantes = await query('SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?', [id, empleadorId]);
+    if (!vacantes || vacantes.length === 0) {
+      return res.status(404).json({ error: 'Vacante no encontrada' });
+    }
+
+    const fotos = await query('SELECT * FROM vacante_fotos WHERE id = ? AND vacante_id = ?', [fotoId, id]);
+    if (!fotos || fotos.length === 0) {
+      return res.status(404).json({ error: 'Foto no encontrada' });
+    }
+
+    try {
+      const { cloudinary } = require('../config/cloudinary');
+      const url = fotos[0].url;
+      // Extract public_id from Cloudinary URL (e.g. terraempleo/vacantes/abc123)
+      const matches = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
+      if (matches && matches[1]) {
+        await cloudinary.uploader.destroy(matches[1]);
+      }
+    } catch (cloudErr) {
+      console.error('Error eliminando de Cloudinary:', cloudErr);
+    }
+
+    await query('DELETE FROM vacante_fotos WHERE id = ?', [fotoId]);
+    res.json({ message: 'Foto eliminada' });
+  } catch (err) {
+    console.error('Error eliminando foto vacante:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// Perfil público de un trabajador (para empleadores)
+async function perfilPublicoTrabajador(req, res) {
+  try {
+    const { id } = req.params;
+    const empleadorId = req.user.id;
+
+    const users = await query(`
+      SELECT u.id, u.nombre_completo, u.departamento, u.municipio, u.foto_selfie,
+        u.calificacion_promedio, u.total_calificaciones, u.verificado_sms,
+        pt.nivel_estudios, pt.titulo_estudio, pt.anios_experiencia, pt.disponibilidad,
+        pt.id as perfil_id
+      FROM usuarios u
+      LEFT JOIN perfil_trabajador pt ON pt.usuario_id = u.id
+      WHERE u.id = ? AND u.rol = 'trabajador' AND u.activo = 1
+    `, [id]);
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({ error: 'Trabajador no encontrado' });
+    }
+
+    const trabajador = users[0];
+    trabajador.calificacion_promedio = parseFloat(trabajador.calificacion_promedio || 0);
+    trabajador.total_calificaciones = Number(trabajador.total_calificaciones || 0);
+    trabajador.verificado_sms = Number(trabajador.verificado_sms) === 1;
+
+    if (trabajador.perfil_id) {
+      trabajador.habilidades = await query(
+        'SELECT habilidad FROM trabajador_habilidades WHERE perfil_trabajador_id = ?',
+        [trabajador.perfil_id]
+      );
+      trabajador.cultivos = await query(
+        'SELECT cultivo FROM trabajador_cultivos WHERE perfil_trabajador_id = ?',
+        [trabajador.perfil_id]
+      );
+    } else {
+      trabajador.habilidades = [];
+      trabajador.cultivos = [];
+    }
+
+    // Mostrar celular solo si el empleador tiene una postulación aceptada con este trabajador
+    const match = await query(`
+      SELECT p.id FROM postulaciones p
+      JOIN vacantes v ON v.id = p.vacante_id
+      WHERE p.trabajador_id = ? AND v.empleador_id = ? AND p.estado = 'aceptada'
+      LIMIT 1
+    `, [id, empleadorId]);
+
+    if (match && match.length > 0) {
+      const celularRow = await query('SELECT celular FROM usuarios WHERE id = ?', [id]);
+      trabajador.celular = celularRow[0]?.celular || null;
+      trabajador.puede_contactar = true;
+    } else {
+      trabajador.puede_contactar = false;
+    }
+
+    delete trabajador.perfil_id;
+    res.json({ trabajador });
+  } catch (err) {
+    console.error('Error obteniendo perfil público:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
-  crearVacante, misVacantes, listarVacantes, detalleVacante,
+  crearVacante, actualizarVacante, misVacantes, listarVacantes, detalleVacante,
   postularse, verPostulaciones, actualizarPostulacion,
-  misPostulaciones, cerrarVacante
+  misPostulaciones, cerrarVacante, subirFotosVacante, eliminarFotoVacante,
+  ejecutarMatchingEndpoint, ejecutarMatchingParaTrabajador,
+  perfilPublicoTrabajador
 };

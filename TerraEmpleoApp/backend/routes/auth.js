@@ -18,6 +18,7 @@ router.post('/sms/verificar', authController.verificarCodigoSMS);
 
 // Rutas protegidas
 router.get('/perfil', authMiddleware, authController.getPerfil);
+router.put('/perfil', authMiddleware, authController.actualizarPerfil);
 router.post('/fotos/:tipo', authMiddleware, upload.single('foto'), authController.subirFotos);
 
 module.exports = router;

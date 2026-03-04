@@ -11,6 +11,7 @@ const authRoutes = require('./routes/auth');
 const vacantesRoutes = require('./routes/vacantes');
 const calificacionesRoutes = require('./routes/calificaciones');
 const adminRoutes = require('./routes/admin');
+const trabajadoresRoutes = require('./routes/trabajadores');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,6 +41,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/vacantes', vacantesRoutes);
 app.use('/api/calificaciones', calificacionesRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/trabajadores', trabajadoresRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
