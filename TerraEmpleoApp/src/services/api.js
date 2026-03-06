@@ -66,6 +66,14 @@ export const trabajadoresAPI = {
 
 // Admin
 export const adminAPI = {
+  getDashboard: () => api.get('/admin/dashboard'),
+  getUsuarios: () => api.get('/admin/usuarios'),
+  getVacantes: () => api.get('/admin/vacantes'),
+  getPostulantesVacante: (vacanteId) => api.get(`/admin/vacantes/${vacanteId}/postulaciones`),
+  updateUsuario: (id, data) => api.put('/admin/usuarios/' + id, data),
+  deleteUsuario: (id) => api.delete('/admin/usuarios/' + id),
+  updateVacante: (id, data) => api.put('/admin/vacantes/' + id, data),
+  deleteVacante: (id) => api.delete('/admin/vacantes/' + id),
   dashboard: () => api.get('/admin/dashboard'),
   listarUsuarios: () => api.get('/admin/usuarios'),
   toggleUsuario: (id, activo) => api.put(`/admin/usuarios/${id}/toggle`, { activo }),

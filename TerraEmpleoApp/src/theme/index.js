@@ -1,10 +1,10 @@
 // Tema TerraEmpleo - Colores verdes, accesible, rural
 export const COLORS = {
   // Verdes principales
-  primary: '#2E7D32',
-  primaryDark: '#1B5E20',
-  primaryLight: '#4CAF50',
-  primarySoft: '#E8F5E9',
+  primary: '#008d49',
+  primaryDark: '#006635',
+  primaryLight: '#00b35c',
+  primarySoft: '#e6f7ee',
 
   // Acentos
   accent: '#FF8F00',
@@ -23,7 +23,7 @@ export const COLORS = {
   textOnPrimary: '#FFFFFF',
 
   // Estados
-  success: '#2E7D32',
+  success: '#008d49',
   error: '#D32F2F',
   warning: '#F57C00',
   info: '#1976D2',
@@ -41,7 +41,7 @@ export const COLORS = {
   starEmpty: '#E0E0E0',
 
   // Chips
-  chipSelected: '#2E7D32',
+  chipSelected: '#008d49',
   chipUnselected: '#F5F5F5',
   chipTextSelected: '#FFFFFF',
   chipTextUnselected: '#333333',

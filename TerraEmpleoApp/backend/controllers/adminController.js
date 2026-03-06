@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, getConnection } = require('../config/database');
 
 // Dashboard - conteos
 async function dashboard(req, res) {
@@ -102,6 +102,46 @@ async function getUsuarioDetalle(req, res) {
     res.json({ user, perfil, vacantes, postulaciones });
   } catch (err) {
     console.error('Error obteniendo usuario:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// Actualizar usuario (admin)
+async function actualizarUsuario(req, res) {
+  try {
+    const { id } = req.params;
+    const { activo, rol, nombre_completo, celular, correo } = req.body;
+
+    const users = await query('SELECT id, rol FROM usuarios WHERE id = ?', [id]);
+    if (!users || users.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    if (users[0].rol === 'admin' && activo === false) {
+      return res.status(400).json({ error: 'No se puede desactivar un usuario admin' });
+    }
+
+    await query(`
+      UPDATE usuarios
+      SET
+        activo = COALESCE(?, activo),
+        rol = COALESCE(?, rol),
+        nombre_completo = COALESCE(?, nombre_completo),
+        celular = COALESCE(?, celular),
+        correo = COALESCE(?, correo)
+      WHERE id = ?
+    `, [
+      activo === undefined ? null : (activo ? 1 : 0),
+      rol || null,
+      nombre_completo || null,
+      celular || null,
+      correo || null,
+      id,
+    ]);
+
+    res.json({ message: 'Usuario actualizado correctamente' });
+  } catch (err) {
+    console.error('Error actualizando usuario:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -258,13 +298,32 @@ async function listarTodasPostulaciones(req, res) {
 
 // Eliminar vacante (admin)
 async function eliminarVacante(req, res) {
+  let conn;
   try {
     const { id } = req.params;
-    await query('DELETE FROM vacantes WHERE id = ?', [id]);
-    res.json({ message: 'Vacante eliminada' });
+
+    conn = await getConnection();
+    await conn.beginTransaction();
+
+    const existe = await conn.query('SELECT id FROM vacantes WHERE id = ?', [id]);
+    if (!existe || existe.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Vacante no encontrada' });
+    }
+
+    // Eliminación de la vacante principal; las tablas relacionadas se limpian por FK (CASCADE/SET NULL).
+    await conn.query('DELETE FROM vacantes WHERE id = ?', [id]);
+
+    await conn.commit();
+    res.json({ message: 'Vacante eliminada correctamente' });
   } catch (err) {
+    if (conn) {
+      try { await conn.rollback(); } catch (rollbackErr) { console.error('Error en rollback:', rollbackErr); }
+    }
     console.error('Error eliminando vacante:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'No se pudo eliminar la vacante' });
+  } finally {
+    if (conn) conn.release();
   }
 }
 
@@ -282,8 +341,34 @@ async function cambiarEstadoVacante(req, res) {
   }
 }
 
+// Actualizar vacante (admin)
+async function actualizarVacante(req, res) {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    const vacantes = await query('SELECT id FROM vacantes WHERE id = ?', [id]);
+    if (!vacantes || vacantes.length === 0) {
+      return res.status(404).json({ error: 'Vacante no encontrada' });
+    }
+
+    if (estado !== undefined) {
+      if (!['activa', 'cerrada', 'pausada'].includes(estado)) {
+        return res.status(400).json({ error: 'Estado inválido' });
+      }
+      await query('UPDATE vacantes SET estado = ? WHERE id = ?', [estado, id]);
+      return res.json({ message: `Vacante ${estado}` });
+    }
+
+    return res.status(400).json({ error: 'No hay campos para actualizar' });
+  } catch (err) {
+    console.error('Error actualizando vacante:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
-  dashboard, listarUsuarios, getUsuarioDetalle, toggleUsuario, eliminarUsuario,
+  dashboard, listarUsuarios, getUsuarioDetalle, actualizarUsuario, toggleUsuario, eliminarUsuario,
   listarTodasVacantes, listarTodasPostulaciones, eliminarVacante,
-  crearVacanteComoAdmin, listarEmpleadores, verPostulacionesAdmin, cambiarEstadoVacante
+  crearVacanteComoAdmin, listarEmpleadores, verPostulacionesAdmin, cambiarEstadoVacante, actualizarVacante
 };

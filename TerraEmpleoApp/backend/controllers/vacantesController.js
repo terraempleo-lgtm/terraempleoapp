@@ -271,7 +271,7 @@ async function postularse(req, res) {
         await query('UPDATE postulaciones SET estado = ?, mensaje = ? WHERE id = ?', ['pendiente', mensaje || null, existing[0].id]);
         return res.json({ message: 'Postulación confirmada (ya tenías match automático)' });
       }
-      return res.status(409).json({ error: 'Ya te postulaste a esta vacante' });
+      return res.status(409).json({ error: 'Ya estás postulado a esta vacante' });
     }
 
     await query(`

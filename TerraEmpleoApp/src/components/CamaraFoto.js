@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   btnRepetirText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   btnConfirmar: {
     flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: '#2E7D32',
+    gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: '#008d49',
   },
   btnConfirmarText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

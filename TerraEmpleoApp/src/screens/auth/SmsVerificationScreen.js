@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#e6f7ee',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   botonDeshabilitado: {
-    backgroundColor: '#A5D6A7',
+    backgroundColor: '#80c9a0',
   },
   botonTexto: {
     color: COLORS.textOnPrimary,

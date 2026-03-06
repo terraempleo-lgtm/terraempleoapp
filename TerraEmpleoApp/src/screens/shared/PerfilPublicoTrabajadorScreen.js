@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
   Alert, ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { StarRating } from '../../components/ui';
@@ -24,7 +24,8 @@ const LABELS_DISPONIBILIDAD = {
   por_dias: 'Por días',
   temporada_cosecha: 'Por temporada / cosecha',
   fines_semana: 'Fines de semana',
-  disponible_inmediatamente: 'Disponible inmediatamente',
+  disponible_inmediatamente: 'Disponibilidad Inmediata',
+  inmediata: 'Disponibilidad Inmediata',
 };
 
 const LABELS_ESTUDIOS = {
@@ -34,28 +35,34 @@ const LABELS_ESTUDIOS = {
   universitario: 'Universitario',
 };
 
-export default function PerfilPublicoTrabajadorScreen({ route }) {
+function SectionHeader({ icon, title }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionIconWrap}>
+        <Ionicons name={icon} size={20} color={COLORS.primary} />
+      </View>
+      <Text style={styles.sectionTitle}>{title}</Text>
+    </View>
+  );
+}
+
+export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const { trabajador_id } = route.params;
   const [perfil, setPerfil] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    cargarPerfil();
-  }, []);
+  useEffect(() => { cargarPerfil(); }, []);
 
   const cargarPerfil = async () => {
     try {
       const res = await trabajadoresAPI.perfilPublico(trabajador_id);
       setPerfil(res.data.trabajador);
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'No se pudo cargar el perfil del trabajador');
     } finally {
       setCargando(false);
     }
-  };
-
-  const mostrarCelular = () => {
-    Alert.alert('Contactar', `Celular: ${perfil.celular}`);
   };
 
   if (cargando) {
@@ -76,256 +83,286 @@ export default function PerfilPublicoTrabajadorScreen({ route }) {
   }
 
   const calificacion = parseFloat(perfil.calificacion_promedio || 0);
+  const totalCal = Number(perfil.total_calificaciones || 0);
+  const disponibilidad = LABELS_DISPONIBILIDAD[perfil.disponibilidad] || perfil.disponibilidad;
+  const experiencia = LABELS_EXPERIENCIA[perfil.anios_experiencia] || perfil.anios_experiencia;
+  const estudios = LABELS_ESTUDIOS[perfil.nivel_estudios] || perfil.nivel_estudios;
+
+  const especialidades = [
+    ...(perfil.habilidades || []).map(h => h.habilidad),
+    ...(perfil.cultivos || []).map(c => c.cultivo),
+  ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <View style={styles.root}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
+        {/* ── Hero verde ── */}
+        <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
+          {/* Back button */}
+          <View style={styles.heroTopBar}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+              <Ionicons name="arrow-back" size={20} color={COLORS.white} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }} />
+          </View>
 
-        {/* ── Hero header ── */}
-        <View style={styles.hero}>
-          <View style={styles.avatarWrapper}>
+          {/* Avatar */}
+          <View style={styles.avatarWrap}>
             {perfil.foto_selfie && perfil.foto_selfie.startsWith('http') ? (
               <Image source={{ uri: perfil.foto_selfie }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarFallback}>
-                <Ionicons name="person" size={72} color={COLORS.white} />
+                <Ionicons name="person" size={52} color={COLORS.primary} />
               </View>
             )}
-            {perfil.verificado_sms && (
-              <View style={styles.verificadoBadge}>
-                <Ionicons name="checkmark-circle" size={18} color={COLORS.white} />
-                <Text style={styles.verificadoText}>Verificado</Text>
-              </View>
-            )}
+            <View style={styles.avatarBadge}>
+              <Ionicons name="briefcase" size={14} color={COLORS.white} />
+            </View>
           </View>
 
-          <Text style={styles.heroName}>{perfil.nombre_completo}</Text>
-          <Text style={styles.heroRol}>Trabajador Rural</Text>
-
-          {calificacion > 0 && (
-            <View style={styles.ratingRow}>
-              <StarRating rating={Math.round(calificacion)} size={22} readonly />
-              <Text style={styles.ratingText}>
-                {calificacion.toFixed(1)} ({perfil.total_calificaciones} {perfil.total_calificaciones === 1 ? 'calificación' : 'calificaciones'})
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* ── Ubicación ── */}
-        <View style={styles.card}>
-          <View style={styles.infoRow}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="location" size={18} color={COLORS.primary} />
-            </View>
-            <View>
-              <Text style={styles.infoLabel}>Ubicación</Text>
-              <Text style={styles.infoValue}>
-                {[perfil.municipio, perfil.departamento].filter(Boolean).join(', ') || 'No especificada'}
-              </Text>
-            </View>
+          {/* Nombre y ubicación */}
+          <Text style={styles.name}>{perfil.nombre_completo}</Text>
+          <View style={styles.locationRow}>
+            <Ionicons name="location" size={14} color="rgba(255,255,255,0.8)" />
+            <Text style={styles.locationText}>
+              {[perfil.municipio, perfil.departamento].filter(Boolean).join(', ') || 'Colombia'}
+            </Text>
           </View>
         </View>
 
-        {/* ── Experiencia y disponibilidad ── */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Disponibilidad</Text>
-          <View style={styles.infoRow}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="time-outline" size={18} color={COLORS.primary} />
-            </View>
-            <View>
-              <Text style={styles.infoLabel}>Experiencia</Text>
-              <Text style={styles.infoValue}>
-                {LABELS_EXPERIENCIA[perfil.anios_experiencia] || perfil.anios_experiencia || 'No especificada'}
-              </Text>
-            </View>
+        {/* ── Stats ── */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>COSECHAS</Text>
+            <Text style={styles.statValue}>{perfil.total_cosechas || perfil.cultivos?.length || 0}</Text>
+            <Text style={styles.statSub}>Finalizadas con éxito</Text>
           </View>
-          <View style={[styles.infoRow, { marginTop: SPACING.sm }]}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
+          <View style={styles.statDivider} />
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>CALIFICACIÓN</Text>
+            <View style={styles.statRating}>
+              <Text style={styles.statValue}>{calificacion > 0 ? calificacion.toFixed(1) : '—'}</Text>
+              {calificacion > 0 && <Ionicons name="star" size={18} color="#FFB300" />}
             </View>
-            <View>
-              <Text style={styles.infoLabel}>Disponibilidad</Text>
-              <Text style={styles.infoValue}>
-                {LABELS_DISPONIBILIDAD[perfil.disponibilidad] || perfil.disponibilidad || 'No especificada'}
-              </Text>
-            </View>
+            <Text style={styles.statSub}>
+              {totalCal > 0 ? `${totalCal} Reseñas` : 'Sin reseñas aún'}
+            </Text>
           </View>
         </View>
 
-        {/* ── Estudios ── */}
-        {(perfil.nivel_estudios || perfil.titulo_estudio) && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Educación</Text>
-            <View style={styles.infoRow}>
-              <View style={styles.iconCircle}>
-                <Ionicons name="school-outline" size={18} color={COLORS.primary} />
-              </View>
-              <View>
-                <Text style={styles.infoLabel}>Nivel de estudios</Text>
-                <Text style={styles.infoValue}>
-                  {LABELS_ESTUDIOS[perfil.nivel_estudios] || perfil.nivel_estudios || 'No especificado'}
-                </Text>
-                {perfil.titulo_estudio ? (
-                  <Text style={styles.infoSubValue}>{perfil.titulo_estudio}</Text>
-                ) : null}
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* ── Habilidades ── */}
-        {perfil.habilidades && perfil.habilidades.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Habilidades</Text>
-            <View style={styles.chipsRow}>
-              {perfil.habilidades.map((h, i) => (
-                <View key={i} style={styles.chipGreen}>
-                  <Text style={styles.chipGreenText}>{h.habilidad}</Text>
+        {/* ── Especialidades ── */}
+        {especialidades.length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader icon="flash" title="Especialidades" />
+            <View style={styles.chipsWrap}>
+              {especialidades.map((e, i) => (
+                <View key={i} style={styles.chipSolid}>
+                  <Text style={styles.chipSolidText}>{e}</Text>
                 </View>
               ))}
             </View>
           </View>
         )}
 
-        {/* ── Cultivos ── */}
-        {perfil.cultivos && perfil.cultivos.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Cultivos</Text>
-            <View style={styles.chipsRow}>
-              {perfil.cultivos.map((c, i) => (
-                <View key={i} style={styles.chipAmber}>
-                  <Ionicons name="leaf-outline" size={13} color={COLORS.accent} style={{ marginRight: 3 }} />
-                  <Text style={styles.chipAmberText}>{c.cultivo}</Text>
+        {/* ── Experiencia ── */}
+        {(experiencia || disponibilidad || estudios) && (
+          <View style={styles.section}>
+            <SectionHeader icon="briefcase" title="Experiencia" />
+            <View style={styles.timelineWrap}>
+              {experiencia && (
+                <View style={styles.timelineItem}>
+                  <View style={styles.timelineDot} />
+                  <View style={styles.timelineLine} />
+                  <View style={styles.timelineContent}>
+                    <Text style={styles.timelineTitle}>{experiencia}</Text>
+                    <Text style={styles.timelineSub}>Experiencia en campo</Text>
+                    {disponibilidad && (
+                      <Text style={styles.timelineQuote}>"{disponibilidad}"</Text>
+                    )}
+                  </View>
                 </View>
-              ))}
+              )}
+              {estudios && (
+                <View style={styles.timelineItem}>
+                  <View style={[styles.timelineDot, styles.timelineDotLight]} />
+                  <View style={styles.timelineContent}>
+                    <Text style={styles.timelineTitle}>{estudios}</Text>
+                    <Text style={styles.timelineSub}>
+                      {perfil.titulo_estudio || 'Nivel educativo'}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
         )}
 
-        {/* ── Botón Contactar ── */}
-        {perfil.puede_contactar && perfil.celular && (
-          <TouchableOpacity style={styles.contactarBtn} onPress={mostrarCelular} activeOpacity={0.85}>
-            <Ionicons name="call" size={22} color={COLORS.white} />
-            <Text style={styles.contactarText}>Contactar trabajador</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={{ height: SPACING.xxl }} />
+        <View style={{ height: SPACING.xl }} />
       </ScrollView>
-    </SafeAreaView>
+
+      {/* ── Footer sticky: Contratar ── */}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
+        <TouchableOpacity
+          style={styles.contratarBtn}
+          onPress={() => Alert.alert('Contratar', 'Acepta la postulación del trabajador para proceder con la contratación.')}
+          activeOpacity={0.88}
+        >
+          <Text style={styles.contratarText}>Contratar Trabajador</Text>
+          <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { paddingBottom: SPACING.xl },
+  root: { flex: 1, backgroundColor: '#F4F6F4' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.md },
   emptyText: { fontSize: 16, color: COLORS.textLight },
 
-  // Hero
+  /* Hero */
   hero: {
     backgroundColor: COLORS.primary,
+    paddingBottom: SPACING.xl,
     alignItems: 'center',
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.xl + SPACING.lg,
-    paddingHorizontal: SPACING.lg,
   },
-  avatarWrapper: { alignItems: 'center', marginBottom: SPACING.md },
+  heroTopBar: {
+    flexDirection: 'row', alignItems: 'center',
+    width: '100%', paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
+  },
+  backBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+
+  /* Avatar */
+  avatarWrap: { position: 'relative', marginBottom: SPACING.md },
   avatar: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 4,
-    borderColor: COLORS.white,
-    ...SHADOWS.large,
+    width: 100, height: 100, borderRadius: 50,
+    borderWidth: 3, borderColor: '#80c9a0',
   },
   avatarFallback: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 4,
-    borderColor: COLORS.white,
+    width: 100, height: 100, borderRadius: 50,
+    borderWidth: 3, borderColor: '#80c9a0',
     backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...SHADOWS.large,
+    justifyContent: 'center', alignItems: 'center',
   },
-  verificadoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.primaryLight,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 4,
-    borderRadius: RADIUS.full,
-    marginTop: SPACING.sm,
+  avatarBadge: {
+    position: 'absolute', bottom: 2, right: 2,
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: COLORS.primaryDark,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: COLORS.white,
   },
-  verificadoText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
-  heroName: { fontSize: 26, fontWeight: '800', color: COLORS.white, textAlign: 'center', marginTop: SPACING.sm },
-  heroRol: { fontSize: 14, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.md },
-  ratingText: { fontSize: 14, color: 'rgba(255,255,255,0.85)' },
+  name: { fontSize: 24, fontWeight: '800', color: COLORS.white, textAlign: 'center' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  locationText: { fontSize: 14, color: 'rgba(255,255,255,0.8)' },
 
-  // Cards
-  card: {
+  /* Stats */
+  statsRow: {
+    flexDirection: 'row',
     backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
     marginHorizontal: SPACING.md,
-    marginTop: SPACING.md,
-    ...SHADOWS.small,
-  },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.md },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md },
-  iconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.primarySoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  infoLabel: { fontSize: 12, color: COLORS.textLight, fontWeight: '500' },
-  infoValue: { fontSize: 15, color: COLORS.textPrimary, fontWeight: '600', marginTop: 1 },
-  infoSubValue: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
-
-  // Chips
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chipGreen: {
-    backgroundColor: COLORS.primarySoft,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.primaryLight,
-  },
-  chipGreenText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
-  chipAmber: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF8E1',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.accentLight,
-  },
-  chipAmberText: { fontSize: 13, color: COLORS.accent, fontWeight: '600' },
-
-  // Contactar
-  contactarBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    backgroundColor: COLORS.primary,
-    marginHorizontal: SPACING.md,
-    marginTop: SPACING.lg,
-    paddingVertical: SPACING.md + 2,
+    marginTop: -20,
     borderRadius: RADIUS.lg,
     ...SHADOWS.medium,
+    overflow: 'hidden',
   },
-  contactarText: { fontSize: 17, fontWeight: '700', color: COLORS.white },
+  statCard: {
+    flex: 1, alignItems: 'center',
+    paddingVertical: SPACING.md + 4,
+    paddingHorizontal: SPACING.sm,
+  },
+  statDivider: { width: 1, backgroundColor: COLORS.borderLight, marginVertical: SPACING.md },
+  statLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.5, marginBottom: 4 },
+  statValue: { fontSize: 26, fontWeight: '800', color: COLORS.primary },
+  statRating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statSub: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2, textAlign: 'center' },
+
+  /* Sections */
+  section: { marginHorizontal: SPACING.md, marginTop: SPACING.lg },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.md },
+  sectionIconWrap: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
+
+  /* Chips */
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  chipSolid: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: RADIUS.full,
+  },
+  chipSolidText: { color: COLORS.white, fontWeight: '700', fontSize: 13 },
+
+  /* Timeline */
+  timelineWrap: { paddingLeft: SPACING.sm },
+  timelineItem: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.md },
+  timelineDot: {
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: COLORS.primary, marginTop: 4, flexShrink: 0,
+  },
+  timelineDotLight: { backgroundColor: '#80c9a0' },
+  timelineLine: {
+    position: 'absolute', left: 6, top: 18,
+    width: 2, height: 40, backgroundColor: '#b3dfc7',
+  },
+  timelineContent: { flex: 1 },
+  timelineTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  timelineSub: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  timelineQuote: {
+    fontSize: 13, color: COLORS.textSecondary,
+    fontStyle: 'italic', marginTop: 6, lineHeight: 18,
+  },
+
+  /* Contacto */
+  contactCard: {
+    backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.md, ...SHADOWS.small,
+  },
+  contactRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: SPACING.md, gap: SPACING.md,
+  },
+  contactDivider: { height: 1, backgroundColor: COLORS.borderLight },
+  contactIconWrap: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  contactInfo: { flex: 1 },
+  contactLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.4 },
+  contactValue: { fontSize: 14, color: COLORS.textPrimary, fontWeight: '600', marginTop: 2 },
+  contactAction: {
+    backgroundColor: COLORS.primarySoft,
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: RADIUS.full,
+  },
+  contactActionText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
+
+  /* Footer */
+  footer: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1, borderColor: COLORS.borderLight,
+    ...SHADOWS.large,
+  },
+  contratarBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 15,
+    borderRadius: RADIUS.full,
+  },
+  contratarText: { fontSize: 17, fontWeight: '700', color: COLORS.white },
 });

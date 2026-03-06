@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  RefreshControl, ActivityIndicator,
+  RefreshControl, ActivityIndicator, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -74,8 +74,12 @@ export default function AdminDashboardScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
           <QuickAction icon="people-outline" label="Gestionar Usuarios"
             onPress={() => navigation.navigate('AdminUsuarios')} />
-          <QuickAction icon="briefcase-outline" label="Gestionar Vacantes"
+          <QuickAction icon="briefcase-outline" label="Ver Todas las Vacantes"
             onPress={() => navigation.navigate('AdminVacantes')} />
+          <QuickAction icon="add-circle-outline" label="Crear Vacante (Admin)"
+            onPress={() => navigation.navigate('AdminCrearVacante')} />
+          <QuickAction icon="eye-outline" label="Vista Previa de Usuarios"
+            onPress={() => navigation.navigate('AdminVistas')} />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -84,14 +88,13 @@ export default function AdminDashboardScreen({ navigation }) {
 
 function QuickAction({ icon, label, onPress }) {
   return (
-    <View style={qaStyles.row}>
+    <TouchableOpacity style={qaStyles.row} onPress={onPress} activeOpacity={0.8}>
       <View style={qaStyles.left}>
         <Ionicons name={icon} size={22} color={COLORS.primary} />
         <Text style={qaStyles.label}>{label}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={COLORS.textLight}
-        onPress={onPress} />
-    </View>
+      <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+    </TouchableOpacity>
   );
 }
 

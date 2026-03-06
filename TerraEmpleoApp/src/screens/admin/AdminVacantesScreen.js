@@ -8,7 +8,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { adminAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function AdminVacantesScreen() {
+export default function AdminVacantesScreen({ navigation }) {
   const [vacantes, setVacantes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -18,7 +18,8 @@ export default function AdminVacantesScreen() {
       const res = await adminAPI.getVacantes();
       setVacantes(res.data);
     } catch (err) {
-      console.error(err);
+      const msg = err.response?.data?.error || 'No se pudo cargar la lista de vacantes';
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -28,6 +29,22 @@ export default function AdminVacantesScreen() {
   useEffect(() => { load(); }, []);
   const onRefresh = useCallback(() => { setRefreshing(true); load(); }, []);
 
+  const cambiarEstado = async (item) => {
+    const siguienteEstado = item.estado === 'activa' ? 'pausada' : 'activa';
+    try {
+      await adminAPI.updateVacante(item.id, { estado: siguienteEstado });
+      Alert.alert('Listo', `Vacante ${siguienteEstado === 'activa' ? 'activada' : 'pausada'} correctamente`);
+      load();
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudo actualizar el estado de la vacante';
+      Alert.alert('Error', msg);
+    }
+  };
+
+  const verPostulantes = (item) => {
+    navigation.navigate('AdminVerPostulantes', { vacante: item });
+  };
+
   const eliminar = (id) => {
     Alert.alert('Eliminar vacante', '¿Seguro?', [
       { text: 'Cancelar', style: 'cancel' },
@@ -35,10 +52,12 @@ export default function AdminVacantesScreen() {
         text: 'Eliminar', style: 'destructive',
         onPress: async () => {
           try {
-            await adminAPI.deleteVacante(id);
+            await adminAPI.eliminarVacante(id);
+            Alert.alert('Listo', 'Vacante eliminada correctamente');
             load();
           } catch (err) {
-            Alert.alert('Error', 'No se pudo eliminar');
+            const msg = err.response?.data?.error || 'No se pudo eliminar la vacante';
+            Alert.alert('Error', msg);
           }
         },
       },
@@ -46,13 +65,16 @@ export default function AdminVacantesScreen() {
   };
 
   const estadoColor = (e) => {
-    if (e === 'activa') return { bg: '#E8F5E9', fg: COLORS.primary };
+    if (e === 'activa') return { bg: '#e6f7ee', fg: COLORS.primary };
     if (e === 'cerrada') return { bg: '#FFEBEE', fg: COLORS.error };
     return { bg: '#FFF3E0', fg: COLORS.accent };
   };
 
   const renderItem = ({ item }) => {
     const ec = estadoColor(item.estado);
+    const fechaTexto = item?.created_at
+      ? new Date(item.created_at).toLocaleDateString('es-CO')
+      : 'Sin fecha';
     return (
       <View style={styles.card}>
         <View style={styles.cardTop}>
@@ -84,12 +106,27 @@ export default function AdminVacantesScreen() {
         ) : null}
 
         <View style={styles.footer}>
-          <Text style={styles.fecha}>
-            {new Date(item.fecha_creacion).toLocaleDateString('es-CO')}
-          </Text>
-          <TouchableOpacity onPress={() => eliminar(item.id)} style={styles.deleteBtn}>
-            <Ionicons name="trash-outline" size={20} color={COLORS.error} />
-          </TouchableOpacity>
+          <Text style={styles.fecha}>{fechaTexto}</Text>
+          <View style={styles.actions}>
+            <TouchableOpacity onPress={() => verPostulantes(item)} style={styles.actionBtn}>
+              <Ionicons name="people-outline" size={16} color={COLORS.primary} />
+              <Text style={[styles.actionText, { color: COLORS.primary }]}>Ver postulantes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => cambiarEstado(item)} style={styles.actionBtn}>
+              <Ionicons
+                name={item.estado === 'activa' ? 'pause-circle-outline' : 'play-circle-outline'}
+                size={16}
+                color={item.estado === 'activa' ? COLORS.accent : COLORS.primary}
+              />
+              <Text style={[styles.actionText, { color: item.estado === 'activa' ? COLORS.accent : COLORS.primary }]}> 
+                {item.estado === 'activa' ? 'Pausar' : 'Activar'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => eliminar(item.id)} style={styles.actionBtn}>
+              <Ionicons name="trash-outline" size={16} color={COLORS.error} />
+              <Text style={[styles.actionText, { color: COLORS.error }]}>Eliminar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -141,6 +178,16 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md, paddingTop: SPACING.sm, borderTopWidth: 1, borderTopColor: COLORS.borderLight,
   },
   fecha: { fontSize: 12, color: COLORS.textLight },
-  deleteBtn: { padding: 4 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.background,
+  },
+  actionText: { fontSize: 11, fontWeight: '600' },
   empty: { fontSize: 16, color: COLORS.textLight },
 });

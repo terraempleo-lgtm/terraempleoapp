@@ -18,7 +18,8 @@ export default function AdminUsuariosScreen() {
       const res = await adminAPI.getUsuarios();
       setUsuarios(res.data);
     } catch (err) {
-      console.error(err);
+      const msg = err.response?.data?.error || 'No se pudo cargar la lista de usuarios';
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -32,9 +33,11 @@ export default function AdminUsuariosScreen() {
   const toggleActivo = async (id, activo) => {
     try {
       await adminAPI.updateUsuario(id, { activo: !activo });
+      Alert.alert('Listo', !activo ? 'Usuario activado correctamente' : 'Usuario desactivado correctamente');
       load();
     } catch (err) {
-      Alert.alert('Error', 'No se pudo actualizar');
+      const msg = err.response?.data?.error || 'No se pudo actualizar el estado del usuario';
+      Alert.alert('Error', msg);
     }
   };
 
@@ -46,9 +49,11 @@ export default function AdminUsuariosScreen() {
         onPress: async () => {
           try {
             await adminAPI.deleteUsuario(id);
+            Alert.alert('Listo', 'Usuario eliminado correctamente');
             load();
           } catch (err) {
-            Alert.alert('Error', 'No se pudo eliminar');
+            const msg = err.response?.data?.error || 'No se pudo eliminar el usuario';
+            Alert.alert('Error', msg);
           }
         },
       },
@@ -77,16 +82,16 @@ export default function AdminUsuariosScreen() {
 
       <View style={styles.statusRow}>
         <View style={styles.badges}>
-          <View style={[styles.statusBadge, { backgroundColor: item.activo ? '#E8F5E9' : '#FFEBEE' }]}>
+          <View style={[styles.statusBadge, { backgroundColor: item.activo ? '#e6f7ee' : '#FFEBEE' }]}>
             <Text style={[styles.statusText, { color: item.activo ? COLORS.primary : COLORS.error }]}>
               {item.activo ? 'Activo' : 'Inactivo'}
             </Text>
           </View>
-          {item.verificado_sms ? (
-            <View style={[styles.statusBadge, { backgroundColor: '#E3F2FD' }]}>
-              <Text style={[styles.statusText, { color: '#1565C0' }]}>Verificado</Text>
-            </View>
-          ) : null}
+          <View style={[styles.statusBadge, { backgroundColor: item.verificado_sms ? '#E3F2FD' : '#F3E5F5' }]}> 
+            <Text style={[styles.statusText, { color: item.verificado_sms ? '#1565C0' : '#7B1FA2' }]}> 
+              SMS: {item.verificado_sms ? 'Sí' : 'No'}
+            </Text>
+          </View>
         </View>
         <View style={styles.actions}>
           <TouchableOpacity onPress={() => toggleActivo(item.id, item.activo)} style={styles.actionBtn}>

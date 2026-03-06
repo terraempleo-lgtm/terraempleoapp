@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
-  KeyboardAvoidingView, Platform, TouchableOpacity, Switch
+  KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -12,6 +12,28 @@ import { authAPI, setAuthToken } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import CamaraFoto from '../../components/CamaraFoto';
+
+function WhyImportant({ text }) {
+  return (
+    <View style={styles.infoCard}>
+      <View style={styles.infoIconWrap}>
+        <Ionicons name="information-circle" size={18} color={COLORS.white} />
+      </View>
+      <Text style={styles.infoText}>{text}</Text>
+    </View>
+  );
+}
+
+function TerraEmpleoFooter() {
+  return (
+    <View style={styles.terraFooter}>
+      <View style={styles.terraFooterIcon}>
+        <Ionicons name="leaf" size={13} color="#9E9E9E" />
+      </View>
+      <Text style={styles.terraFooterText}>TerraEmpleo</Text>
+    </View>
+  );
+}
 
 const TOTAL_STEPS = 9;
 const STEP_LABELS = [
@@ -201,6 +223,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               placeholder="Mínimo 6 caracteres" secureTextEntry icon="lock-closed-outline" required error={errors.password} />
             <Input label="Confirmar contraseña" value={confirmPassword} onChangeText={setConfirmPassword}
               placeholder="Repite tu contraseña" secureTextEntry icon="lock-closed-outline" required error={errors.confirmPassword} />
+            <WhyImportant text="Tus datos personales permiten crear tu perfil y conectarte con empleadores de manera segura." />
           </View>
         );
 
@@ -209,30 +232,46 @@ export default function RegisterTrabajadorScreen({ navigation }) {
           <View>
             <Text style={styles.stepTitle}>Ubicación</Text>
             <Text style={styles.stepDesc}>¿Dónde te encuentras?</Text>
-            <TouchableOpacity style={styles.pickerButton} onPress={() => setShowDeptPicker(true)}>
-              <Ionicons name="location-outline" size={20} color={COLORS.primary} />
+
+            <Text style={styles.fieldLabel}>Departamento</Text>
+            <TouchableOpacity style={styles.pickerButtonClean} onPress={() => setShowDeptPicker(true)}>
               <Text style={[styles.pickerText, !departamento && { color: COLORS.textLight }]}>
-                {departamento || 'Seleccione departamento *'}
+                {departamento || 'Seleccione un departamento'}
               </Text>
               <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
             </TouchableOpacity>
             {errors.departamento && <Text style={styles.errorText}>{errors.departamento}</Text>}
 
+            <Text style={styles.fieldLabel}>Municipio</Text>
             <TouchableOpacity
-              style={[styles.pickerButton, !departamento && styles.pickerDisabled]}
+              style={[styles.pickerButtonClean, !departamento && styles.pickerDisabled]}
               onPress={() => departamento && setShowMunPicker(true)}
               disabled={!departamento}
             >
-              <Ionicons name="map-outline" size={20} color={COLORS.primary} />
               <Text style={[styles.pickerText, !municipio && { color: COLORS.textLight }]}>
-                {municipio || 'Seleccione municipio *'}
+                {municipio || 'Seleccione un municipio'}
               </Text>
               <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
             </TouchableOpacity>
             {errors.municipio && <Text style={styles.errorText}>{errors.municipio}</Text>}
 
-            <Input label="Vereda (opcional)" value={vereda} onChangeText={setVereda}
-              placeholder="Nombre de la vereda" icon="trail-sign-outline" />
+            <Text style={styles.fieldLabel}>Vereda / Sector</Text>
+            <Input value={vereda} onChangeText={setVereda}
+              placeholder="Ej: Vereda La Linda" icon="trail-sign-outline" />
+
+            {/* Imagen decorativa con pin */}
+            <View style={styles.mapImageWrap}>
+              <Image
+                source={require('../../../assets/login.jpg')}
+                style={styles.mapImage}
+                resizeMode="cover"
+              />
+              <View style={styles.mapPin}>
+                <Ionicons name="location" size={22} color={COLORS.white} />
+              </View>
+            </View>
+
+            <WhyImportant text="Necesitamos tu ubicación para conectarte con empleadores y vacantes cerca de ti." />
 
             <PickerModal visible={showDeptPicker} onClose={() => setShowDeptPicker(false)}
               title="Departamento" options={DEPARTAMENTOS} selectedValue={departamento}
@@ -247,6 +286,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
         return (
           <View>
             <Text style={styles.stepTitle}>Cédula y Datos Legales</Text>
+            <Text style={styles.stepDesc}>Necesitamos verificar tu identidad</Text>
             <Input label="Número de cédula" value={cedula} onChangeText={setCedula}
               placeholder="Ej: 1234567890" keyboardType="numeric" icon="card-outline" required error={errors.cedula} />
 
@@ -259,6 +299,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               </Text>
             </View>
             {errors.habeas && <Text style={styles.errorText}>{errors.habeas}</Text>}
+            <WhyImportant text="Tu cédula y datos legales verifican tu identidad y generan confianza en los empleadores que revisen tu perfil." />
           </View>
         );
 
@@ -292,14 +333,15 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   onSelect={setTituloEstudio} />
               </View>
             )}
+            <WhyImportant text="Tu nivel educativo ayuda a los empleadores a encontrar el perfil ideal para sus vacantes." />
           </View>
         );
 
       case 5:
         return (
           <View>
-            <Text style={styles.stepTitle}>Experiencia y Habilidades</Text>
-            <Text style={styles.stepDesc}>¿Qué labores sabes hacer?</Text>
+            <Text style={styles.stepTitle}>Experiencia Laboral</Text>
+            <Text style={styles.stepDesc}>Selecciona tus habilidades y labores principales para ayudarte a encontrar mejores oportunidades.</Text>
             <ChipSelector
               label="Labores / Habilidades"
               options={LABORES}
@@ -308,6 +350,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               allowCustom={true}
               customLabel="+ Otra labor"
             />
+            <WhyImportant text="Las empresas filtran candidatos basados en estas habilidades técnicas. Asegúrate de incluir todas las que domines." />
           </View>
         );
 
@@ -315,6 +358,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
         return (
           <View>
             <Text style={styles.stepTitle}>Cultivos y Disponibilidad</Text>
+            <Text style={styles.stepDesc}>Indica en qué has trabajado y cuándo estás disponible.</Text>
 
             <ChipSelector
               label="¿En qué cultivos has trabajado?"
@@ -348,6 +392,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               multiSelect={false}
               allowCustom={false}
             />
+            <WhyImportant text="Indicar tus cultivos y disponibilidad aumenta tus posibilidades de ser seleccionado para vacantes activas." />
           </View>
         );
 
@@ -378,6 +423,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   style={{ marginTop: SPACING.sm }} />
               </View>
             )}
+            <WhyImportant text="La verificación por SMS garantiza la seguridad de tu cuenta y genera confianza en los empleadores." />
           </View>
         );
 
@@ -453,30 +499,123 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               )}
             </View>
             {errors.selfieCed && <Text style={styles.errorText}>{errors.selfieCed}</Text>}
+            <WhyImportant text="Las fotos verifican tu identidad en la plataforma y aumentan tu credibilidad ante los empleadores." />
           </View>
         );
 
       case 9:
         return (
           <View>
-            <Text style={styles.stepTitle}>Resumen</Text>
-            <Text style={styles.stepDesc}>Verifica que tus datos sean correctos</Text>
+            {/* Identity hero */}
+            <View style={styles.summaryHero}>
+              <View style={styles.summaryAvatarWrap}>
+                {fotoSelfie ? (
+                  <Image source={{ uri: fotoSelfie }} style={styles.summaryAvatar} />
+                ) : (
+                  <View style={[styles.summaryAvatar, styles.summaryAvatarPlaceholder]}>
+                    <Ionicons name="person" size={48} color={COLORS.primaryLight} />
+                  </View>
+                )}
+                <View style={styles.summaryVerifiedBadge}>
+                  <Ionicons name="checkmark" size={14} color={COLORS.white} />
+                </View>
+              </View>
+              <Text style={styles.summaryHeroName}>{nombre}</Text>
+              <Text style={styles.summaryHeroSub}>Trabajador · {municipio || departamento}</Text>
+              <View style={styles.summaryVerifiedRow}>
+                <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />
+                <Text style={styles.summaryVerifiedText}>Identidad verificada</Text>
+              </View>
+            </View>
 
-            <View style={styles.summaryCard}>
-              <SummaryRow label="Nombre" value={nombre} />
-              <SummaryRow label="Celular" value={celular} />
-              {correo ? <SummaryRow label="Correo" value={correo} /> : null}
-              <SummaryRow label="Ubicación" value={`${municipio}, ${departamento}`} />
-              {vereda ? <SummaryRow label="Vereda" value={vereda} /> : null}
-              <SummaryRow label="Cédula" value={cedula} />
-              <SummaryRow label="Estudios" value={NIVELES_ESTUDIO.find(n => n.value === nivelEstudios)?.label || 'N/A'} />
-              {tituloEstudio ? <SummaryRow label="Título" value={tituloEstudio} /> : null}
-              <SummaryRow label="Habilidades" value={habilidades.join(', ') || 'N/A'} />
-              <SummaryRow label="Cultivos" value={cultivos.join(', ') || 'N/A'} />
-              <SummaryRow label="Experiencia" value={EXPERIENCIA_OPTIONS.find(e => e.value === experiencia)?.label || 'N/A'} />
-              <SummaryRow label="Disponibilidad" value={DISPONIBILIDAD_OPTIONS.find(d => d.value === disponibilidad)?.label || 'N/A'} />
-              <SummaryRow label="Fotos"
-                value={`${fotoSelfie ? '✓' : '✗'} Selfie  ${fotoCedula ? '✓' : '✗'} Cédula  ${fotoSelfieCedula ? '✓' : '✗'} Selfie+Cédula`} />
+            <Text style={styles.summaryGroupLabel}>DATOS DE LA CUENTA</Text>
+
+            <View style={styles.summaryGroup}>
+              <SummaryCard icon="person-outline" label="NOMBRE COMPLETO" value={nombre} />
+              <View style={styles.summaryDivider} />
+              <SummaryCard icon="call-outline" label="CELULAR" value={celular} />
+              {correo ? (
+                <>
+                  <View style={styles.summaryDivider} />
+                  <SummaryCard icon="mail-outline" label="CORREO" value={correo} />
+                </>
+              ) : null}
+            </View>
+
+            <Text style={styles.summaryGroupLabel}>UBICACIÓN</Text>
+            <View style={styles.summaryGroup}>
+              <SummaryCard
+                icon="location-outline"
+                label="MUNICIPIO Y DEPARTAMENTO"
+                value={`${municipio}, ${departamento}`}
+              />
+              {vereda ? (
+                <>
+                  <View style={styles.summaryDivider} />
+                  <SummaryCard icon="trail-sign-outline" label="VEREDA" value={vereda} />
+                </>
+              ) : null}
+            </View>
+
+            <Text style={styles.summaryGroupLabel}>PERFIL PROFESIONAL</Text>
+            <View style={styles.summaryGroup}>
+              <SummaryCard
+                icon="school-outline"
+                label="ESTUDIOS"
+                value={NIVELES_ESTUDIO.find(n => n.value === nivelEstudios)?.label || 'N/A'}
+              />
+              {tituloEstudio ? (
+                <>
+                  <View style={styles.summaryDivider} />
+                  <SummaryCard icon="ribbon-outline" label="TÍTULO" value={tituloEstudio} />
+                </>
+              ) : null}
+              <View style={styles.summaryDivider} />
+              <SummaryCard
+                icon="time-outline"
+                label="EXPERIENCIA"
+                value={EXPERIENCIA_OPTIONS.find(e => e.value === experiencia)?.label || 'N/A'}
+              />
+              <View style={styles.summaryDivider} />
+              <SummaryCard
+                icon="calendar-outline"
+                label="DISPONIBILIDAD"
+                value={DISPONIBILIDAD_OPTIONS.find(d => d.value === disponibilidad)?.label || 'N/A'}
+              />
+            </View>
+
+            {(cultivos.length > 0 || habilidades.length > 0) && (
+              <>
+                <Text style={styles.summaryGroupLabel}>HABILIDADES</Text>
+                <View style={styles.summaryGroup}>
+                  {cultivos.length > 0 && (
+                    <SummaryCard icon="leaf-outline" label="CULTIVOS" value={cultivos.join(' · ')} />
+                  )}
+                  {cultivos.length > 0 && habilidades.length > 0 && (
+                    <View style={styles.summaryDivider} />
+                  )}
+                  {habilidades.length > 0 && (
+                    <SummaryCard icon="construct-outline" label="HABILIDADES" value={habilidades.join(' · ')} />
+                  )}
+                </View>
+              </>
+            )}
+
+            <View style={styles.summaryFotosRow}>
+              <View style={[styles.summaryFotoChip, fotoCedula && styles.summaryFotoChipDone]}>
+                <Ionicons name={fotoCedula ? 'checkmark-circle' : 'close-circle'} size={15}
+                  color={fotoCedula ? COLORS.primary : COLORS.textLight} />
+                <Text style={[styles.summaryFotoChipText, fotoCedula && styles.summaryFotoChipTextDone]}>
+                  Cédula
+                </Text>
+              </View>
+              <View style={[styles.summaryFotoChip, fotoSelfieCedula && styles.summaryFotoChipDone]}>
+                <Ionicons name={fotoSelfieCedula ? 'checkmark-circle' : 'close-circle'} size={15}
+                  color={fotoSelfieCedula ? COLORS.primary : COLORS.textLight} />
+                <Text style={[styles.summaryFotoChipText, fotoSelfieCedula && styles.summaryFotoChipTextDone]}>
+                  Selfie+Cédula
+                </Text>
+              </View>
             </View>
           </View>
         );
@@ -493,50 +632,56 @@ export default function RegisterTrabajadorScreen({ navigation }) {
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
-          {step > 1 && (
-            <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" style={{ flex: 1 }} />
-          )}
-          {step < TOTAL_STEPS ? (
-            <Button title="Siguiente" onPress={nextStep} size="medium"
-              style={{ flex: step > 1 ? 1 : undefined, width: step === 1 ? '100%' : undefined }} />
-          ) : (
-            <Button title="Finalizar Registro" onPress={handleRegister} loading={loading}
-              size="large" style={{ flex: 1 }} />
-          )}
+        <View style={styles.footerWrap}>
+          <View style={styles.footer}>
+            {step > 1 && (
+              <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" style={{ flex: 1 }} />
+            )}
+            {step < TOTAL_STEPS ? (
+              <Button title="Siguiente" onPress={nextStep} size="medium"
+                style={{ flex: step > 1 ? 1 : undefined, width: step === 1 ? '100%' : undefined }} />
+            ) : (
+              <Button title="Finalizar Registro" onPress={handleRegister} loading={loading}
+                size="large" style={{ flex: 1 }} />
+            )}
+          </View>
+          <TerraEmpleoFooter />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-function SummaryRow({ label, value }) {
+function SummaryCard({ icon, label, value }) {
   return (
     <View style={summaryStyles.row}>
-      <Text style={summaryStyles.label}>{label}:</Text>
-      <Text style={summaryStyles.value}>{value}</Text>
+      <View style={summaryStyles.iconWrap}>
+        <Ionicons name={icon} size={18} color={COLORS.primary} />
+      </View>
+      <View style={summaryStyles.textWrap}>
+        <Text style={summaryStyles.label}>{label}</Text>
+        <Text style={summaryStyles.value}>{value}</Text>
+      </View>
     </View>
   );
 }
 
 const summaryStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
+  row: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, gap: SPACING.md },
+  iconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center', alignItems: 'center', flexShrink: 0,
   },
-  label: { width: 110, fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
-  value: { flex: 1, fontSize: 14, color: COLORS.textPrimary },
+  textWrap: { flex: 1 },
+  label: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.5 },
+  value: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary, marginTop: 2 },
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  scrollContent: { flexGrow: 1, padding: SPACING.md },
-  formCard: {
-    backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
-    padding: SPACING.lg, ...SHADOWS.medium,
-  },
+  container: { flex: 1, backgroundColor: COLORS.white },
+  scrollContent: { flexGrow: 1 },
+  formCard: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.md },
   stepTitle: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary, marginBottom: SPACING.xs },
   stepDesc: { fontSize: 15, color: COLORS.textSecondary, marginBottom: SPACING.lg },
   stepSubtitle: { fontSize: 16, fontWeight: '600', color: COLORS.textPrimary, marginBottom: SPACING.sm },
@@ -546,6 +691,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
     marginBottom: SPACING.md, minHeight: 52, gap: SPACING.sm,
   },
+  pickerButtonClean: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
+    marginBottom: SPACING.xs, minHeight: 52,
+  },
+  fieldLabel: {
+    fontSize: 14, fontWeight: '700', color: COLORS.textPrimary,
+    marginBottom: SPACING.xs, marginTop: SPACING.sm,
+  },
+  mapImageWrap: {
+    borderRadius: RADIUS.lg, overflow: 'hidden',
+    marginTop: SPACING.md, height: 160,
+    position: 'relative',
+  },
+  mapImage: { width: '100%', height: '100%' },
+  mapPin: {
+    position: 'absolute', top: '50%', left: '50%',
+    marginTop: -20, marginLeft: -20,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center', alignItems: 'center',
+    ...SHADOWS.medium,
+  },
+  infoCard: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginTop: SPACING.md, gap: SPACING.sm,
+  },
+  infoIconWrap: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center', alignItems: 'center',
+    flexShrink: 0, marginTop: 2,
+  },
+  infoCardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 4 },
+  infoText: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 19 },
   pickerDisabled: { opacity: 0.5 },
   pickerText: { flex: 1, fontSize: 16, color: COLORS.textPrimary },
   checkboxRow: {
@@ -567,7 +751,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
   },
   fotoRowDone: {
-    borderColor: COLORS.success, backgroundColor: '#E8F5E9',
+    borderColor: COLORS.success, backgroundColor: '#e6f7ee',
   },
   fotoInfo: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginBottom: SPACING.sm,
@@ -576,9 +760,78 @@ const styles = StyleSheet.create({
   fotoDesc: { fontSize: 13, color: COLORS.textLight },
   fotoOk: { fontSize: 15, color: COLORS.success, fontWeight: '600', textAlign: 'center' },
   summaryCard: { backgroundColor: COLORS.primarySoft, borderRadius: RADIUS.md, padding: SPACING.md },
-  footer: {
-    flexDirection: 'row', padding: SPACING.md, gap: SPACING.md,
+
+  /* Summary redesign */
+  summaryHero: {
+    alignItems: 'center', paddingVertical: SPACING.lg,
+    backgroundColor: COLORS.primarySoft, borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md,
+  },
+  summaryAvatarWrap: { position: 'relative', marginBottom: SPACING.sm },
+  summaryAvatar: {
+    width: 100, height: 100, borderRadius: 50,
+    borderWidth: 3, borderColor: COLORS.primary,
+  },
+  summaryAvatarPlaceholder: {
+    backgroundColor: COLORS.white,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  summaryVerifiedBadge: {
+    position: 'absolute', bottom: 2, right: 2,
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: COLORS.white,
+  },
+  summaryHeroName: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+  summaryHeroSub: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  summaryVerifiedRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginTop: SPACING.sm,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: RADIUS.full,
+  },
+  summaryVerifiedText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
+  summaryGroupLabel: {
+    fontSize: 11, fontWeight: '700', color: COLORS.textLight,
+    letterSpacing: 0.8, marginBottom: SPACING.xs, marginTop: SPACING.md,
+    marginLeft: SPACING.xs,
+  },
+  summaryGroup: {
+    backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
+    overflow: 'hidden', ...SHADOWS.small,
+  },
+  summaryDivider: { height: 1, backgroundColor: COLORS.borderLight, marginLeft: 64 },
+  summaryFotosRow: {
+    flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md, justifyContent: 'center',
+  },
+  summaryFotoChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: RADIUS.full, borderWidth: 1.5, borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
+  summaryFotoChipDone: { borderColor: COLORS.primary, backgroundColor: COLORS.primarySoft },
+  summaryFotoChipText: { fontSize: 13, color: COLORS.textLight, fontWeight: '600' },
+  summaryFotoChipTextDone: { color: COLORS.primary },
+  footerWrap: {
     backgroundColor: COLORS.white, borderTopWidth: 1,
     borderTopColor: COLORS.borderLight, ...SHADOWS.small,
+  },
+  footer: {
+    flexDirection: 'row', padding: SPACING.md, gap: SPACING.md,
+    backgroundColor: COLORS.white,
+  },
+  terraFooter: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingBottom: SPACING.sm,
+  },
+  terraFooterIcon: {
+    width: 22, height: 22, borderRadius: 6,
+    backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center',
+  },
+  terraFooterText: {
+    fontSize: 12, color: '#9E9E9E', fontWeight: '600', letterSpacing: 0.3,
   },
 });
