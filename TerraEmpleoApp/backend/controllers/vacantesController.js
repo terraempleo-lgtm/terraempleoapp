@@ -1,4 +1,6 @@
 const { query } = require('../config/database');
+const { crearNotificacion } = require('./notificacionesController');
+const { crearChat } = require('./chatController');
 
 // Crear vacante
 async function crearVacante(req, res) {
@@ -12,12 +14,15 @@ async function crearVacante(req, res) {
 
     if (!titulo) return res.status(400).json({ error: 'El título es obligatorio' });
 
+    const { ofrece_alojamiento, ofrece_alimentacion } = req.body;
+
     const result = await query(`
       INSERT INTO vacantes (empleador_id, titulo, descripcion, tipo_pago, monto_pago,
-        departamento, municipio, vereda, urgente)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        departamento, municipio, vereda, urgente, ofrece_alojamiento, ofrece_alimentacion)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [empleadorId, titulo, descripcion || null, tipo_pago || null, monto_pago || null,
-        departamento || null, municipio || null, vereda || null, urgente ? 1 : 0]);
+        departamento || null, municipio || null, vereda || null, urgente ? 1 : 0,
+        ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0]);
 
     const vacanteId = Number(result.insertId);
 
@@ -111,6 +116,12 @@ async function ejecutarMatching(vacanteId) {
             INSERT INTO postulaciones (vacante_id, trabajador_id, estado, es_match_automatico, puntaje_match)
             VALUES (?, ?, 'match_auto', 1, ?)
           `, [vacanteId, trabajador.id, puntaje]);
+          await crearNotificacion(
+            trabajador.id,
+            'match',
+            '¡Nuevo match!',
+            `Tu perfil coincide con la vacante "${vacante.titulo}" en ${vacante.municipio || vacante.departamento || 'Colombia'}`
+          );
         }
       }
     }
@@ -219,7 +230,8 @@ async function detalleVacante(req, res) {
     const { id } = req.params;
     const vacantes = await query(`
       SELECT v.*, u.nombre_completo as nombre_empleador,
-        pe.nombre_empresa_finca, pe.ofrece_alojamiento, pe.ofrece_alimentacion, pe.beneficios_extra
+        pe.nombre_empresa_finca, pe.ofrece_alojamiento as pe_ofrece_alojamiento,
+        pe.ofrece_alimentacion as pe_ofrece_alimentacion, pe.beneficios_extra
       FROM vacantes v
       JOIN usuarios u ON u.id = v.empleador_id
       LEFT JOIN perfil_empleador pe ON pe.usuario_id = v.empleador_id
@@ -236,8 +248,13 @@ async function detalleVacante(req, res) {
       vacante.monto_pago = Number(vacante.monto_pago);
     }
     vacante.urgente = Boolean(vacante.urgente);
-    vacante.ofrece_alojamiento = Number(vacante.ofrece_alojamiento) === 1;
-    vacante.ofrece_alimentacion = Number(vacante.ofrece_alimentacion) === 1;
+    // ofrece_alojamiento/alimentacion vienen de la vacante; si no existe aún (columna nueva), caer a perfil_empleador
+    vacante.ofrece_alojamiento = vacante.ofrece_alojamiento != null
+      ? Number(vacante.ofrece_alojamiento) === 1
+      : Number(vacante.pe_ofrece_alojamiento) === 1;
+    vacante.ofrece_alimentacion = vacante.ofrece_alimentacion != null
+      ? Number(vacante.ofrece_alimentacion) === 1
+      : Number(vacante.pe_ofrece_alimentacion) === 1;
     vacante.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [id]);
     vacante.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [id]);
     vacante.fotos = await query('SELECT id, url, descripcion, orden FROM vacante_fotos WHERE vacante_id = ? ORDER BY orden ASC', [id]);
@@ -269,6 +286,13 @@ async function postularse(req, res) {
       if (existing[0].estado === 'match_auto') {
         // Actualizar match automático a postulación manual
         await query('UPDATE postulaciones SET estado = ?, mensaje = ? WHERE id = ?', ['pendiente', mensaje || null, existing[0].id]);
+        const vacanteInfoMatch = await query('SELECT titulo, empleador_id FROM vacantes WHERE id = ?', [vacante_id]);
+        if (vacanteInfoMatch.length > 0) {
+          const v = vacanteInfoMatch[0];
+          const trabajadorInfo = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [trabajadorId]);
+          const nombre = trabajadorInfo[0]?.nombre_completo || 'Un trabajador';
+          await crearNotificacion(v.empleador_id, 'postulacion', 'Nueva postulación', `${nombre} se postuló a "${v.titulo}"`);
+        }
         return res.json({ message: 'Postulación confirmada (ya tenías match automático)' });
       }
       return res.status(409).json({ error: 'Ya estás postulado a esta vacante' });
@@ -278,6 +302,15 @@ async function postularse(req, res) {
       INSERT INTO postulaciones (vacante_id, trabajador_id, estado, mensaje)
       VALUES (?, ?, 'pendiente', ?)
     `, [vacante_id, trabajadorId, mensaje || null]);
+
+    // Notificar al empleador
+    const vacanteInfoPost = await query('SELECT titulo, empleador_id FROM vacantes WHERE id = ?', [vacante_id]);
+    if (vacanteInfoPost.length > 0) {
+      const v = vacanteInfoPost[0];
+      const trabajadorInfo = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [trabajadorId]);
+      const nombre = trabajadorInfo[0]?.nombre_completo || 'Un trabajador';
+      await crearNotificacion(v.empleador_id, 'postulacion', 'Nueva postulación', `${nombre} se postuló a "${v.titulo}"`);
+    }
 
     res.status(201).json({ message: 'Postulación enviada exitosamente' });
   } catch (err) {
@@ -339,6 +372,24 @@ async function actualizarPostulacion(req, res) {
     }
 
     await query('UPDATE postulaciones SET estado = ? WHERE id = ?', [estado, id]);
+
+    // Notificar al trabajador
+    const postInfo = await query(`
+      SELECT p.trabajador_id, p.vacante_id, v.titulo FROM postulaciones p
+      JOIN vacantes v ON v.id = p.vacante_id
+      WHERE p.id = ?
+    `, [id]);
+    if (postInfo.length > 0) {
+      const { trabajador_id, titulo, vacante_id } = postInfo[0];
+      if (estado === 'aceptada') {
+        await crearNotificacion(trabajador_id, 'aceptado', '¡Postulación aceptada!', `Tu postulación a "${titulo}" fue aceptada. Ahora puedes chatear con el empleador.`);
+        // Crear chat automáticamente al aceptar la postulación
+        await crearChat(Number(vacante_id), empleadorId, trabajador_id);
+      } else {
+        await crearNotificacion(trabajador_id, 'rechazado', 'Postulación rechazada', `Tu postulación a "${titulo}" no fue seleccionada en esta ocasión.`);
+      }
+    }
+
     res.json({ message: `Postulación ${estado}` });
   } catch (err) {
     console.error('Error actualizando postulación:', err);
@@ -434,6 +485,12 @@ async function ejecutarMatchingParaTrabajador(trabajadorId) {
             INSERT INTO postulaciones (vacante_id, trabajador_id, estado, es_match_automatico, puntaje_match)
             VALUES (?, ?, 'match_auto', 1, ?)
           `, [vacanteId, trabajadorId, puntaje]);
+          await crearNotificacion(
+            trabajadorId,
+            'match',
+            '¡Nuevo match!',
+            `Tu perfil coincide con la vacante "${vacante.titulo}" en ${vacante.municipio || vacante.departamento || 'Colombia'}`
+          );
         }
       }
     }
@@ -492,14 +549,15 @@ async function actualizarVacante(req, res) {
       return res.status(404).json({ error: 'Vacante no encontrada' });
     }
 
-    const { titulo, descripcion, tipo_pago, monto_pago, departamento, municipio, vereda, urgente, cultivos, labores } = req.body;
+    const { titulo, descripcion, tipo_pago, monto_pago, departamento, municipio, vereda, urgente, cultivos, labores, ofrece_alojamiento, ofrece_alimentacion } = req.body;
 
     if (!titulo) return res.status(400).json({ error: 'El título es obligatorio' });
 
     await query(
-      'UPDATE vacantes SET titulo=?, descripcion=?, tipo_pago=?, monto_pago=?, departamento=?, municipio=?, vereda=?, urgente=? WHERE id=?',
+      'UPDATE vacantes SET titulo=?, descripcion=?, tipo_pago=?, monto_pago=?, departamento=?, municipio=?, vereda=?, urgente=?, ofrece_alojamiento=?, ofrece_alimentacion=? WHERE id=?',
       [titulo, descripcion || null, tipo_pago || null, monto_pago || null,
-       departamento || null, municipio || null, vereda || null, urgente ? 1 : 0, id]
+       departamento || null, municipio || null, vereda || null, urgente ? 1 : 0,
+       ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, id]
     );
 
     await query('DELETE FROM vacante_cultivos WHERE vacante_id=?', [id]);
@@ -523,6 +581,49 @@ async function actualizarVacante(req, res) {
   }
 }
 
+// Eliminar vacante
+async function eliminarVacante(req, res) {
+  try {
+    const { id } = req.params;
+    const isAdmin = req.user.rol === 'admin';
+    const empleadorId = req.user.id;
+
+    const whereClause = isAdmin
+      ? 'SELECT id FROM vacantes WHERE id = ?'
+      : 'SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?';
+    const whereParams = isAdmin ? [id] : [id, empleadorId];
+    const vacantes = await query(whereClause, whereParams);
+    if (!vacantes || vacantes.length === 0) {
+      return res.status(404).json({ error: 'Vacante no encontrada' });
+    }
+
+    // Eliminar fotos de Cloudinary
+    const fotos = await query('SELECT url FROM vacante_fotos WHERE vacante_id = ?', [id]);
+    if (fotos.length > 0) {
+      try {
+        const { cloudinary } = require('../config/cloudinary');
+        for (const foto of fotos) {
+          const matches = foto.url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
+          if (matches && matches[1]) await cloudinary.uploader.destroy(matches[1]);
+        }
+      } catch (cloudErr) {
+        console.error('Error eliminando fotos de Cloudinary:', cloudErr);
+      }
+    }
+
+    await query('DELETE FROM vacante_fotos WHERE vacante_id = ?', [id]);
+    await query('DELETE FROM vacante_cultivos WHERE vacante_id = ?', [id]);
+    await query('DELETE FROM vacante_labores WHERE vacante_id = ?', [id]);
+    await query('DELETE FROM postulaciones WHERE vacante_id = ?', [id]);
+    await query('DELETE FROM vacantes WHERE id = ?', [id]);
+
+    res.json({ message: 'Vacante eliminada' });
+  } catch (err) {
+    console.error('Error eliminando vacante:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 // Cerrar vacante
 async function cerrarVacante(req, res) {
   try {
@@ -537,40 +638,51 @@ async function cerrarVacante(req, res) {
   }
 }
 
-// Subir fotos a vacante
+// Subir foto(s) a vacante
 async function subirFotosVacante(req, res) {
   try {
     const { id } = req.params;
+    const isAdmin = req.user.rol === 'admin';
     const empleadorId = req.user.id;
 
-    const vacantes = await query('SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?', [id, empleadorId]);
+    console.log('subirFotosVacante - files recibidos:', (req.files || []).length, '| isAdmin:', isAdmin);
+
+    // Verificar propiedad: admin puede subir fotos a cualquier vacante
+    const whereClause = isAdmin
+      ? 'SELECT id FROM vacantes WHERE id = ?'
+      : 'SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?';
+    const whereParams = isAdmin ? [id] : [id, empleadorId];
+    const vacantes = await query(whereClause, whereParams);
     if (!vacantes || vacantes.length === 0) {
       return res.status(404).json({ error: 'Vacante no encontrada' });
     }
 
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No se subieron fotos' });
+    const archivos = Array.isArray(req.files) ? req.files : [];
+    if (archivos.length === 0) {
+      console.error('subirFotosVacante - no files received. Body keys:', Object.keys(req.body));
+      return res.status(400).json({ error: 'No se subió ninguna foto' });
     }
 
     const currentFotos = await query('SELECT COUNT(*) as count FROM vacante_fotos WHERE vacante_id = ?', [id]);
     const currentCount = Number(currentFotos[0].count);
 
-    if (currentCount + req.files.length > 5) {
-      return res.status(400).json({ error: `Solo puedes tener 5 fotos por vacante. Tienes ${currentCount} actualmente.` });
+    if (currentCount + archivos.length > 5) {
+      return res.status(400).json({ error: `Máximo 5 fotos por vacante. Ya tienes ${currentCount}.` });
     }
 
-    const fotosGuardadas = [];
-    for (let i = 0; i < req.files.length; i++) {
-      const file = req.files[i];
+    const fotasGuardadas = [];
+    for (let i = 0; i < archivos.length; i++) {
+      const file = archivos[i];
+      const fileUrl = file.path || file.secure_url;
       const orden = currentCount + i;
       const result = await query(
         'INSERT INTO vacante_fotos (vacante_id, url, orden) VALUES (?, ?, ?)',
-        [id, file.path, orden]
+        [id, fileUrl, orden]
       );
-      fotosGuardadas.push({ id: Number(result.insertId), url: file.path, orden });
+      fotasGuardadas.push({ id: Number(result.insertId), url: fileUrl, orden });
     }
 
-    res.status(201).json({ message: 'Fotos subidas exitosamente', fotos: fotosGuardadas });
+    res.status(201).json({ message: 'Foto(s) subida(s) exitosamente', fotos: fotasGuardadas });
   } catch (err) {
     console.error('Error subiendo fotos vacante:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -581,9 +693,14 @@ async function subirFotosVacante(req, res) {
 async function eliminarFotoVacante(req, res) {
   try {
     const { id, fotoId } = req.params;
+    const isAdmin = req.user.rol === 'admin';
     const empleadorId = req.user.id;
 
-    const vacantes = await query('SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?', [id, empleadorId]);
+    const whereClause = isAdmin
+      ? 'SELECT id FROM vacantes WHERE id = ?'
+      : 'SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?';
+    const whereParams = isAdmin ? [id] : [id, empleadorId];
+    const vacantes = await query(whereClause, whereParams);
     if (!vacantes || vacantes.length === 0) {
       return res.status(404).json({ error: 'Vacante no encontrada' });
     }
@@ -677,7 +794,7 @@ async function perfilPublicoTrabajador(req, res) {
 }
 
 module.exports = {
-  crearVacante, actualizarVacante, misVacantes, listarVacantes, detalleVacante,
+  crearVacante, actualizarVacante, eliminarVacante, misVacantes, listarVacantes, detalleVacante,
   postularse, verPostulaciones, actualizarPostulacion,
   misPostulaciones, cerrarVacante, subirFotosVacante, eliminarFotoVacante,
   ejecutarMatchingEndpoint, ejecutarMatchingParaTrabajador,

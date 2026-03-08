@@ -311,7 +311,10 @@ async function eliminarVacante(req, res) {
       return res.status(404).json({ error: 'Vacante no encontrada' });
     }
 
-    // Eliminación de la vacante principal; las tablas relacionadas se limpian por FK (CASCADE/SET NULL).
+    await conn.query('DELETE FROM vacante_fotos WHERE vacante_id = ?', [id]);
+    await conn.query('DELETE FROM vacante_cultivos WHERE vacante_id = ?', [id]);
+    await conn.query('DELETE FROM vacante_labores WHERE vacante_id = ?', [id]);
+    await conn.query('DELETE FROM postulaciones WHERE vacante_id = ?', [id]);
     await conn.query('DELETE FROM vacantes WHERE id = ?', [id]);
 
     await conn.commit();

@@ -12,6 +12,8 @@ const vacantesRoutes = require('./routes/vacantes');
 const calificacionesRoutes = require('./routes/calificaciones');
 const adminRoutes = require('./routes/admin');
 const trabajadoresRoutes = require('./routes/trabajadores');
+const notificacionesRoutes = require('./routes/notificaciones');
+const chatsRoutes = require('./routes/chats');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -42,6 +44,8 @@ app.use('/api/vacantes', vacantesRoutes);
 app.use('/api/calificaciones', calificacionesRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/trabajadores', trabajadoresRoutes);
+app.use('/api/notificaciones', notificacionesRoutes);
+app.use('/api/chats', chatsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

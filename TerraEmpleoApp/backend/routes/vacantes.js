@@ -16,8 +16,21 @@ router.get('/mis-vacantes', authMiddleware, empleadorMiddleware, vacantesControl
 router.get('/postulaciones/:vacante_id', authMiddleware, empleadorMiddleware, vacantesController.verPostulaciones);
 router.put('/postulaciones/:id/estado', authMiddleware, empleadorMiddleware, vacantesController.actualizarPostulacion);
 router.put('/:id/cerrar', authMiddleware, empleadorMiddleware, vacantesController.cerrarVacante);
+router.delete('/:id', authMiddleware, empleadorMiddleware, vacantesController.eliminarVacante);
 router.put('/:id', authMiddleware, empleadorMiddleware, vacantesController.actualizarVacante);
-router.post('/:id/fotos', authMiddleware, empleadorMiddleware, uploadVacantes.array('fotos', 5), vacantesController.subirFotosVacante);
+router.post('/:id/fotos', authMiddleware, (req, res, next) => {
+  if (!['empleador', 'admin'].includes(req.user.rol)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de empleador o admin.' });
+  }
+
+  uploadVacantes.array('fotos', 5)(req, res, (err) => {
+    if (err) {
+      console.error('Multer/Cloudinary error en fotos vacante:', err);
+      return res.status(500).json({ error: 'Error al procesar la imagen: ' + err.message });
+    }
+    next();
+  });
+}, vacantesController.subirFotosVacante);
 router.delete('/:id/fotos/:fotoId', authMiddleware, empleadorMiddleware, vacantesController.eliminarFotoVacante);
 
 router.get('/:id/ejecutar-matching', authMiddleware, empleadorMiddleware, vacantesController.ejecutarMatchingEndpoint);

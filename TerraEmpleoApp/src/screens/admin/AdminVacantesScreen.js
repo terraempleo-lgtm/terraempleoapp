@@ -45,14 +45,14 @@ export default function AdminVacantesScreen({ navigation }) {
     navigation.navigate('AdminVerPostulantes', { vacante: item });
   };
 
-  const eliminar = (id) => {
+  const eliminar = (vacante) => {
     Alert.alert('Eliminar vacante', '¿Seguro?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar', style: 'destructive',
         onPress: async () => {
           try {
-            await adminAPI.eliminarVacante(id);
+            await adminAPI.eliminarVacante(vacante.id);
             Alert.alert('Listo', 'Vacante eliminada correctamente');
             load();
           } catch (err) {
@@ -122,7 +122,7 @@ export default function AdminVacantesScreen({ navigation }) {
                 {item.estado === 'activa' ? 'Pausar' : 'Activar'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => eliminar(item.id)} style={styles.actionBtn}>
+            <TouchableOpacity onPress={() => eliminar(item)} style={styles.actionBtn}>
               <Ionicons name="trash-outline" size={16} color={COLORS.error} />
               <Text style={[styles.actionText, { color: COLORS.error }]}>Eliminar</Text>
             </TouchableOpacity>

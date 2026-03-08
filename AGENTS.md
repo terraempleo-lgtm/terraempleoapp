@@ -63,7 +63,7 @@ No test suite or linter is configured. Validate changes by running the backend (
 - Default admin: `celular: 0000000000`, `password: admin123` — seeded on first DB init.
 
 
-## vexp <!-- vexp v1.2.18 -->
+## vexp <!-- vexp v1.2.19 -->
 
 **MANDATORY: use `run_pipeline` — do NOT grep, glob, or Read files.**
 vexp returns pre-indexed, graph-ranked context in a single call.

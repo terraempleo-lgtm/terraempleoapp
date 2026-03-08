@@ -5,9 +5,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { vacantesAPI } from '../../services/api';
+import { vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { PickerModal } from '../../components/ui';
+import { CULTIVOS } from '../../data/options';
+import { DEPARTAMENTOS } from '../../data/colombia';
 
 // Icono según cultivo principal
 function getCropIcon(cultivos) {
@@ -76,13 +79,31 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [noLeidas, setNoLeidas] = useState(0);
+  const [filterCultivo, setFilterCultivo] = useState('');
+  const [filterDepto, setFilterDepto] = useState('');
+  const [filterUrgente, setFilterUrgente] = useState(false);
+  const [showCultivoModal, setShowCultivoModal] = useState(false);
+  const [showDeptoModal, setShowDeptoModal] = useState(false);
 
   const firstName = (user?.nombre_completo || 'Usuario').split(' ')[0];
 
+  const cargarNoLeidas = useCallback(async () => {
+    try {
+      const res = await notificacionesAPI.contarNoLeidas();
+      setNoLeidas(res.data.count || 0);
+    } catch (_) {}
+  }, []);
+
   const cargarVacantes = useCallback(async () => {
     try {
+      const params = {};
+      if (filterCultivo) params.cultivo = filterCultivo;
+      if (filterDepto) params.departamento = filterDepto;
+      if (filterUrgente) params.urgente = 'true';
+
       const [vacantesRes, postulacionesRes] = await Promise.all([
-        vacantesAPI.listar(),
+        vacantesAPI.listar(params),
         vacantesAPI.misPostulaciones(),
       ]);
 
@@ -97,13 +118,16 @@ export default function TrabajadorVacantesScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [filterCultivo, filterDepto, filterUrgente]);
 
-  useEffect(() => { cargarVacantes(); }, [cargarVacantes]);
+  useEffect(() => { cargarVacantes(); cargarNoLeidas(); }, [cargarVacantes, cargarNoLeidas]);
   useEffect(() => {
-    const unsub = navigation.addListener('focus', cargarVacantes);
+    const unsub = navigation.addListener('focus', () => {
+      cargarVacantes();
+      cargarNoLeidas();
+    });
     return unsub;
-  }, [navigation, cargarVacantes]);
+  }, [navigation, cargarVacantes, cargarNoLeidas]);
 
   const onRefresh = () => { setRefreshing(true); cargarVacantes(); };
 
@@ -261,9 +285,16 @@ export default function TrabajadorVacantesScreen({ navigation }) {
             <Text style={styles.appName}>TerraEmpleo</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.notifBtn}>
+        <TouchableOpacity
+          style={styles.notifBtn}
+          onPress={() => navigation.navigate('Notificaciones')}
+        >
           <Ionicons name="notifications" size={24} color={COLORS.textPrimary} />
-          <View style={styles.notifDot} />
+          {noLeidas > 0 && (
+            <View style={styles.notifBadge}>
+              <Text style={styles.notifBadgeText}>{noLeidas > 99 ? '99+' : noLeidas}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -291,25 +322,79 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         style={styles.filtersScroll}
         contentContainerStyle={styles.filtersContent}
       >
-        <TouchableOpacity style={styles.filterPrimary}>
+        <TouchableOpacity
+          style={styles.filterPrimary}
+          onPress={() => { setFilterCultivo(''); setFilterDepto(''); setFilterUrgente(false); }}
+        >
           <Ionicons name="options-outline" size={15} color={COLORS.white} />
           <Text style={styles.filterPrimaryText}>Filtros</Text>
         </TouchableOpacity>
-        {['Cultivo', 'Ubicación', 'Pago'].map(f => (
-          <TouchableOpacity key={f} style={styles.filterChip}>
-            <Text style={styles.filterChipText}>{f}</Text>
-            <Ionicons name="chevron-down" size={13} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-        ))}
+
+        <TouchableOpacity
+          style={[styles.filterChip, filterCultivo ? styles.filterChipActive : null]}
+          onPress={() => setShowCultivoModal(true)}
+        >
+          <Text style={[styles.filterChipText, filterCultivo ? styles.filterChipTextActive : null]}>
+            {filterCultivo || 'Cultivo'}
+          </Text>
+          {filterCultivo
+            ? <Ionicons name="close-circle" size={14} color={COLORS.primary} onPress={() => setFilterCultivo('')} />
+            : <Ionicons name="chevron-down" size={13} color={COLORS.textSecondary} />
+          }
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.filterChip, filterDepto ? styles.filterChipActive : null]}
+          onPress={() => setShowDeptoModal(true)}
+        >
+          <Text style={[styles.filterChipText, filterDepto ? styles.filterChipTextActive : null]}>
+            {filterDepto || 'Ubicación'}
+          </Text>
+          {filterDepto
+            ? <Ionicons name="close-circle" size={14} color={COLORS.primary} onPress={() => setFilterDepto('')} />
+            : <Ionicons name="chevron-down" size={13} color={COLORS.textSecondary} />
+          }
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.filterChip, filterUrgente ? styles.filterChipActive : null]}
+          onPress={() => setFilterUrgente(v => !v)}
+        >
+          <Text style={[styles.filterChipText, filterUrgente ? styles.filterChipTextActive : null]}>
+            Urgente
+          </Text>
+          {filterUrgente && <Ionicons name="flash" size={13} color={COLORS.primary} />}
+        </TouchableOpacity>
       </ScrollView>
 
       {/* Sección header */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Para ti</Text>
-        <TouchableOpacity>
-          <Text style={styles.seeAll}>Ver todas</Text>
-        </TouchableOpacity>
+        <Text style={styles.sectionTitle}>
+          {filterCultivo || filterDepto || filterUrgente ? 'Resultados' : 'Para ti'}
+        </Text>
+        {(filterCultivo || filterDepto || filterUrgente) && (
+          <TouchableOpacity onPress={() => { setFilterCultivo(''); setFilterDepto(''); setFilterUrgente(false); }}>
+            <Text style={styles.seeAll}>Limpiar filtros</Text>
+          </TouchableOpacity>
+        )}
       </View>
+
+      <PickerModal
+        visible={showCultivoModal}
+        onClose={() => setShowCultivoModal(false)}
+        title="Filtrar por cultivo"
+        options={CULTIVOS}
+        selectedValue={filterCultivo}
+        onSelect={(v) => { setFilterCultivo(v); setShowCultivoModal(false); }}
+      />
+      <PickerModal
+        visible={showDeptoModal}
+        onClose={() => setShowDeptoModal(false)}
+        title="Filtrar por departamento"
+        options={DEPARTAMENTOS}
+        selectedValue={filterDepto}
+        onSelect={(v) => { setFilterDepto(v); setShowDeptoModal(false); }}
+      />
     </View>
   );
 
@@ -370,11 +455,16 @@ const styles = StyleSheet.create({
   holaText: { fontSize: 11, fontWeight: '600', color: COLORS.textSecondary, letterSpacing: 0.5 },
   appName: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
   notifBtn: { position: 'relative', padding: 4 },
-  notifDot: {
-    position: 'absolute', top: 4, right: 4,
-    width: 9, height: 9, borderRadius: 5,
+  notifBadge: {
+    position: 'absolute', top: 0, right: 0,
+    minWidth: 17, height: 17, borderRadius: 9,
     backgroundColor: '#E53935',
     borderWidth: 1.5, borderColor: '#F4F6F4',
+    justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  notifBadgeText: {
+    fontSize: 10, fontWeight: '700', color: '#fff',
   },
 
   /* Buscador */
@@ -408,7 +498,12 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
     borderWidth: 1, borderColor: COLORS.border,
   },
+  filterChipActive: {
+    backgroundColor: COLORS.primarySoft,
+    borderColor: COLORS.primary,
+  },
   filterChipText: { color: COLORS.textSecondary, fontSize: 14 },
+  filterChipTextActive: { color: COLORS.primary, fontWeight: '600' },
 
   /* Sección */
   sectionHeader: {

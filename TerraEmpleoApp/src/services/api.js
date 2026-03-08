@@ -4,7 +4,6 @@ import config from '../config';
 const api = axios.create({
   baseURL: config.API_URL,
   timeout: 30000,
-  headers: { 'Content-Type': 'application/json' },
 });
 
 let authToken = null;
@@ -31,7 +30,7 @@ export const authAPI = {
   getPerfil: () => api.get('/auth/perfil'),
   actualizarPerfil: (data) => api.put('/auth/perfil', data),
   subirFoto: (tipo, formData) => api.post(`/auth/fotos/${tipo}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    transformRequest: [(data) => data],
   }),
 };
 
@@ -48,9 +47,10 @@ export const vacantesAPI = {
   actualizar: (id, data) => api.put(`/vacantes/${id}`, data),
   cerrar: (id) => api.put(`/vacantes/${id}/cerrar`),
   subirFotos: (vacanteId, formData) => api.post(`/vacantes/${vacanteId}/fotos`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    transformRequest: [(data) => data], // Evita que Axios serialice el FormData; XHR pone el boundary automáticamente
   }),
   eliminarFoto: (vacanteId, fotoId) => api.delete(`/vacantes/${vacanteId}/fotos/${fotoId}`),
+  eliminar: (id) => api.delete(`/vacantes/${id}`),
 };
 
 // Calificaciones
@@ -62,6 +62,23 @@ export const calificacionesAPI = {
 // Trabajadores
 export const trabajadoresAPI = {
   perfilPublico: (id) => api.get(`/trabajadores/${id}/perfil`),
+};
+
+// Notificaciones
+export const notificacionesAPI = {
+  listar: () => api.get('/notificaciones'),
+  contarNoLeidas: () => api.get('/notificaciones/no-leidas'),
+  marcarLeida: (id) => api.put(`/notificaciones/${id}/leer`),
+  marcarTodasLeidas: () => api.put('/notificaciones/leer-todas'),
+};
+
+// Chats
+export const chatsAPI = {
+  misChats: () => api.get('/chats'),
+  getMensajes: (chatId, page = 1) => api.get(`/chats/${chatId}/mensajes`, { params: { page } }),
+  enviarMensaje: (chatId, mensaje) => api.post(`/chats/${chatId}/mensajes`, { mensaje }),
+  marcarLeidos: (chatId) => api.put(`/chats/${chatId}/mensajes/leer`),
+  contarNoLeidos: () => api.get('/chats/no-leidos'),
 };
 
 // Admin

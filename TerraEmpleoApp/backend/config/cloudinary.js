@@ -12,7 +12,7 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: 'terraempleo/fotos',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'],
     resource_type: 'image',
   },
 });
@@ -21,7 +21,7 @@ const storageVacantes = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: 'terraempleo/vacantes',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'],
     resource_type: 'image',
   },
 });

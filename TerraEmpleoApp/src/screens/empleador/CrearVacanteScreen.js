@@ -16,6 +16,36 @@ import { Ionicons } from '@expo/vector-icons';
 const MAX_FOTOS = 5;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
+function obtenerNombreFoto(foto, indice) {
+  const tipo = foto.type || 'image/jpeg';
+  const extension = tipo.includes('/') ? tipo.split('/')[1] : 'jpg';
+  return foto.name || `vacante_foto_${indice}.${extension}`;
+}
+
+async function construirArchivoFoto(foto, indice) {
+  const tipo = foto.type || 'image/jpeg';
+  const nombre = obtenerNombreFoto(foto, indice);
+
+  if (Platform.OS === 'web') {
+    if (foto.webFile) {
+      return { archivo: foto.webFile, nombre };
+    }
+
+    const response = await fetch(foto.uri);
+    const blob = await response.blob();
+    try {
+      return { archivo: new File([blob], nombre, { type: tipo }), nombre };
+    } catch (_) {
+      return { archivo: blob, nombre };
+    }
+  }
+
+  return {
+    archivo: { uri: foto.uri, type: tipo, name: nombre },
+    nombre,
+  };
+}
+
 export default function CrearVacanteScreen({ navigation }) {
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -80,7 +110,7 @@ export default function CrearVacanteScreen({ navigation }) {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
       selectionLimit: MAX_FOTOS - fotos.length,
       quality: 0.8,
@@ -91,6 +121,9 @@ export default function CrearVacanteScreen({ navigation }) {
 
     const nuevas = result.assets.map((asset) => ({
       uri: asset.uri,
+      type: asset.mimeType || 'image/jpeg',
+      name: asset.fileName || null,
+      webFile: asset.file || null,
       uploading: false,
       uploaded: false,
       id: null,
@@ -120,7 +153,15 @@ export default function CrearVacanteScreen({ navigation }) {
 
     setFotos((prev) => [
       ...prev,
-      { uri: result.assets[0].uri, uploading: false, uploaded: false, id: null },
+      {
+        uri: result.assets[0].uri,
+        type: result.assets[0].mimeType || 'image/jpeg',
+        name: result.assets[0].fileName || null,
+        webFile: result.assets[0].file || null,
+        uploading: false,
+        uploaded: false,
+        id: null,
+      },
     ].slice(0, MAX_FOTOS));
   };
 
@@ -147,11 +188,12 @@ export default function CrearVacanteScreen({ navigation }) {
 
       try {
         const formData = new FormData();
-        formData.append('fotos', {
-          uri: fotos[i].uri,
-          type: 'image/jpeg',
-          name: `vacante_foto_${i}.jpg`,
-        });
+        const { archivo, nombre } = await construirArchivoFoto(fotos[i], i);
+        if (Platform.OS === 'web') {
+          formData.append('fotos', archivo, nombre);
+        } else {
+          formData.append('fotos', archivo);
+        }
         const res = await vacantesAPI.subirFotos(vacanteId, formData);
         const fotoSubida = res.data.fotos?.[0];
         setFotos((prev) =>
@@ -161,10 +203,12 @@ export default function CrearVacanteScreen({ navigation }) {
               : f
           )
         );
-      } catch {
+      } catch (err) {
         setFotos((prev) =>
           prev.map((f, idx) => (idx === i ? { ...f, uploading: false } : f))
         );
+        const mensaje = err.response?.data?.error || 'No se pudo subir una foto.';
+        Alert.alert('Error al subir foto', mensaje);
         exito = false;
       }
     }

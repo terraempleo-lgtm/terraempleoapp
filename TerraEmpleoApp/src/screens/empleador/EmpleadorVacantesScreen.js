@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, Image,
+  RefreshControl, Image, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { vacantesAPI } from '../../services/api';
+import { vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -56,8 +56,38 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   const [vacantes, setVacantes] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [tabActiva, setTabActiva] = useState('activa');
+  const [noLeidas, setNoLeidas] = useState(0);
 
   const firstName = (user?.nombre_completo || 'Empleador').split(' ')[0];
+
+  const cargarNoLeidas = useCallback(async () => {
+    try {
+      const res = await notificacionesAPI.contarNoLeidas();
+      setNoLeidas(res.data.count || 0);
+    } catch (_) {}
+  }, []);
+
+  const confirmarEliminar = (item) => {
+    Alert.alert(
+      'Eliminar vacante',
+      `¿Seguro que quieres eliminar "${item.titulo}"? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await vacantesAPI.eliminar(item.id);
+              setVacantes((prev) => prev.filter((v) => v.id !== item.id));
+            } catch (err) {
+              Alert.alert('Error', err.response?.data?.error || 'No se pudo eliminar la vacante');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const cargar = useCallback(async () => {
     try {
@@ -70,9 +100,12 @@ export default function EmpleadorVacantesScreen({ navigation }) {
     }
   }, []);
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); cargarNoLeidas(); }, []);
   useEffect(() => {
-    const unsub = navigation.addListener('focus', cargar);
+    const unsub = navigation.addListener('focus', () => {
+      cargar();
+      cargarNoLeidas();
+    });
     return unsub;
   }, [navigation]);
 
@@ -85,38 +118,51 @@ export default function EmpleadorVacantesScreen({ navigation }) {
     const postulantes = item.total_postulaciones || 0;
 
     return (
-      <TouchableOpacity
-        style={[styles.card, !isActiva && styles.cardInactiva]}
-        onPress={() => navigation.navigate('DetalleVacanteEmpleador', { vacante: item })}
-        activeOpacity={0.88}
-      >
-        {/* Imagen */}
-        <View style={styles.cardImg}>
-          {item.foto_portada ? (
-            <Image source={{ uri: item.foto_portada }} style={styles.img} resizeMode="cover" />
-          ) : (
-            <View style={styles.imgPlaceholder}>
-              <Ionicons name="leaf" size={28} color={isActiva ? COLORS.primary : COLORS.textLight} />
-            </View>
-          )}
+      <View style={[styles.card, !isActiva && styles.cardInactiva]}>
+        {/* Botones de acción - fuera del TouchableOpacity de navegación para evitar conflicto en Android */}
+        <View style={styles.cardActionsOverlay}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('EditarVacante', { vacante: item })}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.actionBtn}
+          >
+            <Ionicons name="pencil-outline" size={17} color={COLORS.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => confirmarEliminar(item)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.actionBtn}
+          >
+            <Ionicons name="trash-outline" size={17} color="#E53935" />
+          </TouchableOpacity>
         </View>
 
-        {/* Contenido */}
-        <View style={styles.cardBody}>
-          {/* Badge + editar */}
-          <View style={styles.cardTopRow}>
-            <View style={[styles.estadoBadge, !isActiva && styles.estadoBadgeInactiva]}>
-              <Text style={[styles.estadoText, !isActiva && styles.estadoTextInactiva]}>
-                {isActiva ? 'Activa' : 'Inactiva'}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('EditarVacante', { vacante: item })}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="pencil-outline" size={17} color={COLORS.textLight} />
-            </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.cardPressable}
+          onPress={() => navigation.navigate('DetalleVacanteEmpleador', { vacante: item })}
+          activeOpacity={0.88}
+        >
+          {/* Imagen */}
+          <View style={styles.cardImg}>
+            {item.foto_portada ? (
+              <Image source={{ uri: item.foto_portada }} style={styles.img} resizeMode="cover" />
+            ) : (
+              <View style={styles.imgPlaceholder}>
+                <Ionicons name="leaf" size={28} color={isActiva ? COLORS.primary : COLORS.textLight} />
+              </View>
+            )}
           </View>
+
+          {/* Contenido */}
+          <View style={styles.cardBody}>
+            {/* Badge */}
+            <View style={styles.cardTopRow}>
+              <View style={[styles.estadoBadge, !isActiva && styles.estadoBadgeInactiva]}>
+                <Text style={[styles.estadoText, !isActiva && styles.estadoTextInactiva]}>
+                  {isActiva ? 'Activa' : 'Inactiva'}
+                </Text>
+              </View>
+            </View>
 
           {/* Título */}
           <Text style={[styles.cardTitle, !isActiva && styles.cardTitleInactiva]} numberOfLines={1}>
@@ -139,8 +185,9 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           ) : (
             <Text style={styles.cubierto}>Puesto cubierto</Text>
           )}
-        </View>
-      </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -154,13 +201,26 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           </View>
           <Text style={styles.headerTitle}>Mis Vacantes</Text>
         </View>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => navigation.navigate('CrearVacante')}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="add" size={24} color={COLORS.white} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.notifBtn}
+            onPress={() => navigation.navigate('Notificaciones')}
+          >
+            <Ionicons name="notifications-outline" size={24} color={COLORS.textPrimary} />
+            {noLeidas > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>{noLeidas > 99 ? '99+' : noLeidas}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => navigation.navigate('CrearVacante')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="add" size={24} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.divider} />
@@ -237,6 +297,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  notifBtn: { position: 'relative', padding: 4 },
+  notifBadge: {
+    position: 'absolute', top: 0, right: 0,
+    minWidth: 17, height: 17, borderRadius: 9,
+    backgroundColor: '#E53935',
+    borderWidth: 1.5, borderColor: COLORS.white,
+    justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  notifBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
   addBtn: {
     width: 42, height: 42, borderRadius: 21,
     backgroundColor: COLORS.primary,
@@ -260,15 +331,33 @@ const styles = StyleSheet.create({
 
   /* Card */
   card: {
-    flexDirection: 'row',
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     marginBottom: SPACING.md,
-    padding: SPACING.md,
     ...SHADOWS.small,
     borderWidth: 1, borderColor: COLORS.borderLight,
+    overflow: 'hidden',
+    position: 'relative',
   },
   cardInactiva: { opacity: 0.75 },
+  cardPressable: {
+    flexDirection: 'row',
+    padding: SPACING.md,
+  },
+  cardActionsOverlay: {
+    position: 'absolute',
+    top: SPACING.md,
+    right: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    zIndex: 10,
+  },
+  actionBtn: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: RADIUS.full,
+    padding: 4,
+  },
 
   cardImg: {
     width: 80, height: 80,
@@ -285,8 +374,9 @@ const styles = StyleSheet.create({
 
   cardBody: { flex: 1 },
   cardTopRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
     marginBottom: 6,
+    paddingRight: 60, // espacio para los botones overlay
   },
   estadoBadge: {
     backgroundColor: '#e6f7ee',

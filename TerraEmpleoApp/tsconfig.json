@@ -1,0 +1,21 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "allowJs": true,
+    "module": "esnext",
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "App.js",
+    "index.js",
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "backend",
+    "dist"
+  ]
+}

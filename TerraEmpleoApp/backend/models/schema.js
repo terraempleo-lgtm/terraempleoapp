@@ -196,6 +196,54 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Chats
+  await query(`
+    CREATE TABLE IF NOT EXISTS chats (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      vacante_id INT NOT NULL,
+      empleador_id INT NOT NULL,
+      trabajador_id INT NOT NULL,
+      activo TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_chat (vacante_id, trabajador_id),
+      FOREIGN KEY (vacante_id) REFERENCES vacantes(id) ON DELETE CASCADE,
+      FOREIGN KEY (empleador_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+      FOREIGN KEY (trabajador_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Mensajes de chat
+  await query(`
+    CREATE TABLE IF NOT EXISTS mensajes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      chat_id INT NOT NULL,
+      emisor_id INT NOT NULL,
+      mensaje TEXT NOT NULL,
+      leido TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
+      FOREIGN KEY (emisor_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Notificaciones
+  await query(`
+    CREATE TABLE IF NOT EXISTS notificaciones (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      usuario_id INT NOT NULL,
+      tipo ENUM('match','postulacion','aceptado','rechazado','calificacion') NOT NULL,
+      titulo VARCHAR(200) NOT NULL,
+      mensaje TEXT NOT NULL,
+      leida TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Migración: agregar columnas a vacantes si no existen
+  try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS ofrece_alojamiento TINYINT(1) DEFAULT 0'); } catch (_) {}
+  try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS ofrece_alimentacion TINYINT(1) DEFAULT 0'); } catch (_) {}
+
   // Crear usuario admin por defecto
   const bcrypt = require('bcryptjs');
   const adminExists = await query('SELECT id FROM usuarios WHERE rol = ? AND celular = ?', ['admin', '0000000000']);

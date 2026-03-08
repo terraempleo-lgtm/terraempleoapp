@@ -15,7 +15,7 @@ router.get('/vacantes', adminController.listarTodasVacantes);
 router.post('/vacantes', adminController.crearVacanteComoAdmin);
 router.put('/vacantes/:id', adminController.actualizarVacante);
 router.put('/vacantes/:id/estado', adminController.cambiarEstadoVacante);
-router.delete('/vacantes/:id', adminController.eliminarVacante);
+router.delete('/vacantes/:id', authMiddleware, adminMiddleware, adminController.eliminarVacante);
 router.get('/vacantes/:vacante_id/postulaciones', adminController.verPostulacionesAdmin);
 router.get('/empleadores', adminController.listarEmpleadores);
 router.get('/postulaciones', adminController.listarTodasPostulaciones);
