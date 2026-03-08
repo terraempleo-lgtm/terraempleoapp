@@ -378,4 +378,107 @@ async function subirFotos(req, res) {
   }
 }
 
-module.exports = { register, login, enviarCodigoSMS, verificarCodigoSMS, getPerfil, actualizarPerfil, subirFotos };
+// ─── RECUPERACIÓN DE CONTRASEÑA ──────────────────────────────────────────────
+
+// POST /api/auth/recuperar/solicitar
+// Genera un código OTP de 6 dígitos, lo guarda y lo "envía" (por ahora en consola)
+async function solicitarRecuperacion(req, res) {
+  try {
+    const { celular } = req.body;
+    if (!celular) return res.status(400).json({ error: 'El número de celular es obligatorio' });
+
+    const usuarios = await query('SELECT id FROM usuarios WHERE celular = ?', [celular.trim()]);
+    if (!usuarios || usuarios.length === 0) {
+      // Por seguridad, responder igual aunque no exista
+      return res.json({ message: 'Si el número está registrado, recibirás un código' });
+    }
+
+    // Invalidar tokens anteriores de este celular
+    await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celular.trim()]);
+
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const expira = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+
+    await query(
+      'INSERT INTO password_resets (celular, codigo, expira_en) VALUES (?, ?, ?)',
+      [celular.trim(), codigo, expira]
+    );
+
+    // SMS mock: mostrar código en consola para MVP
+    console.log(`[RECUPERAR PASSWORD] Celular: ${celular} | Código OTP: ${codigo}`);
+
+    const responseData = { message: 'Código enviado correctamente' };
+    if (process.env.SMS_MOCK === 'true' || process.env.NODE_ENV !== 'production') {
+      responseData.codigo_debug = codigo;
+    }
+    res.json(responseData);
+  } catch (err) {
+    console.error('Error en solicitarRecuperacion:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// POST /api/auth/recuperar/verificar
+// Verifica el código OTP y devuelve un token temporal de reset
+async function verificarCodigoRecuperacion(req, res) {
+  try {
+    const { celular, codigo } = req.body;
+    if (!celular || !codigo) return res.status(400).json({ error: 'Celular y código son obligatorios' });
+
+    const resets = await query(
+      'SELECT * FROM password_resets WHERE celular = ? AND codigo = ? AND usado = 0 AND expira_en > NOW() ORDER BY created_at DESC LIMIT 1',
+      [celular.trim(), codigo.trim()]
+    );
+
+    if (!resets || resets.length === 0) {
+      return res.status(400).json({ error: 'Código inválido o expirado' });
+    }
+
+    // Generar token temporal de reset (64 chars hex)
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+
+    await query('UPDATE password_resets SET token = ? WHERE id = ?', [resetToken, resets[0].id]);
+
+    res.json({ message: 'Código verificado', reset_token: resetToken });
+  } catch (err) {
+    console.error('Error en verificarCodigoRecuperacion:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// POST /api/auth/recuperar/nueva-password
+// Verifica el token temporal y actualiza la contraseña
+async function actualizarPasswordRecuperacion(req, res) {
+  try {
+    const { celular, reset_token, nueva_password } = req.body;
+    if (!celular || !reset_token || !nueva_password) {
+      return res.status(400).json({ error: 'Faltan datos requeridos' });
+    }
+    if (nueva_password.length < 6) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+
+    const resets = await query(
+      'SELECT * FROM password_resets WHERE celular = ? AND token = ? AND usado = 0 AND expira_en > NOW() ORDER BY created_at DESC LIMIT 1',
+      [celular.trim(), reset_token]
+    );
+
+    if (!resets || resets.length === 0) {
+      return res.status(400).json({ error: 'Token inválido o expirado. Solicita un nuevo código.' });
+    }
+
+    const hash = await bcrypt.hash(nueva_password, 10);
+    await query('UPDATE usuarios SET password_hash = ? WHERE celular = ?', [hash, celular.trim()]);
+
+    // Invalidar todos los tokens OTP de este celular
+    await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celular.trim()]);
+
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    console.error('Error en actualizarPasswordRecuperacion:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+module.exports = { register, login, enviarCodigoSMS, verificarCodigoSMS, getPerfil, actualizarPerfil, subirFotos, solicitarRecuperacion, verificarCodigoRecuperacion, actualizarPasswordRecuperacion };

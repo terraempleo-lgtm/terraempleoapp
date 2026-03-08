@@ -15,6 +15,9 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/sms/enviar', authController.enviarCodigoSMS);
 router.post('/sms/verificar', authController.verificarCodigoSMS);
+router.post('/recuperar/solicitar', authController.solicitarRecuperacion);
+router.post('/recuperar/verificar', authController.verificarCodigoRecuperacion);
+router.post('/recuperar/nueva-password', authController.actualizarPasswordRecuperacion);
 
 // Rutas protegidas
 router.get('/perfil', authMiddleware, authController.getPerfil);

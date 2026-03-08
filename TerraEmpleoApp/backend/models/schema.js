@@ -231,18 +231,43 @@ async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS notificaciones (
       id INT AUTO_INCREMENT PRIMARY KEY,
       usuario_id INT NOT NULL,
-      tipo ENUM('match','postulacion','aceptado','rechazado','calificacion') NOT NULL,
+      tipo VARCHAR(60) NOT NULL,
       titulo VARCHAR(200) NOT NULL,
       mensaje TEXT NOT NULL,
+      vacante_id INT DEFAULT NULL,
+      conversacion_id INT DEFAULT NULL,
       leida TINYINT(1) NOT NULL DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+      FOREIGN KEY (vacante_id) REFERENCES vacantes(id) ON DELETE SET NULL,
+      FOREIGN KEY (conversacion_id) REFERENCES chats(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
   // Migración: agregar columnas a vacantes si no existen
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS ofrece_alojamiento TINYINT(1) DEFAULT 0'); } catch (_) {}
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS ofrece_alimentacion TINYINT(1) DEFAULT 0'); } catch (_) {}
+
+  // Migración: compatibilidad de tipos de notificación + columnas de navegación
+  try { await query('ALTER TABLE notificaciones MODIFY COLUMN tipo VARCHAR(60) NOT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS vacante_id INT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS conversacion_id INT NULL'); } catch (_) {}
+  // Compatibilidad hacia atrás con implementaciones previas
+  try { await query('ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS chat_id INT NULL'); } catch (_) {}
+
+  // Tabla password_resets para recuperación de contraseña
+  await query(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      celular VARCHAR(20) NOT NULL,
+      codigo VARCHAR(6) NOT NULL,
+      token VARCHAR(64) DEFAULT NULL,
+      expira_en TIMESTAMP NOT NULL,
+      usado TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_celular (celular)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
 
   // Crear usuario admin por defecto
   const bcrypt = require('bcryptjs');

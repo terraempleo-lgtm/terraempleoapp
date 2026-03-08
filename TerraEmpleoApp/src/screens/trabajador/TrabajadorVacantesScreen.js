@@ -86,7 +86,8 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const [showCultivoModal, setShowCultivoModal] = useState(false);
   const [showDeptoModal, setShowDeptoModal] = useState(false);
 
-  const firstName = (user?.nombre_completo || 'Usuario').split(' ')[0];
+  const firstName = (user?.nombre_completo || user?.nombre || 'Usuario').split(' ')[0];
+  const nombreCompleto = user?.nombre_completo || user?.nombre || firstName;
 
   const cargarNoLeidas = useCallback(async () => {
     try {
@@ -282,7 +283,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
           </View>
           <View>
             <Text style={styles.holaText}>HOLA, {firstName.toUpperCase()}</Text>
-            <Text style={styles.appName}>TerraEmpleo</Text>
+            <Text style={styles.appName}>{nombreCompleto}</Text>
           </View>
         </View>
         <TouchableOpacity

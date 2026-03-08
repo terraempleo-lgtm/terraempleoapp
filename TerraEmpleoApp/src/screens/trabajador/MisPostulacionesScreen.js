@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { vacantesAPI } from '../../services/api';
@@ -45,6 +45,23 @@ export default function MisPostulacionesScreen({ navigation }) {
     }
   };
 
+  const handlePostulacionClick = async (postulacion) => {
+    try {
+      const vacanteId = postulacion.vacante_id || postulacion.id;
+      if (!vacanteId) return;
+
+      const res = await vacantesAPI.detalle(vacanteId);
+      const vacante = res.data?.vacante || { id: vacanteId };
+
+      navigation.navigate('Vacantes', {
+        screen: 'DetalleVacante',
+        params: { vacante },
+      });
+    } catch (err) {
+      console.error('Error abriendo detalle de vacante:', err);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -54,7 +71,7 @@ export default function MisPostulacionesScreen({ navigation }) {
         data={postulaciones}
         keyExtractor={(item) => item.id?.toString()}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <TouchableOpacity style={styles.card} activeOpacity={0.92} onPress={() => handlePostulacionClick(item)}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>{item.titulo}</Text>
               <View style={[styles.badge, { backgroundColor: getEstadoColor(item.estado) }]}>
@@ -80,7 +97,7 @@ export default function MisPostulacionesScreen({ navigation }) {
               </View>
             )}
             <Text style={styles.date}>{new Date(item.created_at).toLocaleDateString('es-CO')}</Text>
-          </View>
+          </TouchableOpacity>
         )}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar(); }} colors={[COLORS.primary]} />}
@@ -100,7 +117,14 @@ const styles = StyleSheet.create({
   header: { backgroundColor: COLORS.primary, padding: SPACING.lg, paddingTop: SPACING.xl },
   headerTitle: { fontSize: 22, fontWeight: '700', color: COLORS.white },
   list: { padding: SPACING.md, paddingBottom: 100 },
-  card: { backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.md, ...SHADOWS.small },
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    cursor: 'pointer',
+    ...SHADOWS.small,
+  },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING.sm },
   cardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, flex: 1, marginRight: SPACING.sm },
   badge: { paddingHorizontal: SPACING.sm, paddingVertical: 3, borderRadius: RADIUS.full },

@@ -15,6 +15,7 @@ import LoginScreen from './src/screens/auth/LoginScreen';
 import RoleSelectScreen from './src/screens/auth/RoleSelectScreen';
 import RegisterTrabajadorScreen from './src/screens/auth/RegisterTrabajadorScreen';
 import RegisterEmpleadorScreen from './src/screens/auth/RegisterEmpleadorScreen';
+import RecuperarPasswordScreen from './src/screens/auth/RecuperarPasswordScreen';
 
 // Trabajador
 import TrabajadorVacantesScreen from './src/screens/trabajador/TrabajadorVacantesScreen';
@@ -236,6 +237,8 @@ function AuthStack() {
         options={{ headerShown: true, title: 'Registro Trabajador' }} />
       <Stack.Screen name="RegisterEmpleador" component={RegisterEmpleadorScreen}
         options={{ headerShown: true, title: 'Registro Empleador' }} />
+      <Stack.Screen name="RecuperarPassword" component={RecuperarPasswordScreen}
+        options={{ headerShown: true, title: 'Recuperar contraseña' }} />
     </Stack.Navigator>
   );
 }

@@ -1,11 +1,14 @@
 const { query } = require('../config/database');
 
 // Función interna para crear notificaciones (usada por otros controladores)
-async function crearNotificacion(usuarioId, tipo, titulo, mensaje) {
+// extra: { vacante_id, conversacion_id } — ambos opcionales
+async function crearNotificacion(usuarioId, tipo, titulo, mensaje, extra = {}) {
   try {
+    const vacante_id = extra.vacante_id || null;
+    const conversacion_id = extra.conversacion_id || extra.chat_id || null;
     await query(
-      'INSERT INTO notificaciones (usuario_id, tipo, titulo, mensaje) VALUES (?, ?, ?, ?)',
-      [usuarioId, tipo, titulo, mensaje]
+      'INSERT INTO notificaciones (usuario_id, tipo, titulo, mensaje, vacante_id, conversacion_id, chat_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [usuarioId, tipo, titulo, mensaje, vacante_id, conversacion_id, conversacion_id]
     );
   } catch (err) {
     console.error('Error creando notificación:', err);

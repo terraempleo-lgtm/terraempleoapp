@@ -2,7 +2,10 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="/assets/images/TerraEmpleo.png" />
+  <link rel="shortcut icon" href="/assets/images/TerraEmpleo.png" />
+  <link rel="apple-touch-icon" href="/assets/images/TerraEmpleo.png" />
   <title>TerraEmpleo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -269,8 +272,19 @@
       padding:10px 16px; border-radius:var(--radius-full);
       background:var(--chipUnselected); border:1.5px solid var(--border);
       font-size:15px; font-weight:500; color:#333; cursor:pointer;
-      transition:all 0.2s; user-select:none;
+      transition:all 0.2s; -webkit-user-select:none; user-select:none;
     }
+
+    .stack-col-gap-8 { display:flex; flex-direction:column; gap:8px; }
+    .mt-16 { margin-top:16px; }
+    .bg-primary { background:var(--primary); }
+    .bg-accent { background:var(--accent); }
+    .icon-primary { color:var(--primary); }
+    .icon-light { color:var(--textLight); }
+    .admin-header-custom { background:linear-gradient(135deg,#1B5E20,#2E7D32); color:#fff; }
+    .text-white { color:#fff; }
+    .text-white-soft { color:rgba(255,255,255,0.85); }
+    .btn-white-soft { background:rgba(255,255,255,0.2); }
     .chip:hover { border-color:var(--primary); }
     .chip.selected {
       background:var(--chipSelected); border-color:var(--chipSelected);
@@ -718,7 +732,7 @@
     <div class="welcome-bottom">
       <div class="welcome-title">¡Bienvenido!</div>
       <div class="welcome-text">Encuentra trabajo rural o los mejores trabajadores para tu finca.</div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
+      <div class="stack-col-gap-8">
         <button class="btn btn-primary btn-large" onclick="showScreen('login-screen')">Iniciar Sesión</button>
         <button class="btn btn-outline btn-large" onclick="showScreen('register-role-screen')">Crear Cuenta</button>
       </div>
@@ -753,10 +767,10 @@
           </div>
           <div class="input-error" id="login-password-error"></div>
         </div>
-        <button class="btn btn-primary btn-large" onclick="handleLogin()" id="login-btn" style="margin-top:16px;">
+        <button class="btn btn-primary btn-large mt-16" onclick="handleLogin()" id="login-btn">
           Iniciar Sesión
         </button>
-        <button class="btn btn-secondary btn-medium" onclick="showScreen('register-role-screen')" style="margin-top:16px;">
+        <button class="btn btn-secondary btn-medium mt-16" onclick="showScreen('register-role-screen')">
           ¿No tienes cuenta? Regístrate
         </button>
       </div>
@@ -774,22 +788,22 @@
       <div class="role-subtitle">Selecciona tu tipo de cuenta</div>
       <div class="role-cards">
         <div class="role-card trabajador" onclick="startRegister('trabajador')">
-          <div class="role-icon-circle" style="background:var(--primary)">
+          <div class="role-icon-circle bg-primary">
             <ion-icon name="person"></ion-icon>
           </div>
           <div class="role-card-title">Soy Trabajador</div>
           <div class="role-card-subtitle">Busco trabajo en fincas y zonas rurales</div>
-          <button class="role-select-btn" style="background:var(--primary)">
+          <button class="role-select-btn bg-primary">
             Seleccionar <ion-icon name="arrow-forward"></ion-icon>
           </button>
         </div>
         <div class="role-card empleador" onclick="startRegister('empleador')">
-          <div class="role-icon-circle" style="background:var(--accent)">
+          <div class="role-icon-circle bg-accent">
             <ion-icon name="business"></ion-icon>
           </div>
           <div class="role-card-title">Soy Empleador</div>
           <div class="role-card-subtitle">Tengo una finca o empresa y busco trabajadores</div>
-          <button class="role-select-btn" style="background:var(--accent)">
+          <button class="role-select-btn bg-accent">
             Seleccionar <ion-icon name="arrow-forward"></ion-icon>
           </button>
         </div>
@@ -846,17 +860,17 @@
         <div class="filter-item">
           <label class="filter-label">Departamento</label>
           <div class="picker-button filter-picker" id="filter-dept-btn" onclick="showFilterDeptPicker()">
-            <ion-icon name="location-outline" style="color:var(--primary)"></ion-icon>
+            <ion-icon name="location-outline" class="icon-primary"></ion-icon>
             <span class="picker-text" id="filter-dept-text">Todos</span>
-            <ion-icon name="chevron-down" style="color:var(--textLight)"></ion-icon>
+            <ion-icon name="chevron-down" class="icon-light"></ion-icon>
           </div>
         </div>
         <div class="filter-item">
           <label class="filter-label">Municipio</label>
           <div class="picker-button filter-picker" id="filter-mun-btn" onclick="showFilterMunPicker()">
-            <ion-icon name="map-outline" style="color:var(--primary)"></ion-icon>
+            <ion-icon name="map-outline" class="icon-primary"></ion-icon>
             <span class="picker-text" id="filter-mun-text">Todos</span>
-            <ion-icon name="chevron-down" style="color:var(--textLight)"></ion-icon>
+            <ion-icon name="chevron-down" class="icon-light"></ion-icon>
           </div>
         </div>
       </div>
@@ -864,17 +878,17 @@
         <div class="filter-item">
           <label class="filter-label">Cultivo</label>
           <div class="picker-button filter-picker" id="filter-cultivo-btn" onclick="showFilterCultivoPicker()">
-            <ion-icon name="leaf-outline" style="color:var(--primary)"></ion-icon>
+            <ion-icon name="leaf-outline" class="icon-primary"></ion-icon>
             <span class="picker-text" id="filter-cultivo-text">Todos</span>
-            <ion-icon name="chevron-down" style="color:var(--textLight)"></ion-icon>
+            <ion-icon name="chevron-down" class="icon-light"></ion-icon>
           </div>
         </div>
         <div class="filter-item">
           <label class="filter-label">Labor</label>
           <div class="picker-button filter-picker" id="filter-labor-btn" onclick="showFilterLaborPicker()">
-            <ion-icon name="hammer-outline" style="color:var(--primary)"></ion-icon>
+            <ion-icon name="hammer-outline" class="icon-primary"></ion-icon>
             <span class="picker-text" id="filter-labor-text">Todas</span>
-            <ion-icon name="chevron-down" style="color:var(--textLight)"></ion-icon>
+            <ion-icon name="chevron-down" class="icon-light"></ion-icon>
           </div>
         </div>
       </div>
@@ -924,13 +938,13 @@
 
   <!-- ===== DASHBOARD ADMIN ===== -->
   <div id="dashboard-admin" class="screen">
-    <div class="dash-header" style="background:linear-gradient(135deg,#1B5E20,#2E7D32);color:#fff;">
+    <div class="dash-header admin-header-custom">
       <div>
-        <div class="dash-greeting" style="color:#fff;">Panel Admin</div>
-        <div class="dash-subgreeting" style="color:rgba(255,255,255,0.85);">Administra TerraEmpleo</div>
+        <div class="dash-greeting text-white">Panel Admin</div>
+        <div class="dash-subgreeting text-white-soft">Administra TerraEmpleo</div>
       </div>
-      <button class="dash-add-btn" style="background:rgba(255,255,255,0.2);" onclick="showAdminTab('crear-vacante')">
-        <ion-icon name="add" style="color:#fff;"></ion-icon>
+      <button class="dash-add-btn btn-white-soft" onclick="showAdminTab('crear-vacante')">
+        <ion-icon name="add" class="text-white"></ion-icon>
       </button>
     </div>
     <div class="content-scroll" id="admin-content"></div>

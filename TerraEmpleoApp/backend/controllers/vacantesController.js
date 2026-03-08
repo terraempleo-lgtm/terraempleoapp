@@ -118,9 +118,10 @@ async function ejecutarMatching(vacanteId) {
           `, [vacanteId, trabajador.id, puntaje]);
           await crearNotificacion(
             trabajador.id,
-            'match',
+            'nuevo_match',
             '¡Nuevo match!',
-            `Tu perfil coincide con la vacante "${vacante.titulo}" en ${vacante.municipio || vacante.departamento || 'Colombia'}`
+            `Tu perfil coincide con la vacante "${vacante.titulo}" en ${vacante.municipio || vacante.departamento || 'Colombia'}`,
+            { vacante_id: vacanteId }
           );
         }
       }
@@ -291,7 +292,7 @@ async function postularse(req, res) {
           const v = vacanteInfoMatch[0];
           const trabajadorInfo = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [trabajadorId]);
           const nombre = trabajadorInfo[0]?.nombre_completo || 'Un trabajador';
-          await crearNotificacion(v.empleador_id, 'postulacion', 'Nueva postulación', `${nombre} se postuló a "${v.titulo}"`);
+          await crearNotificacion(v.empleador_id, 'postulacion', 'Nueva postulación', `${nombre} se postuló a "${v.titulo}"`, { vacante_id });
         }
         return res.json({ message: 'Postulación confirmada (ya tenías match automático)' });
       }
@@ -309,7 +310,7 @@ async function postularse(req, res) {
       const v = vacanteInfoPost[0];
       const trabajadorInfo = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [trabajadorId]);
       const nombre = trabajadorInfo[0]?.nombre_completo || 'Un trabajador';
-      await crearNotificacion(v.empleador_id, 'postulacion', 'Nueva postulación', `${nombre} se postuló a "${v.titulo}"`);
+      await crearNotificacion(v.empleador_id, 'postulacion', 'Nueva postulación', `${nombre} se postuló a "${v.titulo}"`, { vacante_id });
     }
 
     res.status(201).json({ message: 'Postulación enviada exitosamente' });
@@ -382,11 +383,11 @@ async function actualizarPostulacion(req, res) {
     if (postInfo.length > 0) {
       const { trabajador_id, titulo, vacante_id } = postInfo[0];
       if (estado === 'aceptada') {
-        await crearNotificacion(trabajador_id, 'aceptado', '¡Postulación aceptada!', `Tu postulación a "${titulo}" fue aceptada. Ahora puedes chatear con el empleador.`);
-        // Crear chat automáticamente al aceptar la postulación
-        await crearChat(Number(vacante_id), empleadorId, trabajador_id);
+        // Crear chat primero para tener el chat_id disponible en la notificación
+        const chatId = await crearChat(Number(vacante_id), empleadorId, trabajador_id);
+        await crearNotificacion(trabajador_id, 'postulacion_aceptada', '¡Postulación aceptada!', `Tu postulación a "${titulo}" fue aceptada. Ahora puedes chatear con el empleador.`, { vacante_id, conversacion_id: chatId });
       } else {
-        await crearNotificacion(trabajador_id, 'rechazado', 'Postulación rechazada', `Tu postulación a "${titulo}" no fue seleccionada en esta ocasión.`);
+        await crearNotificacion(trabajador_id, 'rechazado', 'Postulación rechazada', `Tu postulación a "${titulo}" no fue seleccionada en esta ocasión.`, { vacante_id });
       }
     }
 
@@ -487,9 +488,10 @@ async function ejecutarMatchingParaTrabajador(trabajadorId) {
           `, [vacanteId, trabajadorId, puntaje]);
           await crearNotificacion(
             trabajadorId,
-            'match',
+            'nuevo_match',
             '¡Nuevo match!',
-            `Tu perfil coincide con la vacante "${vacante.titulo}" en ${vacante.municipio || vacante.departamento || 'Colombia'}`
+            `Tu perfil coincide con la vacante "${vacante.titulo}" en ${vacante.municipio || vacante.departamento || 'Colombia'}`,
+            { vacante_id: vacanteId }
           );
         }
       }

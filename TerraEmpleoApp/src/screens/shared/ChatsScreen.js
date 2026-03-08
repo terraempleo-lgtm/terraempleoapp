@@ -23,7 +23,7 @@ function formatHora(dateStr) {
   return date.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' });
 }
 
-export default function ChatsScreen({ navigation }) {
+export default function ChatsScreen({ navigation, route }) {
   const { user } = useAuth();
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +47,17 @@ export default function ChatsScreen({ navigation }) {
     const interval = setInterval(cargarChats, 5000);
     return () => clearInterval(interval);
   }, [cargarChats]);
+
+  useEffect(() => {
+    const chatObjetivoId = Number(route?.params?.abrirChatId);
+    if (!chatObjetivoId || chats.length === 0) return;
+
+    const chatObjetivo = chats.find((c) => Number(c.id) === chatObjetivoId);
+    if (chatObjetivo) {
+      navigation.navigate('ChatDetalle', { chat: chatObjetivo });
+      navigation.setParams({ abrirChatId: undefined });
+    }
+  }, [route?.params?.abrirChatId, chats, navigation]);
 
   const onRefresh = () => {
     setRefreshing(true);

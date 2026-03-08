@@ -27,6 +27,13 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   enviarSMS: (celular) => api.post('/auth/sms/enviar', { celular }),
   verificarSMS: (celular, codigo) => api.post('/auth/sms/verificar', { celular, codigo }),
+  solicitarRecuperacion: (celular) => api.post('/auth/recuperar/solicitar', { celular }),
+  verificarCodigoRecuperacion: (celular, codigo) => api.post('/auth/recuperar/verificar', { celular, codigo }),
+  actualizarPasswordRecuperacion: (celular, reset_token, nueva_password) => api.post('/auth/recuperar/nueva-password', {
+    celular,
+    reset_token,
+    nueva_password,
+  }),
   getPerfil: () => api.get('/auth/perfil'),
   actualizarPerfil: (data) => api.put('/auth/perfil', data),
   subirFoto: (tipo, formData) => api.post(`/auth/fotos/${tipo}`, formData, {
@@ -79,6 +86,24 @@ export const chatsAPI = {
   enviarMensaje: (chatId, mensaje) => api.post(`/chats/${chatId}/mensajes`, { mensaje }),
   marcarLeidos: (chatId) => api.put(`/chats/${chatId}/mensajes/leer`),
   contarNoLeidos: () => api.get('/chats/no-leidos'),
+  // Resuelve chat por relaciones existentes sin cambiar APIs de negocio.
+  // Si no existe en backend, retorna null para fail-safe en navegación.
+  getOrCreateChatId: async ({ vacancyId, employerId, workerId } = {}) => {
+    const { data } = await api.get('/chats');
+    const chats = data?.chats || [];
+
+    const byVacancy = vacancyId
+      ? chats.find((c) => Number(c.vacante_id) === Number(vacancyId))
+      : null;
+    if (byVacancy?.id) return Number(byVacancy.id);
+
+    const byUser = employerId || workerId
+      ? chats.find((c) => Number(c.otro_usuario_id) === Number(employerId || workerId))
+      : null;
+    if (byUser?.id) return Number(byUser.id);
+
+    return null;
+  },
 };
 
 // Admin

@@ -58,7 +58,8 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   const [tabActiva, setTabActiva] = useState('activa');
   const [noLeidas, setNoLeidas] = useState(0);
 
-  const firstName = (user?.nombre_completo || 'Empleador').split(' ')[0];
+  const firstName = (user?.nombre_completo || user?.nombre || 'Empleador').split(' ')[0];
+  const nombreCompleto = user?.nombre_completo || user?.nombre || firstName;
 
   const cargarNoLeidas = useCallback(async () => {
     try {
@@ -193,6 +194,11 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.saludoWrap}>
+        <Text style={styles.saludoHola}>HOLA, {firstName.toUpperCase()}</Text>
+        <Text style={styles.saludoNombre}>{nombreCompleto}</Text>
+      </View>
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -282,6 +288,25 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
+
+  saludoWrap: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xs,
+  },
+  saludoHola: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  saludoNombre: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0d0d0d',
+    lineHeight: 28,
+  },
 
   /* Header */
   header: {
