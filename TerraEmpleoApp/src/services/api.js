@@ -86,6 +86,7 @@ export const chatsAPI = {
   enviarMensaje: (chatId, mensaje) => api.post(`/chats/${chatId}/mensajes`, { mensaje }),
   marcarLeidos: (chatId) => api.put(`/chats/${chatId}/mensajes/leer`),
   contarNoLeidos: () => api.get('/chats/no-leidos'),
+  chatPorVacanteTrabajador: (vacanteId, trabajadorId) => api.get(`/chats/vacante/${vacanteId}/trabajador/${trabajadorId}`),
   // Resuelve chat por relaciones existentes sin cambiar APIs de negocio.
   // Si no existe en backend, retorna null para fail-safe en navegación.
   getOrCreateChatId: async ({ vacancyId, employerId, workerId } = {}) => {

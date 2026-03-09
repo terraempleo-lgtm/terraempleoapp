@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { vacantesAPI, calificacionesAPI } from '../../services/api';
+import { vacantesAPI, calificacionesAPI, chatsAPI } from '../../services/api';
 import { StarRating, Input } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -75,6 +75,26 @@ export default function VerPostulacionesScreen({ route, navigation }) {
     }
   };
 
+  const irAlChat = async (item) => {
+    try {
+      const res = await chatsAPI.chatPorVacanteTrabajador(vacante.id, item.trabajador_id);
+      const chatId = res.data.chat_id;
+      navigation.navigate('Mensajes', {
+        screen: 'ChatDetalle',
+        params: {
+          chat: {
+            id: chatId,
+            otro_nombre: item.nombre_completo,
+            otro_foto: item.foto_selfie,
+            vacante_titulo: vacante.titulo,
+          },
+        },
+      });
+    } catch {
+      Alert.alert('Error', 'No se encontró el chat para este trabajador');
+    }
+  };
+
   const enviarCalificacion = async (trabajadorId) => {
     if (estrellas === 0) return Alert.alert('Error', 'Selecciona las estrellas');
     try {
@@ -117,7 +137,7 @@ export default function VerPostulacionesScreen({ route, navigation }) {
         {/* Foto + nombre + match */}
         <View style={styles.cardTop}>
           <TouchableOpacity
-            onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.trabajador_id })}
+            onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.trabajador_id, vacante_id: vacante.id, postulacion_estado: item.estado })}
             activeOpacity={0.85}
           >
             <View style={styles.avatar}>
@@ -168,7 +188,7 @@ export default function VerPostulacionesScreen({ route, navigation }) {
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.btnPerfil}
-            onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.trabajador_id })}
+            onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.trabajador_id, vacante_id: vacante.id, postulacion_estado: item.estado })}
           >
             <Text style={styles.btnPerfilText}>Ver Perfil</Text>
           </TouchableOpacity>
@@ -191,12 +211,21 @@ export default function VerPostulacionesScreen({ route, navigation }) {
           )}
 
           {isAceptada && calificandoId !== item.trabajador_id && (
-            <TouchableOpacity
-              style={styles.btnAceptar}
-              onPress={() => setCalificandoId(item.trabajador_id)}
-            >
-              <Text style={styles.btnAceptarText}>Calificar</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={styles.btnChat}
+                onPress={() => irAlChat(item)}
+              >
+                <Ionicons name="chatbubble-ellipses" size={14} color={COLORS.primary} />
+                <Text style={styles.btnChatText}>Chatear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.btnAceptar}
+                onPress={() => setCalificandoId(item.trabajador_id)}
+              >
+                <Text style={styles.btnAceptarText}>Calificar</Text>
+              </TouchableOpacity>
+            </>
           )}
 
           {item.estado === 'rechazada' && (
@@ -445,6 +474,15 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
   },
   estadoFinalText: { fontSize: 12, fontWeight: '600', color: '#C62828' },
+  btnChat: {
+    flex: 1,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    paddingVertical: 10, paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primarySoft,
+    borderWidth: 1.5, borderColor: COLORS.primary,
+  },
+  btnChatText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
 
   /* Calificación */
   calificarBox: {

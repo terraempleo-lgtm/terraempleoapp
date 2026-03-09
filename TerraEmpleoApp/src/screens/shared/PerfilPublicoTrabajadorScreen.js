@@ -7,7 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { StarRating } from '../../components/ui';
-import { trabajadoresAPI } from '../../services/api';
+import { trabajadoresAPI, chatsAPI } from '../../services/api';
 
 const LABELS_EXPERIENCIA = {
   sin: 'Sin experiencia',
@@ -47,12 +47,32 @@ function SectionHeader({ icon, title }) {
 }
 
 export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
-  const { trabajador_id } = route.params;
+  const { trabajador_id, vacante_id, postulacion_estado } = route.params;
   const [perfil, setPerfil] = useState(null);
   const [cargando, setCargando] = useState(true);
   const insets = useSafeAreaInsets();
 
   useEffect(() => { cargarPerfil(); }, []);
+
+  const irAlChat = async () => {
+    if (!vacante_id) return;
+    try {
+      const res = await chatsAPI.chatPorVacanteTrabajador(vacante_id, trabajador_id);
+      const chatId = res.data.chat_id;
+      navigation.navigate('Mensajes', {
+        screen: 'ChatDetalle',
+        params: {
+          chat: {
+            id: chatId,
+            otro_nombre: perfil?.nombre_completo,
+            otro_foto: perfil?.foto_selfie,
+          },
+        },
+      });
+    } catch {
+      Alert.alert('Error', 'No se encontró el chat con este trabajador');
+    }
+  };
 
   const cargarPerfil = async () => {
     try {
@@ -203,17 +223,19 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
         <View style={{ height: SPACING.xl }} />
       </ScrollView>
 
-      {/* ── Footer sticky: Contratar ── */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
-        <TouchableOpacity
-          style={styles.contratarBtn}
-          onPress={() => Alert.alert('Contratar', 'Acepta la postulación del trabajador para proceder con la contratación.')}
-          activeOpacity={0.88}
-        >
-          <Text style={styles.contratarText}>Contratar Trabajador</Text>
-          <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
-        </TouchableOpacity>
-      </View>
+      {/* ── Footer sticky: acción contextual ── */}
+      {postulacion_estado === 'aceptada' && (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
+          <TouchableOpacity
+            style={styles.contratarBtn}
+            onPress={irAlChat}
+            activeOpacity={0.88}
+          >
+            <Ionicons name="chatbubble-ellipses" size={20} color={COLORS.white} />
+            <Text style={styles.contratarText}>Ir al chat</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }

@@ -14,15 +14,15 @@ async function crearVacante(req, res) {
 
     if (!titulo) return res.status(400).json({ error: 'El título es obligatorio' });
 
-    const { ofrece_alojamiento, ofrece_alimentacion } = req.body;
+    const { ofrece_alojamiento, ofrece_alimentacion, otros_beneficios } = req.body;
 
     const result = await query(`
       INSERT INTO vacantes (empleador_id, titulo, descripcion, tipo_pago, monto_pago,
-        departamento, municipio, vereda, urgente, ofrece_alojamiento, ofrece_alimentacion)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        departamento, municipio, vereda, urgente, ofrece_alojamiento, ofrece_alimentacion, otros_beneficios)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [empleadorId, titulo, descripcion || null, tipo_pago || null, monto_pago || null,
         departamento || null, municipio || null, vereda || null, urgente ? 1 : 0,
-        ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0]);
+        ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, otros_beneficios || null]);
 
     const vacanteId = Number(result.insertId);
 
@@ -551,15 +551,15 @@ async function actualizarVacante(req, res) {
       return res.status(404).json({ error: 'Vacante no encontrada' });
     }
 
-    const { titulo, descripcion, tipo_pago, monto_pago, departamento, municipio, vereda, urgente, cultivos, labores, ofrece_alojamiento, ofrece_alimentacion } = req.body;
+    const { titulo, descripcion, tipo_pago, monto_pago, departamento, municipio, vereda, urgente, cultivos, labores, ofrece_alojamiento, ofrece_alimentacion, otros_beneficios } = req.body;
 
     if (!titulo) return res.status(400).json({ error: 'El título es obligatorio' });
 
     await query(
-      'UPDATE vacantes SET titulo=?, descripcion=?, tipo_pago=?, monto_pago=?, departamento=?, municipio=?, vereda=?, urgente=?, ofrece_alojamiento=?, ofrece_alimentacion=? WHERE id=?',
+      'UPDATE vacantes SET titulo=?, descripcion=?, tipo_pago=?, monto_pago=?, departamento=?, municipio=?, vereda=?, urgente=?, ofrece_alojamiento=?, ofrece_alimentacion=?, otros_beneficios=? WHERE id=?',
       [titulo, descripcion || null, tipo_pago || null, monto_pago || null,
        departamento || null, municipio || null, vereda || null, urgente ? 1 : 0,
-       ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, id]
+       ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, otros_beneficios || null, id]
     );
 
     await query('DELETE FROM vacante_cultivos WHERE vacante_id=?', [id]);

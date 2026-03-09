@@ -216,10 +216,10 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
                   Alimentación {vacante.ofrece_alimentacion ? 'incluida' : 'no incluida'}
                 </Text>
               </View>
-              {vacante.beneficios_extra ? (
+              {vacante.otros_beneficios ? (
                 <View style={styles.beneficioRow}>
-                  <Ionicons name="star-outline" size={16} color={COLORS.accent} />
-                  <Text style={styles.beneficioText}>{vacante.beneficios_extra}</Text>
+                  <Ionicons name="gift-outline" size={16} color={COLORS.accent} />
+                  <Text style={styles.beneficioText}>{vacante.otros_beneficios}</Text>
                 </View>
               ) : null}
             </View>

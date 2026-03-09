@@ -62,7 +62,8 @@ export default function EditarVacanteScreen({ navigation, route }) {
   const [urgente, setUrgente] = useState(!!vacante.urgente);
   const [alojamiento, setAlojamiento] = useState(!!vacante.ofrece_alojamiento);
   const [alimentacion, setAlimentacion] = useState(!!vacante.ofrece_alimentacion);
-  const [loading, setLoading] = useState(false);
+  const [otrosBeneficios, setOtrosBeneficios] = useState(vacante.otros_beneficios || '');
+  const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
 
   const [showDeptPicker, setShowDeptPicker] = useState(false);
@@ -82,6 +83,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
           setFotosExistentes(v.fotos || []);
           setAlojamiento(!!v.ofrece_alojamiento);
           setAlimentacion(!!v.ofrece_alimentacion);
+          setOtrosBeneficios(v.otros_beneficios || '');
         }
       } catch (_) {}
       setLoadingFotos(false);
@@ -178,7 +180,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
       return;
     }
     setErrors({});
-    setLoading(true);
+    setIsSaving(true);
     try {
       await vacantesAPI.actualizar(vacante.id, {
         titulo,
@@ -193,19 +195,41 @@ export default function EditarVacanteScreen({ navigation, route }) {
         urgente,
         ofrece_alojamiento: alojamiento,
         ofrece_alimentacion: alimentacion,
+        otros_beneficios: otrosBeneficios.trim() || null,
       });
 
       if (fotosNuevas.some((f) => !f.uploaded)) {
         await subirFotosNuevas();
       }
 
-      Alert.alert('Éxito', 'Vacante actualizada correctamente', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+      // Construir vacante actualizada para pasar al detalle
+      const vacanteActualizada = {
+        ...vacante,
+        titulo,
+        descripcion: descripcion || null,
+        cultivos: cultivosV.map(c => ({ cultivo: c })),
+        labores: laboresV.map(l => ({ labor: l })),
+        tipo_pago: tipoPago || null,
+        monto_pago: montoPago ? parseFloat(montoPago) : null,
+        departamento: departamento || null,
+        municipio: municipio || null,
+        vereda: vereda || null,
+        urgente,
+        ofrece_alojamiento: alojamiento,
+        ofrece_alimentacion: alimentacion,
+        otros_beneficios: otrosBeneficios.trim() || null,
+      };
+
+      Alert.alert('¡Guardado!', 'Vacante actualizada correctamente.', [
+        {
+          text: 'Ver vacante',
+          onPress: () => navigation.replace('DetalleVacanteEmpleador', { vacante: vacanteActualizada }),
+        },
       ]);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || err.message || 'Error al actualizar');
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -291,6 +315,23 @@ export default function EditarVacanteScreen({ navigation, route }) {
                 thumbColor="#fff" />
             </View>
 
+            <View style={styles.otrosBeneficiosWrap}>
+              <View style={styles.otrosBeneficiosHeader}>
+                <Ionicons name="gift-outline" size={20} color={COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.switchLabel}>Otros beneficios</Text>
+                  <Text style={styles.switchDesc}>Escribe beneficios adicionales si aplica</Text>
+                </View>
+              </View>
+              <Input
+                value={otrosBeneficios}
+                onChangeText={setOtrosBeneficios}
+                placeholder="Ej: transporte, bonificaciones, herramientas, dotación..."
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
             <View style={styles.urgentRow}>
               <View>
                 <Text style={styles.urgentLabel}>¿Es urgente?</Text>
@@ -350,8 +391,14 @@ export default function EditarVacanteScreen({ navigation, route }) {
               </>
             )}
 
-            <Button title="Guardar cambios" onPress={handleGuardar}
-              loading={loading} size="large" style={{ marginTop: SPACING.lg }} />
+            <Button
+              title={isSaving ? 'Guardando...' : 'Guardar cambios'}
+              onPress={handleGuardar}
+              loading={isSaving}
+              disabled={isSaving}
+              size="large"
+              style={{ marginTop: SPACING.lg }}
+            />
           </View>
 
           <PickerModal visible={showDeptPicker} onClose={() => setShowDeptPicker(false)}
@@ -386,6 +433,16 @@ const styles = StyleSheet.create({
   switchInfo: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 },
   switchLabel: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
   switchDesc: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
+  otrosBeneficiosWrap: {
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  otrosBeneficiosHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+  },
   urgentRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: COLORS.urgentBg, padding: SPACING.md, borderRadius: RADIUS.md, marginTop: SPACING.sm,

@@ -190,6 +190,28 @@ async function crearChat(vacanteId, empleadorId, trabajadorId) {
   }
 }
 
+// Obtener chat por vacante+trabajador (para navegación directa)
+async function obtenerChatPorVacanteTrabajador(req, res) {
+  try {
+    const userId = req.user.id;
+    const { vacanteId, trabajadorId } = req.params;
+
+    const chats = await query(
+      'SELECT id FROM chats WHERE vacante_id = ? AND trabajador_id = ? AND (empleador_id = ? OR trabajador_id = ?)',
+      [vacanteId, trabajadorId, userId, userId]
+    );
+
+    if (!chats || chats.length === 0) {
+      return res.status(404).json({ error: 'Chat no encontrado' });
+    }
+
+    res.json({ chat_id: Number(chats[0].id) });
+  } catch (err) {
+    console.error('Error buscando chat:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 // Contar chats con mensajes no leídos (para badge en tab)
 async function contarNoLeidos(req, res) {
   try {
@@ -210,4 +232,4 @@ async function contarNoLeidos(req, res) {
   }
 }
 
-module.exports = { misChats, getMensajes, enviarMensaje, marcarLeidos, crearChat, contarNoLeidos };
+module.exports = { misChats, getMensajes, enviarMensaje, marcarLeidos, crearChat, contarNoLeidos, obtenerChatPorVacanteTrabajador };

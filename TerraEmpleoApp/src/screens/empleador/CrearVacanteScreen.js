@@ -57,6 +57,9 @@ export default function CrearVacanteScreen({ navigation }) {
   const [municipio, setMunicipio] = useState('');
   const [vereda, setVereda] = useState('');
   const [urgente, setUrgente] = useState(false);
+  const [alojamiento, setAlojamiento] = useState(false);
+  const [alimentacion, setAlimentacion] = useState(false);
+  const [otrosBeneficios, setOtrosBeneficios] = useState('');
   const [loading, setLoading] = useState(false);
 
   const [showDeptPicker, setShowDeptPicker] = useState(false);
@@ -87,6 +90,9 @@ export default function CrearVacanteScreen({ navigation }) {
         municipio,
         vereda: vereda || undefined,
         urgente,
+        ofrece_alojamiento: alojamiento,
+        ofrece_alimentacion: alimentacion,
+        otros_beneficios: otrosBeneficios.trim() || undefined,
       });
       setVacanteId(res.data.vacanteId);
       setStep('fotos');
@@ -366,6 +372,48 @@ export default function CrearVacanteScreen({ navigation }) {
             </TouchableOpacity>
             <Input label="Vereda (opcional)" value={vereda} onChangeText={setVereda} placeholder="Vereda" />
 
+            <Text style={styles.sectionLabel}>Beneficios incluidos</Text>
+            <View style={styles.switchRow}>
+              <View style={styles.switchInfo}>
+                <Ionicons name="home-outline" size={20} color={COLORS.primary} />
+                <View>
+                  <Text style={styles.switchLabel}>Alojamiento</Text>
+                  <Text style={styles.switchDesc}>Provees hospedaje al trabajador</Text>
+                </View>
+              </View>
+              <Switch value={alojamiento} onValueChange={setAlojamiento}
+                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                thumbColor="#fff" />
+            </View>
+            <View style={styles.switchRow}>
+              <View style={styles.switchInfo}>
+                <Ionicons name="restaurant-outline" size={20} color={COLORS.primary} />
+                <View>
+                  <Text style={styles.switchLabel}>Alimentación</Text>
+                  <Text style={styles.switchDesc}>Incluyes comidas en el trabajo</Text>
+                </View>
+              </View>
+              <Switch value={alimentacion} onValueChange={setAlimentacion}
+                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                thumbColor="#fff" />
+            </View>
+            <View style={styles.otrosBeneficiosWrap}>
+              <View style={styles.otrosBeneficiosHeader}>
+                <Ionicons name="gift-outline" size={20} color={COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.switchLabel}>Otros beneficios</Text>
+                  <Text style={styles.switchDesc}>Escribe beneficios adicionales si aplica</Text>
+                </View>
+              </View>
+              <Input
+                value={otrosBeneficios}
+                onChangeText={setOtrosBeneficios}
+                placeholder="Ej: transporte, bonificaciones, herramientas, dotación..."
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
             <View style={styles.urgentRow}>
               <View>
                 <Text style={styles.urgentLabel}>¿Es urgente?</Text>
@@ -407,6 +455,24 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm, gap: SPACING.sm,
   },
   pickerText: { flex: 1, fontSize: 16, color: COLORS.textPrimary },
+  switchRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: COLORS.primarySoft, padding: SPACING.md, borderRadius: RADIUS.md,
+    marginBottom: SPACING.sm,
+  },
+  switchInfo: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 },
+  switchLabel: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
+  switchDesc: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
+  otrosBeneficiosWrap: {
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  otrosBeneficiosHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+  },
   urgentRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: COLORS.urgentBg, padding: SPACING.md, borderRadius: RADIUS.md, marginTop: SPACING.md,

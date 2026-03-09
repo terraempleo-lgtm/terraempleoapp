@@ -228,6 +228,17 @@ export default function DetalleVacanteScreen({ route, navigation }) {
             </View>
           )}
 
+          {/* Otros beneficios */}
+          {vacante.otros_beneficios ? (
+            <View style={styles.otrosBeneficiosWrap}>
+              <View style={styles.otrosBeneficiosHeader}>
+                <Ionicons name="gift-outline" size={16} color={COLORS.accent} />
+                <Text style={styles.otrosBeneficiosTitle}>Otros beneficios</Text>
+              </View>
+              <Text style={styles.otrosBeneficiosText}>{vacante.otros_beneficios}</Text>
+            </View>
+          ) : null}
+
           {/* Cultivos como chips */}
           {(vacante.cultivos || []).length > 0 && (
             <View style={styles.chipsRow}>
@@ -389,6 +400,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   benefitLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary, letterSpacing: 0.3 },
+
+  /* Otros beneficios */
+  otrosBeneficiosWrap: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    gap: 6,
+  },
+  otrosBeneficiosHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  otrosBeneficiosTitle: { fontSize: 13, fontWeight: '700', color: COLORS.accent },
+  otrosBeneficiosText: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 20 },
 
   /* Chips */
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: SPACING.md },
