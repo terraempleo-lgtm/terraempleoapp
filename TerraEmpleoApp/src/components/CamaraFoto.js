@@ -1,15 +1,16 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Modal, Alert, Image, ActivityIndicator
+  Modal, Alert, Image, ActivityIndicator, Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { authAPI } from '../services/api';
 import { COLORS, SPACING, RADIUS } from '../theme';
 
-export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = false }) {
+export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = false, permitirGaleria = false }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [modalVisible, setModalVisible] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -19,6 +20,11 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
   const facing = (tipo === 'selfie' || tipo === 'selfie_cedula') ? 'front' : 'back';
 
   const abrirCamara = async () => {
+    if (Platform.OS === 'web') {
+      abrirGaleria();
+      return;
+    }
+
     if (!permission?.granted) {
       const result = await requestPermission();
       if (!result.granted) {
@@ -28,6 +34,41 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
     }
     setPreview(null);
     setModalVisible(true);
+  };
+
+  const abrirGaleria = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        setPreview(result.assets[0].uri);
+        setModalVisible(true);
+      }
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir la galeria. Intenta de nuevo.');
+    }
+  };
+
+  const abrirSelector = () => {
+    if (Platform.OS === 'web') {
+      abrirGaleria();
+      return;
+    }
+
+    if (!permitirGaleria) {
+      abrirCamara();
+      return;
+    }
+
+    Alert.alert('Cargar foto', 'Elige como deseas continuar', [
+      { text: 'Tomar foto', onPress: abrirCamara },
+      { text: 'Subir desde galeria', onPress: abrirGaleria },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   };
 
   const tomarFoto = async () => {
@@ -69,8 +110,8 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
 
   return (
     <>
-      <TouchableOpacity style={styles.btn} onPress={abrirCamara}>
-        <Ionicons name="camera" size={28} color={COLORS.primary} />
+      <TouchableOpacity style={styles.btn} onPress={abrirSelector}>
+        <Ionicons name={Platform.OS === 'web' ? 'cloud-upload-outline' : 'camera'} size={28} color={COLORS.primary} />
         <Text style={styles.btnText}>{label}</Text>
       </TouchableOpacity>
 

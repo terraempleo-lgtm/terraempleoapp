@@ -1,19 +1,21 @@
-## vexp — Context-Aware AI Coding <!-- vexp v1.2.19 -->
+## vexp — Context-Aware AI Coding <!-- vexp v1.2.25 -->
 
-### MANDATORY: use vexp pipeline — do NOT grep, glob, or Read files
+### MANDATORY: use vexp pipeline — do NOT grep or glob the codebase
 For every task — bug fixes, features, refactors, debugging:
 **call `run_pipeline` FIRST**. It executes context search + impact analysis +
 memory recall in a single call, returning compressed results.
 
-Do NOT use grep, glob, Bash, Read, or cat to search/explore the codebase.
+Do NOT use grep, glob, Bash, or cat to search/explore the codebase.
 vexp returns pre-indexed, graph-ranked context that is more relevant and
-uses fewer tokens than manual file reading.
+uses fewer tokens than manual searching. Prefer `get_skeleton` over Read to
+inspect files (detail: minimal/standard/detailed, 70-90% token savings).
+Only use Read when you need exact raw content to edit a specific line.
 
 ### Primary Tool
 - `run_pipeline` — **USE THIS FOR EVERYTHING**. Single call that runs
   capsule + impact + memory server-side. Returns compressed results.
   Auto-detects intent (debug/modify/refactor/explore) from your task.
-  Includes full file content for pivots (no need to Read files).
+  Includes full file content for pivots.
   Examples:
   - `run_pipeline({ "task": "fix JWT validation bug" })` — auto-detect
   - `run_pipeline({ "task": "refactor db layer", "preset": "refactor" })` — explicit
@@ -23,7 +25,7 @@ uses fewer tokens than manual file reading.
 - `get_context_capsule` — lightweight alternative for simple questions only
 - `get_impact_graph` — standalone deep impact analysis of a specific symbol
 - `search_logic_flow` — trace execution paths between two specific symbols
-- `get_skeleton` — token-efficient file structure for a specific file
+- `get_skeleton` — **preferred over Read** for inspecting files (minimal/standard/detailed detail levels, 70-90% token savings)
 - `index_status` — indexing status and health check
 - `get_session_context` — recall observations from current/previous sessions
 - `search_memory` — cross-session search for past decisions
@@ -31,9 +33,17 @@ uses fewer tokens than manual file reading.
 
 ### Workflow
 1. `run_pipeline("your task")` — ALWAYS FIRST. Returns pivots + impact + memories in 1 call
-2. Make targeted changes based on the context returned
-3. `run_pipeline` again ONLY if you need more context during implementation
-4. Do NOT chain multiple vexp calls — one `run_pipeline` replaces capsule + impact + memory + observation
+2. Need more detail on a file? Use `get_skeleton({ files: [...], detail: "detailed" })` — avoid Read unless editing
+3. Make targeted changes based on the context returned
+4. `run_pipeline` again ONLY if you need more context during implementation
+5. Do NOT chain multiple vexp calls — one `run_pipeline` replaces capsule + impact + memory + observation
+
+### Subagent / Explore / Plan mode
+- Subagents CAN and MUST call `run_pipeline` — always include the task description
+- The PreToolUse hook blocks Grep/Glob when vexp daemon is running
+- Do NOT spawn Agent(Explore) to freely search — call `run_pipeline` first,
+  then pass the returned context into the agent prompt if needed
+- Always: `run_pipeline` → get context → spawn agent with context
 
 ### Smart Features (automatic — no action needed)
 - **Intent Detection**: auto-detects from your task keywords. "fix bug" → Debug, "refactor" → blast-radius, "add" → Modify

@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
 import { COLORS, RADIUS, SHADOWS, SPACING, LAYOUT, FONTS } from '../../theme';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function Button({
   title,
@@ -67,6 +68,24 @@ export default function Button({
     ? COLORS.primary
     : COLORS.white;
 
+  const iconColor = (variant === 'outline' || variant === 'ghost' || variant === 'secondary')
+    ? COLORS.primary
+    : COLORS.white;
+
+  const renderIcon = (iconValue) => {
+    if (!iconValue) return null;
+    if (typeof iconValue === 'string') {
+      return (
+        <Ionicons
+          name={iconValue}
+          size={size === 'small' ? 16 : 18}
+          color={isDisabled && (variant === 'outline' || variant === 'ghost') ? COLORS.disabled : iconColor}
+        />
+      );
+    }
+    return iconValue;
+  };
+
   return (
     <TouchableOpacity
       style={[...getButtonStyle(), style]}
@@ -81,9 +100,9 @@ export default function Button({
         </View>
       ) : (
         <View style={styles.content}>
-          {icon && <View style={styles.iconLeft}>{icon}</View>}
+          {icon && <View style={styles.iconLeft}>{renderIcon(icon)}</View>}
           <Text style={[...getTextStyle(), textStyle]}>{title}</Text>
-          {iconRight && <View style={styles.iconRight}>{iconRight}</View>}
+          {iconRight && <View style={styles.iconRight}>{renderIcon(iconRight)}</View>}
         </View>
       )}
     </TouchableOpacity>

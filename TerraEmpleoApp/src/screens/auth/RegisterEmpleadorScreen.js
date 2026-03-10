@@ -8,18 +8,20 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input, ChipSelector, ProgressBar, PickerModal, InfoBox, TerraFooter } from '../../components/ui';
 import { DEPARTAMENTOS, getMunicipios } from '../../data/colombia';
 import { CULTIVOS, LABORES, TIPO_PAGO_OPTIONS } from '../../data/options';
-import { authAPI } from '../../services/api';
+import { authAPI, setAuthToken } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import CamaraFoto from '../../components/CamaraFoto';
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
 const STEP_LABELS = [
   'Datos de finca', 'Ubicación', 'Datos de contacto', 'Cédula y datos legales',
-  'Verificación SMS', 'Fotos de verificación', 'Cultivos y labores', 'Resumen final'
+  'Verificación SMS', 'Fotos de verificación', 'Cultivos y labores', 'Fotos de finca', 'Resumen final'
 ];
 
 export default function RegisterEmpleadorScreen({ navigation }) {
   const { signIn } = useAuth();
+  const isWeb = Platform.OS === 'web';
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -55,6 +57,9 @@ export default function RegisterEmpleadorScreen({ navigation }) {
   const [fotoSelfie, setFotoSelfie] = useState(null);
   const [fotoCedula, setFotoCedula] = useState(null);
   const [fotoSelfieCedula, setFotoSelfieCedula] = useState(null);
+
+  // Step 8: Fotos de finca
+  const [fotoFincaFachada, setFotoFincaFachada] = useState(null);
 
   // Step 7: Cultivos, labores, pago, beneficios
   const [cultivosEmp, setCultivosEmp] = useState([]);
@@ -96,6 +101,10 @@ export default function RegisterEmpleadorScreen({ navigation }) {
         if (!fotoCedula) errs.cedFoto = 'Obligatoria';
         if (!fotoSelfieCedula) errs.selfieCed = 'Obligatoria';
         break;
+      case 8:
+        // En fotos de finca solo se exige la foto principal de fachada/entrada.
+        if (!fotoFincaFachada) errs.fincaFachada = 'La foto de fachada o entrada es obligatoria';
+        break;
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -115,11 +124,16 @@ export default function RegisterEmpleadorScreen({ navigation }) {
   }
 };
 
-  const mockFoto = (tipo) => {
-    Alert.alert('Foto capturada', `${tipo} simulada exitosamente.`);
-    if (tipo === 'selfie') setFotoSelfie('mock');
-    if (tipo === 'cédula') setFotoCedula('mock');
-    if (tipo === 'selfie con cédula') setFotoSelfieCedula('mock');
+  const handleFotoGuardada = (tipo, uri) => {
+    if (tipo === 'selfie') setFotoSelfie(uri);
+    if (tipo === 'cedula') setFotoCedula(uri);
+    if (tipo === 'selfie_cedula') setFotoSelfieCedula(uri);
+    if (tipo === 'finca_fachada') setFotoFincaFachada(uri);
+  };
+
+  const getLabelCarga = (uri) => {
+    if (isWeb) return uri ? 'Reemplazar foto' : 'Subir foto';
+    return uri ? 'Tomar o subir de nuevo' : 'Tomar o subir';
   };
 
   const handleRegister = async () => {
@@ -153,6 +167,24 @@ export default function RegisterEmpleadorScreen({ navigation }) {
 
       const response = await authAPI.register(data);
       const { token, user } = response.data;
+
+      setAuthToken(token);
+      const fotosIdentidad = [
+        { tipo: 'selfie', uri: fotoSelfie },
+        { tipo: 'cedula', uri: fotoCedula },
+        { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
+      ].filter((foto) => foto.uri);
+
+      for (const { tipo, uri } of fotosIdentidad) {
+        try {
+          const formData = new FormData();
+          formData.append('foto', { uri, type: 'image/jpeg', name: `${tipo}_${Date.now()}.jpg` });
+          await authAPI.subirFoto(tipo, formData);
+        } catch {
+          // No bloquea el registro si alguna foto falla al subir.
+        }
+      }
+
       Alert.alert('¡Registro exitoso!', 'Tu cuenta ha sido creada.', [
         { text: 'Continuar', onPress: () => signIn(user, token) }
       ]);
@@ -333,7 +365,11 @@ export default function RegisterEmpleadorScreen({ navigation }) {
                 </View>
                 <Text style={styles.smsText}>Se enviará un código de 6 dígitos a:</Text>
                 <Text style={styles.smsPhone}>{celular}</Text>
-                <Button title="Enviar Código" onPress={enviarCodigo} icon="send-outline" />
+                <Button
+                  title="Enviar Código"
+                  onPress={enviarCodigo}
+                  icon={<Ionicons name="send-outline" size={16} color={COLORS.white} />}
+                />
               </View>
             ) : (
               <View>
@@ -347,7 +383,14 @@ export default function RegisterEmpleadorScreen({ navigation }) {
                 <Input label="Código" value={codigoSMS} onChangeText={setCodigoSMS}
                   placeholder="000000" keyboardType="numeric" maxLength={6}
                   icon="key-outline" error={errors.codigo} />
-                <Button title="Reenviar código" onPress={enviarCodigo} variant="ghost" size="small" icon="refresh-outline" />
+                <Button
+                  title="Reenviar código"
+                  onPress={enviarCodigo}
+                  variant="ghost"
+                  size="small"
+                  icon={<Ionicons name="refresh-outline" size={16} color={COLORS.primary} />}
+                  style={{ alignSelf: 'center' }}
+                />
               </View>
             )}
             <InfoBox variant="info" text="La verificación por SMS garantiza que eres el único con acceso a tu cuenta de empleador." />
@@ -363,12 +406,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
             <Text style={styles.stepTitle}>Fotos de Verificación</Text>
             <Text style={styles.stepDesc}>Necesitamos verificar tu identidad como empleador</Text>
 
-            {/* Selfie */}
-            <TouchableOpacity
-              style={[styles.fotoCard, fotoSelfie && styles.fotoCardDone]}
-              onPress={() => mockFoto('selfie')}
-              activeOpacity={0.7}
-            >
+            <View style={[styles.fotoCard, fotoSelfie && styles.fotoCardDone]}>
               <View style={styles.fotoCardRow}>
                 <View style={[styles.fotoIconCircle, fotoSelfie && { backgroundColor: COLORS.primaryMuted }]}>
                   <Ionicons
@@ -378,26 +416,19 @@ export default function RegisterEmpleadorScreen({ navigation }) {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fotoCardTitle}>Selfie</Text>
+                  <Text style={styles.fotoCardTitle}>Selfie del empleador</Text>
                   <Text style={styles.fotoCardDesc}>Foto frontal de tu rostro</Text>
                 </View>
-                {fotoSelfie ? (
-                  <View style={styles.fotoOkBadge}>
-                    <Ionicons name="checkmark" size={12} color={COLORS.white} />
-                    <Text style={styles.fotoOkText}>Capturada</Text>
-                  </View>
-                ) : (
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-                )}
+                <Text style={[styles.estadoFotoText, fotoSelfie && styles.estadoFotoOk]}>{fotoSelfie ? 'Cargada' : 'Pendiente'}</Text>
               </View>
-            </TouchableOpacity>
+              {fotoSelfie ? (
+                <Image source={{ uri: fotoSelfie }} style={styles.fotoPreview} />
+              ) : null}
+              <CamaraFoto tipo="selfie" label={getLabelCarga(fotoSelfie)} onFotoGuardada={handleFotoGuardada} modoLocal={true} permitirGaleria={true} />
+            </View>
+            {errors.selfie && <Text style={styles.errorTextFoto}>{errors.selfie}</Text>}
 
-            {/* Foto Cédula */}
-            <TouchableOpacity
-              style={[styles.fotoCard, fotoCedula && styles.fotoCardDone]}
-              onPress={() => mockFoto('cédula')}
-              activeOpacity={0.7}
-            >
+            <View style={[styles.fotoCard, fotoCedula && styles.fotoCardDone]}>
               <View style={styles.fotoCardRow}>
                 <View style={[styles.fotoIconCircle, fotoCedula && { backgroundColor: COLORS.primaryMuted }]}>
                   <Ionicons
@@ -407,26 +438,19 @@ export default function RegisterEmpleadorScreen({ navigation }) {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fotoCardTitle}>Foto Cédula</Text>
+                  <Text style={styles.fotoCardTitle}>Foto de la cédula</Text>
                   <Text style={styles.fotoCardDesc}>Frente de tu documento de identidad</Text>
                 </View>
-                {fotoCedula ? (
-                  <View style={styles.fotoOkBadge}>
-                    <Ionicons name="checkmark" size={12} color={COLORS.white} />
-                    <Text style={styles.fotoOkText}>Capturada</Text>
-                  </View>
-                ) : (
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-                )}
+                <Text style={[styles.estadoFotoText, fotoCedula && styles.estadoFotoOk]}>{fotoCedula ? 'Cargada' : 'Pendiente'}</Text>
               </View>
-            </TouchableOpacity>
+              {fotoCedula ? (
+                <Image source={{ uri: fotoCedula }} style={styles.fotoPreview} />
+              ) : null}
+              <CamaraFoto tipo="cedula" label={getLabelCarga(fotoCedula)} onFotoGuardada={handleFotoGuardada} modoLocal={true} permitirGaleria={true} />
+            </View>
+            {errors.cedFoto && <Text style={styles.errorTextFoto}>{errors.cedFoto}</Text>}
 
-            {/* Selfie con Cédula */}
-            <TouchableOpacity
-              style={[styles.fotoCard, fotoSelfieCedula && styles.fotoCardDone]}
-              onPress={() => mockFoto('selfie con cédula')}
-              activeOpacity={0.7}
-            >
+            <View style={[styles.fotoCard, fotoSelfieCedula && styles.fotoCardDone]}>
               <View style={styles.fotoCardRow}>
                 <View style={[styles.fotoIconCircle, fotoSelfieCedula && { backgroundColor: COLORS.primaryMuted }]}>
                   <Ionicons
@@ -436,19 +460,17 @@ export default function RegisterEmpleadorScreen({ navigation }) {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fotoCardTitle}>Selfie con Cédula</Text>
+                  <Text style={styles.fotoCardTitle}>Selfie con cédula</Text>
                   <Text style={styles.fotoCardDesc}>Tu rostro junto a tu documento</Text>
                 </View>
-                {fotoSelfieCedula ? (
-                  <View style={styles.fotoOkBadge}>
-                    <Ionicons name="checkmark" size={12} color={COLORS.white} />
-                    <Text style={styles.fotoOkText}>Capturada</Text>
-                  </View>
-                ) : (
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-                )}
+                <Text style={[styles.estadoFotoText, fotoSelfieCedula && styles.estadoFotoOk]}>{fotoSelfieCedula ? 'Cargada' : 'Pendiente'}</Text>
               </View>
-            </TouchableOpacity>
+              {fotoSelfieCedula ? (
+                <Image source={{ uri: fotoSelfieCedula }} style={styles.fotoPreview} />
+              ) : null}
+              <CamaraFoto tipo="selfie_cedula" label={getLabelCarga(fotoSelfieCedula)} onFotoGuardada={handleFotoGuardada} modoLocal={true} permitirGaleria={true} />
+            </View>
+            {errors.selfieCed && <Text style={styles.errorTextFoto}>{errors.selfieCed}</Text>}
 
             <InfoBox variant="info" text="Las fotos verifican tu identidad y aumentan la credibilidad de tu empresa ante los trabajadores." />
           </View>
@@ -517,6 +539,50 @@ export default function RegisterEmpleadorScreen({ navigation }) {
         return (
           <View>
             <View style={styles.stepIconWrap}>
+              <Ionicons name="image-outline" size={32} color={COLORS.primary} />
+            </View>
+            <Text style={styles.stepTitle}>Foto de la finca</Text>
+            <Text style={styles.stepDesc}>Sube una foto principal de tu finca o negocio para generar más confianza en los trabajadores.</Text>
+
+            <View style={[styles.fincaSimpleCard, fotoFincaFachada && styles.fincaSimpleCardDone]}>
+              <View style={styles.fincaSimpleHeader}>
+                <View>
+                  <Text style={styles.fincaSimpleLabel}>Foto principal de la finca *</Text>
+                  <Text style={styles.fincaSimpleEstado}>{fotoFincaFachada ? 'Estado: Cargada' : 'Estado: Pendiente'}</Text>
+                </View>
+                <Ionicons
+                  name={fotoFincaFachada ? 'checkmark-circle' : 'alert-circle-outline'}
+                  size={22}
+                  color={fotoFincaFachada ? COLORS.primary : COLORS.textLight}
+                />
+              </View>
+
+              {fotoFincaFachada ? (
+                <Image source={{ uri: fotoFincaFachada }} style={styles.fincaSimplePreview} />
+              ) : (
+                <View style={styles.fincaSimplePlaceholder}>
+                  <Ionicons name="home-outline" size={44} color={COLORS.textLight} />
+                  <Text style={styles.fincaSimplePlaceholderText}>Sin foto cargada</Text>
+                </View>
+              )}
+
+              <CamaraFoto
+                tipo="finca_fachada"
+                label={getLabelCarga(fotoFincaFachada)}
+                onFotoGuardada={handleFotoGuardada}
+                modoLocal={true}
+                permitirGaleria={true}
+              />
+            </View>
+            {errors.fincaFachada && <Text style={styles.errorTextFoto}>{errors.fincaFachada}</Text>}
+            <InfoBox variant="info" text="Esta foto es obligatoria para continuar el registro." />
+          </View>
+        );
+
+      case 9:
+        return (
+          <View>
+            <View style={styles.stepIconWrap}>
               <Ionicons name="document-text-outline" size={32} color={COLORS.primary} />
             </View>
             <Text style={styles.stepTitle}>Resumen de tu Perfil</Text>
@@ -525,15 +591,11 @@ export default function RegisterEmpleadorScreen({ navigation }) {
             {/* Identity hero */}
             <View style={styles.summaryHero}>
               <View style={styles.summaryAvatarWrap}>
-                {fotoSelfie && fotoSelfie !== 'mock' ? (
+                {fotoSelfie ? (
                   <Image source={{ uri: fotoSelfie }} style={styles.summaryAvatar} />
                 ) : (
                   <View style={[styles.summaryAvatar, styles.summaryAvatarPlaceholder]}>
-                    <Ionicons
-                      name={fotoSelfie === 'mock' ? 'person' : 'camera-outline'}
-                      size={48}
-                      color={fotoSelfie === 'mock' ? COLORS.primaryLight : COLORS.textLight}
-                    />
+                    <Ionicons name="camera-outline" size={48} color={COLORS.textLight} />
                   </View>
                 )}
                 {fotoSelfie && (
@@ -547,6 +609,12 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               <View style={styles.summaryVerifiedRow}>
                 <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />
                 <Text style={styles.summaryVerifiedText}>Empleador verificado</Text>
+              </View>
+              <View style={styles.summaryVerifiedRow}>
+                <Ionicons name="home" size={14} color={COLORS.primary} />
+                <Text style={styles.summaryVerifiedText}>
+                  Finca {fotoFincaFachada ? 'lista' : 'pendiente'}
+                </Text>
               </View>
             </View>
 
@@ -635,21 +703,27 @@ export default function RegisterEmpleadorScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} labels={STEP_LABELS} />
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={isWeb ? 'none' : 'on-drag'}
+          showsVerticalScrollIndicator={true}
+        >
           <View style={styles.formCard}>{renderStep()}</View>
-        </ScrollView>
-        <View style={styles.footerWrap}>
-          <View style={styles.footer}>
-            {step > 1 && <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" style={{ flex: 1 }} />}
-            {step < TOTAL_STEPS ? (
-              <Button title="Siguiente" onPress={nextStep} size="medium"
-                style={{ flex: step > 1 ? 1 : undefined, width: step === 1 ? '100%' : undefined }} />
-            ) : (
-              <Button title="Finalizar Registro" onPress={handleRegister} loading={loading} size="large" style={{ flex: 1 }} />
-            )}
+          <View style={styles.footerWrap}>
+            <View style={styles.footer}>
+              {step > 1 && <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" style={{ flex: 1 }} />}
+              {step < TOTAL_STEPS ? (
+                <Button title="Siguiente" onPress={nextStep} size="medium"
+                  style={{ flex: step > 1 ? 1 : undefined, width: step === 1 ? '100%' : undefined }} />
+              ) : (
+                <Button title="Finalizar Registro" onPress={handleRegister} loading={loading} size="large" style={{ flex: 1 }} />
+              )}
+            </View>
+            <TerraFooter />
           </View>
-          <TerraFooter />
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -683,7 +757,8 @@ const summaryStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
-  scrollContent: { flexGrow: 1 },
+  scrollView: { flex: 1, minHeight: 0 },
+  scrollContent: { flexGrow: 1, paddingBottom: SPACING.md },
   formCard: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg },
   stepIconWrap: {
     width: 56, height: 56, borderRadius: 16,
@@ -777,12 +852,72 @@ const styles = StyleSheet.create({
   },
   fotoCardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
   fotoCardDesc: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  fotoPreview: {
+    width: '100%',
+    height: 150,
+    borderRadius: RADIUS.md,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
   fotoOkBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: COLORS.primary, paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: RADIUS.full,
   },
   fotoOkText: { fontSize: 11, fontWeight: '700', color: COLORS.white },
+  estadoFotoText: { fontSize: 12, fontWeight: '700', color: COLORS.textLight },
+  estadoFotoOk: { color: COLORS.primary },
+  errorTextFoto: { fontSize: 13, color: COLORS.error, marginTop: -SPACING.sm, marginBottom: SPACING.sm, marginLeft: SPACING.xs },
+  fincaSimpleCard: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
+    ...SHADOWS.small,
+  },
+  fincaSimpleCardDone: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryMuted,
+  },
+  fincaSimpleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  fincaSimpleLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  fincaSimpleEstado: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+  },
+  fincaSimplePreview: {
+    width: '100%',
+    height: 190,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.sm,
+  },
+  fincaSimplePlaceholder: {
+    width: '100%',
+    height: 190,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    marginBottom: SPACING.sm,
+  },
+  fincaSimplePlaceholderText: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    marginTop: SPACING.sm,
+  },
   summaryCard: { backgroundColor: COLORS.primarySoft, borderRadius: RADIUS.md, padding: SPACING.md },
 
   /* Summary redesign */
@@ -858,7 +993,16 @@ const styles = StyleSheet.create({
   beneficioLabel: { fontSize: 15, color: COLORS.textPrimary, fontWeight: '500' },
   footerWrap: {
     backgroundColor: COLORS.white, borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight, paddingBottom: SPACING.sm,
+    borderTopColor: COLORS.borderLight,
+    marginTop: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
-  footer: { flexDirection: 'row', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, gap: SPACING.md, backgroundColor: COLORS.white },
+  footer: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+    gap: SPACING.md,
+    backgroundColor: COLORS.white,
+  },
 });

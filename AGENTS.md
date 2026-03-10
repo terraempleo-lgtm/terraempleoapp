@@ -63,9 +63,9 @@ No test suite or linter is configured. Validate changes by running the backend (
 - Default admin: `celular: 0000000000`, `password: admin123` — seeded on first DB init.
 
 
-## vexp <!-- vexp v1.2.19 -->
+## vexp <!-- vexp v1.2.25 -->
 
-**MANDATORY: use `run_pipeline` — do NOT grep, glob, or Read files.**
+**MANDATORY: use `run_pipeline` — do NOT grep or glob the codebase.**
 vexp returns pre-indexed, graph-ranked context in a single call.
 
 ### Workflow
@@ -84,6 +84,11 @@ vexp returns pre-indexed, graph-ranked context in a single call.
 - `get_session_context` — recall observations from sessions
 - `search_memory` — cross-session search
 - `save_observation` — persist insights (prefer run_pipeline's observation param)
+
+### Agentic search
+- Do NOT use built-in file search, grep, or codebase indexing — always call `run_pipeline` first
+- If you spawn sub-agents or background tasks, pass them the context from `run_pipeline`
+  rather than letting them search the codebase independently
 
 ### Smart Features
 Intent auto-detection, hybrid ranking, session memory, auto-expanding budget.
