@@ -2,6 +2,21 @@ const { query } = require('../config/database');
 const { crearNotificacion } = require('./notificacionesController');
 const { crearChat } = require('./chatController');
 
+function normalizarFechaInicio(fecha) {
+  if (fecha === undefined || fecha === null) return null;
+  if (typeof fecha !== 'string') return null;
+
+  const valor = fecha.trim();
+  if (!valor) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) return valor;
+
+  const fechaParseada = new Date(valor);
+  if (Number.isNaN(fechaParseada.getTime())) return null;
+
+  return fechaParseada.toISOString().slice(0, 10);
+}
+
 // Crear vacante
 async function crearVacante(req, res) {
   try {
@@ -9,20 +24,24 @@ async function crearVacante(req, res) {
     const {
       titulo, descripcion, tipo_pago, monto_pago,
       departamento, municipio, vereda, urgente,
-      cultivos, labores
+      cultivos, labores, fecha_inicio, duracion, requisitos
     } = req.body;
 
     if (!titulo) return res.status(400).json({ error: 'El título es obligatorio' });
 
     const { ofrece_alojamiento, ofrece_alimentacion, otros_beneficios } = req.body;
 
+    const fechaInicioNormalizada = normalizarFechaInicio(fecha_inicio);
+
     const result = await query(`
       INSERT INTO vacantes (empleador_id, titulo, descripcion, tipo_pago, monto_pago,
-        departamento, municipio, vereda, urgente, ofrece_alojamiento, ofrece_alimentacion, otros_beneficios)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        duracion, requisitos, departamento, municipio, vereda, urgente,
+        ofrece_alojamiento, ofrece_alimentacion, otros_beneficios, fecha_inicio)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [empleadorId, titulo, descripcion || null, tipo_pago || null, monto_pago || null,
+        duracion || null, requisitos || null,
         departamento || null, municipio || null, vereda || null, urgente ? 1 : 0,
-        ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, otros_beneficios || null]);
+        ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, otros_beneficios || null, fechaInicioNormalizada]);
 
     const vacanteId = Number(result.insertId);
 
@@ -551,15 +570,24 @@ async function actualizarVacante(req, res) {
       return res.status(404).json({ error: 'Vacante no encontrada' });
     }
 
-    const { titulo, descripcion, tipo_pago, monto_pago, departamento, municipio, vereda, urgente, cultivos, labores, ofrece_alojamiento, ofrece_alimentacion, otros_beneficios } = req.body;
+    const {
+      titulo, descripcion, tipo_pago, monto_pago,
+      departamento, municipio, vereda, urgente,
+      cultivos, labores,
+      ofrece_alojamiento, ofrece_alimentacion, otros_beneficios,
+      fecha_inicio, duracion, requisitos,
+    } = req.body;
 
     if (!titulo) return res.status(400).json({ error: 'El título es obligatorio' });
 
+    const fechaInicioNormalizada = normalizarFechaInicio(fecha_inicio);
+
     await query(
-      'UPDATE vacantes SET titulo=?, descripcion=?, tipo_pago=?, monto_pago=?, departamento=?, municipio=?, vereda=?, urgente=?, ofrece_alojamiento=?, ofrece_alimentacion=?, otros_beneficios=? WHERE id=?',
+      'UPDATE vacantes SET titulo=?, descripcion=?, tipo_pago=?, monto_pago=?, duracion=?, requisitos=?, departamento=?, municipio=?, vereda=?, urgente=?, ofrece_alojamiento=?, ofrece_alimentacion=?, otros_beneficios=?, fecha_inicio=? WHERE id=?',
       [titulo, descripcion || null, tipo_pago || null, monto_pago || null,
+       duracion || null, requisitos || null,
        departamento || null, municipio || null, vereda || null, urgente ? 1 : 0,
-       ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, otros_beneficios || null, id]
+       ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, otros_beneficios || null, fechaInicioNormalizada, id]
     );
 
     await query('DELETE FROM vacante_cultivos WHERE vacante_id=?', [id]);
@@ -741,6 +769,7 @@ async function perfilPublicoTrabajador(req, res) {
     const users = await query(`
       SELECT u.id, u.nombre_completo, u.departamento, u.municipio, u.foto_selfie,
         u.calificacion_promedio, u.total_calificaciones, u.verificado_sms,
+        pt.acerca_de, pt.hoja_vida_url, pt.hoja_vida_nombre,
         pt.nivel_estudios, pt.titulo_estudio, pt.anios_experiencia, pt.disponibilidad,
         pt.id as perfil_id
       FROM usuarios u

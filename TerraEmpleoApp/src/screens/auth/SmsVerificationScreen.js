@@ -1,20 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { COLORS } from '../../theme';
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { authAPI } from '../../services/api';
-
-const VERDE = COLORS.primary;
-const VERDE_CLARO = COLORS.primaryLight;
+import { Ionicons } from '@expo/vector-icons';
 
 export default function SmsVerificationScreen({ route, navigation }) {
   const { celular, onVerificado, siguienteRuta, siguienteParams } = route.params || {};
@@ -25,7 +16,6 @@ export default function SmsVerificationScreen({ route, navigation }) {
   const [enviando, setEnviando] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
-  // Enviar SMS automáticamente al cargar la pantalla
   useEffect(() => {
     if (celular) {
       enviarCodigo();
@@ -34,7 +24,6 @@ export default function SmsVerificationScreen({ route, navigation }) {
     }
   }, []);
 
-  // Countdown para reenvío
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -47,40 +36,30 @@ export default function SmsVerificationScreen({ route, navigation }) {
     try {
       setEnviando(true);
       await authAPI.enviarSMS(celular);
-      setCountdown(60); // esperar 60s para reenviar
-      Alert.alert('✅ Código enviado', `Se envió un SMS al ${celular}`);
+      setCountdown(60);
+      Alert.alert('Código enviado', `Se envió un SMS al ${celular}`);
     } catch (error) {
       const mensaje = error.response?.data?.error || 'No se pudo enviar el código. Verifica el número e intenta de nuevo.';
-      Alert.alert(
-        'Error',
-        mensaje
-      );
+      Alert.alert('Error', mensaje);
     } finally {
       setEnviando(false);
     }
   };
 
   const handleCambioDigito = (valor, index) => {
-    // Solo números
     if (!/^\d*$/.test(valor)) return;
-
     const nuevoCodigo = [...codigo];
     nuevoCodigo[index] = valor;
     setCodigo(nuevoCodigo);
-
-    // Avanzar al siguiente campo
     if (valor && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
-
-    // Si completó los 6 dígitos, verificar automáticamente
     if (nuevoCodigo.every((d) => d !== '') && nuevoCodigo.join('').length === 6) {
       verificarCodigo(nuevoCodigo.join(''));
     }
   };
 
   const handleKeyPress = (e, index) => {
-    // Retroceder al campo anterior con backspace
     if (e.nativeEvent.key === 'Backspace' && !codigo[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -96,21 +75,11 @@ export default function SmsVerificationScreen({ route, navigation }) {
       Alert.alert('Error', 'Celular inválido para verificación');
       return;
     }
-
     try {
       setLoading(true);
       await authAPI.verificarSMS(celular, codigoFinal);
-
-      if (typeof onVerificado === 'function') {
-        onVerificado();
-        return;
-      }
-
-      if (siguienteRuta) {
-        navigation.navigate(siguienteRuta, siguienteParams || {});
-        return;
-      }
-
+      if (typeof onVerificado === 'function') { onVerificado(); return; }
+      if (siguienteRuta) { navigation.navigate(siguienteRuta, siguienteParams || {}); return; }
       navigation.goBack();
     } catch (error) {
       const mensaje = error.response?.data?.error || 'Código incorrecto. Intenta de nuevo.';
@@ -128,9 +97,9 @@ export default function SmsVerificationScreen({ route, navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.contenido}>
-        {/* Ícono */}
+        {/* Icono */}
         <View style={styles.icono}>
-          <Text style={styles.iconoTexto}>📱</Text>
+          <Ionicons name="shield-checkmark" size={36} color={COLORS.primary} />
         </View>
 
         <Text style={styles.titulo}>Verifica tu celular</Text>
@@ -145,10 +114,7 @@ export default function SmsVerificationScreen({ route, navigation }) {
             <TextInput
               key={index}
               ref={(ref) => (inputRefs.current[index] = ref)}
-              style={[
-                styles.otpInput,
-                digito ? styles.otpInputActivo : null,
-              ]}
+              style={[styles.otpInput, digito ? styles.otpInputActivo : null]}
               value={digito}
               onChangeText={(val) => handleCambioDigito(val, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
@@ -163,14 +129,14 @@ export default function SmsVerificationScreen({ route, navigation }) {
 
         {/* Botón verificar */}
         <TouchableOpacity
-          style={[styles.boton, loading && styles.botonDeshabilitado]}
+          style={[styles.boton, (loading || codigo.some((d) => d === '')) && styles.botonDeshabilitado]}
           onPress={() => verificarCodigo()}
           disabled={loading || codigo.some((d) => d === '')}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.botonTexto}>Verificar</Text>
+            <Text style={styles.botonTexto}>Verificar código</Text>
           )}
         </TouchableOpacity>
 
@@ -178,11 +144,14 @@ export default function SmsVerificationScreen({ route, navigation }) {
         <View style={styles.reenviarContainer}>
           <Text style={styles.reenviarTexto}>¿No recibiste el código? </Text>
           {countdown > 0 ? (
-            <Text style={styles.countdown}>Reenviar en {countdown}s</Text>
+            <View style={styles.countdownWrap}>
+              <Ionicons name="time-outline" size={14} color={COLORS.textLight} />
+              <Text style={styles.countdown}>Reenviar en {countdown}s</Text>
+            </View>
           ) : (
             <TouchableOpacity onPress={enviarCodigo} disabled={enviando}>
               {enviando ? (
-                <ActivityIndicator size="small" color={VERDE} />
+                <ActivityIndicator size="small" color={COLORS.primary} />
               ) : (
                 <Text style={styles.reenviarLink}>Reenviar</Text>
               )}
@@ -203,75 +172,75 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: SPACING.lg,
   },
   icono: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#e6f7ee',
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: COLORS.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
-  },
-  iconoTexto: {
-    fontSize: 36,
+    marginBottom: SPACING.lg,
   },
   titulo: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '800',
     color: COLORS.textPrimary,
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   subtitulo: {
     fontSize: 15,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: SPACING.xs,
   },
   celular: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: VERDE,
-    marginBottom: 36,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginBottom: SPACING.xl,
   },
   otpContainer: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 32,
+    marginBottom: SPACING.xl,
   },
   otpInput: {
-    width: 48,
-    height: 56,
-    borderWidth: 1.5,
+    width: 50,
+    height: 60,
+    borderWidth: 2,
     borderColor: COLORS.border,
-    borderRadius: 12,
+    borderRadius: RADIUS.lg,
     textAlign: 'center',
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
     color: COLORS.textPrimary,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#F9FAFB',
   },
   otpInputActivo: {
-    borderColor: VERDE_CLARO,
+    borderColor: COLORS.primary,
     backgroundColor: COLORS.primarySoft,
   },
   boton: {
-    backgroundColor: VERDE,
-    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
     paddingVertical: 16,
     paddingHorizontal: 40,
     width: '100%',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: SPACING.lg,
+    ...SHADOWS.button,
   },
   botonDeshabilitado: {
-    backgroundColor: '#80c9a0',
+    backgroundColor: COLORS.disabled,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   botonTexto: {
     color: COLORS.textOnPrimary,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
   },
   reenviarContainer: {
@@ -283,9 +252,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   reenviarLink: {
-    color: VERDE,
+    color: COLORS.primary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  countdownWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   countdown: {
     color: COLORS.textLight,

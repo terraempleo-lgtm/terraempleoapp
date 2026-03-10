@@ -267,6 +267,8 @@ async function actualizarPerfil(req, res) {
   try {
     const userId = req.user.id;
     const rol = req.user.rol;
+    const acercaDeRaw = typeof req.body.acerca_de !== 'undefined' ? req.body.acerca_de : req.body.acercaDe;
+    const acercaDe = typeof acercaDeRaw === 'string' ? (acercaDeRaw.trim() || null) : (acercaDeRaw ?? null);
 
     if (rol === 'trabajador') {
       const {
@@ -281,8 +283,8 @@ async function actualizarPerfil(req, res) {
       );
 
       await query(
-        'UPDATE perfil_trabajador SET nivel_estudios=?, titulo_estudio=?, anios_experiencia=?, disponibilidad=? WHERE usuario_id=?',
-        [nivel_estudios || null, titulo_estudio || null, anios_experiencia || null, disponibilidad || null, userId]
+        'UPDATE perfil_trabajador SET acerca_de=?, nivel_estudios=?, titulo_estudio=?, anios_experiencia=?, disponibilidad=? WHERE usuario_id=?',
+        [acercaDe, nivel_estudios || null, titulo_estudio || null, anios_experiencia || null, disponibilidad || null, userId]
       );
 
       const perfiles = await query('SELECT id FROM perfil_trabajador WHERE usuario_id=?', [userId]);
@@ -317,8 +319,8 @@ async function actualizarPerfil(req, res) {
       );
 
       await query(
-        'UPDATE perfil_empleador SET nombre_empresa_finca=?, tipo_pago=?, ofrece_alojamiento=?, ofrece_alimentacion=?, beneficios_extra=? WHERE usuario_id=?',
-        [nombre_empresa_finca, tipo_pago || null, ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, beneficios_extra || null, userId]
+        'UPDATE perfil_empleador SET nombre_empresa_finca=?, acerca_de=?, tipo_pago=?, ofrece_alojamiento=?, ofrece_alimentacion=?, beneficios_extra=? WHERE usuario_id=?',
+        [nombre_empresa_finca, acercaDe, tipo_pago || null, ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, beneficios_extra || null, userId]
       );
 
       const perfiles = await query('SELECT id FROM perfil_empleador WHERE usuario_id=?', [userId]);
@@ -347,6 +349,43 @@ async function actualizarPerfil(req, res) {
     res.json({ message: 'Perfil actualizado exitosamente' });
   } catch (err) {
     console.error('Error actualizando perfil:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// Subir hoja de vida (trabajador)
+async function subirHojaVida(req, res) {
+  try {
+    const userId = req.user.id;
+
+    if (req.user.rol !== 'trabajador') {
+      return res.status(403).json({ error: 'Solo trabajadores pueden subir hoja de vida' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Archivo PDF requerido' });
+    }
+
+    const perfiles = await query('SELECT id FROM perfil_trabajador WHERE usuario_id = ?', [userId]);
+    if (!perfiles || perfiles.length === 0) {
+      return res.status(404).json({ error: 'Perfil de trabajador no encontrado' });
+    }
+
+    const hojaVidaUrl = req.file.path;
+    const hojaVidaNombre = req.file.originalname || 'hoja_vida.pdf';
+
+    await query(
+      'UPDATE perfil_trabajador SET hoja_vida_url = ?, hoja_vida_nombre = ? WHERE usuario_id = ?',
+      [hojaVidaUrl, hojaVidaNombre, userId]
+    );
+
+    res.json({
+      message: 'Hoja de vida subida exitosamente',
+      hoja_vida_url: hojaVidaUrl,
+      hoja_vida_nombre: hojaVidaNombre,
+    });
+  } catch (err) {
+    console.error('Error subiendo hoja de vida:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -481,4 +520,16 @@ async function actualizarPasswordRecuperacion(req, res) {
   }
 }
 
-module.exports = { register, login, enviarCodigoSMS, verificarCodigoSMS, getPerfil, actualizarPerfil, subirFotos, solicitarRecuperacion, verificarCodigoRecuperacion, actualizarPasswordRecuperacion };
+module.exports = {
+  register,
+  login,
+  enviarCodigoSMS,
+  verificarCodigoSMS,
+  getPerfil,
+  actualizarPerfil,
+  subirFotos,
+  subirHojaVida,
+  solicitarRecuperacion,
+  verificarCodigoRecuperacion,
+  actualizarPasswordRecuperacion,
+};

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, RADIUS } from '../../theme';
+import { COLORS, SPACING, RADIUS, FONTS } from '../../theme';
 
 export default function ProgressBar({ currentStep, totalSteps, labels = [] }) {
   const progress = Math.round((currentStep / totalSteps) * 100);
@@ -9,22 +9,26 @@ export default function ProgressBar({ currentStep, totalSteps, labels = [] }) {
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <Text style={styles.stepLabel}>
-          Paso {currentStep}: <Text style={styles.stepLabelName}>{label}</Text>
+        <Text style={styles.stepIndicator}>
+          PASO {currentStep} DE {totalSteps}
         </Text>
         <Text style={styles.percent}>{progress}%</Text>
       </View>
+
+      {label ? (
+        <Text style={styles.stepLabel}>{label}</Text>
+      ) : null}
+
       <View style={styles.barContainer}>
         <View style={[styles.barFill, { width: `${progress}%` }]} />
       </View>
-      <Text style={styles.subText}>{currentStep} de {totalSteps} pasos completados</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.md,
     backgroundColor: COLORS.white,
@@ -33,37 +37,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
-  stepLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  stepLabelName: {
-    color: COLORS.textSecondary,
-    fontWeight: '500',
+  stepIndicator: {
+    ...FONTS.caption,
+    fontWeight: FONTS.weight.bold,
+    color: COLORS.primary,
+    letterSpacing: 0.8,
   },
   percent: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.primary,
+    ...FONTS.caption,
+    fontWeight: FONTS.weight.semibold,
+  },
+  stepLabel: {
+    ...FONTS.bodySmall,
+    fontWeight: FONTS.weight.medium,
+    marginBottom: SPACING.sm,
   },
   barContainer: {
-    height: 8,
-    backgroundColor: COLORS.primarySoft,
+    height: 6,
+    backgroundColor: COLORS.borderLight,
     borderRadius: RADIUS.full,
     overflow: 'hidden',
-    marginBottom: SPACING.xs,
   },
   barFill: {
     height: '100%',
     backgroundColor: COLORS.primary,
     borderRadius: RADIUS.full,
-  },
-  subText: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    textAlign: 'right',
   },
 });

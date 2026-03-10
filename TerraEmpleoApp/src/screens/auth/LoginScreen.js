@@ -8,49 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { Button, Input } from '../../components/ui';
+import { COLORS, SPACING } from '../../theme';
+import { Button, Input, AppHeader, TerraFooter } from '../../components/ui';
 import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
-
-function TerraEmpleoFooter() {
-  return (
-    <View style={footerStyles.wrap}>
-      <View style={footerStyles.iconBox}>
-        <Ionicons name="leaf" size={14} color="#9E9E9E" />
-      </View>
-      <Text style={footerStyles.text}>TerraEmpleo</Text>
-    </View>
-  );
-}
-
-const footerStyles = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: SPACING.sm,
-  },
-  iconBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    backgroundColor: '#E0E0E0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  text: {
-    fontSize: 13,
-    color: '#9E9E9E',
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-});
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
@@ -90,41 +53,30 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header con flecha y título */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.topTitle}>Iniciar sesión</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <AppHeader title="Iniciar sesión" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          {/* Logo */}
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../../../assets/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
-
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {/* Título de bienvenida */}
-          <Text style={styles.title}>Bienvenido de nuevo</Text>
-          <Text style={styles.subtitle}>
-            Ingresa tus datos para continuar en TerraEmpleo
-          </Text>
+          <View style={styles.headerSection}>
+            <Text style={styles.title}>Bienvenido de nuevo</Text>
+            <Text style={styles.subtitle}>
+              Ingresa a tu cuenta de TerraEmpleo
+            </Text>
+          </View>
 
           {/* Formulario */}
           <View style={styles.form}>
             <Input
-              label="Número de celular"
+              label="Correo electrónico o Teléfono"
               value={celular}
               onChangeText={setCelular}
-              placeholder="Ej: 3001234567"
+              placeholder="ejemplo@terra.com"
               keyboardType="phone-pad"
-              icon="call-outline"
               required
               error={errors.celular}
             />
@@ -133,37 +85,40 @@ export default function LoginScreen({ navigation }) {
               label="Contraseña"
               value={password}
               onChangeText={setPassword}
-              placeholder="Tu contraseña"
+              placeholder="••••••••"
               secureTextEntry
-              icon="lock-closed-outline"
               required
               error={errors.password}
             />
 
             {/* ¿Olvidaste tu contraseña? */}
-            <TouchableOpacity style={styles.forgotContainer} onPress={() => navigation.navigate('RecuperarPassword')}>
+            <TouchableOpacity
+              style={styles.forgotContainer}
+              onPress={() => navigation.navigate('RecuperarPassword')}
+            >
               <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Botón y link al fondo */}
+      {/* Footer fijo */}
       <View style={styles.footer}>
         <Button
-          title="Ingresar"
+          title="Entrar"
           onPress={handleLogin}
           loading={loading}
           size="large"
-          style={styles.loginButton}
         />
+
         <View style={styles.registerRow}>
-          <Text style={styles.registerText}>¿No tienes cuenta? </Text>
+          <Text style={styles.registerText}>¿No tienes una cuenta?  </Text>
           <TouchableOpacity onPress={() => navigation.navigate('RoleSelect')}>
-            <Text style={styles.registerLink}>Regístrate</Text>
+            <Text style={styles.registerLink}>Crear cuenta</Text>
           </TouchableOpacity>
         </View>
-        <TerraEmpleoFooter />
+
+        <TerraFooter />
       </View>
     </SafeAreaView>
   );
@@ -174,47 +129,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.white,
   },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  topTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.xl,
   },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
-  },
-  logo: {
-    width: 180,
-    height: 80,
+  headerSection: {
+    marginBottom: SPACING.xl + SPACING.sm,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800',
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.xl,
     lineHeight: 22,
   },
   form: {
@@ -225,18 +157,15 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   forgotText: {
-    color: '#008d49',
+    color: COLORS.primary,
     fontSize: 14,
     fontWeight: '600',
   },
   footer: {
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xs,
-    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
+    paddingTop: SPACING.md,
     backgroundColor: COLORS.white,
-  },
-  loginButton: {
-    borderRadius: RADIUS.xl || 30,
   },
   registerRow: {
     flexDirection: 'row',
@@ -250,6 +179,6 @@ const styles = StyleSheet.create({
   registerLink: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#008d49',
+    color: COLORS.primary,
   },
 });

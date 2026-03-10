@@ -7,9 +7,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { Button, Input, ChipSelector, PickerModal } from '../../components/ui';
+import { Button, Input, ChipSelector, PickerModal, FechaInicioField } from '../../components/ui';
 import { CULTIVOS, LABORES, TIPO_PAGO_OPTIONS } from '../../data/options';
 import { DEPARTAMENTOS, getMunicipios } from '../../data/colombia';
+import { getFechaInicioPayload } from '../../utils/vacantesFecha';
+import { formatearMontoInput, normalizarMontoPayload } from '../../utils/vacantesPago';
 import { vacantesAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -53,6 +55,9 @@ export default function CrearVacanteScreen({ navigation }) {
   const [laboresV, setLaboresV] = useState([]);
   const [tipoPago, setTipoPago] = useState('');
   const [montoPago, setMontoPago] = useState('');
+  const [duracion, setDuracion] = useState('');
+  const [requisitos, setRequisitos] = useState('');
+  const [fechaInicio, setFechaInicio] = useState('');
   const [departamento, setDepartamento] = useState('');
   const [municipio, setMunicipio] = useState('');
   const [vereda, setVereda] = useState('');
@@ -85,7 +90,10 @@ export default function CrearVacanteScreen({ navigation }) {
         cultivos: cultivosV,
         labores: laboresV,
         tipo_pago: tipoPago || undefined,
-        monto_pago: montoPago ? parseFloat(montoPago) : undefined,
+        monto_pago: normalizarMontoPayload(montoPago) ?? undefined,
+        duracion: duracion.trim() || undefined,
+        requisitos: requisitos.trim() || undefined,
+        fecha_inicio: getFechaInicioPayload(fechaInicio),
         departamento,
         municipio,
         vereda: vereda || undefined,
@@ -353,8 +361,34 @@ export default function CrearVacanteScreen({ navigation }) {
               }}
               multiSelect={false} allowCustom={false} />
 
-            <Input label="Monto de pago (COP)" value={montoPago} onChangeText={setMontoPago}
-              placeholder="Ej: 50000" keyboardType="numeric" icon="cash-outline" />
+            <Input label="Monto de pago (COP)" value={formatearMontoInput(montoPago)}
+              placeholder="Ej: 1.800.000" keyboardType="numeric" icon="cash-outline"
+              onChangeText={(value) => setMontoPago(value.replace(/\D/g, ''))}
+            />
+
+            <Input
+              label="Duración (opcional)"
+              value={duracion}
+              onChangeText={setDuracion}
+              placeholder="Ej: 3 meses, temporada de cosecha"
+              icon="time-outline"
+            />
+
+            <Input
+              label="Requisitos (opcional)"
+              value={requisitos}
+              onChangeText={setRequisitos}
+              placeholder="Ej: experiencia en poda, disponibilidad para vivir en finca"
+              multiline
+              numberOfLines={3}
+            />
+
+            <FechaInicioField
+              label="Fecha de inicio"
+              value={fechaInicio}
+              onChange={setFechaInicio}
+              helper="Indica desde qué fecha necesitas al trabajador"
+            />
 
             <Text style={styles.sectionLabel}>Ubicación</Text>
             <TouchableOpacity style={styles.pickerButton} onPress={() => setShowDeptPicker(true)}>

@@ -4,56 +4,24 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { Ionicons } from '@expo/vector-icons';
-
-function TerraEmpleoFooter() {
-  return (
-    <View style={footerStyles.wrap}>
-      <View style={footerStyles.iconBox}>
-        <Ionicons name="leaf" size={14} color="#9E9E9E" />
-      </View>
-      <Text style={footerStyles.text}>TerraEmpleo</Text>
-    </View>
-  );
-}
-
-const footerStyles = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: SPACING.md,
-  },
-  iconBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    backgroundColor: '#E0E0E0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  text: {
-    fontSize: 13,
-    color: '#9E9E9E',
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-});
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { AppHeader, Button, TerraFooter } from '../../components/ui';
 
 const ROLES = [
   {
     key: 'trabajador',
-    icon: 'person',
+    icon: 'tractor-variant',
+    iconLib: 'material',
     title: 'Soy Trabajador',
-    description: 'Busco trabajo en fincas y zonas rurales de Colombia',
+    description: 'Busco oportunidades en el campo',
     screen: 'RegisterTrabajador',
   },
   {
     key: 'empleador',
-    icon: 'business',
+    icon: 'office-building-outline',
+    iconLib: 'material',
     title: 'Soy Empleador',
-    description: 'Tengo una finca o empresa y necesito contratar personal',
+    description: 'Busco talento para mi finca',
     screen: 'RegisterEmpleador',
   },
 ];
@@ -69,23 +37,19 @@ export default function RoleSelectScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }} />
-      </View>
+      <AppHeader onBack={() => navigation.goBack()} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Text style={styles.title}>Elige tu perfil</Text>
-        <Text style={styles.subtitle}>
-          Selecciona cómo quieres usar TerraEmpleo
-        </Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>¿Cómo quieres usar TerraEmpleo?</Text>
+          <Text style={styles.subtitle}>
+            Selecciona tu perfil para personalizar tu experiencia en el campo.
+          </Text>
+        </View>
 
         {/* Role cards */}
         <View style={styles.cardsContainer}>
@@ -96,19 +60,14 @@ export default function RoleSelectScreen({ navigation }) {
                 key={role.key}
                 style={[styles.card, isSelected && styles.cardSelected]}
                 onPress={() => setSelected(role.key)}
-                activeOpacity={0.85}
+                activeOpacity={0.8}
               >
-                {/* Radio button */}
-                <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                  {isSelected && <View style={styles.radioDot} />}
-                </View>
-
-                {/* Icon */}
+                {/* Icon circle */}
                 <View style={[styles.iconCircle, isSelected && styles.iconCircleSelected]}>
-                  <Ionicons
+                  <MaterialCommunityIcons
                     name={role.icon}
-                    size={28}
-                    color={isSelected ? COLORS.white : '#008d49'}
+                    size={30}
+                    color={isSelected ? COLORS.white : COLORS.primary}
                   />
                 </View>
 
@@ -123,30 +82,19 @@ export default function RoleSelectScreen({ navigation }) {
             );
           })}
         </View>
-
-        {/* Footer note */}
-        <Text style={styles.footerNote}>
-          Podrás completar tu perfil después de registrarte
-        </Text>
       </ScrollView>
 
-      {/* Bottom actions */}
+      {/* Bottom area */}
       <View style={styles.bottomArea}>
-        <TouchableOpacity
-          style={[styles.continueBtn, !selected && styles.continueBtnDisabled]}
+        <Button
+          title="Continuar"
           onPress={handleContinue}
-          activeOpacity={selected ? 0.85 : 1}
-        >
-          <Text style={[styles.continueBtnText, !selected && styles.continueBtnTextDisabled]}>
-            Continuar
-          </Text>
-          <Ionicons
-            name="arrow-forward"
-            size={20}
-            color={selected ? COLORS.white : '#BDBDBD'}
-          />
-        </TouchableOpacity>
-        <TerraEmpleoFooter />
+          disabled={!selected}
+          size="large"
+        />
+        <Text style={styles.footerNote}>
+          Podrás cambiar tu elección más tarde en la configuración.
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -157,34 +105,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.white,
   },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.sm,
+    paddingTop: SPACING.lg,
     paddingBottom: SPACING.xl,
   },
+  header: {
+    marginBottom: SPACING.xl + SPACING.md,
+  },
   title: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '800',
     color: COLORS.textPrimary,
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.sm,
+    lineHeight: 36,
   },
   subtitle: {
     fontSize: 15,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.xl,
     lineHeight: 22,
   },
   cardsContainer: {
@@ -192,103 +131,61 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
-    padding: SPACING.md,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    padding: SPACING.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
-    ...SHADOWS.small,
+    ...SHADOWS.card,
   },
   cardSelected: {
-    borderColor: '#008d49',
-    backgroundColor: '#F0FAF4',
-  },
-  radio: {
-    position: 'absolute',
-    top: SPACING.md,
-    right: SPACING.md,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    borderColor: COLORS.primary,
     borderWidth: 2,
-    borderColor: '#BDBDBD',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioSelected: {
-    borderColor: '#008d49',
-  },
-  radioDot: {
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    backgroundColor: '#008d49',
+    backgroundColor: COLORS.primaryMuted,
+    ...SHADOWS.medium,
   },
   iconCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#e6f7ee',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
   },
   iconCircleSelected: {
-    backgroundColor: '#008d49',
+    backgroundColor: COLORS.primary,
   },
   cardText: {
     flex: 1,
-    paddingRight: SPACING.xl,
   },
   cardTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.textPrimary,
     marginBottom: 4,
   },
   cardTitleSelected: {
-    color: '#008d49',
+    color: COLORS.primary,
   },
   cardDesc: {
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.textSecondary,
-    lineHeight: 18,
-  },
-  footerNote: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.xl,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   bottomArea: {
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.sm,
-    borderTopWidth: 1,
-    borderColor: '#F0F0F0',
+    paddingBottom: SPACING.md,
+    paddingTop: SPACING.md,
     backgroundColor: COLORS.white,
   },
-  continueBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    backgroundColor: '#008d49',
-    paddingVertical: 15,
-    borderRadius: RADIUS.full,
+  footerNote: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    textAlign: 'center',
     marginTop: SPACING.md,
-  },
-  continueBtnDisabled: {
-    backgroundColor: '#F5F5F5',
-  },
-  continueBtnText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.white,
-  },
-  continueBtnTextDisabled: {
-    color: '#BDBDBD',
+    lineHeight: 18,
   },
 });

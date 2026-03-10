@@ -37,6 +37,9 @@ async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS perfil_trabajador (
       id INT AUTO_INCREMENT PRIMARY KEY,
       usuario_id INT NOT NULL UNIQUE,
+      acerca_de TEXT DEFAULT NULL,
+      hoja_vida_url VARCHAR(500) DEFAULT NULL,
+      hoja_vida_nombre VARCHAR(255) DEFAULT NULL,
       nivel_estudios ENUM('sin_estudios','bachiller','tecnico_tecnologo','universitario') DEFAULT NULL,
       titulo_estudio VARCHAR(200) DEFAULT NULL,
       anios_experiencia ENUM('sin','menos_1','1_3','3_5','5_10','mas_10') DEFAULT NULL,
@@ -75,6 +78,7 @@ async function initializeDatabase() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       usuario_id INT NOT NULL UNIQUE,
       nombre_empresa_finca VARCHAR(250) NOT NULL,
+      acerca_de TEXT DEFAULT NULL,
       tipo_pago ENUM('jornal','semanal','quincenal','mensual','destajo') DEFAULT NULL,
       ofrece_alojamiento TINYINT(1) DEFAULT 0,
       ofrece_alimentacion TINYINT(1) DEFAULT 0,
@@ -116,6 +120,8 @@ async function initializeDatabase() {
       descripcion TEXT DEFAULT NULL,
       tipo_pago ENUM('jornal','semanal','quincenal','mensual','destajo') DEFAULT NULL,
       monto_pago DECIMAL(12,2) DEFAULT NULL,
+      duracion VARCHAR(120) DEFAULT NULL,
+      requisitos TEXT DEFAULT NULL,
       departamento VARCHAR(100) DEFAULT NULL,
       municipio VARCHAR(100) DEFAULT NULL,
       vereda VARCHAR(150) DEFAULT NULL,
@@ -248,6 +254,15 @@ async function initializeDatabase() {
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS ofrece_alojamiento TINYINT(1) DEFAULT 0'); } catch (_) {}
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS ofrece_alimentacion TINYINT(1) DEFAULT 0'); } catch (_) {}
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS otros_beneficios TEXT DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS fecha_inicio DATE DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS duracion VARCHAR(120) DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS requisitos TEXT DEFAULT NULL'); } catch (_) {}
+
+  // Migración: campos nuevos de perfil
+  try { await query('ALTER TABLE perfil_trabajador ADD COLUMN IF NOT EXISTS acerca_de TEXT DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE perfil_trabajador ADD COLUMN IF NOT EXISTS hoja_vida_url VARCHAR(500) DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE perfil_trabajador ADD COLUMN IF NOT EXISTS hoja_vida_nombre VARCHAR(255) DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS acerca_de TEXT DEFAULT NULL'); } catch (_) {}
 
   // Migración: compatibilidad de tipos de notificación + columnas de navegación
   try { await query('ALTER TABLE notificaciones MODIFY COLUMN tipo VARCHAR(60) NOT NULL'); } catch (_) {}

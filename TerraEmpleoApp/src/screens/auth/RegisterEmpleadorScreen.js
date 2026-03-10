@@ -5,34 +5,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { Button, Input, ChipSelector, ProgressBar, PickerModal } from '../../components/ui';
+import { Button, Input, ChipSelector, ProgressBar, PickerModal, InfoBox, TerraFooter } from '../../components/ui';
 import { DEPARTAMENTOS, getMunicipios } from '../../data/colombia';
 import { CULTIVOS, LABORES, TIPO_PAGO_OPTIONS } from '../../data/options';
 import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-
-function WhyImportant({ text }) {
-  return (
-    <View style={styles.infoCard}>
-      <View style={styles.infoIconWrap}>
-        <Ionicons name="information-circle" size={18} color={COLORS.white} />
-      </View>
-      <Text style={styles.infoText}>{text}</Text>
-    </View>
-  );
-}
-
-function TerraEmpleoFooter() {
-  return (
-    <View style={styles.terraFooter}>
-      <View style={styles.terraFooterIcon}>
-        <Ionicons name="leaf" size={13} color="#9E9E9E" />
-      </View>
-      <Text style={styles.terraFooterText}>TerraEmpleo</Text>
-    </View>
-  );
-}
 
 const TOTAL_STEPS = 8;
 const STEP_LABELS = [
@@ -65,6 +43,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
   // Step 4: Legal
   const [cedula, setCedula] = useState('');
   const [aceptaHabeasData, setAceptaHabeasData] = useState(false);
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
   // Step 5: SMS
   const [codigoSMS, setCodigoSMS] = useState('');
@@ -107,6 +86,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
       case 4:
         if (!cedula.trim()) errs.cedula = 'La cédula es obligatoria';
         if (!aceptaHabeasData) errs.habeas = 'Debe aceptar';
+        if (!aceptaTerminos) errs.terminos = 'Debe aceptar los términos';
         break;
       case 5:
         if (!codigoSMS.trim()) errs.codigo = 'Ingrese el código';
@@ -189,23 +169,30 @@ export default function RegisterEmpleadorScreen({ navigation }) {
       case 1:
         return (
           <View>
+            <View style={styles.stepIconWrap}>
+              <Ionicons name="home-outline" size={32} color={COLORS.primary} />
+            </View>
             <Text style={styles.stepTitle}>Datos de Finca / Empresa</Text>
             <Text style={styles.stepDesc}>¿Cómo se llama tu finca o empresa?</Text>
             <Input label="Nombre de la finca o empresa" value={nombreEmpresa}
               onChangeText={setNombreEmpresa} placeholder="Ej: Finca La Esperanza"
               icon="home-outline" required error={errors.empresa} />
-            <WhyImportant text="El nombre de tu finca o empresa es lo primero que verán los trabajadores al explorar oportunidades de empleo." />
+            <InfoBox variant="info" text="El nombre de tu finca o empresa es lo primero que verán los trabajadores al explorar oportunidades de empleo." />
           </View>
         );
 
       case 2:
         return (
           <View>
+            <View style={styles.stepIconWrap}>
+              <Ionicons name="location-outline" size={32} color={COLORS.primary} />
+            </View>
             <Text style={styles.stepTitle}>Ubicación</Text>
             <Text style={styles.stepDesc}>¿Dónde está ubicada la finca?</Text>
 
-            <Text style={styles.fieldLabel}>Departamento</Text>
-            <TouchableOpacity style={styles.pickerButtonClean} onPress={() => setShowDeptPicker(true)}>
+            <Text style={styles.fieldLabel}>Departamento *</Text>
+            <TouchableOpacity style={styles.pickerButtonNew} onPress={() => setShowDeptPicker(true)}>
+              <Ionicons name="map-outline" size={20} color={departamento ? COLORS.primary : COLORS.textLight} />
               <Text style={[styles.pickerText, !departamento && { color: COLORS.textLight }]}>
                 {departamento || 'Seleccione un departamento'}
               </Text>
@@ -213,12 +200,13 @@ export default function RegisterEmpleadorScreen({ navigation }) {
             </TouchableOpacity>
             {errors.departamento && <Text style={styles.errorText}>{errors.departamento}</Text>}
 
-            <Text style={styles.fieldLabel}>Municipio</Text>
+            <Text style={styles.fieldLabel}>Municipio *</Text>
             <TouchableOpacity
-              style={[styles.pickerButtonClean, !departamento && styles.pickerDisabled]}
+              style={[styles.pickerButtonNew, !departamento && styles.pickerDisabled]}
               onPress={() => departamento && setShowMunPicker(true)}
               disabled={!departamento}
             >
+              <Ionicons name="business-outline" size={20} color={municipio ? COLORS.primary : COLORS.textLight} />
               <Text style={[styles.pickerText, !municipio && { color: COLORS.textLight }]}>
                 {municipio || 'Seleccione un municipio'}
               </Text>
@@ -242,7 +230,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               </View>
             </View>
 
-            <WhyImportant text="Necesitamos tu ubicación exacta para conectar tu finca o negocio con trabajadores locales y optimizar la logística de pagos." />
+            <InfoBox variant="info" text="Necesitamos tu ubicación exacta para conectar tu finca o negocio con trabajadores locales y optimizar la logística de pagos." />
 
             <PickerModal visible={showDeptPicker} onClose={() => setShowDeptPicker(false)}
               title="Departamento" options={DEPARTAMENTOS} selectedValue={departamento}
@@ -256,6 +244,9 @@ export default function RegisterEmpleadorScreen({ navigation }) {
       case 3:
         return (
           <View>
+            <View style={styles.stepIconWrap}>
+              <Ionicons name="person-outline" size={32} color={COLORS.primary} />
+            </View>
             <Text style={styles.stepTitle}>Datos de Contacto</Text>
             <Text style={styles.stepDesc}>Información del representante de la finca o empresa</Text>
             <Input label="Nombre completo (representante)" value={nombre} onChangeText={setNombre}
@@ -268,89 +259,207 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               placeholder="Mínimo 6 caracteres" secureTextEntry icon="lock-closed-outline" required error={errors.password} />
             <Input label="Confirmar contraseña" value={confirmPassword} onChangeText={setConfirmPassword}
               placeholder="Repite tu contraseña" secureTextEntry icon="lock-closed-outline" required error={errors.confirmPassword} />
-            <WhyImportant text="Tus datos de contacto nos permiten comunicarnos contigo y gestionar tu cuenta de empleador de forma segura." />
+            <InfoBox variant="info" text="Tus datos de contacto nos permiten comunicarnos contigo y gestionar tu cuenta de empleador de forma segura." />
           </View>
         );
 
       case 4:
         return (
           <View>
+            <View style={styles.stepIconWrap}>
+              <Ionicons name="shield-checkmark-outline" size={32} color={COLORS.primary} />
+            </View>
             <Text style={styles.stepTitle}>Cédula y Datos Legales</Text>
             <Text style={styles.stepDesc}>Verificación de identidad del representante</Text>
             <Input label="Número de cédula" value={cedula} onChangeText={setCedula}
               placeholder="1234567890" keyboardType="numeric" icon="card-outline" required error={errors.cedula} />
-            <View style={styles.checkboxRow}>
-              <Switch value={!!aceptaHabeasData} onValueChange={setAceptaHabeasData}
-                trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
-                thumbColor={aceptaHabeasData ? COLORS.primary : '#f4f3f4'} />
-              <Text style={styles.checkboxText}>
-                Autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012 (Habeas Data)
+
+            <Text style={styles.legalSectionTitle}>Consentimientos legales</Text>
+
+            <View style={styles.legalCard}>
+              <View style={styles.legalCardHeader}>
+                <View style={styles.legalIconWrap}>
+                  <Ionicons name="document-text-outline" size={20} color={COLORS.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.legalCardTitle}>Habeas Data</Text>
+                  <Text style={styles.legalCardDesc}>Ley 1581 de 2012</Text>
+                </View>
+                <Switch value={!!aceptaHabeasData} onValueChange={setAceptaHabeasData}
+                  trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
+                  thumbColor={aceptaHabeasData ? COLORS.primary : '#f4f3f4'} />
+              </View>
+              <Text style={styles.legalCardText}>
+                Autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012
               </Text>
             </View>
             {errors.habeas && <Text style={styles.errorText}>{errors.habeas}</Text>}
-            <WhyImportant text="La verificación legal protege tu negocio y genera confianza en los trabajadores que aplican a tus vacantes." />
+
+            <View style={styles.legalCard}>
+              <View style={styles.legalCardHeader}>
+                <View style={styles.legalIconWrap}>
+                  <Ionicons name="checkmark-done-outline" size={20} color={COLORS.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.legalCardTitle}>Términos y Condiciones</Text>
+                  <Text style={styles.legalCardDesc}>Uso de la plataforma</Text>
+                </View>
+                <Switch value={!!aceptaTerminos} onValueChange={setAceptaTerminos}
+                  trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
+                  thumbColor={aceptaTerminos ? COLORS.primary : '#f4f3f4'} />
+              </View>
+              <Text style={styles.legalCardText}>
+                Acepto los Términos y Condiciones de uso de la plataforma TerraEmpleo
+              </Text>
+            </View>
+            {errors.terminos && <Text style={styles.errorText}>{errors.terminos}</Text>}
+
+            <InfoBox variant="info" text="La verificación legal protege tu negocio y genera confianza en los trabajadores que aplican a tus vacantes." />
           </View>
         );
 
       case 5:
         return (
           <View>
+            <View style={styles.stepIconWrap}>
+              <Ionicons name="chatbubble-ellipses-outline" size={32} color={COLORS.primary} />
+            </View>
             <Text style={styles.stepTitle}>Verificación SMS</Text>
             <Text style={styles.stepDesc}>Confirmaremos que el número de celular es tuyo</Text>
             {!codigoEnviado ? (
               <View style={styles.smsContainer}>
+                <View style={styles.smsIconCircle}>
+                  <Ionicons name="phone-portrait-outline" size={36} color={COLORS.primary} />
+                </View>
                 <Text style={styles.smsText}>Se enviará un código de 6 dígitos a:</Text>
                 <Text style={styles.smsPhone}>{celular}</Text>
-                <Button title="Enviar Código" onPress={enviarCodigo} />
+                <Button title="Enviar Código" onPress={enviarCodigo} icon="send-outline" />
               </View>
             ) : (
               <View>
                 <Text style={styles.smsText}>Ingresa el código de 6 dígitos:</Text>
                 {codigoDebug ? (
-                  <Text style={[styles.smsText, { color: COLORS.info, fontWeight: '600' }]}>
-                    (Código debug: {codigoDebug})
-                  </Text>
+                  <View style={styles.debugCodeWrap}>
+                    <Ionicons name="information-circle" size={16} color={COLORS.info} />
+                    <Text style={styles.debugCodeText}>Código debug: {codigoDebug}</Text>
+                  </View>
                 ) : null}
                 <Input label="Código" value={codigoSMS} onChangeText={setCodigoSMS}
                   placeholder="000000" keyboardType="numeric" maxLength={6}
                   icon="key-outline" error={errors.codigo} />
-                <Button title="Reenviar" onPress={enviarCodigo} variant="outline" size="small" />
+                <Button title="Reenviar código" onPress={enviarCodigo} variant="ghost" size="small" icon="refresh-outline" />
               </View>
             )}
-            <WhyImportant text="La verificación por SMS garantiza que eres el único con acceso a tu cuenta de empleador." />
+            <InfoBox variant="info" text="La verificación por SMS garantiza que eres el único con acceso a tu cuenta de empleador." />
           </View>
         );
 
       case 6:
         return (
           <View>
+            <View style={styles.stepIconWrap}>
+              <Ionicons name="camera-outline" size={32} color={COLORS.primary} />
+            </View>
             <Text style={styles.stepTitle}>Fotos de Verificación</Text>
             <Text style={styles.stepDesc}>Necesitamos verificar tu identidad como empleador</Text>
-            <TouchableOpacity style={[styles.photoBtn, fotoSelfie && styles.photoBtnDone]}
-              onPress={() => mockFoto('selfie')}>
-              <Ionicons name={fotoSelfie ? 'checkmark-circle' : 'camera'} size={32}
-                color={fotoSelfie ? COLORS.success : COLORS.primary} />
-              <Text style={styles.photoBtnText}>{fotoSelfie ? '✓ Selfie' : 'Tomar Selfie'}</Text>
+
+            {/* Selfie */}
+            <TouchableOpacity
+              style={[styles.fotoCard, fotoSelfie && styles.fotoCardDone]}
+              onPress={() => mockFoto('selfie')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.fotoCardRow}>
+                <View style={[styles.fotoIconCircle, fotoSelfie && { backgroundColor: COLORS.primaryMuted }]}>
+                  <Ionicons
+                    name={fotoSelfie ? 'checkmark-circle' : 'camera-outline'}
+                    size={28}
+                    color={fotoSelfie ? COLORS.primary : COLORS.textLight}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fotoCardTitle}>Selfie</Text>
+                  <Text style={styles.fotoCardDesc}>Foto frontal de tu rostro</Text>
+                </View>
+                {fotoSelfie ? (
+                  <View style={styles.fotoOkBadge}>
+                    <Ionicons name="checkmark" size={12} color={COLORS.white} />
+                    <Text style={styles.fotoOkText}>Capturada</Text>
+                  </View>
+                ) : (
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+                )}
+              </View>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.photoBtn, fotoCedula && styles.photoBtnDone]}
-              onPress={() => mockFoto('cédula')}>
-              <Ionicons name={fotoCedula ? 'checkmark-circle' : 'card'} size={32}
-                color={fotoCedula ? COLORS.success : COLORS.primary} />
-              <Text style={styles.photoBtnText}>{fotoCedula ? '✓ Cédula' : 'Foto Cédula'}</Text>
+
+            {/* Foto Cédula */}
+            <TouchableOpacity
+              style={[styles.fotoCard, fotoCedula && styles.fotoCardDone]}
+              onPress={() => mockFoto('cédula')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.fotoCardRow}>
+                <View style={[styles.fotoIconCircle, fotoCedula && { backgroundColor: COLORS.primaryMuted }]}>
+                  <Ionicons
+                    name={fotoCedula ? 'checkmark-circle' : 'card-outline'}
+                    size={28}
+                    color={fotoCedula ? COLORS.primary : COLORS.textLight}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fotoCardTitle}>Foto Cédula</Text>
+                  <Text style={styles.fotoCardDesc}>Frente de tu documento de identidad</Text>
+                </View>
+                {fotoCedula ? (
+                  <View style={styles.fotoOkBadge}>
+                    <Ionicons name="checkmark" size={12} color={COLORS.white} />
+                    <Text style={styles.fotoOkText}>Capturada</Text>
+                  </View>
+                ) : (
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+                )}
+              </View>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.photoBtn, fotoSelfieCedula && styles.photoBtnDone]}
-              onPress={() => mockFoto('selfie con cédula')}>
-              <Ionicons name={fotoSelfieCedula ? 'checkmark-circle' : 'people'} size={32}
-                color={fotoSelfieCedula ? COLORS.success : COLORS.primary} />
-              <Text style={styles.photoBtnText}>{fotoSelfieCedula ? '✓ Selfie+Cédula' : 'Selfie con Cédula'}</Text>
+
+            {/* Selfie con Cédula */}
+            <TouchableOpacity
+              style={[styles.fotoCard, fotoSelfieCedula && styles.fotoCardDone]}
+              onPress={() => mockFoto('selfie con cédula')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.fotoCardRow}>
+                <View style={[styles.fotoIconCircle, fotoSelfieCedula && { backgroundColor: COLORS.primaryMuted }]}>
+                  <Ionicons
+                    name={fotoSelfieCedula ? 'checkmark-circle' : 'people-outline'}
+                    size={28}
+                    color={fotoSelfieCedula ? COLORS.primary : COLORS.textLight}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fotoCardTitle}>Selfie con Cédula</Text>
+                  <Text style={styles.fotoCardDesc}>Tu rostro junto a tu documento</Text>
+                </View>
+                {fotoSelfieCedula ? (
+                  <View style={styles.fotoOkBadge}>
+                    <Ionicons name="checkmark" size={12} color={COLORS.white} />
+                    <Text style={styles.fotoOkText}>Capturada</Text>
+                  </View>
+                ) : (
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+                )}
+              </View>
             </TouchableOpacity>
-            <WhyImportant text="Las fotos verifican tu identidad y aumentan la credibilidad de tu empresa ante los trabajadores." />
+
+            <InfoBox variant="info" text="Las fotos verifican tu identidad y aumentan la credibilidad de tu empresa ante los trabajadores." />
           </View>
         );
 
       case 7:
         return (
           <View>
+            <View style={styles.stepIconWrap}>
+              <Ionicons name="leaf-outline" size={32} color={COLORS.primary} />
+            </View>
             <Text style={styles.stepTitle}>Cultivos, Labores y Pago</Text>
             <Text style={styles.stepDesc}>Define qué buscas en los trabajadores que contratarás.</Text>
 
@@ -371,30 +480,48 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               }}
               multiSelect={false} allowCustom={false} />
 
-            <View style={styles.beneficiosSection}>
+            <Text style={styles.stepSubtitle}>Beneficios adicionales</Text>
+            <View style={styles.beneficiosCard}>
               <View style={styles.beneficioRow}>
-                <Text style={styles.beneficioLabel}>¿Ofrece alojamiento?</Text>
+                <View style={styles.beneficioLeft}>
+                  <View style={styles.beneficioIconWrap}>
+                    <Ionicons name="bed-outline" size={20} color={ofreceAlojamiento ? COLORS.primary : COLORS.textLight} />
+                  </View>
+                  <Text style={styles.beneficioLabel}>¿Ofrece alojamiento?</Text>
+                </View>
                 <Switch value={!!ofreceAlojamiento} onValueChange={setOfreceAlojamiento}
                   trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
                   thumbColor={ofreceAlojamiento ? COLORS.primary : '#f4f3f4'} />
               </View>
+              <View style={styles.beneficioDivider} />
               <View style={styles.beneficioRow}>
-                <Text style={styles.beneficioLabel}>¿Ofrece alimentación?</Text>
+                <View style={styles.beneficioLeft}>
+                  <View style={styles.beneficioIconWrap}>
+                    <Ionicons name="restaurant-outline" size={20} color={ofreceAlimentacion ? COLORS.primary : COLORS.textLight} />
+                  </View>
+                  <Text style={styles.beneficioLabel}>¿Ofrece alimentación?</Text>
+                </View>
                 <Switch value={!!ofreceAlimentacion} onValueChange={setOfreceAlimentacion}
                   trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
                   thumbColor={ofreceAlimentacion ? COLORS.primary : '#f4f3f4'} />
               </View>
-              <Input label="¿Qué más ofrece? (opcional)" value={beneficiosExtra}
-                onChangeText={setBeneficiosExtra} placeholder="Ej: Transporte incluido"
-                multiline numberOfLines={2} />
             </View>
-            <WhyImportant text="Definir tus cultivos y labores nos permite mostrar tus vacantes a los trabajadores más capacitados." />
+            <Input label="¿Qué más ofrece? (opcional)" value={beneficiosExtra}
+              onChangeText={setBeneficiosExtra} placeholder="Ej: Transporte incluido"
+              multiline numberOfLines={2} icon="gift-outline" />
+            <InfoBox variant="info" text="Definir tus cultivos y labores nos permite mostrar tus vacantes a los trabajadores más capacitados." />
           </View>
         );
 
       case 8:
         return (
           <View>
+            <View style={styles.stepIconWrap}>
+              <Ionicons name="document-text-outline" size={32} color={COLORS.primary} />
+            </View>
+            <Text style={styles.stepTitle}>Resumen de tu Perfil</Text>
+            <Text style={styles.stepDesc}>Revisa que toda la información de tu empresa sea correcta.</Text>
+
             {/* Identity hero */}
             <View style={styles.summaryHero}>
               <View style={styles.summaryAvatarWrap}>
@@ -521,7 +648,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               <Button title="Finalizar Registro" onPress={handleRegister} loading={loading} size="large" style={{ flex: 1 }} />
             )}
           </View>
-          <TerraEmpleoFooter />
+          <TerraFooter />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -557,16 +684,32 @@ const summaryStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
   scrollContent: { flexGrow: 1 },
-  formCard: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.md },
-  stepTitle: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary, marginBottom: SPACING.xs },
-  stepDesc: { fontSize: 15, color: COLORS.textSecondary, marginBottom: SPACING.lg },
+  formCard: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg },
+  stepIconWrap: {
+    width: 56, height: 56, borderRadius: 16,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  stepTitle: { fontSize: 26, fontWeight: '800', color: COLORS.textPrimary, marginBottom: SPACING.xs },
+  stepDesc: { fontSize: 15, color: COLORS.textSecondary, marginBottom: SPACING.lg, lineHeight: 22 },
   stepSubtitle: { fontSize: 16, fontWeight: '600', color: COLORS.textPrimary, marginBottom: SPACING.sm, marginTop: SPACING.lg },
-  pickerButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md, paddingHorizontal: SPACING.md, paddingVertical: SPACING.md, marginBottom: SPACING.md, minHeight: 52, gap: SPACING.sm },
-  pickerButtonClean: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
-    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md,
+  legalSectionTitle: {
+    fontSize: 17, fontWeight: '700', color: COLORS.textPrimary,
+    marginTop: SPACING.lg, marginBottom: SPACING.sm,
+  },
+  pickerButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.lg, paddingHorizontal: SPACING.md, paddingVertical: SPACING.md, marginBottom: SPACING.md, minHeight: 54, gap: SPACING.sm },
+  pickerButtonNew: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB',
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
-    marginBottom: SPACING.xs, minHeight: 52,
+    marginBottom: SPACING.sm, minHeight: 54, gap: SPACING.sm,
+  },
+  pickerButtonClean: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB',
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
+    marginBottom: SPACING.xs, minHeight: 54,
   },
   fieldLabel: {
     fontSize: 14, fontWeight: '700', color: COLORS.textPrimary,
@@ -574,7 +717,8 @@ const styles = StyleSheet.create({
   },
   mapImageWrap: {
     borderRadius: RADIUS.lg, overflow: 'hidden',
-    marginTop: SPACING.md, height: 160, position: 'relative',
+    marginTop: SPACING.md, marginBottom: SPACING.md, height: 160,
+    position: 'relative', ...SHADOWS.small,
   },
   mapImage: { width: '100%', height: '100%' },
   mapPin: {
@@ -585,31 +729,60 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     ...SHADOWS.medium,
   },
-  infoCard: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    backgroundColor: COLORS.primarySoft,
-    borderRadius: RADIUS.md, padding: SPACING.md,
-    marginTop: SPACING.md, gap: SPACING.sm,
-  },
-  infoIconWrap: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center', alignItems: 'center',
-    flexShrink: 0, marginTop: 2,
-  },
-  infoCardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 4 },
-  infoText: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 19 },
   pickerDisabled: { opacity: 0.5 },
   pickerText: { flex: 1, fontSize: 16, color: COLORS.textPrimary },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primarySoft, padding: SPACING.md, borderRadius: RADIUS.md, gap: SPACING.md, marginTop: SPACING.md },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primarySoft, padding: SPACING.md, borderRadius: RADIUS.lg, gap: SPACING.md, marginTop: SPACING.md },
   checkboxText: { flex: 1, fontSize: 14, color: COLORS.textPrimary, lineHeight: 20 },
+  legalCard: {
+    backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: SPACING.md,
+    marginTop: SPACING.md, borderWidth: 1.5, borderColor: COLORS.borderLight,
+  },
+  legalCardHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm,
+  },
+  legalIconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  legalCardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  legalCardDesc: { fontSize: 12, color: COLORS.textLight },
+  legalCardText: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 19 },
   errorText: { fontSize: 13, color: COLORS.error, marginTop: -SPACING.sm, marginBottom: SPACING.sm },
   smsContainer: { alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.lg },
+  smsIconCircle: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
   smsText: { fontSize: 16, color: COLORS.textSecondary, textAlign: 'center' },
   smsPhone: { fontSize: 24, fontWeight: '700', color: COLORS.primary },
-  photoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primarySoft, borderRadius: RADIUS.md, padding: SPACING.lg, marginBottom: SPACING.md, gap: SPACING.md, borderWidth: 2, borderColor: COLORS.primary, borderStyle: 'dashed' },
-  photoBtnDone: { borderStyle: 'solid', borderColor: COLORS.success, backgroundColor: '#e6f7ee' },
-  photoBtnText: { fontSize: 17, fontWeight: '600', color: COLORS.textPrimary },
+  debugCodeWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#EFF6FF', paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: RADIUS.full, alignSelf: 'center', marginBottom: SPACING.md,
+  },
+  debugCodeText: { fontSize: 13, fontWeight: '600', color: COLORS.info },
+  fotoCard: {
+    borderRadius: RADIUS.lg, padding: SPACING.md,
+    marginBottom: SPACING.md, backgroundColor: COLORS.white,
+    borderWidth: 1.5, borderColor: COLORS.border, ...SHADOWS.small,
+  },
+  fotoCardDone: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
+  fotoCardRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  fotoIconCircle: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center',
+  },
+  fotoCardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
+  fotoCardDesc: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  fotoOkBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: COLORS.primary, paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: RADIUS.full,
+  },
+  fotoOkText: { fontSize: 11, fontWeight: '700', color: COLORS.white },
   summaryCard: { backgroundColor: COLORS.primarySoft, borderRadius: RADIUS.md, padding: SPACING.md },
 
   /* Summary redesign */
@@ -666,23 +839,26 @@ const styles = StyleSheet.create({
   summaryFotoChipDone: { borderColor: COLORS.primary, backgroundColor: COLORS.primarySoft },
   summaryFotoChipText: { fontSize: 13, color: COLORS.textLight, fontWeight: '600' },
   summaryFotoChipTextDone: { color: COLORS.primary },
-  beneficiosSection: { marginTop: SPACING.lg },
-  beneficioRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.sm },
-  beneficioLabel: { fontSize: 16, color: COLORS.textPrimary, fontWeight: '500' },
+  beneficiosCard: {
+    backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
+    borderWidth: 1.5, borderColor: COLORS.borderLight,
+    overflow: 'hidden', marginBottom: SPACING.md,
+  },
+  beneficioRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingVertical: SPACING.md, paddingHorizontal: SPACING.md,
+  },
+  beneficioLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 },
+  beneficioIconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  beneficioDivider: { height: 1, backgroundColor: COLORS.borderLight, marginLeft: 60 },
+  beneficioLabel: { fontSize: 15, color: COLORS.textPrimary, fontWeight: '500' },
   footerWrap: {
     backgroundColor: COLORS.white, borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight, ...SHADOWS.small,
+    borderTopColor: COLORS.borderLight, paddingBottom: SPACING.sm,
   },
-  footer: { flexDirection: 'row', padding: SPACING.md, gap: SPACING.md, backgroundColor: COLORS.white },
-  terraFooter: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingBottom: SPACING.sm,
-  },
-  terraFooterIcon: {
-    width: 22, height: 22, borderRadius: 6,
-    backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center',
-  },
-  terraFooterText: {
-    fontSize: 12, color: '#9E9E9E', fontWeight: '600', letterSpacing: 0.3,
-  },
+  footer: { flexDirection: 'row', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, gap: SPACING.md, backgroundColor: COLORS.white },
 });

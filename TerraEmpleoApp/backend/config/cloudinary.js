@@ -26,4 +26,13 @@ const storageVacantes = new CloudinaryStorage({
   },
 });
 
-module.exports = { cloudinary, storage, storageVacantes };
+const storageHojasVida = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'terraempleo/hojas_vida',
+    allowed_formats: ['pdf'],
+    resource_type: 'raw',
+  },
+});
+
+module.exports = { cloudinary, storage, storageVacantes, storageHojasVida };

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { COLORS, FONTS, RADIUS, SPACING } from '../../theme';
+import { COLORS, RADIUS, SPACING, LAYOUT, FONTS } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function Input({
@@ -18,13 +18,17 @@ export default function Input({
   maxLength,
   editable = true,
   icon,
+  rightIcon,
+  onRightIconPress,
   style,
+  inputStyle,
+  containerStyle,
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState(false);
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, containerStyle]}>
       {label && (
         <Text style={styles.label}>
           {label}
@@ -36,12 +40,23 @@ export default function Input({
         focused && styles.inputFocused,
         error && styles.inputError,
         !editable && styles.inputDisabled,
+        multiline && styles.inputMultiline,
+        style,
       ]}>
         {icon && (
-          <Ionicons name={icon} size={20} color={focused ? COLORS.primary : COLORS.textLight} style={styles.icon} />
+          <Ionicons
+            name={icon}
+            size={20}
+            color={focused ? COLORS.primary : COLORS.textLight}
+            style={styles.icon}
+          />
         )}
         <TextInput
-          style={[styles.input, multiline && { minHeight: numberOfLines * 24, textAlignVertical: 'top' }]}
+          style={[
+            styles.input,
+            multiline && { minHeight: numberOfLines * 24, textAlignVertical: 'top' },
+            inputStyle,
+          ]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -57,12 +72,20 @@ export default function Input({
         />
         {secureTextEntry && (
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-            <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={22} color={COLORS.textLight} />
+            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={COLORS.textLight} />
+          </TouchableOpacity>
+        )}
+        {rightIcon && !secureTextEntry && (
+          <TouchableOpacity onPress={onRightIconPress} style={styles.eyeBtn} disabled={!onRightIconPress}>
+            <Ionicons name={rightIcon} size={20} color={COLORS.textLight} />
           </TouchableOpacity>
         )}
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
       {helper && !error && <Text style={styles.helper}>{helper}</Text>}
+      {maxLength && value && (
+        <Text style={styles.counter}>{value.length} / {maxLength}</Text>
+      )}
     </View>
   );
 }
@@ -72,10 +95,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   label: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.xs + 2,
+    ...FONTS.label,
+    marginBottom: SPACING.sm,
   },
   required: {
     color: COLORS.error,
@@ -83,43 +104,56 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: '#F9FAFB',
     borderWidth: 1.5,
     borderColor: COLORS.border,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.md,
-    minHeight: 52,
+    minHeight: LAYOUT.inputHeight,
   },
   inputFocused: {
     borderColor: COLORS.primary,
     borderWidth: 2,
+    backgroundColor: COLORS.white,
   },
   inputError: {
     borderColor: COLORS.error,
+    backgroundColor: COLORS.errorSoft,
   },
   inputDisabled: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.disabledBg,
+    borderColor: COLORS.borderLight,
+  },
+  inputMultiline: {
+    minHeight: 100,
+    alignItems: 'flex-start',
+    paddingVertical: SPACING.sm,
   },
   icon: {
-    marginRight: SPACING.sm,
+    marginRight: SPACING.sm + 2,
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    color: COLORS.textPrimary,
-    paddingVertical: SPACING.sm,
+    ...FONTS.input,
+    paddingVertical: SPACING.sm + 2,
   },
   eyeBtn: {
     padding: SPACING.xs,
+    marginLeft: SPACING.xs,
   },
   error: {
-    fontSize: 13,
+    ...FONTS.caption,
     color: COLORS.error,
-    marginTop: SPACING.xs,
+    marginTop: SPACING.xs + 2,
+    fontWeight: FONTS.weight.medium,
   },
   helper: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
+    ...FONTS.caption,
+    marginTop: SPACING.xs + 2,
+  },
+  counter: {
+    ...FONTS.small,
+    textAlign: 'right',
     marginTop: SPACING.xs,
   },
 });

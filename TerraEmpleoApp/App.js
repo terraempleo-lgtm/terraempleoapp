@@ -7,7 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { COLORS } from './src/theme';
+import { COLORS, FONTS } from './src/theme';
 
 // Auth
 import WelcomeScreen from './src/screens/auth/WelcomeScreen';
@@ -28,6 +28,9 @@ import CrearVacanteScreen from './src/screens/empleador/CrearVacanteScreen';
 import EditarVacanteScreen from './src/screens/empleador/EditarVacanteScreen';
 import VerPostulacionesScreen from './src/screens/empleador/VerPostulacionesScreen';
 import DetalleVacanteEmpleadorScreen from './src/screens/empleador/DetalleVacanteEmpleadorScreen';
+import ExplorarVacantesScreen from './src/screens/empleador/ExplorarVacantesScreen';
+import DetalleVacanteReferenciaScreen from './src/screens/empleador/DetalleVacanteReferenciaScreen';
+import MisPostulantesScreen from './src/screens/empleador/MisPostulantesScreen';
 
 // Admin
 import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
@@ -39,6 +42,7 @@ import AdminPostulantesVacanteScreen from './src/screens/admin/AdminPostulantesV
 import PerfilScreen from './src/screens/shared/PerfilScreen';
 import EditarPerfilScreen from './src/screens/shared/EditarPerfilScreen';
 import PerfilPublicoTrabajadorScreen from './src/screens/shared/PerfilPublicoTrabajadorScreen';
+import PerfilPublicoEmpleadorScreen from './src/screens/shared/PerfilPublicoEmpleadorScreen';
 import NotificacionesScreen from './src/screens/shared/NotificacionesScreen';
 import ChatsScreen from './src/screens/shared/ChatsScreen';
 import ChatDetalleScreen from './src/screens/shared/ChatDetalleScreen';
@@ -49,7 +53,7 @@ const Tab = createBottomTabNavigator();
 const screenOptions = {
   headerStyle: { backgroundColor: COLORS.primary },
   headerTintColor: COLORS.white,
-  headerTitleStyle: { fontWeight: '600' },
+  headerTitleStyle: { ...FONTS.subtitle, color: COLORS.white, fontWeight: FONTS.weight.bold },
   headerBackTitleVisible: false,
 };
 
@@ -60,6 +64,7 @@ const tabScreenOptions = ({ route }) => ({
       case 'Vacantes': iconName = focused ? 'briefcase' : 'briefcase-outline'; break;
       case 'Postulaciones': iconName = focused ? 'document-text' : 'document-text-outline'; break;
       case 'MisVacantes': iconName = focused ? 'list' : 'list-outline'; break;
+      case 'Explorar': iconName = focused ? 'search' : 'search-outline'; break;
       case 'Dashboard': iconName = focused ? 'stats-chart' : 'stats-chart-outline'; break;
       case 'Usuarios': iconName = focused ? 'people' : 'people-outline'; break;
       case 'AdminVacantes': iconName = focused ? 'briefcase' : 'briefcase-outline'; break;
@@ -78,7 +83,7 @@ const tabScreenOptions = ({ route }) => ({
     backgroundColor: COLORS.white,
     borderTopColor: COLORS.borderLight,
   },
-  tabBarLabelStyle: { fontSize: 12, fontWeight: '500' },
+  tabBarLabelStyle: { ...FONTS.caption, fontWeight: FONTS.weight.medium },
   headerShown: false,
 });
 
@@ -127,6 +132,10 @@ function ChatsStack() {
         options={{ title: 'Mensajes' }} />
       <Stack.Screen name="ChatDetalle" component={ChatDetalleScreen}
         options={{ title: 'Chat' }} />
+      <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
+        options={{ title: 'Perfil del Trabajador' }} />
+      <Stack.Screen name="PerfilPublicoEmpleador" component={PerfilPublicoEmpleadorScreen}
+        options={{ title: 'Perfil de la Finca' }} />
     </Stack.Navigator>
   );
 }
@@ -137,11 +146,30 @@ function EmpleadorTabs() {
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="MisVacantes" component={EmpleadorVacantesStack}
         options={{ tabBarLabel: 'Mis Vacantes' }} />
+      <Tab.Screen name="Explorar" component={ExplorarVacantesStack}
+        options={{ tabBarLabel: 'Explorar ofertas' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
         options={{ tabBarLabel: 'Mensajes' }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
         options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
+  );
+}
+
+function ExplorarVacantesStack() {
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen
+        name="ExplorarVacantesHome"
+        component={ExplorarVacantesScreen}
+        options={{ title: 'Explorar ofertas' }}
+      />
+      <Stack.Screen
+        name="DetalleVacanteReferencia"
+        component={DetalleVacanteReferenciaScreen}
+        options={{ title: 'Detalle de referencia' }}
+      />
+    </Stack.Navigator>
   );
 }
 
@@ -158,6 +186,8 @@ function EmpleadorVacantesStack() {
         options={{ title: 'Detalle de Vacante' }} />
       <Stack.Screen name="VerPostulaciones" component={VerPostulacionesScreen}
         options={{ title: 'Postulaciones' }} />
+      <Stack.Screen name="MisPostulantes" component={MisPostulantesScreen}
+        options={{ title: 'Mis Postulantes' }} />
       <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
         options={{ title: 'Perfil del Trabajador' }} />
       <Stack.Screen name="Notificaciones" component={NotificacionesScreen}

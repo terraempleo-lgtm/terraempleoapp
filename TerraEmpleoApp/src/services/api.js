@@ -39,6 +39,9 @@ export const authAPI = {
   subirFoto: (tipo, formData) => api.post(`/auth/fotos/${tipo}`, formData, {
     transformRequest: [(data) => data],
   }),
+  subirHojaVida: (formData) => api.post('/auth/hoja-vida', formData, {
+    transformRequest: [(data) => data],
+  }),
 };
 
 // Vacantes

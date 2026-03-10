@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, RefreshControl,
+  Image, RefreshControl, FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { vacantesAPI } from '../../services/api';
+import { formatVacancyStartDate } from '../../utils/vacantesFecha';
+import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { Ionicons } from '@expo/vector-icons';
 
 function timeAgo(dateStr) {
@@ -38,19 +40,12 @@ function SectionCard({ icon, title, children }) {
   );
 }
 
-const PAGO_MAP = {
-  jornal: 'Por jornal',
-  semanal: 'Semanal',
-  quincenal: 'Quincenal',
-  mensual: 'Mensual',
-  destajo: 'Por destajo',
-};
-
 export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
   const { vacante: vacanteParam } = route.params;
   const [vacante, setVacante] = useState(vacanteParam);
   const [stats, setStats] = useState({ total: 0, pendientes: 0, aceptadas: 0 });
   const [refreshing, setRefreshing] = useState(false);
+  const [fotoActiva, setFotoActiva] = useState(0);
 
   const cargar = useCallback(async () => {
     try {
@@ -71,6 +66,25 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
   useEffect(() => { cargar(); }, []);
 
   const isActiva = vacante.estado === 'activa';
+  const pago = getVacancyPayDisplay(vacante);
+  const fechaInicioTexto = formatVacancyStartDate(vacante.fecha_inicio, {
+    long: true,
+    fallback: 'Por definir',
+  });
+  const fotos = (vacante.fotos || []).map((f) => f?.url).filter(Boolean);
+  const heroFotos = fotos.length > 0
+    ? fotos
+    : vacante.foto_portada
+      ? [vacante.foto_portada]
+      : [];
+
+  const onScrollFotos = (e) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const index = Math.round(x / e.nativeEvent.layoutMeasurement.width);
+    if (!Number.isNaN(index)) {
+      setFotoActiva(index);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -81,13 +95,37 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
             colors={[COLORS.primary]} tintColor={COLORS.primary} />
         }
       >
-        {/* Hero */}
+        {/* Hero fotos */}
         <View style={styles.hero}>
-          {vacante.foto_portada ? (
-            <Image source={{ uri: vacante.foto_portada }} style={styles.heroImg} resizeMode="cover" />
+          {heroFotos.length > 1 ? (
+            <>
+              <FlatList
+                data={heroFotos}
+                keyExtractor={(_, idx) => `foto-${idx}`}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={onScrollFotos}
+                renderItem={({ item }) => (
+                  <Image source={{ uri: item }} style={styles.heroImg} resizeMode="cover" />
+                )}
+              />
+              <View style={styles.heroDotsWrap}>
+                <View style={styles.heroDotsInner}>
+                  {heroFotos.map((_, idx) => (
+                    <View key={idx} style={[styles.heroDot, idx === fotoActiva && styles.heroDotActive]} />
+                  ))}
+                </View>
+              </View>
+            </>
+          ) : heroFotos.length === 1 ? (
+            <Image source={{ uri: heroFotos[0] }} style={styles.heroImg} resizeMode="cover" />
           ) : (
             <View style={styles.heroPlaceholder}>
-              <Ionicons name="leaf" size={64} color="rgba(255,255,255,0.4)" />
+              <View style={styles.heroPlaceholderIcon}>
+                <Ionicons name="image-outline" size={48} color={COLORS.primaryLight} />
+              </View>
+              <Text style={styles.heroPlaceholderText}>Sin fotos cargadas</Text>
             </View>
           )}
           <View style={styles.heroGradient} />
@@ -105,6 +143,12 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
           >
             <Ionicons name="pencil" size={16} color={COLORS.white} />
           </TouchableOpacity>
+          {heroFotos.length > 0 ? (
+            <View style={styles.heroCounter}>
+              <Ionicons name="images-outline" size={13} color={COLORS.white} />
+              <Text style={styles.heroCounterText}>{fotoActiva + 1}/{heroFotos.length}</Text>
+            </View>
+          ) : null}
           {/* Title block */}
           <View style={styles.heroContent}>
             <Text style={styles.heroTitle}>{vacante.titulo}</Text>
@@ -119,37 +163,47 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Stats row */}
-        <View style={styles.statsRow}>
-          <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => navigation.navigate('VerPostulaciones', { vacante })}
-            activeOpacity={0.75}
-          >
-            <Text style={styles.statNum}>{stats.total}</Text>
-            <Text style={styles.statLabel}>POSTULANTES</Text>
-          </TouchableOpacity>
-          <View style={styles.statDivider} />
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>{stats.pendientes}</Text>
-            <Text style={styles.statLabel}>NUEVOS</Text>
+        {/* Descripción debajo de fotos */}
+        {vacante.descripcion ? (
+          <View style={styles.descripcionCard}>
+            <View style={styles.descripcionHeader}>
+              <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
+              <Text style={styles.descripcionTitle}>Descripción</Text>
+            </View>
+            <Text style={styles.descTextStrong}>{vacante.descripcion}</Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>{stats.aceptadas}</Text>
-            <Text style={styles.statLabel}>ACEPTADOS</Text>
-          </View>
-        </View>
+        ) : null}
 
-        {/* CTA button */}
-        <View style={styles.ctaWrap}>
+        {/* Panel postulaciones */}
+        <View style={styles.postulacionesPanel}>
+          <View style={styles.statsRow}>
+            <TouchableOpacity
+              style={styles.statCard}
+              onPress={() => navigation.navigate('VerPostulaciones', { vacante })}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.statNum}>{stats.total}</Text>
+              <Text style={styles.statLabel}>POSTULANTES</Text>
+            </TouchableOpacity>
+            <View style={styles.statDivider} />
+            <View style={styles.statCard}>
+              <Text style={styles.statNum}>{stats.pendientes}</Text>
+              <Text style={styles.statLabel}>NUEVOS</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCard}>
+              <Text style={styles.statNum}>{stats.aceptadas}</Text>
+              <Text style={styles.statLabel}>ACEPTADOS</Text>
+            </View>
+          </View>
+
           <TouchableOpacity
             style={styles.ctaBtn}
             onPress={() => navigation.navigate('VerPostulaciones', { vacante })}
             activeOpacity={0.88}
           >
             <Ionicons name="people" size={20} color={COLORS.white} />
-            <Text style={styles.ctaBtnText}>Ver Postulaciones</Text>
+            <Text style={styles.ctaBtnText}>Ver postulaciones</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.ctaEditBtn}
@@ -186,16 +240,20 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
                 <View style={styles.beneficioRow}>
                   <Ionicons name="card-outline" size={16} color={COLORS.primary} />
                   <Text style={styles.beneficioText}>
-                    Tipo de pago: {PAGO_MAP[vacante.tipo_pago] || vacante.tipo_pago}
+                    Tipo de pago: {pago.tipoLabel || vacante.tipo_pago}
                   </Text>
                 </View>
               )}
-              {vacante.salario_ofrecido && (
+              <View style={styles.beneficioRow}>
+                <Ionicons name="cash" size={16} color={COLORS.primary} />
+                <Text style={styles.beneficioText}>Salario: {pago.valor}</Text>
+              </View>
+              {vacante.duracion ? (
                 <View style={styles.beneficioRow}>
-                  <Ionicons name="cash" size={16} color={COLORS.primary} />
-                  <Text style={styles.beneficioText}>Salario: ${vacante.salario_ofrecido}</Text>
+                  <Ionicons name="time-outline" size={16} color={COLORS.primary} />
+                  <Text style={styles.beneficioText}>Duración: {vacante.duracion}</Text>
                 </View>
-              )}
+              ) : null}
               <View style={styles.beneficioRow}>
                 <Ionicons
                   name={vacante.ofrece_alojamiento ? 'checkmark-circle' : 'close-circle'}
@@ -225,12 +283,16 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
             </View>
           </SectionCard>
 
-          {/* Descripción */}
-          {vacante.descripcion ? (
-            <SectionCard icon="document-text-outline" title="Descripción">
-              <Text style={styles.descText}>{vacante.descripcion}</Text>
+          <SectionCard icon="calendar-clear-outline" title="Fecha de inicio">
+            <Text style={styles.fechaInicioValue}>{fechaInicioTexto}</Text>
+          </SectionCard>
+
+          {vacante.requisitos ? (
+            <SectionCard icon="checkmark-done-outline" title="Requisitos">
+              <Text style={styles.descText}>{vacante.requisitos}</Text>
             </SectionCard>
           ) : null}
+
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -246,12 +308,30 @@ const styles = StyleSheet.create({
   heroPlaceholder: {
     width: '100%', height: '100%',
     backgroundColor: COLORS.primaryDark,
+    justifyContent: 'center', alignItems: 'center', gap: SPACING.sm,
+  },
+  heroPlaceholderIcon: {
+    width: 90, height: 90, borderRadius: 45,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center', alignItems: 'center',
   },
+  heroPlaceholderText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.9)' },
   heroGradient: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 160,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
+  heroDotsWrap: {
+    position: 'absolute', bottom: 54, left: 0, right: 0,
+    alignItems: 'center',
+  },
+  heroDotsInner: {
+    flexDirection: 'row', gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: RADIUS.full,
+  },
+  heroDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.45)' },
+  heroDotActive: { backgroundColor: COLORS.white, width: 20 },
   heroBadge: {
     position: 'absolute', top: SPACING.md, left: SPACING.md,
     flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -273,6 +353,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center', alignItems: 'center',
   },
+  heroCounter: {
+    position: 'absolute', bottom: 14, right: SPACING.md,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 9, paddingVertical: 4,
+    borderRadius: RADIUS.full,
+  },
+  heroCounterText: { fontSize: 12, fontWeight: '700', color: COLORS.white },
   heroContent: {
     position: 'absolute', bottom: SPACING.md, left: SPACING.md, right: SPACING.md,
   },
@@ -283,14 +371,33 @@ const styles = StyleSheet.create({
   heroMetaText: { fontSize: 13, color: 'rgba(255,255,255,0.82)' },
   heroMetaDot: { fontSize: 13, color: 'rgba(255,255,255,0.5)', marginHorizontal: 2 },
 
-  /* Stats */
-  statsRow: {
-    flexDirection: 'row',
+  descripcionCard: {
     backgroundColor: COLORS.white,
     marginHorizontal: SPACING.md,
-    marginTop: -20,
+    marginTop: SPACING.md,
     borderRadius: RADIUS.lg,
-    ...SHADOWS.medium,
+    padding: SPACING.md,
+    ...SHADOWS.card,
+  },
+  descripcionHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginBottom: SPACING.sm },
+  descripcionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
+  descTextStrong: { fontSize: 15, color: COLORS.textPrimary, lineHeight: 23 },
+
+  /* Stats */
+  postulacionesPanel: {
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    ...SHADOWS.card,
+    paddingBottom: SPACING.md,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: 'transparent',
+    marginHorizontal: SPACING.sm,
+    marginTop: SPACING.sm,
+    borderRadius: RADIUS.md,
     overflow: 'hidden',
   },
   statCard: {
@@ -299,7 +406,7 @@ const styles = StyleSheet.create({
   },
   statDivider: { width: 1, backgroundColor: COLORS.borderLight, marginVertical: SPACING.md },
   statNum: { fontSize: 28, fontWeight: '800', color: COLORS.primary },
-  statLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.5, marginTop: 2 },
+  statLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textSecondary, letterSpacing: 0.5, marginTop: 2 },
 
   /* CTA */
   ctaWrap: {
@@ -310,7 +417,7 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: SPACING.sm, backgroundColor: COLORS.primary,
     paddingVertical: 14, borderRadius: RADIUS.lg,
-    ...SHADOWS.small,
+    ...SHADOWS.button,
   },
   ctaBtnText: { fontSize: 16, fontWeight: '700', color: COLORS.white },
   ctaEditBtn: {
@@ -352,8 +459,13 @@ const styles = StyleSheet.create({
   beneficiosList: { gap: 10 },
   beneficioRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   beneficioText: { fontSize: 14, color: COLORS.textPrimary },
-  textMuted: { color: COLORS.textLight },
+  textMuted: { color: COLORS.textSecondary },
 
   /* Descripción */
+  fechaInicioValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
   descText: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22 },
 });

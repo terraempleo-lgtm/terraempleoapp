@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
   KeyboardAvoidingView, Platform, TouchableOpacity, Switch,
@@ -7,9 +7,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { Button, Input, ChipSelector, PickerModal } from '../../components/ui';
+import { Button, Input, ChipSelector, PickerModal, FechaInicioField } from '../../components/ui';
 import { CULTIVOS, LABORES, TIPO_PAGO_OPTIONS } from '../../data/options';
 import { DEPARTAMENTOS, getMunicipios } from '../../data/colombia';
+import { getFechaInicioInputValue, getFechaInicioPayload } from '../../utils/vacantesFecha';
+import { formatearMontoInput, normalizarMontoPayload } from '../../utils/vacantesPago';
 import { vacantesAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -55,7 +57,10 @@ export default function EditarVacanteScreen({ navigation, route }) {
   const [cultivosV, setCultivosV] = useState(vacante.cultivos?.map(c => c.cultivo) || []);
   const [laboresV, setLaboresV] = useState(vacante.labores?.map(l => l.labor) || []);
   const [tipoPago, setTipoPago] = useState(vacante.tipo_pago || '');
-  const [montoPago, setMontoPago] = useState(vacante.monto_pago ? String(vacante.monto_pago) : '');
+  const [montoPago, setMontoPago] = useState(vacante.monto_pago ? String(vacante.monto_pago).replace(/\D/g, '') : '');
+  const [duracion, setDuracion] = useState(vacante.duracion || '');
+  const [requisitos, setRequisitos] = useState(vacante.requisitos || '');
+  const [fechaInicio, setFechaInicio] = useState(getFechaInicioInputValue(vacante.fecha_inicio));
   const [departamento, setDepartamento] = useState(vacante.departamento || '');
   const [municipio, setMunicipio] = useState(vacante.municipio || '');
   const [vereda, setVereda] = useState(vacante.vereda || '');
@@ -64,7 +69,9 @@ export default function EditarVacanteScreen({ navigation, route }) {
   const [alimentacion, setAlimentacion] = useState(!!vacante.ofrece_alimentacion);
   const [otrosBeneficios, setOtrosBeneficios] = useState(vacante.otros_beneficios || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [guardadoExitoso, setGuardadoExitoso] = useState(false);
   const [errors, setErrors] = useState({});
+  const successTimerRef = useRef(null);
 
   const [showDeptPicker, setShowDeptPicker] = useState(false);
   const [showMunPicker, setShowMunPicker] = useState(false);
@@ -84,11 +91,22 @@ export default function EditarVacanteScreen({ navigation, route }) {
           setAlojamiento(!!v.ofrece_alojamiento);
           setAlimentacion(!!v.ofrece_alimentacion);
           setOtrosBeneficios(v.otros_beneficios || '');
+          setFechaInicio(getFechaInicioInputValue(v.fecha_inicio));
+          setDuracion(v.duracion || '');
+          setRequisitos(v.requisitos || '');
         }
       } catch (_) {}
       setLoadingFotos(false);
     };
     cargarDetalle();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
   }, []);
 
   const totalFotos = fotosExistentes.length + fotosNuevas.length;
@@ -188,7 +206,10 @@ export default function EditarVacanteScreen({ navigation, route }) {
         cultivos: cultivosV,
         labores: laboresV,
         tipo_pago: tipoPago || null,
-        monto_pago: montoPago ? parseFloat(montoPago) : null,
+        monto_pago: normalizarMontoPayload(montoPago),
+        duracion: duracion.trim() || null,
+        requisitos: requisitos.trim() || null,
+        fecha_inicio: getFechaInicioPayload(fechaInicio),
         departamento: departamento || null,
         municipio: municipio || null,
         vereda: vereda || null,
@@ -202,30 +223,38 @@ export default function EditarVacanteScreen({ navigation, route }) {
         await subirFotosNuevas();
       }
 
-      // Construir vacante actualizada para pasar al detalle
-      const vacanteActualizada = {
-        ...vacante,
-        titulo,
-        descripcion: descripcion || null,
-        cultivos: cultivosV.map(c => ({ cultivo: c })),
-        labores: laboresV.map(l => ({ labor: l })),
-        tipo_pago: tipoPago || null,
-        monto_pago: montoPago ? parseFloat(montoPago) : null,
-        departamento: departamento || null,
-        municipio: municipio || null,
-        vereda: vereda || null,
-        urgente,
-        ofrece_alojamiento: alojamiento,
-        ofrece_alimentacion: alimentacion,
-        otros_beneficios: otrosBeneficios.trim() || null,
-      };
+      let vacanteActualizada = null;
+      try {
+        const detalleRes = await vacantesAPI.detalle(vacante.id);
+        vacanteActualizada = detalleRes.data?.vacante || null;
+      } catch (_) {
+        vacanteActualizada = {
+          ...vacante,
+          titulo,
+          descripcion: descripcion || null,
+          cultivos: cultivosV.map(c => ({ cultivo: c })),
+          labores: laboresV.map(l => ({ labor: l })),
+          tipo_pago: tipoPago || null,
+          monto_pago: normalizarMontoPayload(montoPago),
+          duracion: duracion.trim() || null,
+          requisitos: requisitos.trim() || null,
+          fecha_inicio: getFechaInicioPayload(fechaInicio),
+          departamento: departamento || null,
+          municipio: municipio || null,
+          vereda: vereda || null,
+          urgente,
+          ofrece_alojamiento: alojamiento,
+          ofrece_alimentacion: alimentacion,
+          otros_beneficios: otrosBeneficios.trim() || null,
+          fotos: fotosExistentes,
+        };
+      }
 
-      Alert.alert('¡Guardado!', 'Vacante actualizada correctamente.', [
-        {
-          text: 'Ver vacante',
-          onPress: () => navigation.replace('DetalleVacanteEmpleador', { vacante: vacanteActualizada }),
-        },
-      ]);
+      setGuardadoExitoso(true);
+      successTimerRef.current = setTimeout(() => {
+        setGuardadoExitoso(false);
+        navigation.replace('DetalleVacanteEmpleador', { vacante: vacanteActualizada });
+      }, 1100);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || err.message || 'Error al actualizar');
     } finally {
@@ -266,8 +295,33 @@ export default function EditarVacanteScreen({ navigation, route }) {
               allowCustom={false}
             />
 
-            <Input label="Monto de pago (COP)" value={montoPago} onChangeText={setMontoPago}
-              placeholder="Ej: 50000" keyboardType="numeric" icon="cash-outline" />
+            <Input label="Monto de pago (COP)" value={formatearMontoInput(montoPago)}
+              onChangeText={(value) => setMontoPago(value.replace(/\D/g, ''))}
+              placeholder="Ej: 1.800.000" keyboardType="numeric" icon="cash-outline" />
+
+            <Input
+              label="Duración (opcional)"
+              value={duracion}
+              onChangeText={setDuracion}
+              placeholder="Ej: 3 meses, temporada de cosecha"
+              icon="time-outline"
+            />
+
+            <Input
+              label="Requisitos (opcional)"
+              value={requisitos}
+              onChangeText={setRequisitos}
+              placeholder="Ej: experiencia en poda, disponibilidad para vivir en finca"
+              multiline
+              numberOfLines={3}
+            />
+
+            <FechaInicioField
+              label="Fecha de inicio"
+              value={fechaInicio}
+              onChange={setFechaInicio}
+              helper="Indica desde qué fecha necesitas al trabajador"
+            />
 
             <Text style={styles.sectionLabel}>Ubicación</Text>
             <TouchableOpacity style={styles.pickerButton} onPress={() => setShowDeptPicker(true)}>
@@ -393,6 +447,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
 
             <Button
               title={isSaving ? 'Guardando...' : 'Guardar cambios'}
+              loadingText="Guardando..."
               onPress={handleGuardar}
               loading={isSaving}
               disabled={isSaving}
@@ -409,6 +464,15 @@ export default function EditarVacanteScreen({ navigation, route }) {
             onSelect={setMunicipio} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {guardadoExitoso ? (
+        <View style={styles.successOverlay} pointerEvents="none">
+          <View style={styles.successCard}>
+            <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+            <Text style={styles.successText}>Cambios guardados con éxito</Text>
+          </View>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -468,4 +532,21 @@ const styles = StyleSheet.create({
   },
   addFotoText: { fontSize: 12, color: COLORS.primary, fontWeight: '600', marginTop: 2 },
   fotosCount: { fontSize: 13, color: COLORS.textLight, marginTop: SPACING.sm, textAlign: 'right' },
+  successOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  successCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    ...SHADOWS.medium,
+  },
+  successText: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
 });

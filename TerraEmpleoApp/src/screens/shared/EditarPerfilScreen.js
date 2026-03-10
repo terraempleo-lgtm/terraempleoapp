@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
-  KeyboardAvoidingView, Platform, TouchableOpacity, Switch,
+  KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -40,6 +40,10 @@ export default function EditarPerfilScreen({ navigation, route }) {
     initPerfil?.cultivos?.map(c => c.cultivo) || []
   );
   const [showTituloPicker, setShowTituloPicker] = useState(false);
+  const [acercaDeTrabajador, setAcercaDeTrabajador] = useState(initPerfil?.acerca_de || '');
+  const [hojaVidaUrl, setHojaVidaUrl] = useState(initPerfil?.hoja_vida_url || '');
+  const [hojaVidaNombre, setHojaVidaNombre] = useState(initPerfil?.hoja_vida_nombre || '');
+  const [subiendoHojaVida, setSubiendoHojaVida] = useState(false);
 
   // Campos empleador
   const [nombreEmpresa, setNombreEmpresa] = useState(initPerfil?.nombre_empresa_finca || '');
@@ -47,6 +51,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
   const [ofreceAlojamiento, setOfreceAlojamiento] = useState(!!initPerfil?.ofrece_alojamiento);
   const [ofreceAlimentacion, setOfreceAlimentacion] = useState(!!initPerfil?.ofrece_alimentacion);
   const [beneficiosExtra, setBeneficiosExtra] = useState(initPerfil?.beneficios_extra || '');
+  const [acercaDeEmpleador, setAcercaDeEmpleador] = useState(initPerfil?.acerca_de || '');
   const [cultivosEmp, setCultivosEmp] = useState(
     initPerfil?.cultivos?.map(c => c.cultivo) || []
   );
@@ -56,7 +61,80 @@ export default function EditarPerfilScreen({ navigation, route }) {
   const [showTipoPagoPicker, setShowTipoPagoPicker] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [guardadoExitoso, setGuardadoExitoso] = useState(false);
   const [errors, setErrors] = useState({});
+  const successTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
+
+  const abrirSelectorPdfWeb = () => {
+    if (typeof document === 'undefined') return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf,.pdf';
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    input.style.pointerEvents = 'none';
+    input.style.left = '-9999px';
+
+    input.addEventListener('change', async (event) => {
+      const file = event.target?.files?.[0];
+      input.remove();
+      if (!file) return;
+
+      if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name || '')) {
+        Alert.alert('Archivo inválido', 'Solo se permiten archivos PDF.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('hoja_vida', file, file.name || 'hoja_vida.pdf');
+
+      setSubiendoHojaVida(true);
+      try {
+        const res = await authAPI.subirHojaVida(formData);
+        setHojaVidaUrl(res.data?.hoja_vida_url || '');
+        setHojaVidaNombre(res.data?.hoja_vida_nombre || file.name || 'hoja_vida.pdf');
+        Alert.alert('Éxito', 'Hoja de vida cargada correctamente.');
+      } catch (err) {
+        Alert.alert('Error', err.response?.data?.error || 'No se pudo subir la hoja de vida');
+      } finally {
+        setSubiendoHojaVida(false);
+      }
+    });
+
+    document.body.appendChild(input);
+    input.click();
+  };
+
+  const manejarSubidaHojaVida = () => {
+    if (Platform.OS !== 'web') {
+      Alert.alert('Función disponible en web', 'La carga de hoja de vida en PDF está habilitada en web.');
+      return;
+    }
+    abrirSelectorPdfWeb();
+  };
+
+  const verHojaVida = async () => {
+    if (!hojaVidaUrl) return;
+    try {
+      const canOpen = await Linking.canOpenURL(hojaVidaUrl);
+      if (canOpen) {
+        await Linking.openURL(hojaVidaUrl);
+      } else {
+        Alert.alert('No disponible', 'No se pudo abrir la hoja de vida en este dispositivo.');
+      }
+    } catch (_) {
+      Alert.alert('Error', 'No se pudo abrir la hoja de vida.');
+    }
+  };
 
   const validate = () => {
     const errs = {};
@@ -71,8 +149,6 @@ export default function EditarPerfilScreen({ navigation, route }) {
   };
 
   const handleGuardar = async () => {
-    console.log('[EditarPerfil] handleGuardar iniciado, rol:', rol);
-    console.log('[EditarPerfil] authAPI.actualizarPerfil disponible:', typeof authAPI.actualizarPerfil);
     if (!validate()) return;
     setLoading(true);
     try {
@@ -83,6 +159,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
           departamento: departamento || null,
           municipio: municipio || null,
           vereda: vereda || null,
+          acerca_de: acercaDeTrabajador.trim() || null,
           nivel_estudios: nivelEstudios || null,
           titulo_estudio: tituloEstudio || null,
           anios_experiencia: experiencia || null,
@@ -97,6 +174,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
           municipio: municipio || null,
           vereda: vereda || null,
           nombre_empresa_finca: nombreEmpresa,
+          acerca_de: acercaDeEmpleador.trim() || null,
           tipo_pago: tipoPago || null,
           ofrece_alojamiento: ofreceAlojamiento,
           ofrece_alimentacion: ofreceAlimentacion,
@@ -105,14 +183,14 @@ export default function EditarPerfilScreen({ navigation, route }) {
           labores: labores.map(l => ({ nombre: l, es_personalizada: !LABORES.includes(l) })),
         };
       }
-      console.log('[EditarPerfil] Enviando PUT /auth/perfil, body keys:', Object.keys(body));
       await authAPI.actualizarPerfil(body);
       updateUser({ nombre_completo: nombre, departamento, municipio });
-      Alert.alert('Éxito', 'Perfil actualizado correctamente', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      setGuardadoExitoso(true);
+      successTimerRef.current = setTimeout(() => {
+        setGuardadoExitoso(false);
+        navigation.replace('PerfilHome');
+      }, 1200);
     } catch (err) {
-      console.error('[EditarPerfil] Error:', err.response?.data || err.message);
       const msg = err.response?.data?.error || err.message || 'Error al actualizar el perfil';
       Alert.alert('Error', msg);
     } finally {
@@ -161,6 +239,15 @@ export default function EditarPerfilScreen({ navigation, route }) {
           {rol === 'trabajador' && (
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Perfil Trabajador</Text>
+
+              <Input
+                label="Acerca de"
+                value={acercaDeTrabajador}
+                onChangeText={setAcercaDeTrabajador}
+                placeholder="Cuéntale a los empleadores sobre tu experiencia, fortalezas y tipo de trabajo que buscas"
+                multiline
+                numberOfLines={4}
+              />
 
               <Text style={styles.fieldLabel}>Nivel de estudios</Text>
               <ChipSelector
@@ -233,6 +320,45 @@ export default function EditarPerfilScreen({ navigation, route }) {
                 allowCustom={true}
                 customLabel="+ Otro cultivo"
               />
+
+              <View style={styles.hojaVidaCard}>
+                <View style={styles.hojaVidaHeader}>
+                  <Ionicons name="document-text-outline" size={20} color={COLORS.primary} />
+                  <Text style={styles.hojaVidaTitle}>Hoja de vida</Text>
+                </View>
+
+                {hojaVidaUrl ? (
+                  <View style={styles.hojaVidaEstadoOk}>
+                    <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
+                    <Text style={styles.hojaVidaEstadoText}>Hoja de vida cargada</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.hojaVidaHint}>Aún no has cargado una hoja de vida</Text>
+                )}
+
+                {hojaVidaNombre ? (
+                  <Text style={styles.hojaVidaNombre} numberOfLines={1}>{hojaVidaNombre}</Text>
+                ) : null}
+
+                <View style={styles.hojaVidaAcciones}>
+                  {hojaVidaUrl ? (
+                    <TouchableOpacity style={styles.hojaVidaBtnOutline} onPress={verHojaVida}>
+                      <Ionicons name="open-outline" size={16} color={COLORS.primary} />
+                      <Text style={styles.hojaVidaBtnOutlineText}>Ver hoja de vida</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity
+                    style={styles.hojaVidaBtnPrimary}
+                    onPress={manejarSubidaHojaVida}
+                    disabled={subiendoHojaVida}
+                  >
+                    <Ionicons name="cloud-upload-outline" size={16} color={COLORS.white} />
+                    <Text style={styles.hojaVidaBtnPrimaryText}>
+                      {subiendoHojaVida ? 'Subiendo...' : hojaVidaUrl ? 'Cambiar hoja de vida' : 'Subir hoja de vida'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           )}
 
@@ -240,6 +366,15 @@ export default function EditarPerfilScreen({ navigation, route }) {
           {rol === 'empleador' && (
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Perfil Empleador</Text>
+
+              <Input
+                label="Acerca de"
+                value={acercaDeEmpleador}
+                onChangeText={setAcercaDeEmpleador}
+                placeholder="Describe tu finca, el ambiente de trabajo, el tipo de cultivos y lo que ofreces a los trabajadores"
+                multiline
+                numberOfLines={4}
+              />
 
               <Input label="Nombre de la finca / empresa" value={nombreEmpresa}
                 onChangeText={setNombreEmpresa} placeholder="Ej: Finca El Paraíso"
@@ -289,13 +424,27 @@ export default function EditarPerfilScreen({ navigation, route }) {
                 allowCustom={true}
                 customLabel="+ Otra labor"
               />
+
             </View>
           )}
 
-          <Button title="Guardar cambios" onPress={handleGuardar} loading={loading}
+          <Button
+            title={loading ? 'Guardando...' : 'Guardar cambios'}
+            loadingText="Guardando..."
+            onPress={handleGuardar}
+            loading={loading}
             size="large" style={{ marginTop: SPACING.md, marginBottom: SPACING.xl }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {guardadoExitoso ? (
+        <View style={styles.successOverlay} pointerEvents="none">
+          <View style={styles.successCard}>
+            <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+            <Text style={styles.successText}>Cambios guardados con éxito</Text>
+          </View>
+        </View>
+      ) : null}
 
       <PickerModal visible={showDeptPicker} onClose={() => setShowDeptPicker(false)}
         title="Departamento" options={DEPARTAMENTOS} selectedValue={departamento}
@@ -334,4 +483,48 @@ const styles = StyleSheet.create({
   },
   switchLabel: { fontSize: 15, color: COLORS.textPrimary },
   errorText: { fontSize: 13, color: COLORS.error, marginTop: -SPACING.sm, marginBottom: SPACING.sm },
+  hojaVidaCard: {
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginTop: SPACING.md,
+    gap: SPACING.sm,
+  },
+  hojaVidaHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+  hojaVidaTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  hojaVidaHint: { fontSize: 13, color: COLORS.textSecondary },
+  hojaVidaEstadoOk: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  hojaVidaEstadoText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
+  hojaVidaNombre: { fontSize: 13, color: COLORS.textPrimary, fontWeight: '600' },
+  hojaVidaAcciones: { flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap' },
+  hojaVidaBtnOutline: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full, borderWidth: 1.5, borderColor: COLORS.primary,
+    backgroundColor: COLORS.white,
+  },
+  hojaVidaBtnOutlineText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
+  hojaVidaBtnPrimary: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full, backgroundColor: COLORS.primary,
+  },
+  hojaVidaBtnPrimaryText: { fontSize: 13, fontWeight: '700', color: COLORS.white },
+  successOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.18)',
+  },
+  successCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    ...SHADOWS.medium,
+  },
+  successText: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
 });

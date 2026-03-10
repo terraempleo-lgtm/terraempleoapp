@@ -10,17 +10,17 @@ import { notificacionesAPI, vacantesAPI, chatsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const TIPO_CONFIG = {
-  match: { icon: 'flash', color: '#FF8F00', bg: '#FFF8E1' },
-  nuevo_match: { icon: 'flash', color: '#FF8F00', bg: '#FFF8E1' },
-  oferta_recomendada: { icon: 'briefcase', color: '#2E7D32', bg: '#E8F5E9' },
-  nueva_vacante: { icon: 'briefcase', color: '#2E7D32', bg: '#E8F5E9' },
-  postulacion: { icon: 'person-add', color: '#1565C0', bg: '#E3F2FD' },
-  aceptado: { icon: 'checkmark-circle', color: '#2E7D32', bg: '#E8F5E9' },
-  postulacion_aceptada: { icon: 'checkmark-circle', color: '#2E7D32', bg: '#E8F5E9' },
-  chat_habilitado: { icon: 'chatbubbles', color: '#1565C0', bg: '#E3F2FD' },
-  nuevo_mensaje: { icon: 'chatbubble-ellipses', color: '#1565C0', bg: '#E3F2FD' },
-  rechazado: { icon: 'close-circle', color: '#C62828', bg: '#FFEBEE' },
-  calificacion: { icon: 'star', color: '#6A1B9A', bg: '#F3E5F5' },
+  match: { icon: 'flash', color: '#F57C00', bg: '#FFF8E1' },
+  nuevo_match: { icon: 'flash', color: '#F57C00', bg: '#FFF8E1' },
+  oferta_recomendada: { icon: 'briefcase', color: COLORS.primary, bg: COLORS.primarySoft },
+  nueva_vacante: { icon: 'briefcase', color: COLORS.primary, bg: COLORS.primarySoft },
+  postulacion: { icon: 'person-add', color: COLORS.info, bg: COLORS.infoSoft },
+  aceptado: { icon: 'checkmark-circle', color: COLORS.primary, bg: COLORS.primarySoft },
+  postulacion_aceptada: { icon: 'checkmark-circle', color: COLORS.primary, bg: COLORS.primarySoft },
+  chat_habilitado: { icon: 'chatbubbles', color: COLORS.info, bg: COLORS.infoSoft },
+  nuevo_mensaje: { icon: 'chatbubble-ellipses', color: COLORS.info, bg: COLORS.infoSoft },
+  rechazado: { icon: 'close-circle', color: COLORS.error, bg: COLORS.errorSoft },
+  calificacion: { icon: 'star', color: '#7B1FA2', bg: '#F3E5F5' },
 };
 
 function tiempoRelativo(dateStr) {
@@ -73,7 +73,6 @@ function normalizarNotificacion(raw) {
       break;
   }
 
-  // Fallback temporal por texto para notificaciones legadas sin type estandarizado
   if (type === 'UNKNOWN') {
     const txt = `${raw?.titulo || ''} ${raw?.mensaje || ''}`.toLowerCase();
     if (txt.includes('postulaci') && txt.includes('acept')) type = 'POSTULACION_ACEPTADA';
@@ -139,19 +138,17 @@ export default function NotificacionesScreen({ navigation }) {
   };
 
   const hayNoLeidas = notificaciones.some(n => !n.leida);
+  const countNoLeidas = notificaciones.filter(n => !n.leida).length;
 
   const abrirDetalleVacante = async (vacanteId) => {
     if (!vacanteId) return;
-
     try {
       const res = await vacantesAPI.detalle(vacanteId);
       const vacante = res.data?.vacante || { id: vacanteId };
-
       if (user?.rol === 'empleador') {
         navigation.navigate('DetalleVacanteEmpleador', { vacante });
         return;
       }
-
       navigation.navigate('DetalleVacante', { vacante });
       return vacante;
     } catch (err) {
@@ -165,8 +162,6 @@ export default function NotificacionesScreen({ navigation }) {
       await abrirDetalleVacante(notification.data.vacancyId);
       return;
     }
-
-    // Fallback para notificaciones antiguas sin vacante_id: intenta resolver por título en el mensaje.
     try {
       const matchTitulo = notification?.mensaje?.match(/"([^"]+)"/);
       const titulo = matchTitulo?.[1]?.trim();
@@ -174,7 +169,6 @@ export default function NotificacionesScreen({ navigation }) {
         navigation.navigate('Vacantes');
         return;
       }
-
       const res = await vacantesAPI.listar();
       const vacantes = res.data?.vacantes || [];
       const vacanteEncontrada = vacantes.find((v) =>
@@ -182,7 +176,6 @@ export default function NotificacionesScreen({ navigation }) {
       ) || vacantes.find((v) =>
         String(v.titulo || '').toLowerCase().includes(titulo.toLowerCase())
       );
-
       if (vacanteEncontrada?.id) {
         await abrirDetalleVacante(vacanteEncontrada.id);
         return;
@@ -190,7 +183,6 @@ export default function NotificacionesScreen({ navigation }) {
     } catch (err) {
       console.error('Error resolviendo oferta recomendada:', err);
     }
-
     navigation.navigate('Vacantes');
   };
 
@@ -199,19 +191,16 @@ export default function NotificacionesScreen({ navigation }) {
       navigation.navigate('Postulaciones', { vacante_id: vacanteId || null });
       return;
     }
-
     if (user?.rol === 'empleador' && vacanteId) {
       const vacante = await abrirDetalleVacante(vacanteId);
       navigation.navigate('VerPostulaciones', { vacante: vacante || { id: vacanteId, titulo: 'Vacante' } });
       return;
     }
-
     navigation.navigate('Vacantes');
   };
 
   const getOrCreateChatId = async ({ chatId, vacancyId, employerId, workerId }) => {
     if (chatId) return Number(chatId);
-
     try {
       const resolvedChatId = await chatsAPI.getOrCreateChatId({
         vacancyId,
@@ -232,7 +221,6 @@ export default function NotificacionesScreen({ navigation }) {
       navigation.navigate('Mensajes');
       return;
     }
-
     navigation.navigate('Mensajes', {
       screen: 'ChatsHome',
       params: { abrirChatId: Number(resolvedChatId) },
@@ -241,7 +229,6 @@ export default function NotificacionesScreen({ navigation }) {
 
   const handleNotificacionClick = async (item) => {
     await marcarLeida(item);
-
     const notification = normalizarNotificacion(item);
     console.log('[Notificaciones] click', notification.type, notification.data);
 
@@ -255,7 +242,6 @@ export default function NotificacionesScreen({ navigation }) {
         });
         break;
       }
-
       case 'CHAT_HABILITADO':
       case 'NUEVO_MENSAJE': {
         await abrirChat({
@@ -266,7 +252,6 @@ export default function NotificacionesScreen({ navigation }) {
         });
         break;
       }
-
       case 'NUEVO_MATCH':
       case 'VACANTE_RECOMENDADA': {
         await abrirOfertaRecomendada({
@@ -275,13 +260,10 @@ export default function NotificacionesScreen({ navigation }) {
         });
         break;
       }
-
       case 'POSTULACION_ENVIADA': {
-        // Fallback solicitado: puede abrir postulación o detalle de vacante postulado.
         await abrirPostulaciones(notification.data.vacancyId);
         break;
       }
-
       case 'VACANTE_EDITADA': {
         if (notification.data.vacancyId && user?.rol === 'empleador') {
           const vacante = await abrirDetalleVacante(notification.data.vacancyId);
@@ -291,13 +273,11 @@ export default function NotificacionesScreen({ navigation }) {
         await abrirDetalleVacante(notification.data.vacancyId);
         break;
       }
-
       case 'VACANTE_CERRADA':
       case 'VACANTE_ACTIVADA': {
         await abrirDetalleVacante(notification.data.vacancyId);
         break;
       }
-
       default:
         if (notification.data.vacancyId) {
           await abrirDetalleVacante(notification.data.vacancyId);
@@ -314,24 +294,32 @@ export default function NotificacionesScreen({ navigation }) {
 
   const renderItem = ({ item }) => {
     const config = TIPO_CONFIG[item.tipo] || TIPO_CONFIG.match;
+    const isUnread = !item.leida;
     return (
       <TouchableOpacity
-        style={[styles.card, !item.leida && styles.cardNoLeida]}
+        style={[styles.card, isUnread && styles.cardUnread]}
         onPress={() => handleNotificacionClick(item)}
         activeOpacity={0.85}
       >
+        {/* Left accent */}
+        {isUnread && <View style={[styles.unreadBar, { backgroundColor: config.color }]} />}
+
         <View style={[styles.iconWrap, { backgroundColor: config.bg }]}>
-          <Ionicons name={config.icon} size={22} color={config.color} />
+          <Ionicons name={config.icon} size={20} color={config.color} />
         </View>
+
         <View style={styles.cardBody}>
-          <View style={styles.cardTop}>
-            <Text style={[styles.titulo, !item.leida && styles.tituloNoLeida]} numberOfLines={1}>
+          <View style={styles.cardTopRow}>
+            <Text style={[styles.titulo, isUnread && styles.tituloUnread]} numberOfLines={1}>
               {item.titulo}
             </Text>
-            {!item.leida && <View style={styles.dot} />}
+            <Text style={styles.tiempo}>{tiempoRelativo(item.created_at)}</Text>
           </View>
           <Text style={styles.mensaje} numberOfLines={2}>{item.mensaje}</Text>
-          <Text style={styles.tiempo}>{tiempoRelativo(item.created_at)}</Text>
+        </View>
+
+        <View style={styles.chevronWrap}>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.textLight} />
         </View>
       </TouchableOpacity>
     );
@@ -340,19 +328,35 @@ export default function NotificacionesScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 60 }} />
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      {hayNoLeidas && (
-        <TouchableOpacity style={styles.marcarTodasBtn} onPress={marcarTodasLeidas}>
-          <Ionicons name="checkmark-done-outline" size={16} color={COLORS.primary} />
-          <Text style={styles.marcarTodasText}>Marcar todas como leídas</Text>
-        </TouchableOpacity>
-      )}
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View style={styles.headerIconWrap}>
+            <Ionicons name="notifications" size={20} color={COLORS.primary} />
+          </View>
+          <Text style={styles.headerTitle}>Notificaciones</Text>
+          {countNoLeidas > 0 && (
+            <View style={styles.headerBadge}>
+              <Text style={styles.headerBadgeText}>{countNoLeidas}</Text>
+            </View>
+          )}
+        </View>
+        {hayNoLeidas && (
+          <TouchableOpacity style={styles.markAllBtn} onPress={marcarTodasLeidas}>
+            <Ionicons name="checkmark-done" size={16} color={COLORS.primary} />
+            <Text style={styles.markAllText}>Leer todas</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <FlatList
         data={notificaciones}
@@ -370,8 +374,13 @@ export default function NotificacionesScreen({ navigation }) {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="notifications-off-outline" size={56} color={COLORS.border} />
-            <Text style={styles.emptyText}>No tienes notificaciones</Text>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="notifications-off-outline" size={44} color={COLORS.primaryLight} />
+            </View>
+            <Text style={styles.emptyTitle}>Sin notificaciones</Text>
+            <Text style={styles.emptyText}>
+              Las actualizaciones de tus vacantes y postulaciones aparecerán aquí
+            </Text>
           </View>
         }
       />
@@ -380,88 +389,98 @@ export default function NotificacionesScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F6F4' },
-  list: { padding: SPACING.md, paddingBottom: SPACING.xl },
+  container: { flex: 1, backgroundColor: '#F8FAF9' },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  marcarTodasBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
-    gap: 4,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+  /* Header */
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
   },
-  marcarTodasText: {
-    fontSize: 13,
-    color: COLORS.primary,
-    fontWeight: '500',
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  headerIconWrap: {
+    width: 38, height: 38, borderRadius: 12,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center', alignItems: 'center',
   },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+  headerBadge: {
+    backgroundColor: COLORS.error,
+    minWidth: 22, height: 22, borderRadius: 11,
+    justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  headerBadgeText: { fontSize: 11, fontWeight: '700', color: COLORS.white },
+  markAllBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: COLORS.primarySoft,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: RADIUS.full,
+  },
+  markAllText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
 
+  /* List */
+  list: { padding: SPACING.md, paddingBottom: SPACING.xxl },
+
+  /* Card */
   card: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: 'row', alignItems: 'center',
     gap: SPACING.sm,
     backgroundColor: COLORS.white,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
-    cursor: 'pointer',
-    ...SHADOWS.sm,
+    ...SHADOWS.card,
+    overflow: 'hidden',
   },
-  cardNoLeida: {
-    backgroundColor: '#F0F7F0',
+  cardUnread: {
+    backgroundColor: COLORS.white,
+    borderLeftWidth: 0,
+  },
+  unreadBar: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    width: 4, borderTopLeftRadius: RADIUS.lg, borderBottomLeftRadius: RADIUS.lg,
   },
   iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 44, height: 44, borderRadius: 14,
+    justifyContent: 'center', alignItems: 'center',
     flexShrink: 0,
   },
   cardBody: { flex: 1 },
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
+  cardTopRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: 3,
   },
   titulo: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-    flex: 1,
+    fontSize: 14, color: COLORS.textSecondary, fontWeight: '500',
+    flex: 1, marginRight: SPACING.sm,
   },
-  tituloNoLeida: {
-    color: COLORS.textPrimary,
-    fontWeight: '700',
+  tituloUnread: { color: COLORS.textPrimary, fontWeight: '700' },
+  mensaje: {
+    fontSize: 13, color: COLORS.textSecondary,
+    lineHeight: 18,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.primary,
-    marginLeft: 6,
+  tiempo: { fontSize: 11, color: COLORS.textLight, flexShrink: 0 },
+  chevronWrap: {
+    width: 28, height: 28, borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center', alignItems: 'center',
     flexShrink: 0,
   },
-  mensaje: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    lineHeight: 18,
-    marginBottom: 4,
-  },
-  tiempo: {
-    fontSize: 11,
-    color: COLORS.textLight,
-  },
 
-  empty: {
-    alignItems: 'center',
-    paddingTop: 80,
-    gap: SPACING.sm,
+  /* Empty */
+  empty: { alignItems: 'center', paddingTop: SPACING.xxl * 2, paddingHorizontal: SPACING.xl },
+  emptyIconWrap: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: SPACING.md,
   },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.xs },
   emptyText: {
-    fontSize: 15,
-    color: COLORS.textLight,
+    fontSize: 14, color: COLORS.textSecondary,
+    textAlign: 'center', lineHeight: 20,
   },
 });

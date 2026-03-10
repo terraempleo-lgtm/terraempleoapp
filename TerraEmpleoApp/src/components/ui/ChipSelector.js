@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Modal } from 'react-native';
-import { COLORS, RADIUS, SPACING, SHADOWS } from '../../theme';
+import { COLORS, RADIUS, SPACING, SHADOWS, FONTS } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ChipSelector({
@@ -140,9 +140,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   label: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
+    ...FONTS.label,
     marginBottom: SPACING.sm,
   },
   required: {
@@ -168,8 +166,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.chipSelected,
   },
   chipCustom: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.primaryLight,
   },
   chipAdd: {
     borderStyle: 'dashed',
@@ -177,15 +175,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primarySoft,
   },
   chipText: {
-    fontSize: 15,
-    fontWeight: '500',
+    ...FONTS.chip,
+    fontWeight: FONTS.weight.medium,
     color: COLORS.chipTextUnselected,
   },
   chipTextSelected: {
     color: COLORS.chipTextSelected,
+    fontWeight: FONTS.weight.semibold,
   },
   error: {
-    fontSize: 13,
+    ...FONTS.caption,
     color: COLORS.error,
     marginTop: SPACING.xs,
   },
@@ -204,9 +203,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.large,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
+    ...FONTS.subtitle,
     marginBottom: SPACING.md,
   },
   modalInput: {
@@ -214,8 +211,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
-    fontSize: 16,
-    color: COLORS.textPrimary,
+    ...FONTS.input,
     marginBottom: SPACING.md,
   },
   modalButtons: {
@@ -232,16 +228,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.chipUnselected,
   },
   modalBtnCancelText: {
-    fontSize: 15,
-    fontWeight: '600',
+    ...FONTS.label,
     color: COLORS.textSecondary,
   },
   modalBtnAdd: {
     backgroundColor: COLORS.primary,
   },
   modalBtnAddText: {
-    fontSize: 15,
-    fontWeight: '600',
+    ...FONTS.label,
     color: COLORS.white,
   },
 });

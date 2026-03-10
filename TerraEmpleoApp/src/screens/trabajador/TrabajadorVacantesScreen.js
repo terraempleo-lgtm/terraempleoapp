@@ -11,8 +11,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { PickerModal } from '../../components/ui';
 import { CULTIVOS } from '../../data/options';
 import { DEPARTAMENTOS } from '../../data/colombia';
+import { formatVacancyStartDate } from '../../utils/vacantesFecha';
+import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 
-// Icono según cultivo principal
+/* ── Helpers ── */
+
 function getCropIcon(cultivos) {
   const c = (cultivos?.[0]?.cultivo || cultivos?.[0] || '').toLowerCase();
   if (c.includes('café') || c.includes('cafe')) return 'cafe-outline';
@@ -23,54 +26,58 @@ function getCropIcon(cultivos) {
   return 'leaf-outline';
 }
 
-// Etiqueta de tipo de pago
 function getSalaryLabel(item) {
   const tp = (item.tipo_pago || '').toLowerCase();
   if (tp.includes('jornal')) return 'PAGO POR JORNAL';
-  if (tp.includes('mensual')) return 'SALARIO ESTIMADO';
+  if (tp.includes('mensual')) return 'PAGO MENSUAL';
+  if (tp.includes('semanal')) return 'PAGO SEMANAL';
+  if (tp.includes('quincenal')) return 'PAGO QUINCENAL';
   if (tp.includes('destajo')) return 'PAGO POR DESTAJO';
-  return 'SALARIO ESTIMADO';
+  return 'PAGO ESTIMADO';
 }
 
-// Formato de número colombiano
-function formatCOP(n) {
-  if (!n) return null;
-  const num = Number(n);
-  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
-  return `$${num.toLocaleString('es-CO')}`;
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `Publicado hace ${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `Publicado hace ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return 'Publicado hace 1 día';
+  return `Publicado hace ${days} días`;
 }
 
-function getSalaryDisplay(item) {
-  const tp = (item.tipo_pago || '').toLowerCase();
-  if (tp.includes('jornal') && item.valor_jornal) {
-    return `${formatCOP(item.valor_jornal)} /día`;
-  }
-  if (item.salario_min && item.salario_max) {
-    return `${formatCOP(item.salario_min)} - ${formatCOP(item.salario_max)} /mes`;
-  }
-  if (item.salario_min) return `${formatCOP(item.salario_min)} /mes`;
-  if (item.salario) return formatCOP(item.salario);
-  return null;
-}
+/* ── Chips ── */
 
-// Chip de cultivo con emoji
 function CultivoChip({ label }) {
   return (
-    <View style={styles.chipGreen}>
+    <View style={s.tagGreen}>
       <Ionicons name="leaf" size={11} color={COLORS.primary} />
-      <Text style={styles.chipGreenText}>{label}</Text>
+      <Text style={s.tagGreenTxt}>{label}</Text>
     </View>
   );
 }
 
-function TipoChip({ label }) {
+function LaborChip({ label }) {
   return (
-    <View style={styles.chipGray}>
-      <Ionicons name="time-outline" size={11} color={COLORS.textSecondary} />
-      <Text style={styles.chipGrayText}>{label}</Text>
+    <View style={s.tagGray}>
+      <Ionicons name="construct-outline" size={11} color={COLORS.textSecondary} />
+      <Text style={s.tagGrayTxt}>{label}</Text>
     </View>
   );
 }
+
+function BenefitChip({ label }) {
+  return (
+    <View style={s.tagBlue}>
+      <Ionicons name="checkmark-circle" size={11} color="#3B82F6" />
+      <Text style={s.tagBlueTxt}>{label}</Text>
+    </View>
+  );
+}
+
+/* ── Main ── */
 
 export default function TrabajadorVacantesScreen({ navigation }) {
   const { user } = useAuth();
@@ -87,7 +94,6 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const [showDeptoModal, setShowDeptoModal] = useState(false);
 
   const firstName = (user?.nombre_completo || user?.nombre || 'Usuario').split(' ')[0];
-  const nombreCompleto = user?.nombre_completo || user?.nombre || firstName;
 
   const cargarNoLeidas = useCallback(async () => {
     try {
@@ -110,7 +116,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 
       setVacantes(vacantesRes.data.vacantes || []);
       const idsPostuladas = new Set(
-        (postulacionesRes.data.postulaciones || []).map((postulacion) => Number(postulacion.vacante_id))
+        (postulacionesRes.data.postulaciones || []).map((p) => Number(p.vacante_id))
       );
       setVacantesPostuladas(idsPostuladas);
     } catch (err) {
@@ -123,10 +129,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 
   useEffect(() => { cargarVacantes(); cargarNoLeidas(); }, [cargarVacantes, cargarNoLeidas]);
   useEffect(() => {
-    const unsub = navigation.addListener('focus', () => {
-      cargarVacantes();
-      cargarNoLeidas();
-    });
+    const unsub = navigation.addListener('focus', () => { cargarVacantes(); cargarNoLeidas(); });
     return unsub;
   }, [navigation, cargarVacantes, cargarNoLeidas]);
 
@@ -135,26 +138,16 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const manejarPostulacionRapida = async (item) => {
     try {
       await vacantesAPI.postularse({ vacante_id: item.id });
-      setVacantesPostuladas((prev) => {
-        const next = new Set(prev);
-        next.add(Number(item.id));
-        return next;
-      });
+      setVacantesPostuladas((prev) => { const n = new Set(prev); n.add(Number(item.id)); return n; });
       Alert.alert('Listo', 'Te has postulado exitosamente a esta vacante.');
     } catch (err) {
       const status = err.response?.status;
       if (status === 409) {
-        setVacantesPostuladas((prev) => {
-          const next = new Set(prev);
-          next.add(Number(item.id));
-          return next;
-        });
+        setVacantesPostuladas((prev) => { const n = new Set(prev); n.add(Number(item.id)); return n; });
         Alert.alert('Aviso', 'Ya estás postulado a esta vacante');
         return;
       }
-
-      const msg = err.response?.data?.error || 'Error al postularse';
-      Alert.alert('Error', msg);
+      Alert.alert('Error', err.response?.data?.error || 'Error al postularse');
     }
   };
 
@@ -166,101 +159,116 @@ export default function TrabajadorVacantesScreen({ navigation }) {
       )
     : vacantes;
 
+  /* ── Card ── */
   const renderVacante = ({ item }) => {
-    const salaryDisplay = getSalaryDisplay(item);
-    const cropIcon = getCropIcon(item.cultivos);
+    const salaryDisplay = getVacancyPayDisplay(item);
     const cultivos = (item.cultivos || []).slice(0, 2).map(c => c.cultivo || c);
     const labores = (item.labores || []).slice(0, 1).map(l => l.labor || l);
     const yaPostulado = vacantesPostuladas.has(Number(item.id));
+    const ubicacion = [item.municipio, item.departamento].filter(Boolean).join(', ');
+    const cal = parseFloat(item.calificacion_promedio || 0);
+    const beneficios = [];
+    if (item.incluye_alojamiento) beneficios.push('Alojamiento incl.');
+    if (item.incluye_alimentacion) beneficios.push('Alimentación incl.');
+    if (item.incluye_transporte) beneficios.push('Transporte incl.');
+    const inicioTexto = formatVacancyStartDate(item.fecha_inicio, { fallback: '' });
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={s.card}
         onPress={() => navigation.navigate('DetalleVacante', { vacante: item })}
         activeOpacity={0.92}
       >
-        {/* Imagen de la finca */}
-        <View style={styles.cardImageWrap}>
+        {/* Hero photo */}
+        <View style={s.cardHero}>
           {item.foto_portada ? (
-            <Image
-              source={{ uri: item.foto_portada }}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: item.foto_portada }} style={s.cardImg} resizeMode="cover" />
           ) : (
-            <View style={styles.cardImagePlaceholder}>
-              <Ionicons name="image-outline" size={36} color="#C8CFC8" />
+            <View style={s.cardImgFallback}>
+              <Ionicons name="image-outline" size={40} color="#C8CFC8" />
             </View>
           )}
-        </View>
 
-        {/* Cuerpo de la tarjeta */}
-        <View style={styles.cardBody}>
-          {/* Icono + título + urgente */}
-          <View style={styles.titleRow}>
-            <View style={styles.cropIconCircle}>
-              <Ionicons name={cropIcon} size={18} color={COLORS.primary} />
-            </View>
-            <View style={styles.titleInfo}>
-              <Text style={styles.cardTitle} numberOfLines={1}>{item.titulo}</Text>
-              {item.nombre_empresa_finca && (
-                <Text style={styles.cardFarm} numberOfLines={1}>
-                  {item.nombre_empresa_finca}
-                </Text>
-              )}
-            </View>
-            {item.urgente && (
-              <View style={styles.urgentBadge}>
-                <Text style={styles.urgentText}>URGENTE</Text>
-              </View>
-            )}
-          </View>
+          {/* Gradient overlay at bottom of photo */}
+          <View style={s.cardHeroOverlay} />
 
-          {/* Ubicación */}
-          <View style={styles.locRow}>
-            <Ionicons name="location" size={14} color={COLORS.primary} />
-            <Text style={styles.locText}>
-              {[item.municipio, item.departamento].filter(Boolean).join(', ') || 'Sin ubicación'}
+          {/* Rating badge top-right */}
+          {cal > 0 && (
+            <View style={s.ratingBadge}>
+              <Ionicons name="star" size={12} color="#FFB300" />
+              <Text style={s.ratingBadgeTxt}>{cal.toFixed(1)}</Text>
+            </View>
+          )}
+
+          {/* Urgente badge top-left */}
+          {item.urgente ? (
+            <View style={s.urgentOverlay}>
+              <Ionicons name="flash" size={11} color="#DC2626" />
+              <Text style={s.urgentOverlayTxt}>URGENTE</Text>
+            </View>
+          ) : null}
+
+          {/* Location overlay at bottom */}
+          <View style={s.locOverlay}>
+            <Ionicons name="location" size={14} color={COLORS.white} />
+            <Text style={s.locOverlayTxt} numberOfLines={1}>
+              {ubicacion || 'Sin ubicación'}
             </Text>
           </View>
+        </View>
 
-          {/* Chips */}
-          {(cultivos.length > 0 || labores.length > 0 || item.tipo_pago) && (
-            <View style={styles.chipsRow}>
-              {cultivos.map((c, i) => <CultivoChip key={i} label={c} />)}
-              {labores.map((l, i) => <TipoChip key={i} label={l} />)}
-              {!labores.length && item.tipo_pago && <TipoChip label={item.tipo_pago} />}
-            </View>
+        {/* Card body */}
+        <View style={s.cardBody}>
+          {/* Title row + timestamp */}
+          <View style={s.titleRow}>
+            <Text style={s.cardTitle} numberOfLines={1}>{item.titulo}</Text>
+            <Text style={s.cardTime}>{timeAgo(item.fecha_creacion)}</Text>
+          </View>
+
+          {/* Company name */}
+          {item.nombre_empresa_finca && (
+            <Text style={s.cardFarm} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
           )}
+          {inicioTexto ? (
+            <View style={s.startDateBadge}>
+              <Ionicons name="calendar-outline" size={12} color={COLORS.primary} />
+              <Text style={s.startDateBadgeText}>Inicio: {inicioTexto}</Text>
+            </View>
+          ) : null}
 
-          {/* Separador */}
-          <View style={styles.divider} />
+          {/* Tags row */}
+          <View style={s.tagsRow}>
+            {cultivos.map((c, i) => <CultivoChip key={`c${i}`} label={c} />)}
+            {labores.map((l, i) => <LaborChip key={`l${i}`} label={l} />)}
+            {beneficios.slice(0, 1).map((b, i) => <BenefitChip key={`b${i}`} label={b} />)}
+          </View>
 
-          {/* Salario + botón */}
-          <View style={styles.bottomRow}>
+          {/* Divider */}
+          <View style={s.divider} />
+
+          {/* Salary + CTA */}
+          <View style={s.bottomRow}>
             <View>
-              <Text style={styles.salaryLabel}>{getSalaryLabel(item)}</Text>
-              {salaryDisplay ? (
-                <Text style={styles.salaryValue}>{salaryDisplay}</Text>
+              <Text style={s.salaryLabel}>{getSalaryLabel(item)}</Text>
+              {salaryDisplay.valor !== 'A convenir' ? (
+                <Text style={s.salaryValue}>{salaryDisplay.valor}</Text>
               ) : (
-                <Text style={styles.salaryNA}>A convenir</Text>
+                <Text style={s.salaryNA}>A convenir</Text>
               )}
             </View>
             <TouchableOpacity
-              style={[styles.postBtn, yaPostulado && styles.postBtnDisabled]}
-              onPress={(e) => {
-                if (e?.stopPropagation) {
-                  e.stopPropagation();
-                }
-                if (!yaPostulado) {
-                  manejarPostulacionRapida(item);
-                }
-              }}
+              style={[s.postBtn, yaPostulado && s.postBtnOff]}
+              onPress={(e) => { e?.stopPropagation?.(); if (!yaPostulado) manejarPostulacionRapida(item); }}
               disabled={yaPostulado}
               activeOpacity={0.8}
             >
-              <Text style={[styles.postBtnText, yaPostulado && styles.postBtnTextDisabled]}>
-                {yaPostulado ? 'Ya postulado' : 'Postularse'}
+              <Ionicons
+                name={yaPostulado ? 'checkmark-circle' : 'paper-plane'}
+                size={15}
+                color={yaPostulado ? '#888' : COLORS.white}
+              />
+              <Text style={[s.postBtnTxt, yaPostulado && s.postBtnTxtOff]}>
+                {yaPostulado ? 'Postulado' : 'Postularme'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -269,42 +277,42 @@ export default function TrabajadorVacantesScreen({ navigation }) {
     );
   };
 
+  /* ── List Header ── */
   const ListHeader = (
     <View>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.avatarWrap}>
+      {/* Header greeting */}
+      <View style={s.header}>
+        <View style={s.headerLeft}>
+          <View style={s.avatarWrap}>
             {user?.foto_selfie ? (
-              <Image source={{ uri: user.foto_selfie }} style={styles.avatarImg} />
+              <Image source={{ uri: user.foto_selfie }} style={s.avatarImg} />
             ) : (
               <Ionicons name="person" size={20} color={COLORS.primary} />
             )}
           </View>
           <View>
-            <Text style={styles.holaText}>HOLA, {firstName.toUpperCase()}</Text>
-            <Text style={styles.appName}>{nombreCompleto}</Text>
+            <Text style={s.greeting}>Hola, {firstName}</Text>
+            <Text style={s.greetingSub}>Encuentra tu próximo empleo</Text>
           </View>
         </View>
-        <TouchableOpacity
-          style={styles.notifBtn}
-          onPress={() => navigation.navigate('Notificaciones')}
-        >
-          <Ionicons name="notifications" size={24} color={COLORS.textPrimary} />
+        <TouchableOpacity style={s.bellBtn} onPress={() => navigation.navigate('Notificaciones')}>
+          <View style={s.bellCircle}>
+            <Ionicons name="notifications-outline" size={22} color={COLORS.textPrimary} />
+          </View>
           {noLeidas > 0 && (
-            <View style={styles.notifBadge}>
-              <Text style={styles.notifBadgeText}>{noLeidas > 99 ? '99+' : noLeidas}</Text>
+            <View style={s.bellBadge}>
+              <Text style={s.bellBadgeTxt}>{noLeidas > 99 ? '99+' : noLeidas}</Text>
             </View>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* Buscador */}
-      <View style={styles.searchWrap}>
+      {/* Search bar */}
+      <View style={s.searchBar}>
         <Ionicons name="search" size={18} color={COLORS.textLight} />
         <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar vacantes de campo..."
+          style={s.searchInput}
+          placeholder="Buscar fincas, cultivos o labores..."
           placeholderTextColor={COLORS.textLight}
           value={search}
           onChangeText={setSearch}
@@ -316,68 +324,70 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         )}
       </View>
 
-      {/* Filtros */}
+      {/* Filtros rápidos label */}
+      <Text style={s.filterLabel}>FILTROS RÁPIDOS</Text>
+
+      {/* Filter chips */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.filtersScroll}
-        contentContainerStyle={styles.filtersContent}
+        style={s.filterScroll}
+        contentContainerStyle={s.filterRow}
       >
         <TouchableOpacity
-          style={styles.filterPrimary}
-          onPress={() => { setFilterCultivo(''); setFilterDepto(''); setFilterUrgente(false); }}
-        >
-          <Ionicons name="options-outline" size={15} color={COLORS.white} />
-          <Text style={styles.filterPrimaryText}>Filtros</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.filterChip, filterCultivo ? styles.filterChipActive : null]}
-          onPress={() => setShowCultivoModal(true)}
-        >
-          <Text style={[styles.filterChipText, filterCultivo ? styles.filterChipTextActive : null]}>
-            {filterCultivo || 'Cultivo'}
-          </Text>
-          {filterCultivo
-            ? <Ionicons name="close-circle" size={14} color={COLORS.primary} onPress={() => setFilterCultivo('')} />
-            : <Ionicons name="chevron-down" size={13} color={COLORS.textSecondary} />
-          }
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.filterChip, filterDepto ? styles.filterChipActive : null]}
+          style={[s.filterChip, filterDepto ? s.filterChipOn : null]}
           onPress={() => setShowDeptoModal(true)}
         >
-          <Text style={[styles.filterChipText, filterDepto ? styles.filterChipTextActive : null]}>
+          <Ionicons name="location-outline" size={14} color={filterDepto ? COLORS.primary : COLORS.textSecondary} />
+          <Text style={[s.filterChipTxt, filterDepto && s.filterChipTxtOn]}>
             {filterDepto || 'Ubicación'}
           </Text>
           {filterDepto
-            ? <Ionicons name="close-circle" size={14} color={COLORS.primary} onPress={() => setFilterDepto('')} />
+            ? <TouchableOpacity onPress={() => setFilterDepto('')}><Ionicons name="close-circle" size={14} color={COLORS.primary} /></TouchableOpacity>
             : <Ionicons name="chevron-down" size={13} color={COLORS.textSecondary} />
           }
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.filterChip, filterUrgente ? styles.filterChipActive : null]}
+          style={[s.filterChip, filterCultivo ? s.filterChipOn : null]}
+          onPress={() => setShowCultivoModal(true)}
+        >
+          <Ionicons name="leaf-outline" size={14} color={filterCultivo ? COLORS.primary : COLORS.textSecondary} />
+          <Text style={[s.filterChipTxt, filterCultivo && s.filterChipTxtOn]}>
+            {filterCultivo || 'Cultivo'}
+          </Text>
+          {filterCultivo
+            ? <TouchableOpacity onPress={() => setFilterCultivo('')}><Ionicons name="close-circle" size={14} color={COLORS.primary} /></TouchableOpacity>
+            : <Ionicons name="chevron-down" size={13} color={COLORS.textSecondary} />
+          }
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[s.filterChip, filterUrgente ? s.filterChipOn : null]}
           onPress={() => setFilterUrgente(v => !v)}
         >
-          <Text style={[styles.filterChipText, filterUrgente ? styles.filterChipTextActive : null]}>
-            Urgente
-          </Text>
-          {filterUrgente && <Ionicons name="flash" size={13} color={COLORS.primary} />}
+          <Ionicons name="flash-outline" size={14} color={filterUrgente ? COLORS.primary : COLORS.textSecondary} />
+          <Text style={[s.filterChipTxt, filterUrgente && s.filterChipTxtOn]}>Urgente</Text>
+          {filterUrgente && <Ionicons name="checkmark" size={14} color={COLORS.primary} />}
         </TouchableOpacity>
-      </ScrollView>
 
-      {/* Sección header */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
-          {filterCultivo || filterDepto || filterUrgente ? 'Resultados' : 'Para ti'}
-        </Text>
         {(filterCultivo || filterDepto || filterUrgente) && (
-          <TouchableOpacity onPress={() => { setFilterCultivo(''); setFilterDepto(''); setFilterUrgente(false); }}>
-            <Text style={styles.seeAll}>Limpiar filtros</Text>
+          <TouchableOpacity
+            style={s.filterClear}
+            onPress={() => { setFilterCultivo(''); setFilterDepto(''); setFilterUrgente(false); }}
+          >
+            <Ionicons name="refresh" size={14} color={COLORS.error} />
+            <Text style={s.filterClearTxt}>Limpiar</Text>
           </TouchableOpacity>
         )}
+      </ScrollView>
+
+      {/* Section header */}
+      <View style={s.secHeader}>
+        <Text style={s.secTitle}>Vacantes Disponibles</Text>
+        <View style={s.secBadge}>
+          <Text style={s.secBadgeTxt}>{filtered.length} {filtered.length === 1 ? 'nueva' : 'nuevas'}</Text>
+        </View>
       </View>
 
       <PickerModal
@@ -400,29 +410,26 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={s.root} edges={['top', 'bottom']}>
       <FlatList
         data={filtered}
         renderItem={renderVacante}
         keyExtractor={(item) => item.id?.toString()}
         ListHeaderComponent={ListHeader}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={s.list}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />
         }
         ListEmptyComponent={
           !loading && (
-            <View style={styles.empty}>
-              <Ionicons name="briefcase-outline" size={56} color={COLORS.border} />
-              <Text style={styles.emptyText}>No hay vacantes disponibles</Text>
-              <Text style={styles.emptySubText}>Desliza hacia abajo para actualizar</Text>
+            <View style={s.empty}>
+              <View style={s.emptyIcon}>
+                <Ionicons name="briefcase-outline" size={48} color={COLORS.primary} />
+              </View>
+              <Text style={s.emptyTitle}>No hay vacantes disponibles</Text>
+              <Text style={s.emptySub}>Desliza hacia abajo para actualizar</Text>
             </View>
           )
         }
@@ -431,181 +438,205 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F6F4' },
+/* ── Styles ── */
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#F8FAF9' },
 
   /* Header */
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.md,
-    backgroundColor: '#F4F6F4',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: SPACING.md,
+    backgroundColor: COLORS.white,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   avatarWrap: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: COLORS.primarySoft,
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 2, borderColor: COLORS.primaryLight,
-    overflow: 'hidden',
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2.5, borderColor: COLORS.primary, overflow: 'hidden',
   },
-  avatarImg: { width: 46, height: 46, borderRadius: 23 },
-  holaText: { fontSize: 11, fontWeight: '600', color: COLORS.textSecondary, letterSpacing: 0.5 },
-  appName: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
-  notifBtn: { position: 'relative', padding: 4 },
-  notifBadge: {
-    position: 'absolute', top: 0, right: 0,
-    minWidth: 17, height: 17, borderRadius: 9,
-    backgroundColor: '#E53935',
-    borderWidth: 1.5, borderColor: '#F4F6F4',
-    justifyContent: 'center', alignItems: 'center',
-    paddingHorizontal: 2,
+  avatarImg: { width: 48, height: 48, borderRadius: 24 },
+  greeting: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
+  greetingSub: { fontSize: 13, color: COLORS.textSecondary, marginTop: 1 },
+  bellBtn: { position: 'relative' },
+  bellCircle: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center',
   },
-  notifBadgeText: {
-    fontSize: 10, fontWeight: '700', color: '#fff',
+  bellBadge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: '#DC2626', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: COLORS.white, paddingHorizontal: 3,
   },
+  bellBadgeTxt: { fontSize: 10, fontWeight: '700', color: COLORS.white },
 
-  /* Buscador */
-  searchWrap: {
+  /* Search */
+  searchBar: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.full,
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 10,
+    backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
+    marginHorizontal: SPACING.lg, marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.md, paddingVertical: 12,
     gap: SPACING.sm,
+    borderWidth: 1, borderColor: COLORS.borderLight,
     ...SHADOWS.small,
   },
   searchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary, padding: 0 },
 
-  /* Filtros */
-  filtersScroll: { marginBottom: SPACING.sm },
-  filtersContent: { paddingHorizontal: SPACING.md, gap: SPACING.sm, flexDirection: 'row' },
-  filterPrimary: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.md, paddingVertical: 8,
-    borderRadius: RADIUS.full,
+  /* Filter label */
+  filterLabel: {
+    fontSize: 11, fontWeight: '700', color: COLORS.primary, letterSpacing: 1,
+    paddingHorizontal: SPACING.lg, marginBottom: SPACING.sm,
   },
-  filterPrimaryText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
+
+  /* Filter chips */
+  filterScroll: { marginBottom: SPACING.md },
+  filterRow: { paddingHorizontal: SPACING.lg, gap: SPACING.sm, flexDirection: 'row' },
   filterChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.border,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: RADIUS.full,
+  },
+  filterChipOn: { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primary },
+  filterChipTxt: { fontSize: 13, fontWeight: '500', color: COLORS.textSecondary },
+  filterChipTxtOn: { color: COLORS.primary, fontWeight: '600' },
+  filterClear: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: COLORS.white,
-    paddingHorizontal: SPACING.md, paddingVertical: 8,
+    paddingHorizontal: 12, paddingVertical: 9, borderRadius: RADIUS.full,
+    borderWidth: 1.5, borderColor: COLORS.error, borderStyle: 'dashed',
+  },
+  filterClearTxt: { fontSize: 13, fontWeight: '600', color: COLORS.error },
+
+  /* Section header */
+  secHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg, marginBottom: SPACING.md,
+  },
+  secTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+  secBadge: {
+    backgroundColor: COLORS.primarySoft, paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: RADIUS.full,
-    borderWidth: 1, borderColor: COLORS.border,
   },
-  filterChipActive: {
-    backgroundColor: COLORS.primarySoft,
-    borderColor: COLORS.primary,
-  },
-  filterChipText: { color: COLORS.textSecondary, fontSize: 14 },
-  filterChipTextActive: { color: COLORS.primary, fontWeight: '600' },
+  secBadgeTxt: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
 
-  /* Sección */
-  sectionHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary },
-  seeAll: { fontSize: 14, fontWeight: '600', color: COLORS.primary },
-
-  /* Lista */
-  list: { paddingHorizontal: SPACING.md, paddingBottom: 20 },
+  /* List */
+  list: { paddingBottom: 24 },
 
   /* Card */
   card: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.md,
+    backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
+    marginHorizontal: SPACING.lg, marginBottom: SPACING.md,
     overflow: 'hidden',
-    ...SHADOWS.medium,
+    ...SHADOWS.card,
   },
-  cardImageWrap: { width: '100%', height: 170 },
-  cardImage: { width: '100%', height: '100%' },
-  cardImagePlaceholder: {
-    flex: 1, backgroundColor: '#E8ECE8',
-    justifyContent: 'center', alignItems: 'center',
+
+  /* Card hero */
+  cardHero: { width: '100%', height: 190, position: 'relative' },
+  cardImg: { width: '100%', height: '100%' },
+  cardImgFallback: {
+    flex: 1, backgroundColor: '#EDF2EE', justifyContent: 'center', alignItems: 'center',
   },
+  cardHeroOverlay: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 70,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+
+  /* Rating badge */
+  ratingBadge: {
+    position: 'absolute', top: 10, right: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: RADIUS.full,
+    paddingHorizontal: 8, paddingVertical: 4,
+    ...SHADOWS.small,
+  },
+  ratingBadgeTxt: { fontSize: 12, fontWeight: '700', color: COLORS.textPrimary },
+
+  /* Urgente overlay */
+  urgentOverlay: {
+    position: 'absolute', top: 10, left: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: RADIUS.full,
+    paddingHorizontal: 9, paddingVertical: 4,
+  },
+  urgentOverlayTxt: { fontSize: 10, fontWeight: '800', color: '#DC2626', letterSpacing: 0.3 },
+
+  /* Location overlay */
+  locOverlay: {
+    position: 'absolute', bottom: 10, left: 12, right: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+  },
+  locOverlayTxt: { fontSize: 13, fontWeight: '600', color: COLORS.white },
 
   /* Card body */
   cardBody: { padding: SPACING.md },
 
-  titleRow: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    gap: SPACING.sm, marginBottom: 8,
-  },
-  cropIconCircle: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: COLORS.primarySoft,
-    justifyContent: 'center', alignItems: 'center',
-    flexShrink: 0,
-  },
-  titleInfo: { flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  cardFarm: { fontSize: 13, color: COLORS.textSecondary, fontStyle: 'italic', marginTop: 1 },
-
-  urgentBadge: {
-    backgroundColor: '#FFEBEE',
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 10, paddingVertical: 4,
-    alignSelf: 'flex-start', flexShrink: 0,
-  },
-  urgentText: { fontSize: 11, fontWeight: '700', color: '#C62828', letterSpacing: 0.3 },
-
-  /* Ubicación */
-  locRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  cardTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: COLORS.textPrimary, marginRight: 8 },
+  cardTime: { fontSize: 11, color: COLORS.textLight, flexShrink: 0 },
+  cardFarm: { fontSize: 13, color: COLORS.textSecondary, marginBottom: SPACING.sm },
+  startDateBadge: {
     marginBottom: SPACING.sm,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.accent,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  locText: { fontSize: 13, color: COLORS.textSecondary },
+  startDateBadgeText: {
+    fontSize: 12,
+    color: '#000000',
+    fontWeight: '700',
+  },
 
-  /* Chips */
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: SPACING.sm },
-  chipGreen: {
+  /* Tags */
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: SPACING.sm },
+  tagGreen: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: COLORS.primarySoft,
-    paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: COLORS.primarySoft, paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: RADIUS.full,
   },
-  chipGreenText: { fontSize: 12, color: COLORS.primary, fontWeight: '600' },
-  chipGray: {
+  tagGreenTxt: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
+  tagGray: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#F0F0F0',
-    paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: RADIUS.full,
   },
-  chipGrayText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '500' },
+  tagGrayTxt: { fontSize: 12, fontWeight: '500', color: COLORS.textSecondary },
+  tagBlue: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: RADIUS.full,
+  },
+  tagBlueTxt: { fontSize: 12, fontWeight: '600', color: '#3B82F6' },
 
   /* Divider */
   divider: { height: 1, backgroundColor: COLORS.borderLight, marginBottom: SPACING.sm },
 
-  /* Salario + botón */
-  bottomRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-  },
+  /* Bottom row */
+  bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   salaryLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.5, marginBottom: 2 },
-  salaryValue: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },
+  salaryValue: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
   salaryNA: { fontSize: 14, color: COLORS.textSecondary, fontStyle: 'italic' },
   postBtn: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: COLORS.primary, paddingHorizontal: 18, paddingVertical: 11,
     borderRadius: RADIUS.full,
+    ...SHADOWS.button,
   },
-  postBtnDisabled: {
-    backgroundColor: '#C4C4C4',
-  },
-  postBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
-  postBtnTextDisabled: { color: '#6E6E6E' },
+  postBtnOff: { backgroundColor: '#E5E7EB', ...SHADOWS.none },
+  postBtnTxt: { fontSize: 14, fontWeight: '700', color: COLORS.white },
+  postBtnTxtOff: { color: '#888' },
 
-  /* Empty */
+  /* Empty state */
   empty: { alignItems: 'center', paddingTop: 60, gap: SPACING.sm },
-  emptyText: { fontSize: 16, fontWeight: '600', color: COLORS.textSecondary },
-  emptySubText: { fontSize: 13, color: COLORS.textLight },
+  emptyIcon: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
+  emptySub: { fontSize: 13, color: COLORS.textLight },
 });

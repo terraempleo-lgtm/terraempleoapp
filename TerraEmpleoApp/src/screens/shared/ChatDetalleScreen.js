@@ -42,16 +42,51 @@ export default function ChatDetalleScreen({ route, navigation }) {
   const flatListRef = useRef(null);
   const pollingRef = useRef(null);
 
+  const volverAlPerfilRelacionado = () => {
+    const otroUsuarioId = Number(chat?.otro_usuario_id);
+    const vacanteId = Number(chat?.vacante_id);
+
+    if (!user?.rol || !otroUsuarioId) {
+      navigation.goBack();
+      return;
+    }
+
+    if (user.rol === 'empleador') {
+      navigation.replace('PerfilPublicoTrabajador', {
+        trabajador_id: otroUsuarioId,
+        vacante_id: Number.isFinite(vacanteId) ? vacanteId : undefined,
+        postulacion_estado: 'aceptada',
+      });
+      return;
+    }
+
+    if (user.rol === 'trabajador') {
+      navigation.replace('PerfilPublicoEmpleador', {
+        empleador_id: otroUsuarioId,
+        vacante_id: Number.isFinite(vacanteId) ? vacanteId : undefined,
+        chat_data: chat,
+      });
+      return;
+    }
+
+    navigation.goBack();
+  };
+
   useEffect(() => {
     navigation.setOptions({
       title: chat.otro_nombre,
+      headerLeft: () => (
+        <TouchableOpacity onPress={volverAlPerfilRelacionado} style={{ marginLeft: 16 }}>
+          <Ionicons name="arrow-back" size={22} color={COLORS.white} />
+        </TouchableOpacity>
+      ),
       headerRight: () => (
         <TouchableOpacity onPress={llamar} style={{ marginRight: 16 }}>
           <Ionicons name="call" size={22} color={COLORS.white} />
         </TouchableOpacity>
       ),
     });
-  }, []);
+  }, [navigation, chat, user]);
 
   const llamar = () => {
     if (!chat.otro_celular) {

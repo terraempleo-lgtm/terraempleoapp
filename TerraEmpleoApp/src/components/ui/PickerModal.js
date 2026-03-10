@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Modal, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from '../../theme';
 import Input from './Input';
 
 export default function PickerModal({
@@ -106,9 +106,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
+    ...FONTS.subtitle,
   },
   option: {
     flexDirection: 'row',
@@ -123,12 +121,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
   },
   optionText: {
-    fontSize: 16,
-    color: COLORS.textPrimary,
+    ...FONTS.regular,
   },
   optionTextSelected: {
     color: COLORS.primary,
-    fontWeight: '600',
+    fontWeight: FONTS.weight.semibold,
   },
   separator: {
     height: 1,
@@ -137,7 +134,7 @@ const styles = StyleSheet.create({
   empty: {
     textAlign: 'center',
     padding: SPACING.lg,
+    ...FONTS.bodySmall,
     color: COLORS.textLight,
-    fontSize: 15,
   },
 });
