@@ -49,15 +49,15 @@ export default function AdminVacantesScreen({ navigation }) {
   };
 
   const eliminar = (vacante) => {
-    Alert.alert('Eliminar vacante', '¿Seguro?', [
+    Alert.alert('Eliminar vacante', '¿Estás seguro? La vacante dejará de ser visible.', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar', style: 'destructive',
         onPress: async () => {
           try {
             await adminAPI.eliminarVacante(vacante.id);
+            await load();
             Alert.alert('Listo', 'Vacante eliminada correctamente');
-            load();
           } catch (err) {
             const msg = err.response?.data?.error || 'No se pudo eliminar la vacante';
             Alert.alert('Error', msg);

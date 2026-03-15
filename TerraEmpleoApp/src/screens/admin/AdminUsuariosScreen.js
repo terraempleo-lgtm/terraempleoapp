@@ -45,15 +45,15 @@ export default function AdminUsuariosScreen() {
   };
 
   const eliminar = (id) => {
-    Alert.alert('Eliminar usuario', '¿Estás seguro? Esta acción no se puede deshacer.', [
+    Alert.alert('Eliminar usuario', '¿Estás seguro? El usuario dejará de aparecer en la plataforma.', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar', style: 'destructive',
         onPress: async () => {
           try {
-            await adminAPI.deleteUsuario(id);
+            await adminAPI.eliminarUsuario(id);
+            await load();
             Alert.alert('Listo', 'Usuario eliminado correctamente');
-            load();
           } catch (err) {
             const msg = err.response?.data?.error || 'No se pudo eliminar el usuario';
             Alert.alert('Error', msg);
@@ -66,7 +66,7 @@ export default function AdminUsuariosScreen() {
   const eliminarFinca = (item) => {
     Alert.alert(
       'Eliminar finca (empleador)',
-      `¿Eliminar a "${item.nombre_completo}" y toda su finca, vacantes, chats y datos asociados? Esta acción no se puede deshacer.`,
+      `¿Eliminar a "${item.nombre_completo}" y toda su finca y vacantes asociadas?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -74,8 +74,8 @@ export default function AdminUsuariosScreen() {
           onPress: async () => {
             try {
               await adminAPI.eliminarEmpleador(item.id);
-              Alert.alert('Listo', 'Empleador y todos sus datos eliminados correctamente');
-              load();
+              await load();
+              Alert.alert('Listo', 'Empleador y sus datos eliminados correctamente');
             } catch (err) {
               const msg = err.response?.data?.error || 'No se pudo eliminar el empleador';
               Alert.alert('Error', msg);

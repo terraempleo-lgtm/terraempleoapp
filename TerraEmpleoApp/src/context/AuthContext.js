@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { setAuthToken } from '../services/api';
+import { resetToLogin } from '../navigation/navigationRef';
 
 const AuthContext = createContext(null);
 
@@ -18,6 +19,7 @@ export function AuthProvider({ children }) {
     setAuthToken(null);
     setToken(null);
     setUser(null);
+    resetToLogin();
   }, []);
 
   const updateUser = (userData) => {
