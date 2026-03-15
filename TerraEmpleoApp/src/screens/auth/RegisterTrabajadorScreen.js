@@ -105,8 +105,31 @@ export default function RegisterTrabajadorScreen({ navigation }) {
     return Object.keys(errs).length === 0;
   };
 
-  const nextStep = () => {
-    if (validateStep()) setStep(step + 1);
+  const verificarCodigo = async () => {
+    if (!codigoSMS.trim()) {
+      setErrors({ codigo: 'Ingrese el código' });
+      return false;
+    }
+    try {
+      await authAPI.verificarSMS(celular, codigoSMS.trim());
+      return true;
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Código incorrecto';
+      Alert.alert('Error', msg);
+      return false;
+    }
+  };
+
+  const nextStep = async () => {
+    if (!validateStep()) return;
+    // Step 7 = SMS verification: verify code against backend
+    if (step === 7) {
+      setLoading(true);
+      const ok = await verificarCodigo();
+      setLoading(false);
+      if (!ok) return;
+    }
+    setStep(step + 1);
   };
   const prevStep = () => step > 1 && setStep(step - 1);
 

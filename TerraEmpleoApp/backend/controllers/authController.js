@@ -180,6 +180,7 @@ async function login(req, res) {
 }
 
 // Enviar código SMS (mock o Twilio Verify)
+// Usa tabla codigos_verificacion para soportar usuarios no registrados (durante registro)
 async function enviarCodigoSMS(req, res) {
   try {
     const { celular } = req.body;
@@ -189,7 +190,9 @@ async function enviarCodigoSMS(req, res) {
 
     if (smsMock) {
       const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-      await query('UPDATE usuarios SET codigo_sms = ? WHERE celular = ?', [codigo, celular]);
+      // Limpiar códigos anteriores para este celular
+      await query('DELETE FROM codigos_verificacion WHERE celular = ?', [celular]);
+      await query('INSERT INTO codigos_verificacion (celular, codigo) VALUES (?, ?)', [celular, codigo]);
       console.log(`[SMS MOCK] Código para ${celular}: ${codigo}`);
       return res.json({ message: 'Código enviado (modo desarrollo)', codigo_debug: codigo });
     }
@@ -207,6 +210,7 @@ async function enviarCodigoSMS(req, res) {
 }
 
 // Verificar código SMS (mock o Twilio Verify)
+// Usa tabla codigos_verificacion para soportar usuarios no registrados (durante registro)
 async function verificarCodigoSMS(req, res) {
   try {
     const { celular, codigo } = req.body;
@@ -215,10 +219,16 @@ async function verificarCodigoSMS(req, res) {
     const smsMock = process.env.SMS_MOCK === 'true';
 
     if (smsMock) {
-      const users = await query('SELECT codigo_sms FROM usuarios WHERE celular = ?', [celular]);
-      if (!users || users.length === 0 || users[0].codigo_sms !== codigo) {
+      const rows = await query(
+        'SELECT id FROM codigos_verificacion WHERE celular = ? AND codigo = ? AND verificado = 0 ORDER BY created_at DESC LIMIT 1',
+        [celular, codigo]
+      );
+      if (!rows || rows.length === 0) {
         return res.status(400).json({ error: 'Código incorrecto' });
       }
+      // Marcar como verificado
+      await query('UPDATE codigos_verificacion SET verificado = 1 WHERE celular = ? AND codigo = ?', [celular, codigo]);
+      // Si el usuario ya existe, actualizar verificado_sms
       await query('UPDATE usuarios SET verificado_sms = 1, codigo_sms = NULL WHERE celular = ?', [celular]);
       return res.json({ message: 'Celular verificado exitosamente' });
     }

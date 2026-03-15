@@ -7,3 +7,4 @@ node_modules/.bin/.env
 .DS_Store
 *.pem
 
+node_modules

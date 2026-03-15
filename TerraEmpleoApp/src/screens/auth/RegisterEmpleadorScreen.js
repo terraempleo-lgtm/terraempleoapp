@@ -110,19 +110,44 @@ export default function RegisterEmpleadorScreen({ navigation }) {
     return Object.keys(errs).length === 0;
   };
 
-  const nextStep = () => { if (validateStep()) setStep(step + 1); };
+  const verificarCodigo = async () => {
+    if (!codigoSMS.trim()) {
+      setErrors({ codigo: 'Ingrese el código' });
+      return false;
+    }
+    try {
+      await authAPI.verificarSMS(celular, codigoSMS.trim());
+      return true;
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Código incorrecto';
+      Alert.alert('Error', msg);
+      return false;
+    }
+  };
+
+  const nextStep = async () => {
+    if (!validateStep()) return;
+    // Step 5 = SMS verification: verify code against backend
+    if (step === 5) {
+      setLoading(true);
+      const ok = await verificarCodigo();
+      setLoading(false);
+      if (!ok) return;
+    }
+    setStep(step + 1);
+  };
   const prevStep = () => step > 1 && setStep(step - 1);
 
   const enviarCodigo = async () => {
-  try {
-    const res = await authAPI.enviarSMS(celular);
-    setCodigoEnviado(true);
-    setCodigoDebug(res.data.codigo_debug);
-    Alert.alert('Código enviado', `Código debug: ${res.data.codigo_debug}`);
-  } catch (err) {
-    Alert.alert('Error', 'No se pudo enviar el código');
-  }
-};
+    try {
+      const res = await authAPI.enviarSMS(celular);
+      setCodigoEnviado(true);
+      setCodigoDebug(res.data.codigo_debug);
+      Alert.alert('Código enviado', `Se envió un código de verificación a ${celular}\n\n(Debug: ${res.data.codigo_debug})`);
+    } catch (err) {
+      Alert.alert('Error', 'No se pudo enviar el código');
+    }
+  };
 
   const handleFotoGuardada = (tipo, uri) => {
     if (tipo === 'selfie') setFotoSelfie(uri);

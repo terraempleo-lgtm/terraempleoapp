@@ -290,6 +290,18 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Tabla para códigos de verificación SMS (funciona para usuarios registrados y no registrados)
+  await query(`
+    CREATE TABLE IF NOT EXISTS codigos_verificacion (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      celular VARCHAR(20) NOT NULL,
+      codigo VARCHAR(6) NOT NULL,
+      verificado TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_celular (celular)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Crear usuario admin por defecto
   const bcrypt = require('bcryptjs');
   const adminExists = await query('SELECT id FROM usuarios WHERE rol = ? AND celular = ?', ['admin', '0000000000']);
