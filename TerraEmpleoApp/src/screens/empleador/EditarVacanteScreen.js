@@ -61,6 +61,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
   const [duracion, setDuracion] = useState(vacante.duracion || '');
   const [requisitos, setRequisitos] = useState(vacante.requisitos || '');
   const [fechaInicio, setFechaInicio] = useState(getFechaInicioInputValue(vacante.fecha_inicio));
+  const [fechaFin, setFechaFin] = useState(getFechaInicioInputValue(vacante.fecha_fin));
   const [departamento, setDepartamento] = useState(vacante.departamento || '');
   const [municipio, setMunicipio] = useState(vacante.municipio || '');
   const [vereda, setVereda] = useState(vacante.vereda || '');
@@ -92,6 +93,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
           setAlimentacion(!!v.ofrece_alimentacion);
           setOtrosBeneficios(v.otros_beneficios || '');
           setFechaInicio(getFechaInicioInputValue(v.fecha_inicio));
+          setFechaFin(getFechaInicioInputValue(v.fecha_fin));
           setDuracion(v.duracion || '');
           setRequisitos(v.requisitos || '');
         }
@@ -210,6 +212,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
         duracion: duracion.trim() || null,
         requisitos: requisitos.trim() || null,
         fecha_inicio: getFechaInicioPayload(fechaInicio),
+        fecha_fin: getFechaInicioPayload(fechaFin),
         departamento: departamento || null,
         municipio: municipio || null,
         vereda: vereda || null,
@@ -239,6 +242,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
           duracion: duracion.trim() || null,
           requisitos: requisitos.trim() || null,
           fecha_inicio: getFechaInicioPayload(fechaInicio),
+          fecha_fin: getFechaInicioPayload(fechaFin),
           departamento: departamento || null,
           municipio: municipio || null,
           vereda: vereda || null,
@@ -321,6 +325,13 @@ export default function EditarVacanteScreen({ navigation, route }) {
               value={fechaInicio}
               onChange={setFechaInicio}
               helper="Indica desde qué fecha necesitas al trabajador"
+            />
+
+            <FechaInicioField
+              label="Fecha de finalización"
+              value={fechaFin}
+              onChange={setFechaFin}
+              helper="La vacante se cerrará automáticamente después de esta fecha"
             />
 
             <Text style={styles.sectionLabel}>Ubicación</Text>

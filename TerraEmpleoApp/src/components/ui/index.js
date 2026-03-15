@@ -10,3 +10,4 @@ export { default as SectionTitle } from './SectionTitle';
 export { default as InfoBox } from './InfoBox';
 export { default as Card } from './Card';
 export { default as TerraFooter } from './TerraFooter';
+export { default as WhatsAppFAB } from './WhatsAppFAB';

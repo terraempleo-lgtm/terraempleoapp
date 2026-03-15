@@ -28,12 +28,13 @@ export const authAPI = {
   enviarSMS: (celular) => api.post('/auth/sms/enviar', { celular }),
   verificarSMS: (celular, codigo) => api.post('/auth/sms/verificar', { celular, codigo }),
   solicitarRecuperacion: (celular) => api.post('/auth/recuperar/solicitar', { celular }),
-  verificarCodigoRecuperacion: (celular, codigo) => api.post('/auth/recuperar/verificar', { celular, codigo }),
+  verificarCodigoRecuperacion: (celular, codigo, metodo) => api.post('/auth/recuperar/verificar', { celular, codigo, metodo }),
   actualizarPasswordRecuperacion: (celular, reset_token, nueva_password) => api.post('/auth/recuperar/nueva-password', {
     celular,
     reset_token,
     nueva_password,
   }),
+  solicitarRecuperacionEmail: (correo) => api.post('/auth/recuperar/solicitar-email', { correo }),
   getPerfil: () => api.get('/auth/perfil'),
   actualizarPerfil: (data) => api.put('/auth/perfil', data),
   subirFoto: (tipo, formData) => api.post(`/auth/fotos/${tipo}`, formData, {
@@ -126,6 +127,7 @@ export const adminAPI = {
   eliminarUsuario: (id) => api.delete(`/admin/usuarios/${id}`),
   listarVacantes: () => api.get('/admin/vacantes'),
   eliminarVacante: (id) => api.delete(`/admin/vacantes/${id}`),
+  eliminarEmpleador: (id) => api.delete(`/admin/empleadores/${id}`),
   listarPostulaciones: () => api.get('/admin/postulaciones'),
 };
 

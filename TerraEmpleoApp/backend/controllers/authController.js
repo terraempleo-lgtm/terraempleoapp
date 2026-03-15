@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
 const { ejecutarMatchingParaTrabajador } = require('./vacantesController');
+const { signUrl, signFields, signArrayField } = require('../config/s3');
 require('dotenv').config();
 
 // Helper para convertir 0/1 de MariaDB a boolean real (soporta entero o string)
@@ -154,6 +155,8 @@ async function login(req, res) {
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
+    const fotoSelfie = user.foto_selfie ? await signUrl(user.foto_selfie) : null;
+
     res.json({
       message: 'Inicio de sesión exitoso',
       token,
@@ -167,7 +170,7 @@ async function login(req, res) {
         municipio: user.municipio,
         verificado_sms: toBool(user.verificado_sms),
         calificacion_promedio: user.calificacion_promedio,
-        foto_selfie: user.foto_selfie || null,
+        foto_selfie: fotoSelfie,
       }
     });
   } catch (err) {
@@ -176,14 +179,22 @@ async function login(req, res) {
   }
 }
 
-// Enviar código SMS via Twilio Verify
+// Enviar código SMS (mock o Twilio Verify)
 async function enviarCodigoSMS(req, res) {
   try {
     const { celular } = req.body;
     if (!celular) return res.status(400).json({ error: 'Celular requerido' });
 
-    const celularFormateado = celular.startsWith('+') ? celular : `+57${celular}`;
+    const smsMock = process.env.SMS_MOCK === 'true';
 
+    if (smsMock) {
+      const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+      await query('UPDATE usuarios SET codigo_sms = ? WHERE celular = ?', [codigo, celular]);
+      console.log(`[SMS MOCK] Código para ${celular}: ${codigo}`);
+      return res.json({ message: 'Código enviado (modo desarrollo)', codigo_debug: codigo });
+    }
+
+    const celularFormateado = celular.startsWith('+') ? celular : `+57${celular}`;
     const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
     await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
       .verifications.create({ to: celularFormateado, channel: 'sms' });
@@ -191,18 +202,28 @@ async function enviarCodigoSMS(req, res) {
     res.json({ message: 'Código enviado' });
   } catch (err) {
     console.error('Error enviando SMS:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'Error enviando SMS' });
   }
 }
 
-// Verificar código SMS via Twilio Verify
+// Verificar código SMS (mock o Twilio Verify)
 async function verificarCodigoSMS(req, res) {
   try {
     const { celular, codigo } = req.body;
     if (!celular || !codigo) return res.status(400).json({ error: 'Celular y código requeridos' });
 
-    const celularFormateado = celular.startsWith('+') ? celular : `+57${celular}`;
+    const smsMock = process.env.SMS_MOCK === 'true';
 
+    if (smsMock) {
+      const users = await query('SELECT codigo_sms FROM usuarios WHERE celular = ?', [celular]);
+      if (!users || users.length === 0 || users[0].codigo_sms !== codigo) {
+        return res.status(400).json({ error: 'Código incorrecto' });
+      }
+      await query('UPDATE usuarios SET verificado_sms = 1, codigo_sms = NULL WHERE celular = ?', [celular]);
+      return res.json({ message: 'Celular verificado exitosamente' });
+    }
+
+    const celularFormateado = celular.startsWith('+') ? celular : `+57${celular}`;
     const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
     const verification = await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
       .verificationChecks.create({ to: celularFormateado, code: codigo });
@@ -215,7 +236,7 @@ async function verificarCodigoSMS(req, res) {
     res.json({ message: 'Celular verificado exitosamente' });
   } catch (err) {
     console.error('Error verificando SMS:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'Error verificando código' });
   }
 }
 
@@ -253,6 +274,12 @@ async function getPerfil(req, res) {
         perfil.cultivos = await query('SELECT * FROM empleador_cultivos WHERE perfil_empleador_id = ?', [perfil.id]);
         perfil.labores = await query('SELECT * FROM empleador_labores WHERE perfil_empleador_id = ?', [perfil.id]);
       }
+    }
+
+    // Firmar URLs de S3
+    await signFields(user, ['foto_selfie', 'foto_cedula', 'foto_selfie_cedula']);
+    if (perfil) {
+      await signFields(perfil, ['hoja_vida_url']);
     }
 
     res.json({ user, perfil });
@@ -371,7 +398,7 @@ async function subirHojaVida(req, res) {
       return res.status(404).json({ error: 'Perfil de trabajador no encontrado' });
     }
 
-    const hojaVidaUrl = req.file.path;
+    const hojaVidaUrl = req.file.location;
     const hojaVidaNombre = req.file.originalname || 'hoja_vida.pdf';
 
     await query(
@@ -379,9 +406,10 @@ async function subirHojaVida(req, res) {
       [hojaVidaUrl, hojaVidaNombre, userId]
     );
 
+    const signedUrl = await signUrl(hojaVidaUrl);
     res.json({
       message: 'Hoja de vida subida exitosamente',
-      hoja_vida_url: hojaVidaUrl,
+      hoja_vida_url: signedUrl,
       hoja_vida_nombre: hojaVidaNombre,
     });
   } catch (err) {
@@ -407,10 +435,11 @@ async function subirFotos(req, res) {
     const columna = columnas[tipo];
     if (!columna) return res.status(400).json({ error: 'Tipo de foto inválido. Use: selfie, cedula, selfie_cedula' });
 
-    const filePath = req.file.path; // Cloudinary secure_url
+    const filePath = req.file.location; // S3 URL
     await query(`UPDATE usuarios SET ${columna} = ? WHERE id = ?`, [filePath, userId]);
 
-    res.json({ message: 'Foto subida exitosamente', path: filePath });
+    const signedPath = await signUrl(filePath);
+    res.json({ message: 'Foto subida exitosamente', path: signedPath });
   } catch (err) {
     console.error('Error subiendo foto:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -420,7 +449,7 @@ async function subirFotos(req, res) {
 // ─── RECUPERACIÓN DE CONTRASEÑA ──────────────────────────────────────────────
 
 // POST /api/auth/recuperar/solicitar
-// Genera un código OTP de 6 dígitos, lo guarda y lo "envía" (por ahora en consola)
+// Envía un código de verificación via Twilio Verify para recuperar contraseña
 async function solicitarRecuperacion(req, res) {
   try {
     const { celular } = req.body;
@@ -428,61 +457,71 @@ async function solicitarRecuperacion(req, res) {
 
     const usuarios = await query('SELECT id FROM usuarios WHERE celular = ?', [celular.trim()]);
     if (!usuarios || usuarios.length === 0) {
-      // Por seguridad, responder igual aunque no exista
       return res.json({ message: 'Si el número está registrado, recibirás un código' });
     }
 
     // Invalidar tokens anteriores de este celular
     await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celular.trim()]);
 
-    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-    const expira = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+    const celularFormateado = celular.trim().startsWith('+') ? celular.trim() : `+57${celular.trim()}`;
 
-    await query(
-      'INSERT INTO password_resets (celular, codigo, expira_en) VALUES (?, ?, ?)',
-      [celular.trim(), codigo, expira]
-    );
+    // Enviar código real via Twilio Verify
+    const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
+      .verifications.create({ to: celularFormateado, channel: 'sms' });
 
-    // SMS mock: mostrar código en consola para MVP
-    console.log(`[RECUPERAR PASSWORD] Celular: ${celular} | Código OTP: ${codigo}`);
-
-    const responseData = { message: 'Código enviado correctamente' };
-    if (process.env.SMS_MOCK === 'true' || process.env.NODE_ENV !== 'production') {
-      responseData.codigo_debug = codigo;
-    }
-    res.json(responseData);
+    console.log(`[RECUPERAR PASSWORD] Código enviado via Twilio a: ${celularFormateado}`);
+    res.json({ message: 'Código enviado correctamente' });
   } catch (err) {
     console.error('Error en solicitarRecuperacion:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'No se pudo enviar el código SMS. Intenta más tarde.' });
   }
 }
 
 // POST /api/auth/recuperar/verificar
-// Verifica el código OTP y devuelve un token temporal de reset
+// Verifica el código via Twilio Verify (SMS) o contra password_resets (email) y devuelve un token temporal de reset
 async function verificarCodigoRecuperacion(req, res) {
   try {
-    const { celular, codigo } = req.body;
+    const { celular, codigo, metodo } = req.body;
     if (!celular || !codigo) return res.status(400).json({ error: 'Celular y código son obligatorios' });
 
-    const resets = await query(
-      'SELECT * FROM password_resets WHERE celular = ? AND codigo = ? AND usado = 0 AND expira_en > NOW() ORDER BY created_at DESC LIMIT 1',
-      [celular.trim(), codigo.trim()]
-    );
-
-    if (!resets || resets.length === 0) {
-      return res.status(400).json({ error: 'Código inválido o expirado' });
-    }
-
-    // Generar token temporal de reset (64 chars hex)
     const crypto = require('crypto');
     const resetToken = crypto.randomBytes(32).toString('hex');
+    const expira = new Date(Date.now() + 10 * 60 * 1000);
 
-    await query('UPDATE password_resets SET token = ? WHERE id = ?', [resetToken, resets[0].id]);
+    // Si fue por email, verificar contra la tabla password_resets
+    if (metodo === 'email') {
+      const resets = await query(
+        'SELECT * FROM password_resets WHERE celular = ? AND codigo = ? AND usado = 0 AND expira_en > NOW() ORDER BY created_at DESC LIMIT 1',
+        [celular.trim(), codigo.trim()]
+      );
+      if (!resets || resets.length === 0) {
+        return res.status(400).json({ error: 'Código inválido o expirado' });
+      }
+      await query('UPDATE password_resets SET token = ? WHERE id = ?', [resetToken, resets[0].id]);
+      return res.json({ message: 'Código verificado', reset_token: resetToken });
+    }
+
+    // SMS: verificar via Twilio Verify
+    const celularFormateado = celular.trim().startsWith('+') ? celular.trim() : `+57${celular.trim()}`;
+    const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    const verification = await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
+      .verificationChecks.create({ to: celularFormateado, code: codigo.trim() });
+
+    if (verification.status !== 'approved') {
+      return res.status(400).json({ error: 'Código incorrecto o expirado' });
+    }
+
+    // Guardar reset token en la tabla
+    await query(
+      'INSERT INTO password_resets (celular, codigo, token, expira_en) VALUES (?, ?, ?, ?)',
+      [celular.trim(), codigo.trim(), resetToken, expira]
+    );
 
     res.json({ message: 'Código verificado', reset_token: resetToken });
   } catch (err) {
     console.error('Error en verificarCodigoRecuperacion:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'Código inválido o expirado' });
   }
 }
 
@@ -491,12 +530,22 @@ async function verificarCodigoRecuperacion(req, res) {
 async function actualizarPasswordRecuperacion(req, res) {
   try {
     const { celular, reset_token, nueva_password } = req.body;
+    console.log('[NUEVA PASSWORD] Recibido:', { celular, reset_token: reset_token ? reset_token.substring(0, 8) + '...' : null, nueva_password: nueva_password ? '***' : null });
+
     if (!celular || !reset_token || !nueva_password) {
+      console.log('[NUEVA PASSWORD] Faltan datos:', { celular: !!celular, reset_token: !!reset_token, nueva_password: !!nueva_password });
       return res.status(400).json({ error: 'Faltan datos requeridos' });
     }
     if (nueva_password.length < 6) {
       return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
     }
+
+    // Buscar sin restricción de tiempo primero para debug
+    const allResets = await query(
+      'SELECT id, celular, token, usado, expira_en, created_at FROM password_resets WHERE celular = ? ORDER BY created_at DESC LIMIT 5',
+      [celular.trim()]
+    );
+    console.log('[NUEVA PASSWORD] Registros para este celular:', JSON.stringify(allResets, null, 2));
 
     const resets = await query(
       'SELECT * FROM password_resets WHERE celular = ? AND token = ? AND usado = 0 AND expira_en > NOW() ORDER BY created_at DESC LIMIT 1',
@@ -504,6 +553,7 @@ async function actualizarPasswordRecuperacion(req, res) {
     );
 
     if (!resets || resets.length === 0) {
+      console.log('[NUEVA PASSWORD] Token no encontrado. Token recibido:', reset_token?.substring(0, 8) + '...');
       return res.status(400).json({ error: 'Token inválido o expirado. Solicita un nuevo código.' });
     }
 
@@ -520,6 +570,101 @@ async function actualizarPasswordRecuperacion(req, res) {
   }
 }
 
+// POST /api/auth/recuperar/solicitar-email
+// Genera un código OTP de 6 dígitos y lo envía por correo electrónico
+async function solicitarRecuperacionEmail(req, res) {
+  try {
+    const { correo } = req.body;
+    if (!correo) return res.status(400).json({ error: 'El correo electrónico es obligatorio' });
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(correo.trim())) {
+      return res.status(400).json({ error: 'Formato de correo electrónico inválido' });
+    }
+
+    // Buscar usuario por correo
+    const usuarios = await query('SELECT id, celular, nombre_completo FROM usuarios WHERE correo = ? AND activo = 1', [correo.trim()]);
+    if (!usuarios || usuarios.length === 0) {
+      // Por seguridad, responder igual aunque no exista
+      return res.json({ message: 'Si el correo está registrado, recibirás un código de recuperación' });
+    }
+
+    const usuario = usuarios[0];
+    const celular = usuario.celular;
+
+    // Invalidar tokens anteriores de este celular
+    await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celular]);
+
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const expira = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+
+    await query(
+      'INSERT INTO password_resets (celular, codigo, expira_en) VALUES (?, ?, ?)',
+      [celular, codigo, expira]
+    );
+
+    // Enviar email con el código OTP
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT || '587', 10),
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || 'TerraEmpleo <noreply@terraempleo.co>',
+      to: correo.trim(),
+      subject: 'Recuperación de contraseña - TerraEmpleo',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; background: #f0faf4; border-radius: 12px;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #008d49; margin: 0;">TerraEmpleo</h1>
+            <p style="color: #666; font-size: 14px;">Recuperación de contraseña</p>
+          </div>
+          <div style="background: #fff; padding: 24px; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <p style="color: #1a1a2e; font-size: 15px;">Hola <strong>${usuario.nombre_completo}</strong>,</p>
+            <p style="color: #4b5563; font-size: 14px;">Recibimos una solicitud para restablecer tu contraseña. Usa el siguiente código:</p>
+            <div style="text-align: center; margin: 24px 0;">
+              <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #008d49; background: #e6f7ee; padding: 12px 24px; border-radius: 8px;">${codigo}</span>
+            </div>
+            <p style="color: #4b5563; font-size: 13px;">Este código expira en <strong>10 minutos</strong>.</p>
+            <p style="color: #4b5563; font-size: 13px;">Si no solicitaste este cambio, ignora este correo.</p>
+          </div>
+          <p style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 16px;">© TerraEmpleo - Potenciando el campo colombiano</p>
+        </div>
+      `,
+    };
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      // Si no hay credenciales de email, modo debug
+      console.log(`[RECUPERAR EMAIL] Correo: ${correo} | Código OTP: ${codigo}`);
+      return res.json({
+        message: 'Código de recuperación generado (modo desarrollo)',
+        codigo_debug: codigo,
+        celular,
+      });
+    }
+
+    await transporter.sendMail(mailOptions);
+    console.log(`[RECUPERAR EMAIL] Correo enviado a: ${correo}`);
+
+    res.json({
+      message: 'Te enviamos un correo para restablecer tu contraseña',
+      celular,
+    });
+  } catch (err) {
+    console.error('Error en solicitarRecuperacionEmail:', err);
+    if (err.code === 'EAUTH' || err.code === 'ESOCKET') {
+      return res.status(500).json({ error: 'Error al enviar el correo. Intenta más tarde.' });
+    }
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
   register,
   login,
@@ -532,4 +677,5 @@ module.exports = {
   solicitarRecuperacion,
   verificarCodigoRecuperacion,
   actualizarPasswordRecuperacion,
+  solicitarRecuperacionEmail,
 };

@@ -21,6 +21,7 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [loginFailed, setLoginFailed] = useState(false);
 
   const validate = () => {
     const errs = {};
@@ -46,6 +47,7 @@ export default function LoginScreen({ navigation }) {
     } catch (err) {
       const msg = err.response?.data?.error || 'Error al iniciar sesión. Verifica tus datos.';
       Alert.alert('Error', msg);
+      setLoginFailed(true);
     } finally {
       setLoading(false);
     }
@@ -91,13 +93,17 @@ export default function LoginScreen({ navigation }) {
               error={errors.password}
             />
 
-            {/* ¿Olvidaste tu contraseña? */}
-            <TouchableOpacity
-              style={styles.forgotContainer}
-              onPress={() => navigation.navigate('RecuperarPassword')}
-            >
-              <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-            </TouchableOpacity>
+            {/* ¿Olvidaste tu contraseña? — solo aparece tras primer error */}
+            {loginFailed && (
+              <TouchableOpacity
+                style={styles.forgotContainer}
+                onPress={() => navigation.navigate('RecuperarPassword', {
+                  celularInicial: celular.trim(),
+                })}
+              >
+                <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

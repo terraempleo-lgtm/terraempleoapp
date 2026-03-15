@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, RefreshControl, FlatList,
+  Image, RefreshControl, FlatList, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -46,6 +46,28 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
   const [stats, setStats] = useState({ total: 0, pendientes: 0, aceptadas: 0 });
   const [refreshing, setRefreshing] = useState(false);
   const [fotoActiva, setFotoActiva] = useState(0);
+
+  const confirmarArchivar = () => {
+    Alert.alert(
+      'Archivar vacante',
+      `¿Cerrar "${vacante.titulo}"? La vacante dejará de ser visible para los trabajadores pero quedará en tus registros.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Archivar',
+          onPress: async () => {
+            try {
+              await vacantesAPI.cerrar(vacanteParam.id);
+              Alert.alert('Listo', 'Vacante archivada correctamente');
+              navigation.goBack();
+            } catch (err) {
+              Alert.alert('Error', err.response?.data?.error || 'No se pudo archivar la vacante');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const cargar = useCallback(async () => {
     try {
@@ -136,13 +158,23 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
               {isActiva ? 'Activa' : 'Inactiva'}
             </Text>
           </View>
-          {/* Edit button */}
-          <TouchableOpacity
-            style={styles.heroEditBtn}
-            onPress={() => navigation.navigate('EditarVacante', { vacante })}
-          >
-            <Ionicons name="pencil" size={16} color={COLORS.white} />
-          </TouchableOpacity>
+          {/* Action buttons */}
+          <View style={styles.heroActionBtns}>
+            <TouchableOpacity
+              style={styles.heroEditBtn}
+              onPress={() => navigation.navigate('EditarVacante', { vacante })}
+            >
+              <Ionicons name="pencil" size={16} color={COLORS.white} />
+            </TouchableOpacity>
+            {isActiva && (
+              <TouchableOpacity
+                style={[styles.heroEditBtn, { backgroundColor: 'rgba(255,143,0,0.7)' }]}
+                onPress={confirmarArchivar}
+              >
+                <Ionicons name="archive" size={16} color={COLORS.white} />
+              </TouchableOpacity>
+            )}
+          </View>
           {heroFotos.length > 0 ? (
             <View style={styles.heroCounter}>
               <Ionicons name="images-outline" size={13} color={COLORS.white} />
@@ -283,8 +315,21 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
             </View>
           </SectionCard>
 
-          <SectionCard icon="calendar-clear-outline" title="Fecha de inicio">
-            <Text style={styles.fechaInicioValue}>{fechaInicioTexto}</Text>
+          <SectionCard icon="calendar-clear-outline" title="Fechas">
+            <View style={styles.beneficiosList}>
+              <View style={styles.beneficioRow}>
+                <Ionicons name="play-circle-outline" size={16} color={COLORS.primary} />
+                <Text style={styles.beneficioText}>Inicio: {fechaInicioTexto}</Text>
+              </View>
+              <View style={styles.beneficioRow}>
+                <Ionicons name="stop-circle-outline" size={16} color={vacante.fecha_fin ? COLORS.accent : COLORS.textLight} />
+                <Text style={styles.beneficioText}>
+                  Finalización: {vacante.fecha_fin
+                    ? formatVacancyStartDate(vacante.fecha_fin, { long: true, fallback: 'Por definir' })
+                    : 'Sin fecha límite'}
+                </Text>
+              </View>
+            </View>
           </SectionCard>
 
           {vacante.requisitos ? (
@@ -347,8 +392,11 @@ const styles = StyleSheet.create({
   heroBadgeDotInactiva: { backgroundColor: COLORS.textLight },
   heroBadgeText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
   heroBadgeTextInactiva: { color: COLORS.textSecondary },
-  heroEditBtn: {
+  heroActionBtns: {
     position: 'absolute', top: SPACING.md, right: SPACING.md,
+    flexDirection: 'row', gap: 8,
+  },
+  heroEditBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center', alignItems: 'center',

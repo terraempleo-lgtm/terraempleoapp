@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const { crearNotificacion } = require('./notificacionesController');
 const { crearChat } = require('./chatController');
+const { signUrl, signArrayField } = require('../config/s3');
 
 function normalizarFechaInicio(fecha) {
   if (fecha === undefined || fecha === null) return null;
@@ -24,7 +25,7 @@ async function crearVacante(req, res) {
     const {
       titulo, descripcion, tipo_pago, monto_pago,
       departamento, municipio, vereda, urgente,
-      cultivos, labores, fecha_inicio, duracion, requisitos
+      cultivos, labores, fecha_inicio, fecha_fin, duracion, requisitos
     } = req.body;
 
     if (!titulo) return res.status(400).json({ error: 'El título es obligatorio' });
@@ -32,16 +33,17 @@ async function crearVacante(req, res) {
     const { ofrece_alojamiento, ofrece_alimentacion, otros_beneficios } = req.body;
 
     const fechaInicioNormalizada = normalizarFechaInicio(fecha_inicio);
+    const fechaFinNormalizada = normalizarFechaInicio(fecha_fin);
 
     const result = await query(`
       INSERT INTO vacantes (empleador_id, titulo, descripcion, tipo_pago, monto_pago,
         duracion, requisitos, departamento, municipio, vereda, urgente,
-        ofrece_alojamiento, ofrece_alimentacion, otros_beneficios, fecha_inicio)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ofrece_alojamiento, ofrece_alimentacion, otros_beneficios, fecha_inicio, fecha_fin)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [empleadorId, titulo, descripcion || null, tipo_pago || null, monto_pago || null,
         duracion || null, requisitos || null,
         departamento || null, municipio || null, vereda || null, urgente ? 1 : 0,
-        ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, otros_beneficios || null, fechaInicioNormalizada]);
+        ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, otros_beneficios || null, fechaInicioNormalizada, fechaFinNormalizada]);
 
     const vacanteId = Number(result.insertId);
 
@@ -175,7 +177,7 @@ async function misVacantes(req, res) {
       v.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [v.id]);
       v.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [v.id]);
       const portada = await query('SELECT url FROM vacante_fotos WHERE vacante_id = ? ORDER BY orden ASC LIMIT 1', [v.id]);
-      v.foto_portada = portada.length > 0 ? portada[0].url : null;
+      v.foto_portada = portada.length > 0 ? await signUrl(portada[0].url) : null;
     }
 
     res.json({ vacantes });
@@ -234,7 +236,7 @@ async function listarVacantes(req, res) {
       v.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [v.id]);
       v.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [v.id]);
       const portada = await query('SELECT url FROM vacante_fotos WHERE vacante_id = ? ORDER BY orden ASC LIMIT 1', [v.id]);
-      v.foto_portada = portada.length > 0 ? portada[0].url : null;
+      v.foto_portada = portada.length > 0 ? await signUrl(portada[0].url) : null;
     }
 
     res.json({ vacantes });
@@ -278,6 +280,7 @@ async function detalleVacante(req, res) {
     vacante.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [id]);
     vacante.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [id]);
     vacante.fotos = await query('SELECT id, url, descripcion, orden FROM vacante_fotos WHERE vacante_id = ? ORDER BY orden ASC', [id]);
+    await signArrayField(vacante.fotos, 'url');
 
     res.json({ vacante });
   } catch (err) {
@@ -361,6 +364,8 @@ async function verPostulaciones(req, res) {
       WHERE p.vacante_id = ?
       ORDER BY p.puntaje_match DESC, p.created_at ASC
     `, [vacante_id]);
+
+    await signArrayField(postulaciones, 'foto_selfie');
 
     res.json({ postulaciones });
   } catch (err) {
@@ -575,19 +580,20 @@ async function actualizarVacante(req, res) {
       departamento, municipio, vereda, urgente,
       cultivos, labores,
       ofrece_alojamiento, ofrece_alimentacion, otros_beneficios,
-      fecha_inicio, duracion, requisitos,
+      fecha_inicio, fecha_fin, duracion, requisitos,
     } = req.body;
 
     if (!titulo) return res.status(400).json({ error: 'El título es obligatorio' });
 
     const fechaInicioNormalizada = normalizarFechaInicio(fecha_inicio);
+    const fechaFinNormalizada = normalizarFechaInicio(fecha_fin);
 
     await query(
-      'UPDATE vacantes SET titulo=?, descripcion=?, tipo_pago=?, monto_pago=?, duracion=?, requisitos=?, departamento=?, municipio=?, vereda=?, urgente=?, ofrece_alojamiento=?, ofrece_alimentacion=?, otros_beneficios=?, fecha_inicio=? WHERE id=?',
+      'UPDATE vacantes SET titulo=?, descripcion=?, tipo_pago=?, monto_pago=?, duracion=?, requisitos=?, departamento=?, municipio=?, vereda=?, urgente=?, ofrece_alojamiento=?, ofrece_alimentacion=?, otros_beneficios=?, fecha_inicio=?, fecha_fin=? WHERE id=?',
       [titulo, descripcion || null, tipo_pago || null, monto_pago || null,
        duracion || null, requisitos || null,
        departamento || null, municipio || null, vereda || null, urgente ? 1 : 0,
-       ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, otros_beneficios || null, fechaInicioNormalizada, id]
+       ofrece_alojamiento ? 1 : 0, ofrece_alimentacion ? 1 : 0, otros_beneficios || null, fechaInicioNormalizada, fechaFinNormalizada, id]
     );
 
     await query('DELETE FROM vacante_cultivos WHERE vacante_id=?', [id]);
@@ -627,19 +633,24 @@ async function eliminarVacante(req, res) {
       return res.status(404).json({ error: 'Vacante no encontrada' });
     }
 
-    // Eliminar fotos de Cloudinary
+    // Eliminar fotos de S3
     const fotos = await query('SELECT url FROM vacante_fotos WHERE vacante_id = ?', [id]);
     if (fotos.length > 0) {
-      try {
-        const { cloudinary } = require('../config/cloudinary');
-        for (const foto of fotos) {
-          const matches = foto.url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
-          if (matches && matches[1]) await cloudinary.uploader.destroy(matches[1]);
-        }
-      } catch (cloudErr) {
-        console.error('Error eliminando fotos de Cloudinary:', cloudErr);
+      const { deleteFromS3 } = require('../config/s3');
+      for (const foto of fotos) {
+        await deleteFromS3(foto.url);
       }
     }
+
+    // Eliminar mensajes de chats relacionados
+    await query('DELETE FROM mensajes WHERE chat_id IN (SELECT id FROM chats WHERE vacante_id = ?)', [id]);
+    // Limpiar referencias en notificaciones
+    await query('UPDATE notificaciones SET conversacion_id = NULL WHERE conversacion_id IN (SELECT id FROM chats WHERE vacante_id = ?)', [id]);
+    await query('UPDATE notificaciones SET vacante_id = NULL WHERE vacante_id = ?', [id]);
+    // Eliminar chats
+    await query('DELETE FROM chats WHERE vacante_id = ?', [id]);
+    // Limpiar calificaciones
+    await query('UPDATE calificaciones SET vacante_id = NULL WHERE vacante_id = ?', [id]);
 
     await query('DELETE FROM vacante_fotos WHERE vacante_id = ?', [id]);
     await query('DELETE FROM vacante_cultivos WHERE vacante_id = ?', [id]);
@@ -703,13 +714,14 @@ async function subirFotosVacante(req, res) {
     const fotasGuardadas = [];
     for (let i = 0; i < archivos.length; i++) {
       const file = archivos[i];
-      const fileUrl = file.path || file.secure_url;
+      const fileUrl = file.location || file.path;
       const orden = currentCount + i;
       const result = await query(
         'INSERT INTO vacante_fotos (vacante_id, url, orden) VALUES (?, ?, ?)',
         [id, fileUrl, orden]
       );
-      fotasGuardadas.push({ id: Number(result.insertId), url: fileUrl, orden });
+      const signedUrl = await signUrl(fileUrl);
+      fotasGuardadas.push({ id: Number(result.insertId), url: signedUrl, orden });
     }
 
     res.status(201).json({ message: 'Foto(s) subida(s) exitosamente', fotos: fotasGuardadas });
@@ -740,17 +752,8 @@ async function eliminarFotoVacante(req, res) {
       return res.status(404).json({ error: 'Foto no encontrada' });
     }
 
-    try {
-      const { cloudinary } = require('../config/cloudinary');
-      const url = fotos[0].url;
-      // Extract public_id from Cloudinary URL (e.g. terraempleo/vacantes/abc123)
-      const matches = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
-      if (matches && matches[1]) {
-        await cloudinary.uploader.destroy(matches[1]);
-      }
-    } catch (cloudErr) {
-      console.error('Error eliminando de Cloudinary:', cloudErr);
-    }
+    const { deleteFromS3 } = require('../config/s3');
+    await deleteFromS3(fotos[0].url);
 
     await query('DELETE FROM vacante_fotos WHERE id = ?', [fotoId]);
     res.json({ message: 'Foto eliminada' });
@@ -785,6 +788,8 @@ async function perfilPublicoTrabajador(req, res) {
     trabajador.calificacion_promedio = parseFloat(trabajador.calificacion_promedio || 0);
     trabajador.total_calificaciones = Number(trabajador.total_calificaciones || 0);
     trabajador.verificado_sms = Number(trabajador.verificado_sms) === 1;
+    trabajador.foto_selfie = await signUrl(trabajador.foto_selfie);
+    trabajador.hoja_vida_url = await signUrl(trabajador.hoja_vida_url);
 
     if (trabajador.perfil_id) {
       trabajador.habilidades = await query(

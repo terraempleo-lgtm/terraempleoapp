@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
   KeyboardAvoidingView, Platform, TouchableOpacity, Switch,
-  Image, ActivityIndicator, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input, ChipSelector, PickerModal, FechaInicioField } from '../../components/ui';
 import { CULTIVOS, LABORES, TIPO_PAGO_OPTIONS } from '../../data/options';
@@ -14,39 +12,6 @@ import { getFechaInicioPayload } from '../../utils/vacantesFecha';
 import { formatearMontoInput, normalizarMontoPayload } from '../../utils/vacantesPago';
 import { vacantesAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
-
-const MAX_FOTOS = 5;
-const SCREEN_WIDTH = Dimensions.get('window').width;
-
-function obtenerNombreFoto(foto, indice) {
-  const tipo = foto.type || 'image/jpeg';
-  const extension = tipo.includes('/') ? tipo.split('/')[1] : 'jpg';
-  return foto.name || `vacante_foto_${indice}.${extension}`;
-}
-
-async function construirArchivoFoto(foto, indice) {
-  const tipo = foto.type || 'image/jpeg';
-  const nombre = obtenerNombreFoto(foto, indice);
-
-  if (Platform.OS === 'web') {
-    if (foto.webFile) {
-      return { archivo: foto.webFile, nombre };
-    }
-
-    const response = await fetch(foto.uri);
-    const blob = await response.blob();
-    try {
-      return { archivo: new File([blob], nombre, { type: tipo }), nombre };
-    } catch (_) {
-      return { archivo: blob, nombre };
-    }
-  }
-
-  return {
-    archivo: { uri: foto.uri, type: tipo, name: nombre },
-    nombre,
-  };
-}
 
 export default function CrearVacanteScreen({ navigation }) {
   const [titulo, setTitulo] = useState('');
@@ -58,6 +23,7 @@ export default function CrearVacanteScreen({ navigation }) {
   const [duracion, setDuracion] = useState('');
   const [requisitos, setRequisitos] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
   const [departamento, setDepartamento] = useState('');
   const [municipio, setMunicipio] = useState('');
   const [vereda, setVereda] = useState('');
@@ -71,10 +37,15 @@ export default function CrearVacanteScreen({ navigation }) {
   const [showMunPicker, setShowMunPicker] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Paso 2: fotos
-  const [step, setStep] = useState('form'); // 'form' | 'fotos'
-  const [vacanteId, setVacanteId] = useState(null);
-  const [fotos, setFotos] = useState([]); // [{uri, uploading, uploaded, id}]
+  const [publicadoExitoso, setPublicadoExitoso] = useState(false);
+  const successTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
+  }, []);
+
 
   const handleCrear = async () => {
     const errs = {};
@@ -84,7 +55,7 @@ export default function CrearVacanteScreen({ navigation }) {
 
     setLoading(true);
     try {
-      const res = await vacantesAPI.crear({
+      await vacantesAPI.crear({
         titulo,
         descripcion,
         cultivos: cultivosV,
@@ -94,6 +65,7 @@ export default function CrearVacanteScreen({ navigation }) {
         duracion: duracion.trim() || undefined,
         requisitos: requisitos.trim() || undefined,
         fecha_inicio: getFechaInicioPayload(fechaInicio),
+        fecha_fin: getFechaInicioPayload(fechaFin),
         departamento,
         municipio,
         vereda: vereda || undefined,
@@ -102,233 +74,17 @@ export default function CrearVacanteScreen({ navigation }) {
         ofrece_alimentacion: alimentacion,
         otros_beneficios: otrosBeneficios.trim() || undefined,
       });
-      setVacanteId(res.data.vacanteId);
-      setStep('fotos');
+      setPublicadoExitoso(true);
+      successTimerRef.current = setTimeout(() => {
+        setPublicadoExitoso(false);
+        navigation.navigate('EmpleadorHome');
+      }, 1800);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'Error al crear la vacante');
     } finally {
       setLoading(false);
     }
   };
-
-  const pickImage = async () => {
-    if (fotos.length >= MAX_FOTOS) {
-      Alert.alert('Límite alcanzado', `Máximo ${MAX_FOTOS} fotos por vacante.`);
-      return;
-    }
-
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería para agregar fotos.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      selectionLimit: MAX_FOTOS - fotos.length,
-      quality: 0.8,
-      allowsEditing: false,
-    });
-
-    if (result.canceled) return;
-
-    const nuevas = result.assets.map((asset) => ({
-      uri: asset.uri,
-      type: asset.mimeType || 'image/jpeg',
-      name: asset.fileName || null,
-      webFile: asset.file || null,
-      uploading: false,
-      uploaded: false,
-      id: null,
-    }));
-
-    setFotos((prev) => [...prev, ...nuevas].slice(0, MAX_FOTOS));
-  };
-
-  const takePhoto = async () => {
-    if (fotos.length >= MAX_FOTOS) {
-      Alert.alert('Límite alcanzado', `Máximo ${MAX_FOTOS} fotos por vacante.`);
-      return;
-    }
-
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a la cámara.');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-      allowsEditing: true,
-    });
-
-    if (result.canceled) return;
-
-    setFotos((prev) => [
-      ...prev,
-      {
-        uri: result.assets[0].uri,
-        type: result.assets[0].mimeType || 'image/jpeg',
-        name: result.assets[0].fileName || null,
-        webFile: result.assets[0].file || null,
-        uploading: false,
-        uploaded: false,
-        id: null,
-      },
-    ].slice(0, MAX_FOTOS));
-  };
-
-  const eliminarFotoLocal = (index) => {
-    const foto = fotos[index];
-    if (foto.uploaded && foto.id) {
-      // Ya subida — eliminar en el servidor
-      vacantesAPI.eliminarFoto(vacanteId, foto.id).catch(() => {});
-    }
-    setFotos((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const subirTodasLasFotos = async () => {
-    const pendientes = fotos.filter((f) => !f.uploaded);
-    if (pendientes.length === 0) return true;
-
-    let exito = true;
-    for (let i = 0; i < fotos.length; i++) {
-      if (fotos[i].uploaded) continue;
-
-      setFotos((prev) =>
-        prev.map((f, idx) => (idx === i ? { ...f, uploading: true } : f))
-      );
-
-      try {
-        const formData = new FormData();
-        const { archivo, nombre } = await construirArchivoFoto(fotos[i], i);
-        if (Platform.OS === 'web') {
-          formData.append('fotos', archivo, nombre);
-        } else {
-          formData.append('fotos', archivo);
-        }
-        const res = await vacantesAPI.subirFotos(vacanteId, formData);
-        const fotoSubida = res.data.fotos?.[0];
-        setFotos((prev) =>
-          prev.map((f, idx) =>
-            idx === i
-              ? { ...f, uploading: false, uploaded: true, id: fotoSubida?.id || null }
-              : f
-          )
-        );
-      } catch (err) {
-        setFotos((prev) =>
-          prev.map((f, idx) => (idx === i ? { ...f, uploading: false } : f))
-        );
-        const mensaje = err.response?.data?.error || 'No se pudo subir una foto.';
-        Alert.alert('Error al subir foto', mensaje);
-        exito = false;
-      }
-    }
-    return exito;
-  };
-
-  const handleFinalizar = async () => {
-    const pendientes = fotos.filter((f) => !f.uploaded);
-    if (pendientes.length > 0) {
-      setLoading(true);
-      const ok = await subirTodasLasFotos();
-      setLoading(false);
-      if (!ok) {
-        Alert.alert('Error', 'Algunas fotos no pudieron subirse. ¿Deseas continuar sin ellas?', [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Continuar', onPress: () => navigation.goBack() },
-        ]);
-        return;
-      }
-    }
-    Alert.alert('¡Vacante publicada!', 'Se realizó el matching automático con trabajadores disponibles.', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
-  };
-
-  const handleSaltarFotos = () => {
-    Alert.alert('¡Vacante publicada!', 'Se realizó el matching automático con trabajadores disponibles.', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
-  };
-
-  if (step === 'fotos') {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.card}>
-            <View style={styles.stepHeader}>
-              <Ionicons name="images-outline" size={28} color={COLORS.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.title}>Fotos de la vacante</Text>
-                <Text style={styles.stepSubtitle}>
-                  Agrega hasta {MAX_FOTOS} fotos de la finca o el trabajo para atraer más candidatos
-                </Text>
-              </View>
-            </View>
-
-            {/* Grid de fotos */}
-            <View style={styles.fotosGrid}>
-              {fotos.map((foto, index) => (
-                <View key={index} style={styles.fotoItem}>
-                  <Image source={{ uri: foto.uri }} style={styles.fotoThumb} />
-                  {foto.uploading && (
-                    <View style={styles.fotoOverlay}>
-                      <ActivityIndicator color={COLORS.white} />
-                    </View>
-                  )}
-                  {foto.uploaded && (
-                    <View style={styles.fotoUploaded}>
-                      <Ionicons name="checkmark-circle" size={20} color={COLORS.white} />
-                    </View>
-                  )}
-                  <TouchableOpacity
-                    style={styles.fotoDeleteBtn}
-                    onPress={() => eliminarFotoLocal(index)}
-                  >
-                    <Ionicons name="close-circle" size={22} color={COLORS.error} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-
-              {fotos.length < MAX_FOTOS && (
-                <TouchableOpacity style={styles.addFotoBtn} onPress={pickImage}>
-                  <Ionicons name="add" size={32} color={COLORS.primary} />
-                  <Text style={styles.addFotoText}>Galería</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <Text style={styles.fotosCount}>
-              {fotos.length}/{MAX_FOTOS} fotos
-            </Text>
-
-            <View style={styles.fotoActions}>
-              <TouchableOpacity style={styles.cameraBtn} onPress={takePhoto} disabled={fotos.length >= MAX_FOTOS}>
-                <Ionicons name="camera-outline" size={20} color={fotos.length >= MAX_FOTOS ? COLORS.disabled : COLORS.primary} />
-                <Text style={[styles.cameraBtnText, fotos.length >= MAX_FOTOS && { color: COLORS.disabled }]}>
-                  Tomar foto
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <Button
-            title={fotos.filter((f) => !f.uploaded).length > 0 ? 'Subir fotos y publicar' : 'Publicar vacante'}
-            onPress={handleFinalizar}
-            loading={loading}
-            size="large"
-            style={{ marginTop: SPACING.md }}
-          />
-          <TouchableOpacity style={styles.skipBtn} onPress={handleSaltarFotos}>
-            <Text style={styles.skipText}>Publicar sin fotos</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -388,6 +144,13 @@ export default function CrearVacanteScreen({ navigation }) {
               value={fechaInicio}
               onChange={setFechaInicio}
               helper="Indica desde qué fecha necesitas al trabajador"
+            />
+
+            <FechaInicioField
+              label="Fecha de finalización"
+              value={fechaFin}
+              onChange={setFechaFin}
+              helper="La vacante se cerrará automáticamente después de esta fecha"
             />
 
             <Text style={styles.sectionLabel}>Ubicación</Text>
@@ -458,7 +221,7 @@ export default function CrearVacanteScreen({ navigation }) {
                 thumbColor={urgente ? '#fff' : '#f4f3f4'} />
             </View>
 
-            <Button title="Siguiente: Agregar fotos" onPress={handleCrear}
+            <Button title="Publicar vacante" onPress={handleCrear}
               loading={loading} size="large" style={{ marginTop: SPACING.lg }} />
           </View>
 
@@ -470,11 +233,18 @@ export default function CrearVacanteScreen({ navigation }) {
             onSelect={setMunicipio} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {publicadoExitoso && (
+        <View style={styles.successOverlay} pointerEvents="none">
+          <View style={styles.successCard}>
+            <Ionicons name="checkmark-circle" size={32} color={COLORS.primary} />
+            <Text style={styles.successText}>Vacante publicada con éxito 🌱</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
-
-const FOTO_SIZE = (SCREEN_WIDTH - SPACING.md * 2 - SPACING.lg * 2 - SPACING.sm * 2) / 3;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
@@ -513,36 +283,20 @@ const styles = StyleSheet.create({
   },
   urgentLabel: { fontSize: 16, fontWeight: '600', color: COLORS.urgent },
   urgentDesc: { fontSize: 13, color: COLORS.textSecondary },
-  // Fotos step
-  stepHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm, marginBottom: SPACING.lg },
-  stepSubtitle: { fontSize: 14, color: COLORS.textSecondary, marginTop: 2 },
-  fotosGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
-  fotoItem: { width: FOTO_SIZE, height: FOTO_SIZE, borderRadius: RADIUS.md, overflow: 'visible' },
-  fotoThumb: { width: FOTO_SIZE, height: FOTO_SIZE, borderRadius: RADIUS.md, backgroundColor: COLORS.border },
-  fotoOverlay: {
-    ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center',
+  successOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
-  fotoUploaded: {
-    position: 'absolute', bottom: 4, right: 4,
-    backgroundColor: COLORS.success, borderRadius: RADIUS.full, padding: 1,
+  successCard: {
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.lg,
+    ...SHADOWS.medium,
   },
-  fotoDeleteBtn: { position: 'absolute', top: -6, right: -6, backgroundColor: COLORS.white, borderRadius: RADIUS.full },
-  addFotoBtn: {
-    width: FOTO_SIZE, height: FOTO_SIZE, borderRadius: RADIUS.md,
-    borderWidth: 2, borderColor: COLORS.primary, borderStyle: 'dashed',
-    justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.primarySoft,
-  },
-  addFotoText: { fontSize: 12, color: COLORS.primary, fontWeight: '600', marginTop: 2 },
-  fotosCount: { fontSize: 13, color: COLORS.textLight, marginTop: SPACING.sm, textAlign: 'right' },
-  fotoActions: { marginTop: SPACING.md },
-  cameraBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md, borderWidth: 1.5, borderColor: COLORS.primary,
-    alignSelf: 'flex-start',
-  },
-  cameraBtnText: { fontSize: 15, color: COLORS.primary, fontWeight: '600' },
-  skipBtn: { alignItems: 'center', paddingVertical: SPACING.md },
-  skipText: { fontSize: 15, color: COLORS.textLight, textDecorationLine: 'underline' },
+  successText: { fontSize: 17, fontWeight: '700', color: COLORS.primary },
 });

@@ -3,7 +3,7 @@ const multer = require('multer');
 const router = express.Router();
 const { authMiddleware, empleadorMiddleware, trabajadorMiddleware } = require('../middleware/auth');
 const vacantesController = require('../controllers/vacantesController');
-const { storageVacantes } = require('../config/cloudinary');
+const { storageVacantes } = require('../config/s3');
 
 const uploadVacantes = multer({
   storage: storageVacantes,
@@ -25,7 +25,7 @@ router.post('/:id/fotos', authMiddleware, (req, res, next) => {
 
   uploadVacantes.array('fotos', 5)(req, res, (err) => {
     if (err) {
-      console.error('Multer/Cloudinary error en fotos vacante:', err);
+      console.error('Multer/S3 error en fotos vacante:', err);
       return res.status(500).json({ error: 'Error al procesar la imagen: ' + err.message });
     }
     next();

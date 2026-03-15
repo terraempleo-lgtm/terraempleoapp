@@ -3,3 +3,7 @@ CHECKLIST.md
 SKILL.md
 node_modules/
 node_modules/.bin/.env
+.env
+.DS_Store
+*.pem
+

@@ -3,7 +3,7 @@ const multer = require('multer');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const authController = require('../controllers/authController');
-const { storage, storageHojasVida } = require('../config/cloudinary');
+const { storage, storageHojasVida } = require('../config/s3');
 
 const upload = multer({
   storage,
@@ -29,6 +29,7 @@ router.post('/sms/verificar', authController.verificarCodigoSMS);
 router.post('/recuperar/solicitar', authController.solicitarRecuperacion);
 router.post('/recuperar/verificar', authController.verificarCodigoRecuperacion);
 router.post('/recuperar/nueva-password', authController.actualizarPasswordRecuperacion);
+router.post('/recuperar/solicitar-email', authController.solicitarRecuperacionEmail);
 
 // Rutas protegidas
 router.get('/perfil', authMiddleware, authController.getPerfil);

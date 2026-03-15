@@ -70,21 +70,20 @@ export default function EmpleadorVacantesScreen({ navigation }) {
     } catch (_) {}
   }, []);
 
-  const confirmarEliminar = (item) => {
+  const confirmarArchivar = (item) => {
     Alert.alert(
-      'Eliminar vacante',
-      `¿Seguro que quieres eliminar "${item.titulo}"? Esta acción no se puede deshacer.`,
+      'Archivar vacante',
+      `¿Cerrar "${item.titulo}"? La vacante dejará de ser visible para los trabajadores pero quedará en tus registros.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Eliminar',
-          style: 'destructive',
+          text: 'Archivar',
           onPress: async () => {
             try {
-              await vacantesAPI.eliminar(item.id);
-              setVacantes((prev) => prev.filter((v) => v.id !== item.id));
+              await vacantesAPI.cerrar(item.id);
+              cargar();
             } catch (err) {
-              Alert.alert('Error', err.response?.data?.error || 'No se pudo eliminar la vacante');
+              Alert.alert('Error', err.response?.data?.error || 'No se pudo archivar la vacante');
             }
           },
         },
@@ -133,13 +132,15 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           >
             <Ionicons name="pencil-outline" size={16} color={COLORS.textSecondary} />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => confirmarEliminar(item)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.actionBtn}
-          >
-            <Ionicons name="trash-outline" size={16} color={COLORS.error} />
-          </TouchableOpacity>
+          {isActiva && (
+            <TouchableOpacity
+              onPress={() => confirmarArchivar(item)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.actionBtn}
+            >
+              <Ionicons name="archive-outline" size={16} color={COLORS.accent} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <TouchableOpacity

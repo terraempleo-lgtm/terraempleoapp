@@ -255,6 +255,7 @@ async function initializeDatabase() {
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS ofrece_alimentacion TINYINT(1) DEFAULT 0'); } catch (_) {}
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS otros_beneficios TEXT DEFAULT NULL'); } catch (_) {}
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS fecha_inicio DATE DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS fecha_fin DATE DEFAULT NULL'); } catch (_) {}
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS duracion VARCHAR(120) DEFAULT NULL'); } catch (_) {}
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS requisitos TEXT DEFAULT NULL'); } catch (_) {}
 

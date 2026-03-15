@@ -311,6 +311,25 @@ async function eliminarVacante(req, res) {
       return res.status(404).json({ error: 'Vacante no encontrada' });
     }
 
+    // Eliminar fotos de S3
+    const fotos = await conn.query('SELECT url FROM vacante_fotos WHERE vacante_id = ?', [id]);
+    if (fotos && fotos.length > 0) {
+      const { deleteFromS3 } = require('../config/s3');
+      for (const foto of fotos) {
+        await deleteFromS3(foto.url);
+      }
+    }
+
+    // Eliminar mensajes de chats relacionados
+    await conn.query('DELETE FROM mensajes WHERE chat_id IN (SELECT id FROM chats WHERE vacante_id = ?)', [id]);
+    // Limpiar referencias en notificaciones
+    await conn.query('UPDATE notificaciones SET conversacion_id = NULL WHERE conversacion_id IN (SELECT id FROM chats WHERE vacante_id = ?)', [id]);
+    await conn.query('UPDATE notificaciones SET vacante_id = NULL WHERE vacante_id = ?', [id]);
+    // Eliminar chats
+    await conn.query('DELETE FROM chats WHERE vacante_id = ?', [id]);
+    // Limpiar calificaciones
+    await conn.query('UPDATE calificaciones SET vacante_id = NULL WHERE vacante_id = ?', [id]);
+
     await conn.query('DELETE FROM vacante_fotos WHERE vacante_id = ?', [id]);
     await conn.query('DELETE FROM vacante_cultivos WHERE vacante_id = ?', [id]);
     await conn.query('DELETE FROM vacante_labores WHERE vacante_id = ?', [id]);
@@ -370,8 +389,77 @@ async function actualizarVacante(req, res) {
   }
 }
 
+// Eliminar empleador (finca) con cascada completa
+async function eliminarEmpleador(req, res) {
+  let conn;
+  try {
+    const { id } = req.params;
+
+    conn = await getConnection();
+    await conn.beginTransaction();
+
+    const users = await conn.query('SELECT id, rol FROM usuarios WHERE id = ?', [id]);
+    if (!users || users.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    if (users[0].rol !== 'empleador') {
+      await conn.rollback();
+      return res.status(400).json({ error: 'El usuario no es un empleador' });
+    }
+
+    // Eliminar fotos de S3 (vacantes y usuario)
+    const { deleteFromS3 } = require('../config/s3');
+
+    const fotosVacantes = await conn.query(
+      'SELECT vf.url FROM vacante_fotos vf JOIN vacantes v ON v.id = vf.vacante_id WHERE v.empleador_id = ?',
+      [id]
+    );
+    for (const foto of fotosVacantes) {
+      try { await deleteFromS3(foto.url); } catch (_) {}
+    }
+
+    const userData = await conn.query('SELECT foto_selfie, foto_cedula, foto_selfie_cedula FROM usuarios WHERE id = ?', [id]);
+    if (userData.length > 0) {
+      for (const field of ['foto_selfie', 'foto_cedula', 'foto_selfie_cedula']) {
+        if (userData[0][field]) {
+          try { await deleteFromS3(userData[0][field]); } catch (_) {}
+        }
+      }
+    }
+
+    // Limpiar referencias SET NULL antes de borrar (para evitar problemas con FKs)
+    const vacantesIds = await conn.query('SELECT id FROM vacantes WHERE empleador_id = ?', [id]);
+    for (const v of vacantesIds) {
+      await conn.query('DELETE FROM mensajes WHERE chat_id IN (SELECT id FROM chats WHERE vacante_id = ?)', [v.id]);
+      await conn.query('UPDATE notificaciones SET conversacion_id = NULL WHERE conversacion_id IN (SELECT id FROM chats WHERE vacante_id = ?)', [v.id]);
+      await conn.query('UPDATE notificaciones SET vacante_id = NULL WHERE vacante_id = ?', [v.id]);
+      await conn.query('DELETE FROM chats WHERE vacante_id = ?', [v.id]);
+      await conn.query('UPDATE calificaciones SET vacante_id = NULL WHERE vacante_id = ?', [v.id]);
+    }
+
+    // Eliminar notificaciones del usuario
+    await conn.query('DELETE FROM notificaciones WHERE usuario_id = ?', [id]);
+
+    // Eliminar usuario — CASCADE se encarga de vacantes, perfiles, postulaciones, etc.
+    await conn.query('DELETE FROM usuarios WHERE id = ?', [id]);
+
+    await conn.commit();
+    res.json({ message: 'Empleador (finca) y todos sus datos eliminados correctamente' });
+  } catch (err) {
+    if (conn) {
+      try { await conn.rollback(); } catch (_) {}
+    }
+    console.error('Error eliminando empleador:', err);
+    res.status(500).json({ error: 'No se pudo eliminar el empleador' });
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
 module.exports = {
   dashboard, listarUsuarios, getUsuarioDetalle, actualizarUsuario, toggleUsuario, eliminarUsuario,
   listarTodasVacantes, listarTodasPostulaciones, eliminarVacante,
-  crearVacanteComoAdmin, listarEmpleadores, verPostulacionesAdmin, cambiarEstadoVacante, actualizarVacante
+  crearVacanteComoAdmin, listarEmpleadores, verPostulacionesAdmin, cambiarEstadoVacante, actualizarVacante,
+  eliminarEmpleador
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList,
+  View, Text, StyleSheet, FlatList, ScrollView,
   RefreshControl, ActivityIndicator, Alert, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,14 +12,17 @@ export default function AdminUsuariosScreen() {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
   const load = async () => {
     try {
+      setError(null);
       const res = await adminAPI.getUsuarios();
       setUsuarios(res.data);
     } catch (err) {
-      const msg = err.response?.data?.error || 'No se pudo cargar la lista de usuarios';
-      Alert.alert('Error', msg);
+      const msg = err.response?.data?.error || 'No se pudo conectar al servidor';
+      setError(msg);
+      console.error('Error cargando usuarios:', err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -60,6 +63,29 @@ export default function AdminUsuariosScreen() {
     ]);
   };
 
+  const eliminarFinca = (item) => {
+    Alert.alert(
+      'Eliminar finca (empleador)',
+      `¿Eliminar a "${item.nombre_completo}" y toda su finca, vacantes, chats y datos asociados? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar todo', style: 'destructive',
+          onPress: async () => {
+            try {
+              await adminAPI.eliminarEmpleador(item.id);
+              Alert.alert('Listo', 'Empleador y todos sus datos eliminados correctamente');
+              load();
+            } catch (err) {
+              const msg = err.response?.data?.error || 'No se pudo eliminar el empleador';
+              Alert.alert('Error', msg);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const roleColor = (r) => r === 'trabajador' ? COLORS.primary : r === 'empleador' ? COLORS.accent : '#6A1B9A';
   const roleLabel = (r) => r === 'trabajador' ? 'Trabajador' : r === 'empleador' ? 'Empleador' : 'Admin';
 
@@ -98,6 +124,11 @@ export default function AdminUsuariosScreen() {
             <Ionicons name={item.activo ? 'pause-circle' : 'play-circle'} size={26}
               color={item.activo ? COLORS.accent : COLORS.primary} />
           </TouchableOpacity>
+          {item.rol === 'empleador' && (
+            <TouchableOpacity onPress={() => eliminarFinca(item)} style={styles.actionBtn}>
+              <Ionicons name="business-outline" size={22} color={COLORS.error} />
+            </TouchableOpacity>
+          )}
           {item.rol !== 'admin' && (
             <TouchableOpacity onPress={() => eliminar(item.id)} style={styles.actionBtn}>
               <Ionicons name="trash-outline" size={22} color={COLORS.error} />
@@ -110,6 +141,23 @@ export default function AdminUsuariosScreen() {
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={COLORS.primary} /></View>;
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView
+          contentContainerStyle={[styles.center, { flex: 1 }]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+        >
+          <Ionicons name="cloud-offline-outline" size={48} color={COLORS.textLight} />
+          <Text style={{ fontSize: 16, color: COLORS.textLight, marginTop: SPACING.md, textAlign: 'center' }}>{error}</Text>
+          <TouchableOpacity onPress={() => { setLoading(true); load(); }} style={{ marginTop: SPACING.lg, backgroundColor: COLORS.primary, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.sm, borderRadius: RADIUS.md }}>
+            <Text style={{ color: COLORS.white, fontWeight: '600' }}>Reintentar</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    );
   }
 
   return (

@@ -12,13 +12,16 @@ export default function AdminDashboardScreen({ navigation }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
   const load = async () => {
     try {
+      setError(null);
       const res = await adminAPI.getDashboard();
       setStats(res.data);
     } catch (err) {
-      console.error(err);
+      console.error('Error cargando dashboard:', err);
+      setError(err.response?.data?.error || 'No se pudo conectar al servidor');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -37,6 +40,23 @@ export default function AdminDashboardScreen({ navigation }) {
       <View style={styles.center}>
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { justifyContent: 'center', alignItems: 'center', flex: 1 }]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+        >
+          <Ionicons name="cloud-offline-outline" size={48} color={COLORS.textLight} />
+          <Text style={{ fontSize: 16, color: COLORS.textLight, marginTop: SPACING.md, textAlign: 'center' }}>{error}</Text>
+          <TouchableOpacity onPress={() => { setLoading(true); load(); }} style={{ marginTop: SPACING.lg, backgroundColor: COLORS.primary, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.sm, borderRadius: RADIUS.md }}>
+            <Text style={{ color: COLORS.white, fontWeight: '600' }}>Reintentar</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 

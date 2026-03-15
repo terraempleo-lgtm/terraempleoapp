@@ -1,6 +1,6 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, TouchableOpacity, Linking, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -50,11 +50,37 @@ import ChatDetalleScreen from './src/screens/shared/ChatDetalleScreen';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
+const WHATSAPP_NUMBER = '573108870800';
+const WHATSAPP_MESSAGE = 'Hola, necesito ayuda con TerraEmpleo.';
+
+const openWhatsAppSupport = async () => {
+  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert('WhatsApp no disponible', 'No se pudo abrir WhatsApp. Verifica que esté instalado.');
+    }
+  } catch {
+    Alert.alert('Error', 'No se pudo abrir el enlace de soporte.');
+  }
+};
+
+function SoporteHeaderButton() {
+  return (
+    <TouchableOpacity onPress={openWhatsAppSupport} style={{ marginRight: 14, padding: 4 }}>
+      <Ionicons name="headset-outline" size={22} color={COLORS.white} />
+    </TouchableOpacity>
+  );
+}
+
 const screenOptions = {
   headerStyle: { backgroundColor: COLORS.primary },
   headerTintColor: COLORS.white,
   headerTitleStyle: { ...FONTS.subtitle, color: COLORS.white, fontWeight: FONTS.weight.bold },
   headerBackTitleVisible: false,
+  headerRight: () => <SoporteHeaderButton />,
 };
 
 const tabScreenOptions = ({ route }) => ({
@@ -257,7 +283,7 @@ function AdminDashboardStack() {
 // ── Auth Stack ──
 function AuthStack() {
   return (
-    <Stack.Navigator screenOptions={{ ...screenOptions, headerShown: false }}>
+    <Stack.Navigator screenOptions={{ ...screenOptions, headerShown: false, headerRight: undefined }}>
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen}
         options={{ headerShown: true, title: 'Iniciar Sesión' }} />

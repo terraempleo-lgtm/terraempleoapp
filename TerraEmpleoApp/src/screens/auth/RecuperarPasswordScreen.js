@@ -16,16 +16,26 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input } from '../../components/ui';
 import { authAPI } from '../../services/api';
 
-export default function RecuperarPasswordScreen({ navigation }) {
+export default function RecuperarPasswordScreen({ navigation, route }) {
+  const celularInicial = route?.params?.celularInicial || '';
+
+  // Método de recuperación: 'sms' | 'email'
+  const [metodo, setMetodo] = useState('sms');
   const [paso, setPaso] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  const [celular, setCelular] = useState('');
+  // SMS
+  const [celular, setCelular] = useState(celularInicial);
   const [resetToken, setResetToken] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const otpRefs = useRef([]);
   const [countdown, setCountdown] = useState(60);
 
+  // Email
+  const [correo, setCorreo] = useState('');
+  const [celularFromEmail, setCelularFromEmail] = useState('');
+
+  // Nueva contraseña
   const [nuevaPassword, setNuevaPassword] = useState('');
   const [confirmarPassword, setConfirmarPassword] = useState('');
   const [errores, setErrores] = useState({});
@@ -45,6 +55,7 @@ export default function RecuperarPasswordScreen({ navigation }) {
     return { label: 'Fuerte', color: COLORS.success };
   };
 
+  // ── Validaciones ──
   const validarCelular = () => {
     const valor = celular.replace(/\s/g, '');
     if (!valor) {
@@ -59,7 +70,22 @@ export default function RecuperarPasswordScreen({ navigation }) {
     return true;
   };
 
-  const enviarCodigo = async () => {
+  const validarCorreo = () => {
+    const valor = correo.trim();
+    if (!valor) {
+      setErrores({ correo: 'El correo electrónico es obligatorio' });
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) {
+      setErrores({ correo: 'Ingresa un correo electrónico válido' });
+      return false;
+    }
+    setErrores({});
+    return true;
+  };
+
+  // ── Enviar código por SMS ──
+  const enviarCodigoSMS = async () => {
     if (!validarCelular()) return;
     setLoading(true);
     try {
@@ -79,12 +105,41 @@ export default function RecuperarPasswordScreen({ navigation }) {
     }
   };
 
+  // ── Enviar código por Email ──
+  const enviarCodigoEmail = async () => {
+    if (!validarCorreo()) return;
+    setLoading(true);
+    try {
+      const { data } = await authAPI.solicitarRecuperacionEmail(correo.trim());
+
+      if (data?.celular) {
+        setCelularFromEmail(data.celular);
+        setCelular(data.celular);
+      }
+
+      setOtp(['', '', '', '', '', '']);
+      setCountdown(60);
+      setPaso(2);
+
+      if (data?.codigo_debug) {
+        Alert.alert('Código de prueba', `Tu código OTP es: ${data.codigo_debug}`);
+      } else {
+        Alert.alert('Correo enviado', 'Te enviamos un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.');
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudo enviar el correo de recuperación';
+      Alert.alert('Error', msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── OTP ──
   const onOtpChange = (valor, index) => {
     const digito = valor.replace(/\D/g, '').slice(-1);
     const next = [...otp];
     next[index] = digito;
     setOtp(next);
-
     if (digito && index < 5) {
       otpRefs.current[index + 1]?.focus();
     }
@@ -103,9 +158,11 @@ export default function RecuperarPasswordScreen({ navigation }) {
       return;
     }
 
+    const celularVerificar = metodo === 'email' ? celularFromEmail || celular : celular;
+
     setLoading(true);
     try {
-      const { data } = await authAPI.verificarCodigoRecuperacion(celular, codigo);
+      const { data } = await authAPI.verificarCodigoRecuperacion(celularVerificar, codigo, metodo);
       setResetToken(data.reset_token);
       setPaso(3);
     } catch (err) {
@@ -119,7 +176,14 @@ export default function RecuperarPasswordScreen({ navigation }) {
     if (countdown > 0) return;
     setLoading(true);
     try {
-      const { data } = await authAPI.solicitarRecuperacion(celular);
+      let data;
+      if (metodo === 'email') {
+        const resp = await authAPI.solicitarRecuperacionEmail(correo.trim());
+        data = resp.data;
+      } else {
+        const resp = await authAPI.solicitarRecuperacion(celular);
+        data = resp.data;
+      }
       setOtp(['', '', '', '', '', '']);
       setCountdown(60);
       if (data?.codigo_debug) {
@@ -132,6 +196,7 @@ export default function RecuperarPasswordScreen({ navigation }) {
     }
   };
 
+  // ── Guardar nueva contraseña ──
   const guardarNuevaPassword = async () => {
     const nextErrores = {};
     if (!nuevaPassword || nuevaPassword.length < 6) {
@@ -144,10 +209,12 @@ export default function RecuperarPasswordScreen({ navigation }) {
     setErrores(nextErrores);
     if (Object.keys(nextErrores).length > 0) return;
 
+    const celularFinal = metodo === 'email' ? celularFromEmail || celular : celular;
+
     setLoading(true);
     try {
-      await authAPI.actualizarPasswordRecuperacion(celular, resetToken, nuevaPassword);
-      Alert.alert('Éxito', 'Contraseña actualizada correctamente ✓', [
+      await authAPI.actualizarPasswordRecuperacion(celularFinal, resetToken, nuevaPassword);
+      Alert.alert('Éxito', 'Contraseña actualizada correctamente', [
         { text: 'Ir a iniciar sesión', onPress: () => navigation.navigate('Login') },
       ]);
     } catch (err) {
@@ -157,6 +224,11 @@ export default function RecuperarPasswordScreen({ navigation }) {
     }
   };
 
+  const cambiarMetodo = (nuevoMetodo) => {
+    setMetodo(nuevoMetodo);
+    setErrores({});
+  };
+
   const strength = fuerzaPassword();
 
   return (
@@ -164,24 +236,80 @@ export default function RecuperarPasswordScreen({ navigation }) {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
           <View style={styles.recuperarContainer}>
+            {/* ── Paso 1: Solicitar código ── */}
             {paso === 1 && (
               <>
-                <Text style={styles.recuperarTitulo}>Recuperar contraseña</Text>
+                <Text style={styles.recuperarTitulo}>Restablecer contraseña</Text>
                 <Text style={styles.recuperarSubtitulo}>
-                  Ingresa tu número de celular registrado y te enviaremos un código de verificación
+                  Elige cómo quieres recibir tu código de recuperación
                 </Text>
 
-                <Input
-                  label="Número de celular"
-                  value={celular}
-                  onChangeText={setCelular}
-                  keyboardType="phone-pad"
-                  placeholder="300 000 0000"
-                  icon="call-outline"
-                  error={errores.celular}
-                />
+                {/* Tabs SMS / Email */}
+                <View style={styles.tabsRow}>
+                  <TouchableOpacity
+                    style={[styles.tab, metodo === 'sms' && styles.tabActive]}
+                    onPress={() => cambiarMetodo('sms')}
+                  >
+                    <Ionicons
+                      name="chatbubble-outline"
+                      size={18}
+                      color={metodo === 'sms' ? COLORS.white : COLORS.primary}
+                    />
+                    <Text style={[styles.tabText, metodo === 'sms' && styles.tabTextActive]}>SMS</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.tab, metodo === 'email' && styles.tabActive]}
+                    onPress={() => cambiarMetodo('email')}
+                  >
+                    <Ionicons
+                      name="mail-outline"
+                      size={18}
+                      color={metodo === 'email' ? COLORS.white : COLORS.primary}
+                    />
+                    <Text style={[styles.tabText, metodo === 'email' && styles.tabTextActive]}>Correo</Text>
+                  </TouchableOpacity>
+                </View>
 
-                <Button title="Enviar código" onPress={enviarCodigo} loading={loading} size="large" style={styles.actionBtn} />
+                {metodo === 'sms' ? (
+                  <>
+                    <Input
+                      label="Número de celular"
+                      value={celular}
+                      onChangeText={setCelular}
+                      keyboardType="phone-pad"
+                      placeholder="300 000 0000"
+                      icon="call-outline"
+                      error={errores.celular}
+                    />
+                    <Button
+                      title="Enviar código por SMS"
+                      onPress={enviarCodigoSMS}
+                      loading={loading}
+                      size="large"
+                      style={styles.actionBtn}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Input
+                      label="Correo electrónico"
+                      value={correo}
+                      onChangeText={setCorreo}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      placeholder="ejemplo@correo.com"
+                      icon="mail-outline"
+                      error={errores.correo}
+                    />
+                    <Button
+                      title="Enviar código por correo"
+                      onPress={enviarCodigoEmail}
+                      loading={loading}
+                      size="large"
+                      style={styles.actionBtn}
+                    />
+                  </>
+                )}
 
                 <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('Login')}>
                   <Text style={styles.linkText}>← Volver al inicio de sesión</Text>
@@ -189,10 +317,15 @@ export default function RecuperarPasswordScreen({ navigation }) {
               </>
             )}
 
+            {/* ── Paso 2: Verificar código OTP ── */}
             {paso === 2 && (
               <>
                 <Text style={styles.recuperarTitulo}>Ingresa el código</Text>
-                <Text style={styles.recuperarSubtitulo}>Enviamos un código de 6 dígitos al {celular}</Text>
+                <Text style={styles.recuperarSubtitulo}>
+                  {metodo === 'email'
+                    ? `Enviamos un código de 6 dígitos a ${correo}`
+                    : `Enviamos un código de 6 dígitos al ${celular}`}
+                </Text>
 
                 <View style={styles.otpContainer}>
                   {otp.map((digit, index) => (
@@ -223,9 +356,17 @@ export default function RecuperarPasswordScreen({ navigation }) {
                       : '¿No recibiste el código? Reenviar'}
                   </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.linkBtn}
+                  onPress={() => { setPaso(1); setOtp(['', '', '', '', '', '']); }}
+                >
+                  <Text style={styles.linkText}>← Cambiar método de recuperación</Text>
+                </TouchableOpacity>
               </>
             )}
 
+            {/* ── Paso 3: Nueva contraseña ── */}
             {paso === 3 && (
               <>
                 <Text style={styles.recuperarTitulo}>Nueva contraseña</Text>
@@ -265,6 +406,7 @@ export default function RecuperarPasswordScreen({ navigation }) {
                 />
               </>
             )}
+
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -294,7 +436,37 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#666',
     lineHeight: 22,
-    marginBottom: 32,
+    marginBottom: 24,
+  },
+
+  // Tabs
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: RADIUS.xl,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.white,
+  },
+  tabActive: {
+    backgroundColor: COLORS.primary,
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  tabTextActive: {
+    color: COLORS.white,
   },
 
   actionBtn: {
@@ -345,4 +517,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+
 });
