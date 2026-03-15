@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
   KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Image,
+  Linking, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -68,6 +69,14 @@ export default function RegisterTrabajadorScreen({ navigation }) {
   const [disponibilidad, setDisponibilidad] = useState('');
 
   const [errors, setErrors] = useState({});
+  const scrollRef = useRef(null);
+
+  // Scroll to top and clear errors when step changes
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    setErrors({});
+    Keyboard.dismiss();
+  }, [step]);
 
   const validateStep = () => {
     const errs = {};
@@ -270,8 +279,15 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <Input value={vereda} onChangeText={setVereda}
               placeholder="Ej: Vereda La Linda" icon="trail-sign-outline" />
 
-            {/* Imagen decorativa con pin */}
-            <View style={styles.mapImageWrap}>
+            {/* Imagen de ubicación - abre Google Maps */}
+            <TouchableOpacity
+              style={styles.mapImageWrap}
+              activeOpacity={0.8}
+              onPress={() => {
+                const q = encodeURIComponent(`${municipio || ''}, ${departamento || ''}, Colombia`);
+                Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
+              }}
+            >
               <Image
                 source={require('../../../assets/login.jpg')}
                 style={styles.mapImage}
@@ -280,7 +296,13 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               <View style={styles.mapPin}>
                 <Ionicons name="location" size={22} color={COLORS.white} />
               </View>
-            </View>
+              {(municipio || departamento) && (
+                <View style={styles.mapLabel}>
+                  <Ionicons name="navigate-outline" size={12} color={COLORS.white} />
+                  <Text style={styles.mapLabelText}>Ver en Google Maps</Text>
+                </View>
+              )}
+            </TouchableOpacity>
 
             <InfoBox variant="info" text="Necesitamos tu ubicación para conectarte con empleadores y vacantes cerca de ti." />
 
@@ -710,29 +732,40 @@ export default function RegisterTrabajadorScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} labels={STEP_LABELS} />
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} labels={STEP_LABELS} />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.formCard}>
             {renderStep()}
           </View>
-        </ScrollView>
 
-        <View style={styles.footerWrap}>
-          <View style={styles.footer}>
-            {step > 1 && (
-              <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" style={{ flex: 1 }} />
-            )}
-            {step < TOTAL_STEPS ? (
-              <Button title="Siguiente" onPress={nextStep} size="medium"
-                style={{ flex: step > 1 ? 1 : undefined, width: step === 1 ? '100%' : undefined }} />
-            ) : (
-              <Button title="Finalizar Registro" onPress={handleRegister} loading={loading}
-                size="large" style={{ flex: 1 }} />
-            )}
+          <View style={{ flex: 1 }} />
+
+          <View style={styles.footerInScroll}>
+            <View style={styles.footer}>
+              {step > 1 && (
+                <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" style={{ flex: 1 }} />
+              )}
+              {step < TOTAL_STEPS ? (
+                <Button title="Siguiente" onPress={nextStep} size="medium" loading={loading}
+                  style={{ flex: step > 1 ? 1 : undefined, width: step === 1 ? '100%' : undefined }} />
+              ) : (
+                <Button title="Finalizar Registro" onPress={handleRegister} loading={loading}
+                  size="large" style={{ flex: 1 }} />
+              )}
+            </View>
+            <TerraFooter />
           </View>
-          <TerraFooter />
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -766,8 +799,13 @@ const summaryStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
-  scrollContent: { flexGrow: 1 },
-  formCard: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg },
+  scrollContent: { flexGrow: 1, paddingBottom: Platform.OS === 'android' ? 20 : 0 },
+  formCard: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md },
+  footerInScroll: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
   stepIconWrap: {
     width: 56, height: 56, borderRadius: 16,
     backgroundColor: COLORS.primarySoft,
@@ -817,6 +855,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     ...SHADOWS.medium,
   },
+  mapLabel: {
+    position: 'absolute', bottom: 8, right: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(46,125,50,0.85)', paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: RADIUS.full,
+  },
+  mapLabelText: { fontSize: 11, fontWeight: '600', color: COLORS.white },
   pickerDisabled: { opacity: 0.5 },
   pickerText: { flex: 1, fontSize: 16, color: COLORS.textPrimary },
   checkboxRow: {
@@ -938,12 +983,7 @@ const styles = StyleSheet.create({
   summaryFotoChipDone: { borderColor: COLORS.primary, backgroundColor: COLORS.primarySoft },
   summaryFotoChipText: { fontSize: 13, color: COLORS.textLight, fontWeight: '600' },
   summaryFotoChipTextDone: { color: COLORS.primary },
-  footerWrap: {
-    backgroundColor: COLORS.white, borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight, paddingBottom: SPACING.sm,
-  },
   footer: {
-    flexDirection: 'row', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, gap: SPACING.md,
-    backgroundColor: COLORS.white,
+    flexDirection: 'row', paddingVertical: SPACING.md, gap: SPACING.md,
   },
 });

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
   KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Image,
+  Linking, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -70,6 +71,14 @@ export default function RegisterEmpleadorScreen({ navigation }) {
   const [beneficiosExtra, setBeneficiosExtra] = useState('');
 
   const [errors, setErrors] = useState({});
+  const scrollRef = useRef(null);
+
+  // Scroll to top and clear errors when step changes
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    setErrors({});
+    Keyboard.dismiss();
+  }, [step]);
 
   const validateStep = () => {
     const errs = {};
@@ -275,8 +284,15 @@ export default function RegisterEmpleadorScreen({ navigation }) {
             <Input value={vereda} onChangeText={setVereda}
               placeholder="Ej: Vereda La Linda" icon="trail-sign-outline" />
 
-            {/* Imagen decorativa con pin */}
-            <View style={styles.mapImageWrap}>
+            {/* Imagen de ubicación - abre Google Maps */}
+            <TouchableOpacity
+              style={styles.mapImageWrap}
+              activeOpacity={0.8}
+              onPress={() => {
+                const q = encodeURIComponent(`${municipio || ''}, ${departamento || ''}, Colombia`);
+                Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
+              }}
+            >
               <Image
                 source={require('../../../assets/login.jpg')}
                 style={styles.mapImage}
@@ -285,7 +301,13 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               <View style={styles.mapPin}>
                 <Ionicons name="location" size={22} color={COLORS.white} />
               </View>
-            </View>
+              {(municipio || departamento) && (
+                <View style={styles.mapLabel}>
+                  <Ionicons name="navigate-outline" size={12} color={COLORS.white} />
+                  <Text style={styles.mapLabelText}>Ver en Google Maps</Text>
+                </View>
+              )}
+            </TouchableOpacity>
 
             <InfoBox variant="info" text="Necesitamos tu ubicación exacta para conectar tu finca o negocio con trabajadores locales y optimizar la logística de pagos." />
 
@@ -726,21 +748,28 @@ export default function RegisterEmpleadorScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} labels={STEP_LABELS} />
+      <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} labels={STEP_LABELS} />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
         <ScrollView
-          style={styles.scrollView}
+          ref={scrollRef}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={isWeb ? 'none' : 'on-drag'}
-          showsVerticalScrollIndicator={true}
+          showsVerticalScrollIndicator={false}
         >
           <View style={styles.formCard}>{renderStep()}</View>
-          <View style={styles.footerWrap}>
+
+          <View style={{ flex: 1 }} />
+
+          <View style={styles.footerInScroll}>
             <View style={styles.footer}>
               {step > 1 && <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" style={{ flex: 1 }} />}
               {step < TOTAL_STEPS ? (
-                <Button title="Siguiente" onPress={nextStep} size="medium"
+                <Button title="Siguiente" onPress={nextStep} size="medium" loading={loading}
                   style={{ flex: step > 1 ? 1 : undefined, width: step === 1 ? '100%' : undefined }} />
               ) : (
                 <Button title="Finalizar Registro" onPress={handleRegister} loading={loading} size="large" style={{ flex: 1 }} />
@@ -782,9 +811,13 @@ const summaryStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
-  scrollView: { flex: 1, minHeight: 0 },
-  scrollContent: { flexGrow: 1, paddingBottom: SPACING.md },
-  formCard: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg },
+  scrollContent: { flexGrow: 1, paddingBottom: Platform.OS === 'android' ? 20 : 0 },
+  formCard: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md },
+  footerInScroll: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
   stepIconWrap: {
     width: 56, height: 56, borderRadius: 16,
     backgroundColor: COLORS.primarySoft,
@@ -829,6 +862,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     ...SHADOWS.medium,
   },
+  mapLabel: {
+    position: 'absolute', bottom: 8, right: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(46,125,50,0.85)', paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: RADIUS.full,
+  },
+  mapLabelText: { fontSize: 11, fontWeight: '600', color: COLORS.white },
   pickerDisabled: { opacity: 0.5 },
   pickerText: { flex: 1, fontSize: 16, color: COLORS.textPrimary },
   checkboxRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primarySoft, padding: SPACING.md, borderRadius: RADIUS.lg, gap: SPACING.md, marginTop: SPACING.md },
@@ -1016,18 +1056,9 @@ const styles = StyleSheet.create({
   },
   beneficioDivider: { height: 1, backgroundColor: COLORS.borderLight, marginLeft: 60 },
   beneficioLabel: { fontSize: 15, color: COLORS.textPrimary, fontWeight: '500' },
-  footerWrap: {
-    backgroundColor: COLORS.white, borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-    marginTop: SPACING.md,
-    paddingBottom: SPACING.sm,
-  },
   footer: {
     flexDirection: 'row',
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
+    paddingVertical: SPACING.md,
     gap: SPACING.md,
-    backgroundColor: COLORS.white,
   },
 });
