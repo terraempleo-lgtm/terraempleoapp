@@ -1,13 +1,13 @@
-const { query, getConnection } = require('../config/database');
+const { query } = require('../config/database');
 
 // Dashboard - conteos
 async function dashboard(req, res) {
   try {
-    const [totalUsuarios] = await query('SELECT COUNT(*) as total FROM usuarios');
-    const [totalTrabajadores] = await query("SELECT COUNT(*) as total FROM usuarios WHERE rol = 'trabajador'");
-    const [totalEmpleadores] = await query("SELECT COUNT(*) as total FROM usuarios WHERE rol = 'empleador'");
-    const [totalVacantes] = await query('SELECT COUNT(*) as total FROM vacantes');
-    const [vacantesActivas] = await query("SELECT COUNT(*) as total FROM vacantes WHERE estado = 'activa'");
+    const [totalUsuarios] = await query('SELECT COUNT(*) as total FROM usuarios WHERE eliminado = 0');
+    const [totalTrabajadores] = await query("SELECT COUNT(*) as total FROM usuarios WHERE rol = 'trabajador' AND eliminado = 0");
+    const [totalEmpleadores] = await query("SELECT COUNT(*) as total FROM usuarios WHERE rol = 'empleador' AND eliminado = 0");
+    const [totalVacantes] = await query('SELECT COUNT(*) as total FROM vacantes WHERE eliminado = 0');
+    const [vacantesActivas] = await query("SELECT COUNT(*) as total FROM vacantes WHERE estado = 'activa' AND eliminado = 0");
     const [totalPostulaciones] = await query('SELECT COUNT(*) as total FROM postulaciones');
     const [totalCalificaciones] = await query('SELECT COUNT(*) as total FROM calificaciones');
 
@@ -35,6 +35,7 @@ async function listarUsuarios(req, res) {
         pe.nombre_empresa_finca
       FROM usuarios u
       LEFT JOIN perfil_empleador pe ON pe.usuario_id = u.id
+      WHERE u.eliminado = 0
       ORDER BY u.created_at DESC
     `);
     for (const u of usuarios) {
@@ -159,11 +160,19 @@ async function toggleUsuario(req, res) {
   }
 }
 
-// Eliminar usuario
+// Eliminar usuario (soft delete)
 async function eliminarUsuario(req, res) {
   try {
     const { id } = req.params;
-    await query('DELETE FROM usuarios WHERE id = ? AND rol != ?', [id, 'admin']);
+    const users = await query('SELECT id, rol FROM usuarios WHERE id = ?', [id]);
+    if (!users || users.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    if (users[0].rol === 'admin') {
+      return res.status(400).json({ error: 'No se puede eliminar un usuario admin' });
+    }
+    await query('UPDATE usuarios SET eliminado = 1, activo = 0 WHERE id = ?', [id]);
+    await query('UPDATE vacantes SET eliminado = 1 WHERE empleador_id = ?', [id]);
     res.json({ message: 'Usuario eliminado' });
   } catch (err) {
     console.error('Error eliminando usuario:', err);
@@ -181,6 +190,7 @@ async function listarTodasVacantes(req, res) {
       FROM vacantes v
       JOIN usuarios u ON u.id = v.empleador_id
       LEFT JOIN perfil_empleador pe ON pe.usuario_id = v.empleador_id
+      WHERE v.eliminado = 0
       ORDER BY v.created_at DESC
     `);
     for (const v of vacantes) {
@@ -245,7 +255,7 @@ async function listarEmpleadores(req, res) {
       SELECT u.id, u.nombre_completo, pe.nombre_empresa_finca
       FROM usuarios u
       LEFT JOIN perfil_empleador pe ON pe.usuario_id = u.id
-      WHERE u.rol = 'empleador' AND u.activo = 1
+      WHERE u.rol = 'empleador' AND u.activo = 1 AND u.eliminado = 0
       ORDER BY u.nombre_completo
     `);
     res.json(empleadores);
@@ -296,56 +306,19 @@ async function listarTodasPostulaciones(req, res) {
   }
 }
 
-// Eliminar vacante (admin)
+// Eliminar vacante (admin - soft delete)
 async function eliminarVacante(req, res) {
-  let conn;
   try {
     const { id } = req.params;
-
-    conn = await getConnection();
-    await conn.beginTransaction();
-
-    const existe = await conn.query('SELECT id FROM vacantes WHERE id = ?', [id]);
+    const existe = await query('SELECT id FROM vacantes WHERE id = ?', [id]);
     if (!existe || existe.length === 0) {
-      await conn.rollback();
       return res.status(404).json({ error: 'Vacante no encontrada' });
     }
-
-    // Eliminar fotos de S3
-    const fotos = await conn.query('SELECT url FROM vacante_fotos WHERE vacante_id = ?', [id]);
-    if (fotos && fotos.length > 0) {
-      const { deleteFromS3 } = require('../config/s3');
-      for (const foto of fotos) {
-        await deleteFromS3(foto.url);
-      }
-    }
-
-    // Eliminar mensajes de chats relacionados
-    await conn.query('DELETE FROM mensajes WHERE chat_id IN (SELECT id FROM chats WHERE vacante_id = ?)', [id]);
-    // Limpiar referencias en notificaciones
-    await conn.query('UPDATE notificaciones SET conversacion_id = NULL WHERE conversacion_id IN (SELECT id FROM chats WHERE vacante_id = ?)', [id]);
-    await conn.query('UPDATE notificaciones SET vacante_id = NULL WHERE vacante_id = ?', [id]);
-    // Eliminar chats
-    await conn.query('DELETE FROM chats WHERE vacante_id = ?', [id]);
-    // Limpiar calificaciones
-    await conn.query('UPDATE calificaciones SET vacante_id = NULL WHERE vacante_id = ?', [id]);
-
-    await conn.query('DELETE FROM vacante_fotos WHERE vacante_id = ?', [id]);
-    await conn.query('DELETE FROM vacante_cultivos WHERE vacante_id = ?', [id]);
-    await conn.query('DELETE FROM vacante_labores WHERE vacante_id = ?', [id]);
-    await conn.query('DELETE FROM postulaciones WHERE vacante_id = ?', [id]);
-    await conn.query('DELETE FROM vacantes WHERE id = ?', [id]);
-
-    await conn.commit();
+    await query('UPDATE vacantes SET eliminado = 1, estado = ? WHERE id = ?', ['cerrada', id]);
     res.json({ message: 'Vacante eliminada correctamente' });
   } catch (err) {
-    if (conn) {
-      try { await conn.rollback(); } catch (rollbackErr) { console.error('Error en rollback:', rollbackErr); }
-    }
     console.error('Error eliminando vacante:', err);
     res.status(500).json({ error: 'No se pudo eliminar la vacante' });
-  } finally {
-    if (conn) conn.release();
   }
 }
 
@@ -389,71 +362,23 @@ async function actualizarVacante(req, res) {
   }
 }
 
-// Eliminar empleador (finca) con cascada completa
+// Eliminar empleador (finca) - soft delete
 async function eliminarEmpleador(req, res) {
-  let conn;
   try {
     const { id } = req.params;
-
-    conn = await getConnection();
-    await conn.beginTransaction();
-
-    const users = await conn.query('SELECT id, rol FROM usuarios WHERE id = ?', [id]);
+    const users = await query('SELECT id, rol FROM usuarios WHERE id = ?', [id]);
     if (!users || users.length === 0) {
-      await conn.rollback();
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
     if (users[0].rol !== 'empleador') {
-      await conn.rollback();
       return res.status(400).json({ error: 'El usuario no es un empleador' });
     }
-
-    // Eliminar fotos de S3 (vacantes y usuario)
-    const { deleteFromS3 } = require('../config/s3');
-
-    const fotosVacantes = await conn.query(
-      'SELECT vf.url FROM vacante_fotos vf JOIN vacantes v ON v.id = vf.vacante_id WHERE v.empleador_id = ?',
-      [id]
-    );
-    for (const foto of fotosVacantes) {
-      try { await deleteFromS3(foto.url); } catch (_) {}
-    }
-
-    const userData = await conn.query('SELECT foto_selfie, foto_cedula, foto_selfie_cedula FROM usuarios WHERE id = ?', [id]);
-    if (userData.length > 0) {
-      for (const field of ['foto_selfie', 'foto_cedula', 'foto_selfie_cedula']) {
-        if (userData[0][field]) {
-          try { await deleteFromS3(userData[0][field]); } catch (_) {}
-        }
-      }
-    }
-
-    // Limpiar referencias SET NULL antes de borrar (para evitar problemas con FKs)
-    const vacantesIds = await conn.query('SELECT id FROM vacantes WHERE empleador_id = ?', [id]);
-    for (const v of vacantesIds) {
-      await conn.query('DELETE FROM mensajes WHERE chat_id IN (SELECT id FROM chats WHERE vacante_id = ?)', [v.id]);
-      await conn.query('UPDATE notificaciones SET conversacion_id = NULL WHERE conversacion_id IN (SELECT id FROM chats WHERE vacante_id = ?)', [v.id]);
-      await conn.query('UPDATE notificaciones SET vacante_id = NULL WHERE vacante_id = ?', [v.id]);
-      await conn.query('DELETE FROM chats WHERE vacante_id = ?', [v.id]);
-      await conn.query('UPDATE calificaciones SET vacante_id = NULL WHERE vacante_id = ?', [v.id]);
-    }
-
-    // Eliminar notificaciones del usuario
-    await conn.query('DELETE FROM notificaciones WHERE usuario_id = ?', [id]);
-
-    // Eliminar usuario — CASCADE se encarga de vacantes, perfiles, postulaciones, etc.
-    await conn.query('DELETE FROM usuarios WHERE id = ?', [id]);
-
-    await conn.commit();
+    await query('UPDATE usuarios SET eliminado = 1, activo = 0 WHERE id = ?', [id]);
+    await query('UPDATE vacantes SET eliminado = 1, estado = ? WHERE empleador_id = ?', ['cerrada', id]);
     res.json({ message: 'Empleador (finca) y todos sus datos eliminados correctamente' });
   } catch (err) {
-    if (conn) {
-      try { await conn.rollback(); } catch (_) {}
-    }
     console.error('Error eliminando empleador:', err);
     res.status(500).json({ error: 'No se pudo eliminar el empleador' });
-  } finally {
-    if (conn) conn.release();
   }
 }
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { setAuthToken } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -14,11 +14,11 @@ export function AuthProvider({ children }) {
     setAuthToken(authToken);
   };
 
-  const signOut = () => {
-    setUser(null);
-    setToken(null);
+  const signOut = useCallback(() => {
     setAuthToken(null);
-  };
+    setToken(null);
+    setUser(null);
+  }, []);
 
   const updateUser = (userData) => {
     setUser(prev => ({ ...prev, ...userData }));

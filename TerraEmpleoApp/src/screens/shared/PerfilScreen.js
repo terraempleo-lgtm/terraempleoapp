@@ -73,7 +73,13 @@ export default function PerfilScreen({ navigation }) {
   const handleLogout = () => {
     Alert.alert('Cerrar sesión', '¿Estás seguro de que quieres salir?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sí, salir', onPress: signOut, style: 'destructive' },
+      {
+        text: 'Sí, salir',
+        style: 'destructive',
+        onPress: () => {
+          signOut();
+        },
+      },
     ]);
   };
 

@@ -250,6 +250,10 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Migración: soft delete
+  try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS eliminado TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
+  try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS eliminado TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
+
   // Migración: agregar columnas a vacantes si no existen
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS ofrece_alojamiento TINYINT(1) DEFAULT 0'); } catch (_) {}
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS ofrece_alimentacion TINYINT(1) DEFAULT 0'); } catch (_) {}

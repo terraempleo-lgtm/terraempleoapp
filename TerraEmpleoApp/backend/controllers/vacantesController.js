@@ -162,7 +162,7 @@ async function misVacantes(req, res) {
       SELECT v.*, 
         (SELECT COUNT(*) FROM postulaciones p WHERE p.vacante_id = v.id) as total_postulaciones
       FROM vacantes v
-      WHERE v.empleador_id = ?
+      WHERE v.empleador_id = ? AND v.eliminado = 0
       ORDER BY v.created_at DESC
     `, [empleadorId]);
 
@@ -198,7 +198,7 @@ async function listarVacantes(req, res) {
       FROM vacantes v
       JOIN usuarios u ON u.id = v.empleador_id
       LEFT JOIN perfil_empleador pe ON pe.usuario_id = v.empleador_id
-      WHERE v.estado = 'activa'
+      WHERE v.estado = 'activa' AND v.eliminado = 0
     `;
     const params = [];
 
@@ -467,7 +467,7 @@ async function ejecutarMatchingParaTrabajador(trabajadorId) {
     const cultivosTrabajador = tCultivos.map(c => c.cultivo.toLowerCase());
     const habilidadesTrabajador = tHabilidades.map(h => h.habilidad.toLowerCase());
 
-    const vacantes = await query("SELECT * FROM vacantes WHERE estado = 'activa'");
+    const vacantes = await query("SELECT * FROM vacantes WHERE estado = 'activa' AND eliminado = 0");
 
     for (const vacante of vacantes) {
       let puntaje = 0;

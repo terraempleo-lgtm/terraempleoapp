@@ -134,9 +134,9 @@ async function login(req, res) {
 
     let users;
     if (celular) {
-      users = await query('SELECT * FROM usuarios WHERE celular = ? AND activo = 1', [celular]);
+      users = await query('SELECT * FROM usuarios WHERE celular = ? AND activo = 1 AND eliminado = 0', [celular]);
     } else {
-      users = await query('SELECT * FROM usuarios WHERE correo = ? AND activo = 1', [correo]);
+      users = await query('SELECT * FROM usuarios WHERE correo = ? AND activo = 1 AND eliminado = 0', [correo]);
     }
 
     if (!users || users.length === 0) {
@@ -583,7 +583,7 @@ async function solicitarRecuperacionEmail(req, res) {
     }
 
     // Buscar usuario por correo
-    const usuarios = await query('SELECT id, celular, nombre_completo FROM usuarios WHERE correo = ? AND activo = 1', [correo.trim()]);
+    const usuarios = await query('SELECT id, celular, nombre_completo FROM usuarios WHERE correo = ? AND activo = 1 AND eliminado = 0', [correo.trim()]);
     if (!usuarios || usuarios.length === 0) {
       // Por seguridad, responder igual aunque no exista
       return res.json({ message: 'Si el correo está registrado, recibirás un código de recuperación' });
