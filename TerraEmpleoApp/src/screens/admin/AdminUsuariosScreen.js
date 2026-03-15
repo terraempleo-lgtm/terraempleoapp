@@ -44,46 +44,26 @@ export default function AdminUsuariosScreen() {
     }
   };
 
-  const eliminar = (id) => {
-    Alert.alert('Eliminar usuario', '¿Estás seguro? El usuario dejará de aparecer en la plataforma.', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar', style: 'destructive',
-        onPress: async () => {
-          try {
-            await adminAPI.eliminarUsuario(id);
-            await load();
-            Alert.alert('Listo', 'Usuario eliminado correctamente');
-          } catch (err) {
-            const msg = err.response?.data?.error || 'No se pudo eliminar el usuario';
-            Alert.alert('Error', msg);
-          }
-        },
-      },
-    ]);
+  const eliminar = async (id) => {
+    try {
+      await adminAPI.eliminarUsuario(id);
+      await load();
+      Alert.alert('Listo', 'Usuario eliminado correctamente');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudo eliminar el usuario';
+      Alert.alert('Error', msg);
+    }
   };
 
-  const eliminarFinca = (item) => {
-    Alert.alert(
-      'Eliminar finca (empleador)',
-      `¿Eliminar a "${item.nombre_completo}" y toda su finca y vacantes asociadas?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar todo', style: 'destructive',
-          onPress: async () => {
-            try {
-              await adminAPI.eliminarEmpleador(item.id);
-              await load();
-              Alert.alert('Listo', 'Empleador y sus datos eliminados correctamente');
-            } catch (err) {
-              const msg = err.response?.data?.error || 'No se pudo eliminar el empleador';
-              Alert.alert('Error', msg);
-            }
-          },
-        },
-      ]
-    );
+  const eliminarFinca = async (item) => {
+    try {
+      await adminAPI.eliminarEmpleador(item.id);
+      await load();
+      Alert.alert('Listo', 'Empleador y sus datos eliminados correctamente');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudo eliminar el empleador';
+      Alert.alert('Error', msg);
+    }
   };
 
   const roleColor = (r) => r === 'trabajador' ? COLORS.primary : r === 'empleador' ? COLORS.accent : '#6A1B9A';

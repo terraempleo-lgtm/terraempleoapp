@@ -71,16 +71,7 @@ export default function PerfilScreen({ navigation }) {
   };
 
   const handleLogout = () => {
-    Alert.alert('Cerrar sesión', '¿Estás seguro de que quieres salir?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Sí, salir',
-        style: 'destructive',
-        onPress: () => {
-          signOut();
-        },
-      },
-    ]);
+    signOut();
   };
 
   const calificacion = parseFloat(u?.calificacion_promedio || 0);
@@ -468,7 +459,7 @@ const s = StyleSheet.create({
   /* CTA */
   ctaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, backgroundColor: COLORS.primary, paddingVertical: 16, borderRadius: RADIUS.full, ...SHADOWS.button },
   ctaBtnTxt: { fontSize: 17, fontWeight: '700', color: COLORS.white },
-  logoutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14 },
+  logoutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, marginTop: SPACING.sm, borderWidth: 1.5, borderColor: COLORS.error, borderRadius: RADIUS.full },
   logoutTxt: { fontSize: 14, fontWeight: '600', color: COLORS.error },
 
   /* ── EMPLEADOR ── */

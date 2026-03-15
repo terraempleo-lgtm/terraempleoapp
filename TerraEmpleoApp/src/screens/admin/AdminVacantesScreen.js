@@ -48,23 +48,15 @@ export default function AdminVacantesScreen({ navigation }) {
     navigation.navigate('AdminVerPostulantes', { vacante: item });
   };
 
-  const eliminar = (vacante) => {
-    Alert.alert('Eliminar vacante', '¿Estás seguro? La vacante dejará de ser visible.', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar', style: 'destructive',
-        onPress: async () => {
-          try {
-            await adminAPI.eliminarVacante(vacante.id);
-            await load();
-            Alert.alert('Listo', 'Vacante eliminada correctamente');
-          } catch (err) {
-            const msg = err.response?.data?.error || 'No se pudo eliminar la vacante';
-            Alert.alert('Error', msg);
-          }
-        },
-      },
-    ]);
+  const eliminar = async (vacante) => {
+    try {
+      await adminAPI.eliminarVacante(vacante.id);
+      await load();
+      Alert.alert('Listo', 'Vacante eliminada correctamente');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudo eliminar la vacante';
+      Alert.alert('Error', msg);
+    }
   };
 
   const estadoColor = (e) => {

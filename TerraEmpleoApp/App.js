@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, TouchableOpacity, Linking, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -303,6 +303,21 @@ function AuthStack() {
 // ── Root Navigator ──
 function RootNavigator() {
   const { user, loading } = useAuth();
+  const wasLoggedIn = useRef(false);
+
+  useEffect(() => {
+    if (user) {
+      wasLoggedIn.current = true;
+    } else if (wasLoggedIn.current) {
+      wasLoggedIn.current = false;
+      // AuthStack ya está montado, navegar a Login
+      setTimeout(() => {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('Login');
+        }
+      }, 0);
+    }
+  }, [user]);
 
   if (loading) {
     return (
