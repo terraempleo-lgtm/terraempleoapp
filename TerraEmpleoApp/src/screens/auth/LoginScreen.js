@@ -15,9 +15,13 @@ import { Button, Input, AppHeader, TerraFooter } from '../../components/ui';
 import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
+function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
-  const [celular, setCelular] = useState('');
+  const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -25,8 +29,12 @@ export default function LoginScreen({ navigation }) {
 
   const validate = () => {
     const errs = {};
-    if (!celular.trim()) errs.celular = 'El número de celular es obligatorio';
-    else if (!/^\d{7,15}$/.test(celular.trim())) errs.celular = 'Ingresa un número de celular válido';
+    const val = identificador.trim();
+    if (!val) {
+      errs.identificador = 'El correo o número de celular es obligatorio';
+    } else if (!isEmail(val) && !/^\d{7,15}$/.test(val)) {
+      errs.identificador = 'Ingresa un correo válido o número de celular';
+    }
     if (!password.trim()) errs.password = 'La contraseña es obligatoria';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -36,15 +44,27 @@ export default function LoginScreen({ navigation }) {
     if (!validate()) return;
     setLoading(true);
     try {
-      const payload = {
-        celular: celular.trim(),
-        password: password.trim(),
-      };
+      const val = identificador.trim();
+      const payload = isEmail(val)
+        ? { correo: val, password: password.trim() }
+        : { celular: val, password: password.trim() };
+
+      console.log('LOGIN REQUEST', payload);
 
       const response = await authAPI.login(payload);
+
+      console.log('LOGIN RESPONSE', response.data);
+
       const { token, user } = response.data;
-      signIn(user, token);
+
+      if (!token || !user) {
+        Alert.alert('Error', 'Respuesta del servidor incompleta');
+        return;
+      }
+
+      await signIn(user, token);
     } catch (err) {
+      console.log('LOGIN ERROR', err?.response?.data || err.message);
       const msg = err.response?.data?.error || 'Error al iniciar sesión. Verifica tus datos.';
       Alert.alert('Error', msg);
       setLoginFailed(true);
@@ -75,12 +95,12 @@ export default function LoginScreen({ navigation }) {
           <View style={styles.form}>
             <Input
               label="Correo electrónico o Teléfono"
-              value={celular}
-              onChangeText={setCelular}
-              placeholder="ejemplo@terra.com"
-              keyboardType="phone-pad"
+              value={identificador}
+              onChangeText={setIdentificador}
+              placeholder="ejemplo@terra.com o 3001234567"
+              autoCapitalize="none"
               required
-              error={errors.celular}
+              error={errors.identificador}
             />
 
             <Input
@@ -98,7 +118,7 @@ export default function LoginScreen({ navigation }) {
               <TouchableOpacity
                 style={styles.forgotContainer}
                 onPress={() => navigation.navigate('RecuperarPassword', {
-                  celularInicial: celular.trim(),
+                  celularInicial: identificador.trim(),
                 })}
               >
                 <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>

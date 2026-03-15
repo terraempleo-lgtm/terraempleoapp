@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, TouchableOpacity, Linking, Alert } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, CommonActions } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -310,12 +310,19 @@ function RootNavigator() {
       wasLoggedIn.current = true;
     } else if (wasLoggedIn.current) {
       wasLoggedIn.current = false;
-      // AuthStack ya está montado, navegar a Login
       setTimeout(() => {
         if (navigationRef.isReady()) {
-          navigationRef.navigate('Login');
+          navigationRef.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{
+                name: 'Auth',
+                state: { routes: [{ name: 'Login' }] },
+              }],
+            })
+          );
         }
-      }, 0);
+      }, 100);
     }
   }, [user]);
 
