@@ -94,7 +94,7 @@ async function cerrarVacantesExpiradas() {
 
 // Validar variables de entorno críticas al arrancar
 function validateEnv() {
-  const required = ['JWT_SECRET'];
+  const required = ['JWT_SECRET', 'COGNITO_REGION', 'COGNITO_USER_POOL_ID', 'COGNITO_CLIENT_ID'];
   const missing = required.filter(key => !process.env[key]);
   if (missing.length > 0) {
     console.error(`[INIT] ERROR: Variables de entorno requeridas no configuradas: ${missing.join(', ')}`);
@@ -124,6 +124,7 @@ async function startServer() {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🌿 TerraEmpleo API corriendo en http://localhost:${PORT}`);
     console.log(`📋 Health check: http://localhost:${PORT}/api/health\n`);
+    console.log('Cognito SMS verification ready');
   });
 }
 

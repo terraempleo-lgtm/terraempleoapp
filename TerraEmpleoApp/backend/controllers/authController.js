@@ -3,10 +3,15 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
 const { ejecutarMatchingParaTrabajador } = require('./vacantesController');
 const { signUrl, signFields, signArrayField } = require('../config/s3');
-const { InitiateAuthCommand } = require('@aws-sdk/client-cognito-identity-provider');
+const {
+  InitiateAuthCommand,
+  ResendConfirmationCodeCommand,
+  ConfirmSignUpCommand,
+  ForgotPasswordCommand,
+} = require('@aws-sdk/client-cognito-identity-provider');
 const { cognitoClient, COGNITO_CLIENT_ID } = require('../config/cognito');
 const { normalizePhone } = require('../helpers/normalizePhone');
-const { findUserByNormalizedPhone, findAnyUserByPhone } = require('../helpers/userSync');
+const { findUserByNormalizedPhone, findAnyUserByPhone, markPhoneVerified } = require('../helpers/userSync');
 require('dotenv').config();
 
 // Helper para convertir 0/1 de MariaDB a boolean real (soporta entero o string)
@@ -261,80 +266,53 @@ async function login(req, res) {
   }
 }
 
-// Enviar código SMS (mock o Twilio Verify)
-// Usa tabla codigos_verificacion para soportar usuarios no registrados (durante registro)
+// Enviar código SMS de verificación con Cognito
 async function enviarCodigoSMS(req, res) {
   try {
     const { celular } = req.body;
     if (!celular) return res.status(400).json({ error: 'Celular requerido' });
 
-    // Normalizar para almacenamiento consistente
-    const celularNorm = normalizePhone(celular) || celular.replace(/[\s\-\(\)\.]/g, '');
-
-    const smsMock = process.env.SMS_MOCK === 'true';
-
-    if (smsMock) {
-      const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-      await query('DELETE FROM codigos_verificacion WHERE celular = ?', [celularNorm]);
-      await query('INSERT INTO codigos_verificacion (celular, codigo) VALUES (?, ?)', [celularNorm, codigo]);
-      console.log(`[SMS MOCK] Código para ${celularNorm}: ${codigo}`);
-      return res.json({ message: 'Código enviado (modo desarrollo)', codigo_debug: codigo });
-    }
-
     const celularE164 = normalizePhone(celular);
     if (!celularE164) return res.status(400).json({ error: 'Número de celular inválido.' });
-    const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-    await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
-      .verifications.create({ to: celularE164, channel: 'sms' });
+
+    const command = new ResendConfirmationCodeCommand({
+      ClientId: COGNITO_CLIENT_ID,
+      Username: celularE164,
+    });
+
+    await cognitoClient.send(command);
 
     res.json({ message: 'Código enviado' });
   } catch (err) {
-    console.error('Error enviando SMS:', err);
-    res.status(500).json({ error: 'Error enviando SMS' });
+    console.error('[Cognito SMS] Error enviando código:', err);
+    const mapped = COGNITO_LOGIN_ERRORS[err.name] || { status: 500, message: 'Error enviando SMS' };
+    res.status(mapped.status).json({ error: mapped.message });
   }
 }
 
-// Verificar código SMS (mock o Twilio Verify)
-// Usa tabla codigos_verificacion para soportar usuarios no registrados (durante registro)
+// Verificar código SMS con Cognito
 async function verificarCodigoSMS(req, res) {
   try {
     const { celular, codigo } = req.body;
     if (!celular || !codigo) return res.status(400).json({ error: 'Celular y código requeridos' });
 
-    const celularNorm = normalizePhone(celular) || celular.replace(/[\s\-\(\)\.]/g, '');
-    const smsMock = process.env.SMS_MOCK === 'true';
-
-    if (smsMock) {
-      const rows = await query(
-        'SELECT id FROM codigos_verificacion WHERE celular = ? AND codigo = ? AND verificado = 0 ORDER BY created_at DESC LIMIT 1',
-        [celularNorm, codigo]
-      );
-      if (!rows || rows.length === 0) {
-        return res.status(400).json({ error: 'Código incorrecto' });
-      }
-      await query('UPDATE codigos_verificacion SET verificado = 1 WHERE celular = ? AND codigo = ?', [celularNorm, codigo]);
-      // Marcar verificado_sms en usuarios (busca normalizado + legacy)
-      const { markPhoneVerified } = require('../helpers/userSync');
-      await markPhoneVerified(celular);
-      return res.json({ message: 'Celular verificado exitosamente' });
-    }
-
     const celularE164 = normalizePhone(celular);
     if (!celularE164) return res.status(400).json({ error: 'Número de celular inválido.' });
-    const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-    const verification = await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
-      .verificationChecks.create({ to: celularE164, code: codigo });
 
-    if (verification.status !== 'approved') {
-      return res.status(400).json({ error: 'Código incorrecto' });
-    }
+    const command = new ConfirmSignUpCommand({
+      ClientId: COGNITO_CLIENT_ID,
+      Username: celularE164,
+      ConfirmationCode: String(codigo).trim(),
+    });
 
-    const { markPhoneVerified } = require('../helpers/userSync');
+    await cognitoClient.send(command);
+
     await markPhoneVerified(celular);
     res.json({ message: 'Celular verificado exitosamente' });
   } catch (err) {
-    console.error('Error verificando SMS:', err);
-    res.status(500).json({ error: 'Error verificando código' });
+    console.error('[Cognito SMS] Error verificando código:', err);
+    const mapped = COGNITO_LOGIN_ERRORS[err.name] || { status: 500, message: 'Error verificando código' };
+    res.status(mapped.status).json({ error: mapped.message });
   }
 }
 
@@ -547,7 +525,7 @@ async function subirFotos(req, res) {
 // ─── RECUPERACIÓN DE CONTRASEÑA ──────────────────────────────────────────────
 
 // POST /api/auth/recuperar/solicitar
-// Envía un código de verificación via Twilio Verify para recuperar contraseña
+// Envía un código de verificación con Cognito para recuperar contraseña
 async function solicitarRecuperacion(req, res) {
   try {
     const { celular } = req.body;
@@ -559,26 +537,31 @@ async function solicitarRecuperacion(req, res) {
       return res.json({ message: 'Si el número está registrado, recibirás un código' });
     }
 
-    const celularDB = usuario.celular; // El valor real en BD
-    await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celularDB]);
+    const celularFormateado = normalizePhone(celular);
+    if (!celularFormateado) {
+      return res.status(400).json({ error: 'Número de celular inválido.' });
+    }
 
-    const celularFormateado = normalizePhone(celular) || (celular.trim().startsWith('+') ? celular.trim() : `+57${celular.trim()}`);
+    const command = new ForgotPasswordCommand({
+      ClientId: COGNITO_CLIENT_ID,
+      Username: celularFormateado,
+    });
 
-    // Enviar código real via Twilio Verify
-    const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-    await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
-      .verifications.create({ to: celularFormateado, channel: 'sms' });
-
-    console.log(`[RECUPERAR PASSWORD] Código enviado via Twilio a: ${celularFormateado}`);
+    await cognitoClient.send(command);
+    console.log(`[RECUPERAR PASSWORD] Código enviado por Cognito a: ${celularFormateado}`);
     res.json({ message: 'Código enviado correctamente' });
   } catch (err) {
-    console.error('Error en solicitarRecuperacion:', err);
+    console.error('[Cognito ForgotPassword] Error exacto:', err);
+    if (err && err.name && err.message) {
+      console.error(`[Cognito ForgotPassword] ${err.name}: ${err.message}`);
+    }
     res.status(500).json({ error: 'No se pudo enviar el código SMS. Intenta más tarde.' });
   }
 }
 
 // POST /api/auth/recuperar/verificar
-// Verifica el código via Twilio Verify (SMS) o contra password_resets (email) y devuelve un token temporal de reset
+// Verifica el código por email contra password_resets y devuelve un token temporal de reset.
+// Para SMS, la validación final se realiza en /api/auth/cognito/confirm-forgot-password.
 async function verificarCodigoRecuperacion(req, res) {
   try {
     const { celular, codigo, metodo } = req.body;
@@ -605,23 +588,9 @@ async function verificarCodigoRecuperacion(req, res) {
       return res.json({ message: 'Código verificado', reset_token: resetToken });
     }
 
-    // SMS: verificar via Twilio Verify
-    const celularE164 = normalizePhone(celular) || (celular.trim().startsWith('+') ? celular.trim() : `+57${celular.trim()}`);
-    const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-    const verification = await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
-      .verificationChecks.create({ to: celularE164, code: codigo.trim() });
-
-    if (verification.status !== 'approved') {
-      return res.status(400).json({ error: 'Código incorrecto o expirado' });
-    }
-
-    // Guardar reset token en la tabla (usar celularDB para consistencia)
-    await query(
-      'INSERT INTO password_resets (celular, codigo, token, expira_en) VALUES (?, ?, ?, ?)',
-      [celularDB, codigo.trim(), resetToken, expira]
-    );
-
-    res.json({ message: 'Código verificado', reset_token: resetToken });
+    return res.status(400).json({
+      error: 'Para recuperación por SMS usa el endpoint /api/auth/cognito/confirm-forgot-password con code y newPassword.',
+    });
   } catch (err) {
     console.error('Error en verificarCodigoRecuperacion:', err);
     res.status(500).json({ error: 'Código inválido o expirado' });

@@ -94,10 +94,6 @@ export default function RegisterEmpleadorScreen({ navigation }) {
         if (!celular.trim()) errs.celular = 'El celular es obligatorio';
         if (!password.trim()) errs.password = 'La contraseña es obligatoria';
         if (password.length < 8) errs.password = 'Mínimo 8 caracteres';
-        else if (!/[A-Z]/.test(password)) errs.password = 'Debe incluir al menos una mayúscula';
-        else if (!/[a-z]/.test(password)) errs.password = 'Debe incluir al menos una minúscula';
-        else if (!/\d/.test(password)) errs.password = 'Debe incluir al menos un número';
-        else if (!/[^A-Za-z0-9]/.test(password)) errs.password = 'Debe incluir al menos un símbolo (!@#$...)';
         if (password !== confirmPassword) errs.confirmPassword = 'No coinciden';
         break;
       case 4:
@@ -356,7 +352,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
             <Input label="Correo (opcional)" value={correo} onChangeText={setCorreo}
               placeholder="correo@ejemplo.com" keyboardType="email-address" icon="mail-outline" />
             <Input label="Contraseña" value={password} onChangeText={setPassword}
-              placeholder="Mín. 8 caracteres, mayúscula, número y símbolo" secureTextEntry icon="lock-closed-outline" required error={errors.password} />
+              placeholder="Mínimo 8 caracteres" secureTextEntry icon="lock-closed-outline" required error={errors.password} />
             <Input label="Confirmar contraseña" value={confirmPassword} onChangeText={setConfirmPassword}
               placeholder="Repite tu contraseña" secureTextEntry icon="lock-closed-outline" required error={errors.confirmPassword} />
             <InfoBox variant="info" text="Tus datos de contacto nos permiten comunicarnos contigo y gestionar tu cuenta de empleador de forma segura." />

@@ -1,7 +1,7 @@
 const { CognitoIdentityProviderClient } = require('@aws-sdk/client-cognito-identity-provider');
 
 const cognitoClient = new CognitoIdentityProviderClient({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.COGNITO_REGION || process.env.AWS_REGION || 'us-east-1',
 });
 
 const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;

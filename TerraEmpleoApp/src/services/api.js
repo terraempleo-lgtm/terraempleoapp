@@ -27,7 +27,7 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   enviarSMS: (celular) => api.post('/auth/sms/enviar', { celular }),
   verificarSMS: (celular, codigo) => api.post('/auth/sms/verificar', { celular, codigo }),
-  solicitarRecuperacion: (celular) => api.post('/auth/recuperar/solicitar', { celular }),
+  solicitarRecuperacion: (celular) => api.post('/auth/cognito/forgot-password', { phone: celular }),
   verificarCodigoRecuperacion: (celular, codigo, metodo) => api.post('/auth/recuperar/verificar', { celular, codigo, metodo }),
   actualizarPasswordRecuperacion: (celular, reset_token, nueva_password) => api.post('/auth/recuperar/nueva-password', {
     celular,
@@ -51,6 +51,12 @@ export const cognitoAPI = {
   confirmRegister: (phoneNumber, code) => api.post('/auth/cognito/confirm-register', { phoneNumber, code }),
   resendCode: (phoneNumber) => api.post('/auth/cognito/resend-code', { phoneNumber }),
   login: (phoneNumber, password) => api.post('/auth/cognito/login', { phoneNumber, password }),
+  forgotPassword: (phone) => api.post('/auth/cognito/forgot-password', { phone }),
+  confirmForgotPassword: (phone, code, newPassword) => api.post('/auth/cognito/confirm-forgot-password', {
+    phone,
+    code,
+    newPassword,
+  }),
 };
 
 // Vacantes

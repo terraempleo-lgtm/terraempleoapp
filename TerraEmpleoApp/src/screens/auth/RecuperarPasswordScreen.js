@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input } from '../../components/ui';
-import { authAPI } from '../../services/api';
+import { authAPI, cognitoAPI } from '../../services/api';
 
 export default function RecuperarPasswordScreen({ navigation, route }) {
   const celularInicial = route?.params?.celularInicial || '';
@@ -26,6 +26,7 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
 
   // SMS
   const [celular, setCelular] = useState(celularInicial);
+  const [codigoSMS, setCodigoSMS] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const otpRefs = useRef([]);
@@ -90,9 +91,10 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
     setLoading(true);
     try {
       const valor = celular.replace(/\s/g, '');
-      const { data } = await authAPI.solicitarRecuperacion(valor);
+      const { data } = await cognitoAPI.forgotPassword(valor);
       setCelular(valor);
       setOtp(['', '', '', '', '', '']);
+      setCodigoSMS('');
       setCountdown(60);
       setPaso(2);
       if (data?.codigo_debug) {
@@ -160,6 +162,12 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
 
     const celularVerificar = metodo === 'email' ? celularFromEmail || celular : celular;
 
+    if (metodo === 'sms') {
+      setCodigoSMS(codigo);
+      setPaso(3);
+      return;
+    }
+
     setLoading(true);
     try {
       const { data } = await authAPI.verificarCodigoRecuperacion(celularVerificar, codigo, metodo);
@@ -181,7 +189,7 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
         const resp = await authAPI.solicitarRecuperacionEmail(correo.trim());
         data = resp.data;
       } else {
-        const resp = await authAPI.solicitarRecuperacion(celular);
+        const resp = await cognitoAPI.forgotPassword(celular);
         data = resp.data;
       }
       setOtp(['', '', '', '', '', '']);
@@ -213,7 +221,11 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
 
     setLoading(true);
     try {
-      await authAPI.actualizarPasswordRecuperacion(celularFinal, resetToken, nuevaPassword);
+      if (metodo === 'sms') {
+        await cognitoAPI.confirmForgotPassword(celularFinal, codigoSMS, nuevaPassword);
+      } else {
+        await authAPI.actualizarPasswordRecuperacion(celularFinal, resetToken, nuevaPassword);
+      }
       Alert.alert('Éxito', 'Contraseña actualizada correctamente', [
         { text: 'Ir a iniciar sesión', onPress: () => navigation.navigate('Login') },
       ]);

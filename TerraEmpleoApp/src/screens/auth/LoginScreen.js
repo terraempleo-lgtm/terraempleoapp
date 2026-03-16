@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING } from '../../theme';
 import { Button, Input, AppHeader, TerraFooter } from '../../components/ui';
-import { authAPI } from '../../services/api';
+import { authAPI, cognitoAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 function isEmail(value) {
@@ -40,25 +40,36 @@ export default function LoginScreen({ navigation }) {
     return Object.keys(errs).length === 0;
   };
 
-  const normalizePhone = (value) => {
-    let cleaned = value.replace(/[\s\-]/g, '');
-    if (cleaned.startsWith('+')) return cleaned;
-    if (cleaned.startsWith('57')) return `+${cleaned}`;
-    return `+57${cleaned}`;
-  };
-
   const handleLogin = async () => {
     if (!validate()) return;
     setLoading(true);
     try {
       const val = identificador.trim();
-      const payload = isEmail(val)
-        ? { correo: val, password: password.trim() }
-        : { phoneNumber: normalizePhone(val), password: password.trim() };
+      let token, user;
 
-      const response = await authAPI.login(payload);
-
-      const { token, user } = response.data;
+      if (isEmail(val)) {
+        // Email → legacy login
+        const response = await authAPI.login({ correo: val, password: password.trim() });
+        token = response.data.token;
+        user = response.data.user;
+      } else {
+        // Phone → Cognito login, fallback to legacy if user not in Cognito
+        try {
+          const response = await cognitoAPI.login(val, password.trim());
+          token = response.data.token;
+          user = response.data.user;
+        } catch (cognitoErr) {
+          const code = cognitoErr.response?.status;
+          // 404 = user not in Cognito → try legacy login with celular
+          if (code === 404) {
+            const response = await authAPI.login({ celular: val, password: password.trim() });
+            token = response.data.token;
+            user = response.data.user;
+          } else {
+            throw cognitoErr;
+          }
+        }
+      }
 
       if (!token || !user) {
         Alert.alert('Error', 'Respuesta del servidor incompleta');

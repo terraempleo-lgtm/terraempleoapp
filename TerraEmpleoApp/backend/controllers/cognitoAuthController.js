@@ -5,10 +5,14 @@ const {
   InitiateAuthCommand,
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
+  AdminCreateUserCommand,
+  AdminSetUserPasswordCommand,
+  AdminUpdateUserAttributesCommand,
+  AdminGetUserCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 
 const jwt = require('jsonwebtoken');
-const { cognitoClient, COGNITO_CLIENT_ID } = require('../config/cognito');
+const { cognitoClient, COGNITO_CLIENT_ID, COGNITO_USER_POOL_ID } = require('../config/cognito');
 const { normalizePhone } = require('../helpers/normalizePhone');
 const { markPhoneVerified, findUserByNormalizedPhone } = require('../helpers/userSync');
 const { signUrl } = require('../config/s3');
@@ -268,20 +272,21 @@ async function login(req, res) {
 
 async function forgotPassword(req, res) {
   try {
-    const { phoneNumber } = req.body;
+    const { phone, phoneNumber, celular } = req.body;
+    const rawPhone = phone || phoneNumber || celular;
 
-    if (!phoneNumber) {
-      return res.status(400).json({ ok: false, error: 'phoneNumber es obligatorio.' });
+    if (!rawPhone) {
+      return res.status(400).json({ ok: false, error: 'phone es obligatorio.' });
     }
 
-    const phone = normalizePhone(phoneNumber);
-    if (!phone) {
+    const phoneE164 = normalizePhone(rawPhone);
+    if (!phoneE164) {
       return res.status(400).json({ ok: false, error: 'Número de teléfono inválido.' });
     }
 
     const command = new ForgotPasswordCommand({
       ClientId: COGNITO_CLIENT_ID,
-      Username: phone,
+      Username: phoneE164,
     });
 
     const result = await cognitoClient.send(command);
@@ -292,6 +297,10 @@ async function forgotPassword(req, res) {
       codeDeliveryDetails: result.CodeDeliveryDetails || null,
     });
   } catch (err) {
+    console.error('[Cognito ForgotPassword] Error exacto:', err);
+    if (err && err.name && err.message) {
+      console.error(`[Cognito ForgotPassword] ${err.name}: ${err.message}`);
+    }
     return handleCognitoError(err, res);
   }
 }
@@ -300,20 +309,21 @@ async function forgotPassword(req, res) {
 
 async function confirmForgotPassword(req, res) {
   try {
-    const { phoneNumber, code, newPassword } = req.body;
+    const { phone, phoneNumber, celular, code, newPassword } = req.body;
+    const rawPhone = phone || phoneNumber || celular;
 
-    if (!phoneNumber || !code || !newPassword) {
-      return res.status(400).json({ ok: false, error: 'phoneNumber, code y newPassword son obligatorios.' });
+    if (!rawPhone || !code || !newPassword) {
+      return res.status(400).json({ ok: false, error: 'phone, code y newPassword son obligatorios.' });
     }
 
-    const phone = normalizePhone(phoneNumber);
-    if (!phone) {
+    const phoneE164 = normalizePhone(rawPhone);
+    if (!phoneE164) {
       return res.status(400).json({ ok: false, error: 'Número de teléfono inválido.' });
     }
 
     const command = new ConfirmForgotPasswordCommand({
       ClientId: COGNITO_CLIENT_ID,
-      Username: phone,
+      Username: phoneE164,
       ConfirmationCode: code,
       Password: newPassword,
     });
@@ -329,6 +339,93 @@ async function confirmForgotPassword(req, res) {
   }
 }
 
+// ─── 7) POST /api/auth/cognito/admin-create-test-user ────────────────────────
+//
+// Endpoint de TESTING: crea (o actualiza) un usuario en Cognito listo para
+// login inmediato, sin pasar por el flujo NEW_PASSWORD_REQUIRED.
+//
+// Pasos internos:
+//   1. AdminCreateUser (si no existe) ─ suprime el SMS de invitación
+//   2. AdminSetUserPassword con Permanent = true
+//   3. AdminUpdateUserAttributes → phone_number_verified = true
+//
+// ⚠️  Bloqueado en producción (NODE_ENV === 'production').
+//
+
+async function createTestUser(req, res) {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ ok: false, error: 'Endpoint deshabilitado en producción.' });
+  }
+
+  try {
+    const { phoneNumber, password } = req.body;
+
+    if (!phoneNumber || !password) {
+      return res.status(400).json({ ok: false, error: 'phoneNumber y password son obligatorios.' });
+    }
+
+    const phone = normalizePhone(phoneNumber);
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: 'Número de teléfono inválido. Usa formato colombiano (ej: 3001234567).' });
+    }
+
+    // 1. Verificar si el usuario ya existe en Cognito
+    let userExists = false;
+    try {
+      await cognitoClient.send(new AdminGetUserCommand({
+        UserPoolId: COGNITO_USER_POOL_ID,
+        Username: phone,
+      }));
+      userExists = true;
+    } catch (err) {
+      if (err.name !== 'UserNotFoundException') {
+        throw err;
+      }
+    }
+
+    // 2. Crear usuario si no existe (suprime el mensaje de invitación)
+    if (!userExists) {
+      await cognitoClient.send(new AdminCreateUserCommand({
+        UserPoolId: COGNITO_USER_POOL_ID,
+        Username: phone,
+        UserAttributes: [
+          { Name: 'phone_number', Value: phone },
+          { Name: 'phone_number_verified', Value: 'true' },
+        ],
+        MessageAction: 'SUPPRESS', // no enviar SMS/email de invitación
+      }));
+    }
+
+    // 3. Establecer contraseña permanente (resuelve NEW_PASSWORD_REQUIRED)
+    await cognitoClient.send(new AdminSetUserPasswordCommand({
+      UserPoolId: COGNITO_USER_POOL_ID,
+      Username: phone,
+      Password: password,
+      Permanent: true,
+    }));
+
+    // 4. Marcar phone_number_verified = true (por si ya existía sin verificar)
+    await cognitoClient.send(new AdminUpdateUserAttributesCommand({
+      UserPoolId: COGNITO_USER_POOL_ID,
+      Username: phone,
+      UserAttributes: [
+        { Name: 'phone_number_verified', Value: 'true' },
+      ],
+    }));
+
+    return res.status(userExists ? 200 : 201).json({
+      ok: true,
+      message: userExists
+        ? 'Usuario actualizado: contraseña permanente y teléfono verificado.'
+        : 'Usuario creado con contraseña permanente y teléfono verificado.',
+      phone,
+      userExisted: userExists,
+    });
+  } catch (err) {
+    return handleCognitoError(err, res);
+  }
+}
+
 module.exports = {
   register,
   confirmRegister,
@@ -336,4 +433,5 @@ module.exports = {
   login,
   forgotPassword,
   confirmForgotPassword,
+  createTestUser,
 };
