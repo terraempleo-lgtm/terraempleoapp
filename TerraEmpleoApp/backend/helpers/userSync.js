@@ -9,9 +9,19 @@ const { query } = require('../config/database');
 const { normalizePhone } = require('./normalizePhone');
 
 /**
- * Busca un usuario activo en la BD local por número de celular normalizado E.164.
- * Intenta con el número normalizado; si no lo encuentra, prueba con el valor original
- * por si la BD aún tiene números sin normalizar (compatibilidad durante migración).
+ * Extrae el número nacional de 10 dígitos desde cualquier formato.
+ * "+573136158742" → "3136158742", "573136158742" → "3136158742"
+ */
+function extractNational(phone) {
+  const digits = (phone || '').replace(/[^\d]/g, '');
+  if (digits.length === 12 && digits.startsWith('57')) return digits.slice(2);
+  if (digits.length === 10 && digits.startsWith('3')) return digits;
+  return null;
+}
+
+/**
+ * Busca un usuario activo en la BD local por número de celular.
+ * Intenta: E.164, valor limpio original, y número nacional de 10 dígitos.
  *
  * @param {string} phone — Número en cualquier formato.
  * @returns {object|null} — Fila completa del usuario o null.
@@ -19,7 +29,7 @@ const { normalizePhone } = require('./normalizePhone');
 async function findUserByNormalizedPhone(phone) {
   const normalized = normalizePhone(phone);
 
-  // Buscar primero con el formato normalizado E.164
+  // 1. Buscar con formato E.164 (+57XXXXXXXXXX)
   if (normalized) {
     const rows = await query(
       'SELECT * FROM usuarios WHERE celular = ? AND activo = 1 AND eliminado = 0',
@@ -28,13 +38,22 @@ async function findUserByNormalizedPhone(phone) {
     if (rows && rows.length > 0) return rows[0];
   }
 
-  // Fallback: buscar con el valor original limpio (sin espacios/guiones)
-  // Esto cubre el caso de números aún no migrados a E.164 en la BD
+  // 2. Fallback: valor original limpio (sin espacios/guiones)
   const cleaned = (phone || '').replace(/[\s\-\(\)\.]/g, '');
   if (cleaned && cleaned !== normalized) {
     const rows = await query(
       'SELECT * FROM usuarios WHERE celular = ? AND activo = 1 AND eliminado = 0',
       [cleaned]
+    );
+    if (rows && rows.length > 0) return rows[0];
+  }
+
+  // 3. Fallback: número nacional 10 dígitos (BD legacy sin +57)
+  const national = extractNational(phone);
+  if (national && national !== normalized && national !== cleaned) {
+    const rows = await query(
+      'SELECT * FROM usuarios WHERE celular = ? AND activo = 1 AND eliminado = 0',
+      [national]
     );
     if (rows && rows.length > 0) return rows[0];
   }
@@ -60,6 +79,12 @@ async function findAnyUserByPhone(phone) {
   const cleaned = (phone || '').replace(/[\s\-\(\)\.]/g, '');
   if (cleaned && cleaned !== normalized) {
     const rows = await query('SELECT * FROM usuarios WHERE celular = ?', [cleaned]);
+    if (rows && rows.length > 0) return rows[0];
+  }
+
+  const national = extractNational(phone);
+  if (national && national !== normalized && national !== cleaned) {
+    const rows = await query('SELECT * FROM usuarios WHERE celular = ?', [national]);
     if (rows && rows.length > 0) return rows[0];
   }
 
@@ -90,6 +115,15 @@ async function markPhoneVerified(phone) {
     const result = await query(
       'UPDATE usuarios SET verificado_sms = 1, codigo_sms = NULL WHERE celular = ?',
       [cleaned]
+    );
+    if (result && result.affectedRows > 0) return true;
+  }
+
+  const national = extractNational(phone);
+  if (national && national !== normalized && national !== cleaned) {
+    const result = await query(
+      'UPDATE usuarios SET verificado_sms = 1, codigo_sms = NULL WHERE celular = ?',
+      [national]
     );
     if (result && result.affectedRows > 0) return true;
   }
