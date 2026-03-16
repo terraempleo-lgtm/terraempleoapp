@@ -9,7 +9,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input, ChipSelector, ProgressBar, PickerModal, InfoBox, TerraFooter } from '../../components/ui';
 import { DEPARTAMENTOS, getMunicipios } from '../../data/colombia';
 import { CULTIVOS, LABORES, TIPO_PAGO_OPTIONS } from '../../data/options';
-import { authAPI, setAuthToken } from '../../services/api';
+import { authAPI, cognitoAPI, setAuthToken } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import CamaraFoto from '../../components/CamaraFoto';
@@ -48,10 +48,9 @@ export default function RegisterEmpleadorScreen({ navigation }) {
   const [aceptaHabeasData, setAceptaHabeasData] = useState(false);
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
-  // Step 5: SMS
+  // Step 5: SMS (Cognito)
   const [codigoSMS, setCodigoSMS] = useState('');
   const [codigoEnviado, setCodigoEnviado] = useState(false);
-  const [codigoDebug, setCodigoDebug] = useState('');
   
 
   // Step 6: Fotos
@@ -125,7 +124,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
       return false;
     }
     try {
-      await authAPI.verificarSMS(celular, codigoSMS.trim());
+      await cognitoAPI.confirmRegister(celular, codigoSMS.trim());
       return true;
     } catch (err) {
       const msg = err.response?.data?.error || 'Código incorrecto';
@@ -150,14 +149,26 @@ export default function RegisterEmpleadorScreen({ navigation }) {
   const enviarCodigo = async () => {
     try {
       setLoading(true);
-      const res = await authAPI.enviarSMS(celular);
+      if (!codigoEnviado) {
+        // Primer envío: registrar en Cognito (dispara SMS automáticamente)
+        try {
+          await cognitoAPI.register(celular, password);
+        } catch (regErr) {
+          // Si ya existe en Cognito, reenviar código
+          if (regErr.response?.status === 409) {
+            await cognitoAPI.resendCode(celular);
+          } else {
+            throw regErr;
+          }
+        }
+      } else {
+        // Reenvío
+        await cognitoAPI.resendCode(celular);
+      }
       setCodigoEnviado(true);
-      const debugCode = res.data?.codigo_debug || res.codigo_debug;
-      setCodigoDebug(debugCode);
-      Alert.alert('Código enviado', `Se envió un código de verificación a ${celular}${debugCode ? `\n\n(Debug: ${debugCode})` : ''}`);
+      Alert.alert('Código enviado', `Se envió un código de verificación por SMS al ${celular}`);
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'No se pudo enviar el código';
-      console.log('[SMS Error]', err.response?.status, err.response?.data, err.message);
       Alert.alert('Error', msg);
     } finally {
       setLoading(false);
@@ -427,14 +438,8 @@ export default function RegisterEmpleadorScreen({ navigation }) {
             ) : (
               <View>
                 <Text style={styles.smsText}>Ingresa el código de 6 dígitos:</Text>
-                {codigoDebug ? (
-                  <View style={styles.debugCodeWrap}>
-                    <Ionicons name="information-circle" size={16} color={COLORS.info} />
-                    <Text style={styles.debugCodeText}>Código debug: {codigoDebug}</Text>
-                  </View>
-                ) : null}
                 <Input label="Código" value={codigoSMS} onChangeText={setCodigoSMS}
-                  placeholder="000000" keyboardType="numeric" maxLength={6}
+                  placeholder="Ingresa el código" keyboardType="numeric" maxLength={6}
                   icon="key-outline" error={errors.codigo} />
                 <Button
                   title="Reenviar código"
@@ -904,12 +909,6 @@ const styles = StyleSheet.create({
   },
   smsText: { fontSize: 16, color: COLORS.textSecondary, textAlign: 'center' },
   smsPhone: { fontSize: 24, fontWeight: '700', color: COLORS.primary },
-  debugCodeWrap: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#EFF6FF', paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: RADIUS.full, alignSelf: 'center', marginBottom: SPACING.md,
-  },
-  debugCodeText: { fontSize: 13, fontWeight: '600', color: COLORS.info },
   fotoCard: {
     borderRadius: RADIUS.lg, padding: SPACING.md,
     marginBottom: SPACING.md, backgroundColor: COLORS.white,

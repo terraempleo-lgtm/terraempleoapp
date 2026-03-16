@@ -8,7 +8,15 @@
       "Bash(node -c helpers/userSync.js)",
       "Bash(node -c scripts/auditUserPhones.js)",
       "Bash(node -c scripts/normalizeUserPhones.js)",
-      "Bash(timeout 10 node -e \":*)"
+      "Bash(timeout 10 node -e \":*)",
+      "Bash(node -e \"require\\(''jsonwebtoken''\\); console.log\\(''jwt OK''\\)\")",
+      "Bash(node -e \"const s3 = require\\(''./config/s3''\\); console.log\\(''signUrl:'', typeof s3.signUrl\\)\")",
+      "Bash(curl -s -m 10 http://107.20.220.171:3000/api/health)",
+      "Bash(curl -s -m 10 -X POST http://107.20.220.171:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"\"\"\"celular\"\"\"\":\"\"\"\"0000000000\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"admin123\"\"\"\"}')",
+      "Read(//Users/admin/.ssh/**)",
+      "Bash(ssh -i ~/.ssh/LightsailDefaultKey-us-east-1.pem -o StrictHostKeyChecking=no -o ConnectTimeout=10 ubuntu@107.20.220.171 \"echo ''SSH_OK'' && pm2 list && pwd\")",
+      "Bash(ssh -i ~/.ssh/LightsailDefaultKey-us-east-1.pem ubuntu@107.20.220.171 \"pm2 show terraempleo-api 2>/dev/null | grep ''exec cwd\\\\|script path''\")",
+      "Bash(ssh -i ~/.ssh/LightsailDefaultKey-us-east-1.pem ubuntu@107.20.220.171 \"cd /home/ubuntu/terraempleoapp && git pull origin main 2>&1\")"
     ]
   },
   "hooks": {

@@ -45,6 +45,14 @@ export const authAPI = {
   }),
 };
 
+// Cognito Auth
+export const cognitoAPI = {
+  register: (phoneNumber, password) => api.post('/auth/cognito/register', { phoneNumber, password }),
+  confirmRegister: (phoneNumber, code) => api.post('/auth/cognito/confirm-register', { phoneNumber, code }),
+  resendCode: (phoneNumber) => api.post('/auth/cognito/resend-code', { phoneNumber }),
+  login: (phoneNumber, password) => api.post('/auth/cognito/login', { phoneNumber, password }),
+};
+
 // Vacantes
 export const vacantesAPI = {
   crear: (data) => api.post('/vacantes', data),
