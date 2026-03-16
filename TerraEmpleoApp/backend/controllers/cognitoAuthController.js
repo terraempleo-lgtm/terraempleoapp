@@ -7,9 +7,14 @@ const {
   ConfirmForgotPasswordCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 
+const jwt = require('jsonwebtoken');
 const { cognitoClient, COGNITO_CLIENT_ID } = require('../config/cognito');
 const { normalizePhone } = require('../helpers/normalizePhone');
-const { markPhoneVerified } = require('../helpers/userSync');
+const { markPhoneVerified, findUserByNormalizedPhone } = require('../helpers/userSync');
+const { signUrl } = require('../config/s3');
+require('dotenv').config();
+
+const toBool = (val) => Number(val) === 1;
 
 // ─── Mapeo de errores de Cognito a mensajes en español ───────────────────────
 
@@ -68,7 +73,7 @@ function handleCognitoError(err, res) {
   return res.status(500).json({ ok: false, error: 'Error interno del servidor.' });
 }
 
-// ─── 1) POST /api/cognito/auth/register ──────────────────────────────────────
+// ─── 1) POST /api/auth/cognito/register ──────────────────────────────────────
 
 async function register(req, res) {
   try {
@@ -106,7 +111,7 @@ async function register(req, res) {
   }
 }
 
-// ─── 2) POST /api/cognito/auth/confirm-register ─────────────────────────────
+// ─── 2) POST /api/auth/cognito/confirm-register ─────────────────────────────
 
 async function confirmRegister(req, res) {
   try {
@@ -144,7 +149,7 @@ async function confirmRegister(req, res) {
   }
 }
 
-// ─── 3) POST /api/cognito/auth/resend-code ──────────────────────────────────
+// ─── 3) POST /api/auth/cognito/resend-code ──────────────────────────────────
 
 async function resendCode(req, res) {
   try {
@@ -176,7 +181,7 @@ async function resendCode(req, res) {
   }
 }
 
-// ─── 4) POST /api/cognito/auth/login ────────────────────────────────────────
+// ─── 4) POST /api/auth/cognito/login ────────────────────────────────────────
 //
 // Usa el flujo USER_PASSWORD_AUTH.
 // IMPORTANTE: Este flujo debe estar habilitado en el App Client de Cognito.
@@ -197,6 +202,7 @@ async function login(req, res) {
       return res.status(400).json({ ok: false, error: 'Número de teléfono inválido.' });
     }
 
+    // 1. Autenticar con Cognito
     const command = new InitiateAuthCommand({
       ClientId: COGNITO_CLIENT_ID,
       AuthFlow: 'USER_PASSWORD_AUTH',
@@ -209,21 +215,56 @@ async function login(req, res) {
     const result = await cognitoClient.send(command);
     const auth = result.AuthenticationResult;
 
+    // 2. Buscar usuario en BD local por celular (normalizado + fallback legacy)
+    const user = await findUserByNormalizedPhone(phoneNumber);
+
+    if (!user) {
+      return res.status(404).json({
+        ok: false,
+        error: 'Cuenta verificada en Cognito, pero falta completar el registro en la plataforma.',
+        code: 'LOCAL_USER_NOT_FOUND',
+      });
+    }
+
+    // 3. Generar JWT local (mantiene compatibilidad con el resto de la app)
+    const token = jwt.sign(
+      { id: user.id, rol: user.rol, celular: user.celular, nombre_completo: user.nombre_completo },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
+    const fotoSelfie = user.foto_selfie ? await signUrl(user.foto_selfie) : null;
+
     return res.json({
       ok: true,
       message: 'Inicio de sesión exitoso.',
-      accessToken: auth.AccessToken,
-      idToken: auth.IdToken,
-      refreshToken: auth.RefreshToken,
-      expiresIn: auth.ExpiresIn,
-      tokenType: auth.TokenType,
+      token,
+      user: {
+        id: user.id,
+        rol: user.rol,
+        nombre_completo: user.nombre_completo,
+        celular: user.celular,
+        correo: user.correo,
+        departamento: user.departamento,
+        municipio: user.municipio,
+        verificado_sms: toBool(user.verificado_sms),
+        calificacion_promedio: user.calificacion_promedio,
+        foto_selfie: fotoSelfie,
+      },
+      cognito: {
+        accessToken: auth.AccessToken,
+        idToken: auth.IdToken,
+        refreshToken: auth.RefreshToken,
+        expiresIn: auth.ExpiresIn,
+        tokenType: auth.TokenType,
+      },
     });
   } catch (err) {
     return handleCognitoError(err, res);
   }
 }
 
-// ─── 5) POST /api/cognito/auth/forgot-password ──────────────────────────────
+// ─── 5) POST /api/auth/cognito/forgot-password ──────────────────────────────
 
 async function forgotPassword(req, res) {
   try {
@@ -255,7 +296,7 @@ async function forgotPassword(req, res) {
   }
 }
 
-// ─── 6) POST /api/cognito/auth/confirm-forgot-password ──────────────────────
+// ─── 6) POST /api/auth/cognito/confirm-forgot-password ──────────────────────
 
 async function confirmForgotPassword(req, res) {
   try {

@@ -54,7 +54,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/trabajadores', trabajadoresRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
 app.use('/api/chats', chatsRoutes);
-app.use('/api/cognito/auth', cognitoAuthRoutes);
+app.use('/api/auth/cognito', cognitoAuthRoutes);
 
 // Health check — con verificación de conectividad a BD
 app.get('/api/health', async (req, res) => {
