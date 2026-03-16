@@ -149,12 +149,18 @@ export default function RegisterEmpleadorScreen({ navigation }) {
 
   const enviarCodigo = async () => {
     try {
+      setLoading(true);
       const res = await authAPI.enviarSMS(celular);
       setCodigoEnviado(true);
-      setCodigoDebug(res.data.codigo_debug);
-      Alert.alert('Código enviado', `Se envió un código de verificación a ${celular}\n\n(Debug: ${res.data.codigo_debug})`);
+      const debugCode = res.data?.codigo_debug || res.codigo_debug;
+      setCodigoDebug(debugCode);
+      Alert.alert('Código enviado', `Se envió un código de verificación a ${celular}${debugCode ? `\n\n(Debug: ${debugCode})` : ''}`);
     } catch (err) {
-      Alert.alert('Error', 'No se pudo enviar el código');
+      const msg = err.response?.data?.error || err.message || 'No se pudo enviar el código';
+      console.log('[SMS Error]', err.response?.status, err.response?.data, err.message);
+      Alert.alert('Error', msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -767,12 +773,12 @@ export default function RegisterEmpleadorScreen({ navigation }) {
 
           <View style={styles.footerInScroll}>
             <View style={styles.footer}>
-              {step > 1 && <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" style={{ flex: 1 }} />}
+              {step > 1 && <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" fullWidth={false} style={{ flex: 1 }} />}
               {step < TOTAL_STEPS ? (
                 <Button title="Siguiente" onPress={nextStep} size="medium" loading={loading}
-                  style={{ flex: step > 1 ? 1 : undefined, width: step === 1 ? '100%' : undefined }} />
+                  fullWidth={step > 1 ? false : true} style={step > 1 ? { flex: 1 } : undefined} />
               ) : (
-                <Button title="Finalizar Registro" onPress={handleRegister} loading={loading} size="large" style={{ flex: 1 }} />
+                <Button title="Finalizar Registro" onPress={handleRegister} loading={loading} size="large" fullWidth={false} style={{ flex: 1 }} />
               )}
             </View>
             <TerraFooter />

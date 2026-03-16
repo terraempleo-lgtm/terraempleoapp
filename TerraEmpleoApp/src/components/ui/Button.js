@@ -124,6 +124,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
+    flexShrink: 1,
   },
   iconLeft: {
     marginRight: 2,

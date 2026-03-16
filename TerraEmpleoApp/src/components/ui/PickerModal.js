@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from '../../theme';
@@ -32,55 +32,61 @@ export default function PickerModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <SafeAreaView style={styles.overlay}>
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
-            <TouchableOpacity onPress={() => { onClose(); setSearch(''); }}>
-              <Ionicons name="close-circle" size={30} color={COLORS.textLight} />
-            </TouchableOpacity>
-          </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <SafeAreaView style={styles.overlay}>
+          <View style={styles.content}>
+            <View style={styles.header}>
+              <Text style={styles.title}>{title}</Text>
+              <TouchableOpacity onPress={() => { onClose(); setSearch(''); }}>
+                <Ionicons name="close-circle" size={30} color={COLORS.textLight} />
+              </TouchableOpacity>
+            </View>
 
-          {searchable && (
-            <Input
-              placeholder="Buscar..."
-              value={search}
-              onChangeText={setSearch}
-              icon="search"
-              style={{ marginBottom: SPACING.sm }}
-            />
-          )}
-
-          <FlatList
-            data={filtered}
-            keyExtractor={(item, idx) => (typeof item === 'string' ? item : item.value) + idx}
-            renderItem={({ item }) => {
-              const label = typeof item === 'string' ? item : item.label;
-              const value = typeof item === 'string' ? item : item.value;
-              const isSelected = value === selectedValue;
-
-              return (
-                <TouchableOpacity
-                  style={[styles.option, isSelected && styles.optionSelected]}
-                  onPress={() => handleSelect(item)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                    {label}
-                  </Text>
-                  {isSelected && (
-                    <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
-                  )}
-                </TouchableOpacity>
-              );
-            }}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            ListEmptyComponent={() => (
-              <Text style={styles.empty}>No se encontraron resultados</Text>
+            {searchable && (
+              <Input
+                placeholder="Buscar..."
+                value={search}
+                onChangeText={setSearch}
+                icon="search"
+                style={{ marginBottom: SPACING.sm }}
+              />
             )}
-          />
-        </View>
-      </SafeAreaView>
+
+            <FlatList
+              data={filtered}
+              keyExtractor={(item, idx) => (typeof item === 'string' ? item : item.value) + idx}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => {
+                const label = typeof item === 'string' ? item : item.label;
+                const value = typeof item === 'string' ? item : item.value;
+                const isSelected = value === selectedValue;
+
+                return (
+                  <TouchableOpacity
+                    style={[styles.option, isSelected && styles.optionSelected]}
+                    onPress={() => handleSelect(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                      {label}
+                    </Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              ListEmptyComponent={() => (
+                <Text style={styles.empty}>No se encontraron resultados</Text>
+              )}
+            />
+          </View>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
