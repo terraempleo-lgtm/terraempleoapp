@@ -6,6 +6,7 @@ const { signUrl, signFields, signArrayField } = require('../config/s3');
 const { InitiateAuthCommand } = require('@aws-sdk/client-cognito-identity-provider');
 const { cognitoClient, COGNITO_CLIENT_ID } = require('../config/cognito');
 const { normalizePhone } = require('../helpers/normalizePhone');
+const { findUserByNormalizedPhone, findAnyUserByPhone } = require('../helpers/userSync');
 require('dotenv').config();
 
 // Helper para convertir 0/1 de MariaDB a boolean real (soporta entero o string)
@@ -33,9 +34,12 @@ async function register(req, res) {
       return res.status(400).json({ error: 'Debe aceptar el tratamiento de datos (Habeas Data)' });
     }
 
-    // Verificar si ya existe
-    const existing = await query('SELECT id FROM usuarios WHERE celular = ?', [celular]);
-    if (existing && existing.length > 0) {
+    // Normalizar celular a E.164 antes de guardar
+    const celularNorm = normalizePhone(celular) || celular.replace(/[\s\-\(\)\.]/g, '');
+
+    // Verificar si ya existe (busca tanto normalizado como legacy)
+    const existingUser = await findAnyUserByPhone(celular);
+    if (existingUser) {
       return res.status(409).json({ error: 'Ya existe un usuario con este número de celular' });
     }
 
@@ -45,7 +49,7 @@ async function register(req, res) {
       INSERT INTO usuarios (rol, nombre_completo, celular, correo, password_hash, cedula,
         departamento, municipio, vereda, acepta_habeas_data)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [rol, nombre_completo, celular, correo || null, password_hash, cedula,
+    `, [rol, nombre_completo, celularNorm, correo || null, password_hash, cedula,
         departamento || null, municipio || null, vereda || null, acepta_habeas_data ? 1 : 0]);
 
     const userId = Number(result.insertId);
@@ -109,7 +113,7 @@ async function register(req, res) {
     }
 
     const token = jwt.sign(
-      { id: userId, rol, celular, nombre_completo },
+      { id: userId, rol, celular: celularNorm, nombre_completo },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
@@ -117,7 +121,7 @@ async function register(req, res) {
     res.status(201).json({
       message: 'Usuario registrado exitosamente',
       token,
-      user: { id: userId, rol, nombre_completo, celular }
+      user: { id: userId, rol, nombre_completo, celular: celularNorm }
     });
 
   } catch (err) {
@@ -145,6 +149,9 @@ async function login(req, res) {
     // ── Cognito auth cuando llega phoneNumber ──
     if (phoneNumber) {
       const phone = normalizePhone(phoneNumber);
+      if (!phone) {
+        return res.status(400).json({ error: 'Número de teléfono inválido. Usa formato colombiano (ej: 3001234567).' });
+      }
 
       // 1. Autenticar con Cognito
       const command = new InitiateAuthCommand({
@@ -165,19 +172,15 @@ async function login(req, res) {
         return res.status(500).json({ error: 'Error al autenticar con el servicio de identidad.' });
       }
 
-      // 2. Buscar usuario en BD local por celular
-      const users = await query(
-        'SELECT * FROM usuarios WHERE celular = ? AND activo = 1 AND eliminado = 0',
-        [phone]
-      );
+      // 2. Buscar usuario en BD local por celular (normalizado + fallback legacy)
+      const user = await findUserByNormalizedPhone(phoneNumber);
 
-      if (!users || users.length === 0) {
+      if (!user) {
         return res.status(404).json({
-          error: 'Usuario autenticado pero no encontrado en la plataforma. Completa tu registro.',
+          error: 'Cuenta verificada en Cognito, pero falta completar el registro en la plataforma.',
+          code: 'LOCAL_USER_NOT_FOUND',
         });
       }
-
-      const user = users[0];
 
       // 3. Generar JWT local (mantiene compatibilidad con el resto de la app)
       const token = jwt.sign(
@@ -211,18 +214,18 @@ async function login(req, res) {
       return res.status(400).json({ error: 'Celular (o correo) y contraseña son obligatorios' });
     }
 
-    let users;
+    let user;
     if (celular) {
-      users = await query('SELECT * FROM usuarios WHERE celular = ? AND activo = 1 AND eliminado = 0', [celular]);
+      // Buscar por celular normalizado + fallback legacy
+      user = await findUserByNormalizedPhone(celular);
     } else {
-      users = await query('SELECT * FROM usuarios WHERE correo = ? AND activo = 1 AND eliminado = 0', [correo]);
+      const users = await query('SELECT * FROM usuarios WHERE correo = ? AND activo = 1 AND eliminado = 0', [correo]);
+      user = (users && users.length > 0) ? users[0] : null;
     }
 
-    if (!users || users.length === 0) {
+    if (!user) {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }
-
-    const user = users[0];
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
@@ -265,21 +268,24 @@ async function enviarCodigoSMS(req, res) {
     const { celular } = req.body;
     if (!celular) return res.status(400).json({ error: 'Celular requerido' });
 
+    // Normalizar para almacenamiento consistente
+    const celularNorm = normalizePhone(celular) || celular.replace(/[\s\-\(\)\.]/g, '');
+
     const smsMock = process.env.SMS_MOCK === 'true';
 
     if (smsMock) {
       const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-      // Limpiar códigos anteriores para este celular
-      await query('DELETE FROM codigos_verificacion WHERE celular = ?', [celular]);
-      await query('INSERT INTO codigos_verificacion (celular, codigo) VALUES (?, ?)', [celular, codigo]);
-      console.log(`[SMS MOCK] Código para ${celular}: ${codigo}`);
+      await query('DELETE FROM codigos_verificacion WHERE celular = ?', [celularNorm]);
+      await query('INSERT INTO codigos_verificacion (celular, codigo) VALUES (?, ?)', [celularNorm, codigo]);
+      console.log(`[SMS MOCK] Código para ${celularNorm}: ${codigo}`);
       return res.json({ message: 'Código enviado (modo desarrollo)', codigo_debug: codigo });
     }
 
-    const celularFormateado = celular.startsWith('+') ? celular : `+57${celular}`;
+    const celularE164 = normalizePhone(celular);
+    if (!celularE164) return res.status(400).json({ error: 'Número de celular inválido.' });
     const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
     await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
-      .verifications.create({ to: celularFormateado, channel: 'sms' });
+      .verifications.create({ to: celularE164, channel: 'sms' });
 
     res.json({ message: 'Código enviado' });
   } catch (err) {
@@ -295,33 +301,36 @@ async function verificarCodigoSMS(req, res) {
     const { celular, codigo } = req.body;
     if (!celular || !codigo) return res.status(400).json({ error: 'Celular y código requeridos' });
 
+    const celularNorm = normalizePhone(celular) || celular.replace(/[\s\-\(\)\.]/g, '');
     const smsMock = process.env.SMS_MOCK === 'true';
 
     if (smsMock) {
       const rows = await query(
         'SELECT id FROM codigos_verificacion WHERE celular = ? AND codigo = ? AND verificado = 0 ORDER BY created_at DESC LIMIT 1',
-        [celular, codigo]
+        [celularNorm, codigo]
       );
       if (!rows || rows.length === 0) {
         return res.status(400).json({ error: 'Código incorrecto' });
       }
-      // Marcar como verificado
-      await query('UPDATE codigos_verificacion SET verificado = 1 WHERE celular = ? AND codigo = ?', [celular, codigo]);
-      // Si el usuario ya existe, actualizar verificado_sms
-      await query('UPDATE usuarios SET verificado_sms = 1, codigo_sms = NULL WHERE celular = ?', [celular]);
+      await query('UPDATE codigos_verificacion SET verificado = 1 WHERE celular = ? AND codigo = ?', [celularNorm, codigo]);
+      // Marcar verificado_sms en usuarios (busca normalizado + legacy)
+      const { markPhoneVerified } = require('../helpers/userSync');
+      await markPhoneVerified(celular);
       return res.json({ message: 'Celular verificado exitosamente' });
     }
 
-    const celularFormateado = celular.startsWith('+') ? celular : `+57${celular}`;
+    const celularE164 = normalizePhone(celular);
+    if (!celularE164) return res.status(400).json({ error: 'Número de celular inválido.' });
     const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
     const verification = await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
-      .verificationChecks.create({ to: celularFormateado, code: codigo });
+      .verificationChecks.create({ to: celularE164, code: codigo });
 
     if (verification.status !== 'approved') {
       return res.status(400).json({ error: 'Código incorrecto' });
     }
 
-    await query('UPDATE usuarios SET verificado_sms = 1 WHERE celular = ?', [celular]);
+    const { markPhoneVerified } = require('../helpers/userSync');
+    await markPhoneVerified(celular);
     res.json({ message: 'Celular verificado exitosamente' });
   } catch (err) {
     console.error('Error verificando SMS:', err);
@@ -544,15 +553,16 @@ async function solicitarRecuperacion(req, res) {
     const { celular } = req.body;
     if (!celular) return res.status(400).json({ error: 'El número de celular es obligatorio' });
 
-    const usuarios = await query('SELECT id FROM usuarios WHERE celular = ?', [celular.trim()]);
-    if (!usuarios || usuarios.length === 0) {
+    // Buscar usuario con normalización
+    const usuario = await findUserByNormalizedPhone(celular);
+    if (!usuario) {
       return res.json({ message: 'Si el número está registrado, recibirás un código' });
     }
 
-    // Invalidar tokens anteriores de este celular
-    await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celular.trim()]);
+    const celularDB = usuario.celular; // El valor real en BD
+    await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celularDB]);
 
-    const celularFormateado = celular.trim().startsWith('+') ? celular.trim() : `+57${celular.trim()}`;
+    const celularFormateado = normalizePhone(celular) || (celular.trim().startsWith('+') ? celular.trim() : `+57${celular.trim()}`);
 
     // Enviar código real via Twilio Verify
     const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
@@ -574,6 +584,10 @@ async function verificarCodigoRecuperacion(req, res) {
     const { celular, codigo, metodo } = req.body;
     if (!celular || !codigo) return res.status(400).json({ error: 'Celular y código son obligatorios' });
 
+    // Resolver el celular real en BD para buscar password_resets
+    const usuario = await findUserByNormalizedPhone(celular);
+    const celularDB = usuario ? usuario.celular : (normalizePhone(celular) || celular.trim());
+
     const crypto = require('crypto');
     const resetToken = crypto.randomBytes(32).toString('hex');
     const expira = new Date(Date.now() + 10 * 60 * 1000);
@@ -582,7 +596,7 @@ async function verificarCodigoRecuperacion(req, res) {
     if (metodo === 'email') {
       const resets = await query(
         'SELECT * FROM password_resets WHERE celular = ? AND codigo = ? AND usado = 0 AND expira_en > NOW() ORDER BY created_at DESC LIMIT 1',
-        [celular.trim(), codigo.trim()]
+        [celularDB, codigo.trim()]
       );
       if (!resets || resets.length === 0) {
         return res.status(400).json({ error: 'Código inválido o expirado' });
@@ -592,19 +606,19 @@ async function verificarCodigoRecuperacion(req, res) {
     }
 
     // SMS: verificar via Twilio Verify
-    const celularFormateado = celular.trim().startsWith('+') ? celular.trim() : `+57${celular.trim()}`;
+    const celularE164 = normalizePhone(celular) || (celular.trim().startsWith('+') ? celular.trim() : `+57${celular.trim()}`);
     const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
     const verification = await client.verify.v2.services(process.env.TWILIO_VERIFY_SID)
-      .verificationChecks.create({ to: celularFormateado, code: codigo.trim() });
+      .verificationChecks.create({ to: celularE164, code: codigo.trim() });
 
     if (verification.status !== 'approved') {
       return res.status(400).json({ error: 'Código incorrecto o expirado' });
     }
 
-    // Guardar reset token en la tabla
+    // Guardar reset token en la tabla (usar celularDB para consistencia)
     await query(
       'INSERT INTO password_resets (celular, codigo, token, expira_en) VALUES (?, ?, ?, ?)',
-      [celular.trim(), codigo.trim(), resetToken, expira]
+      [celularDB, codigo.trim(), resetToken, expira]
     );
 
     res.json({ message: 'Código verificado', reset_token: resetToken });
@@ -622,35 +636,30 @@ async function actualizarPasswordRecuperacion(req, res) {
     console.log('[NUEVA PASSWORD] Recibido:', { celular, reset_token: reset_token ? reset_token.substring(0, 8) + '...' : null, nueva_password: nueva_password ? '***' : null });
 
     if (!celular || !reset_token || !nueva_password) {
-      console.log('[NUEVA PASSWORD] Faltan datos:', { celular: !!celular, reset_token: !!reset_token, nueva_password: !!nueva_password });
       return res.status(400).json({ error: 'Faltan datos requeridos' });
     }
     if (nueva_password.length < 6) {
       return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
     }
 
-    // Buscar sin restricción de tiempo primero para debug
-    const allResets = await query(
-      'SELECT id, celular, token, usado, expira_en, created_at FROM password_resets WHERE celular = ? ORDER BY created_at DESC LIMIT 5',
-      [celular.trim()]
-    );
-    console.log('[NUEVA PASSWORD] Registros para este celular:', JSON.stringify(allResets, null, 2));
+    // Resolver el celular real en BD
+    const usuario = await findUserByNormalizedPhone(celular);
+    const celularDB = usuario ? usuario.celular : (normalizePhone(celular) || celular.trim());
 
     const resets = await query(
       'SELECT * FROM password_resets WHERE celular = ? AND token = ? AND usado = 0 AND expira_en > NOW() ORDER BY created_at DESC LIMIT 1',
-      [celular.trim(), reset_token]
+      [celularDB, reset_token]
     );
 
     if (!resets || resets.length === 0) {
-      console.log('[NUEVA PASSWORD] Token no encontrado. Token recibido:', reset_token?.substring(0, 8) + '...');
       return res.status(400).json({ error: 'Token inválido o expirado. Solicita un nuevo código.' });
     }
 
     const hash = await bcrypt.hash(nueva_password, 10);
-    await query('UPDATE usuarios SET password_hash = ? WHERE celular = ?', [hash, celular.trim()]);
+    await query('UPDATE usuarios SET password_hash = ? WHERE celular = ?', [hash, celularDB]);
 
     // Invalidar todos los tokens OTP de este celular
-    await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celular.trim()]);
+    await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celularDB]);
 
     res.json({ message: 'Contraseña actualizada correctamente' });
   } catch (err) {

@@ -1,4 +1,16 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(node -e \":*)",
+      "Bash(node -c controllers/cognitoAuthController.js)",
+      "Bash(node -c helpers/normalizePhone.js)",
+      "Bash(node -c helpers/userSync.js)",
+      "Bash(node -c scripts/auditUserPhones.js)",
+      "Bash(node -c scripts/normalizeUserPhones.js)",
+      "Bash(timeout 10 node -e \":*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

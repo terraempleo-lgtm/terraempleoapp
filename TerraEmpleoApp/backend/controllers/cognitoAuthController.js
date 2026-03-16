@@ -9,6 +9,7 @@ const {
 
 const { cognitoClient, COGNITO_CLIENT_ID } = require('../config/cognito');
 const { normalizePhone } = require('../helpers/normalizePhone');
+const { markPhoneVerified } = require('../helpers/userSync');
 
 // ─── Mapeo de errores de Cognito a mensajes en español ───────────────────────
 
@@ -78,6 +79,9 @@ async function register(req, res) {
     }
 
     const phone = normalizePhone(phoneNumber);
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: 'Número de teléfono inválido. Usa formato colombiano (ej: 3001234567).' });
+    }
 
     const command = new SignUpCommand({
       ClientId: COGNITO_CLIENT_ID,
@@ -113,6 +117,9 @@ async function confirmRegister(req, res) {
     }
 
     const phone = normalizePhone(phoneNumber);
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: 'Número de teléfono inválido.' });
+    }
 
     const command = new ConfirmSignUpCommand({
       ClientId: COGNITO_CLIENT_ID,
@@ -121,6 +128,12 @@ async function confirmRegister(req, res) {
     });
 
     await cognitoClient.send(command);
+
+    // Sincronizar con BD local: marcar verificado_sms = 1 si el usuario existe
+    const synced = await markPhoneVerified(phoneNumber);
+    if (synced) {
+      console.log(`[Cognito] confirm-register: verificado_sms actualizado para ${phone}`);
+    }
 
     return res.json({
       ok: true,
@@ -142,6 +155,9 @@ async function resendCode(req, res) {
     }
 
     const phone = normalizePhone(phoneNumber);
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: 'Número de teléfono inválido.' });
+    }
 
     const command = new ResendConfirmationCodeCommand({
       ClientId: COGNITO_CLIENT_ID,
@@ -177,6 +193,9 @@ async function login(req, res) {
     }
 
     const phone = normalizePhone(phoneNumber);
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: 'Número de teléfono inválido.' });
+    }
 
     const command = new InitiateAuthCommand({
       ClientId: COGNITO_CLIENT_ID,
@@ -215,6 +234,9 @@ async function forgotPassword(req, res) {
     }
 
     const phone = normalizePhone(phoneNumber);
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: 'Número de teléfono inválido.' });
+    }
 
     const command = new ForgotPasswordCommand({
       ClientId: COGNITO_CLIENT_ID,
@@ -244,6 +266,9 @@ async function confirmForgotPassword(req, res) {
     }
 
     const phone = normalizePhone(phoneNumber);
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: 'Número de teléfono inválido.' });
+    }
 
     const command = new ConfirmForgotPasswordCommand({
       ClientId: COGNITO_CLIENT_ID,
