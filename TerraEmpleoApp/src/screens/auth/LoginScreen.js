@@ -40,6 +40,13 @@ export default function LoginScreen({ navigation }) {
     return Object.keys(errs).length === 0;
   };
 
+  const normalizePhone = (value) => {
+    let cleaned = value.replace(/[\s\-]/g, '');
+    if (cleaned.startsWith('+')) return cleaned;
+    if (cleaned.startsWith('57')) return `+${cleaned}`;
+    return `+57${cleaned}`;
+  };
+
   const handleLogin = async () => {
     if (!validate()) return;
     setLoading(true);
@@ -47,13 +54,9 @@ export default function LoginScreen({ navigation }) {
       const val = identificador.trim();
       const payload = isEmail(val)
         ? { correo: val, password: password.trim() }
-        : { celular: val, password: password.trim() };
-
-      console.log('LOGIN REQUEST', payload);
+        : { phoneNumber: normalizePhone(val), password: password.trim() };
 
       const response = await authAPI.login(payload);
-
-      console.log('LOGIN RESPONSE', response.data);
 
       const { token, user } = response.data;
 
@@ -64,7 +67,6 @@ export default function LoginScreen({ navigation }) {
 
       await signIn(user, token);
     } catch (err) {
-      console.log('LOGIN ERROR', err?.response?.data || err.message);
       const msg = err.response?.data?.error || 'Error al iniciar sesión. Verifica tus datos.';
       Alert.alert('Error', msg);
       setLoginFailed(true);

@@ -3,6 +3,9 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
 const { ejecutarMatchingParaTrabajador } = require('./vacantesController');
 const { signUrl, signFields, signArrayField } = require('../config/s3');
+const { InitiateAuthCommand } = require('@aws-sdk/client-cognito-identity-provider');
+const { cognitoClient, COGNITO_CLIENT_ID } = require('../config/cognito');
+const { normalizePhone } = require('../helpers/normalizePhone');
 require('dotenv').config();
 
 // Helper para convertir 0/1 de MariaDB a boolean real (soporta entero o string)
@@ -123,11 +126,87 @@ async function register(req, res) {
   }
 }
 
+// Mapeo de errores de Cognito a mensajes en español + HTTP status
+const COGNITO_LOGIN_ERRORS = {
+  NotAuthorizedException:    { status: 401, message: 'Credenciales incorrectas.' },
+  UserNotConfirmedException: { status: 403, message: 'Tu cuenta no ha sido confirmada. Verifica tu código SMS.' },
+  UserNotFoundException:     { status: 404, message: 'No se encontró un usuario con este número de teléfono.' },
+  InvalidPasswordException:  { status: 400, message: 'La contraseña no cumple los requisitos de seguridad.' },
+  LimitExceededException:    { status: 429, message: 'Demasiados intentos. Espera unos minutos.' },
+  TooManyRequestsException:  { status: 429, message: 'Demasiadas solicitudes. Intenta más tarde.' },
+  InvalidParameterException: { status: 400, message: 'Parámetros inválidos.' },
+};
+
 // Login
 async function login(req, res) {
   try {
-    const { celular, correo, password } = req.body;
+    const { celular, correo, phoneNumber, password } = req.body;
 
+    // ── Cognito auth cuando llega phoneNumber ──
+    if (phoneNumber) {
+      const phone = normalizePhone(phoneNumber);
+
+      // 1. Autenticar con Cognito
+      const command = new InitiateAuthCommand({
+        ClientId: COGNITO_CLIENT_ID,
+        AuthFlow: 'USER_PASSWORD_AUTH',
+        AuthParameters: { USERNAME: phone, PASSWORD: password },
+      });
+
+      let cognitoResult;
+      try {
+        cognitoResult = await cognitoClient.send(command);
+      } catch (cognitoErr) {
+        const mapped = COGNITO_LOGIN_ERRORS[cognitoErr.name];
+        if (mapped) {
+          return res.status(mapped.status).json({ error: mapped.message });
+        }
+        console.error('Error Cognito login:', cognitoErr);
+        return res.status(500).json({ error: 'Error al autenticar con el servicio de identidad.' });
+      }
+
+      // 2. Buscar usuario en BD local por celular
+      const users = await query(
+        'SELECT * FROM usuarios WHERE celular = ? AND activo = 1 AND eliminado = 0',
+        [phone]
+      );
+
+      if (!users || users.length === 0) {
+        return res.status(404).json({
+          error: 'Usuario autenticado pero no encontrado en la plataforma. Completa tu registro.',
+        });
+      }
+
+      const user = users[0];
+
+      // 3. Generar JWT local (mantiene compatibilidad con el resto de la app)
+      const token = jwt.sign(
+        { id: user.id, rol: user.rol, celular: user.celular, nombre_completo: user.nombre_completo },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      );
+
+      const fotoSelfie = user.foto_selfie ? await signUrl(user.foto_selfie) : null;
+
+      return res.json({
+        message: 'Inicio de sesión exitoso',
+        token,
+        user: {
+          id: user.id,
+          rol: user.rol,
+          nombre_completo: user.nombre_completo,
+          celular: user.celular,
+          correo: user.correo,
+          departamento: user.departamento,
+          municipio: user.municipio,
+          verificado_sms: toBool(user.verificado_sms),
+          calificacion_promedio: user.calificacion_promedio,
+          foto_selfie: fotoSelfie,
+        },
+      });
+    }
+
+    // ── Flujo legacy: celular/correo + bcrypt ──
     if ((!celular && !correo) || !password) {
       return res.status(400).json({ error: 'Celular (o correo) y contraseña son obligatorios' });
     }
