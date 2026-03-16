@@ -192,19 +192,33 @@ async function resendCode(req, res) {
 //   Consola AWS → Cognito → User Pool → App integration → App client →
 //   Auth flows → Marcar "ALLOW_USER_PASSWORD_AUTH"
 //
+// Cognito puede responder con:
+//   a) AuthenticationResult → login exitoso, contiene tokens.
+//   b) ChallengeName        → requiere acción adicional (NEW_PASSWORD_REQUIRED,
+//                              SMS_MFA, SOFTWARE_TOKEN_MFA, etc.).
+//
+
+const CHALLENGE_MESSAGES = {
+  NEW_PASSWORD_REQUIRED: 'Debes establecer una contraseña permanente antes de iniciar sesión.',
+  SMS_MFA: 'Se envió un código MFA por SMS. Ingresa el código para continuar.',
+  SOFTWARE_TOKEN_MFA: 'Ingresa el código de tu aplicación de autenticación (TOTP).',
+};
 
 async function login(req, res) {
   try {
-    const { phoneNumber, password } = req.body;
+    const { phoneNumber, celular, password } = req.body;
+    const rawPhone = phoneNumber || celular;
 
-    if (!phoneNumber || !password) {
-      return res.status(400).json({ ok: false, error: 'phoneNumber y password son obligatorios.' });
+    if (!rawPhone || !password) {
+      return res.status(400).json({ ok: false, error: 'phoneNumber (o celular) y password son obligatorios.' });
     }
 
-    const phone = normalizePhone(phoneNumber);
+    const phone = normalizePhone(rawPhone);
     if (!phone) {
-      return res.status(400).json({ ok: false, error: 'Número de teléfono inválido.' });
+      return res.status(400).json({ ok: false, error: 'Número de teléfono inválido. Usa formato colombiano (ej: 3001234567).' });
     }
+
+    console.log(`[Cognito Login] incoming: "${rawPhone}" → normalized: "${phone}"`);
 
     // 1. Autenticar con Cognito
     const command = new InitiateAuthCommand({
@@ -217,10 +231,33 @@ async function login(req, res) {
     });
 
     const result = await cognitoClient.send(command);
-    const auth = result.AuthenticationResult;
 
-    // 2. Buscar usuario en BD local por celular (normalizado + fallback legacy)
-    const user = await findUserByNormalizedPhone(phoneNumber);
+    console.log(`[Cognito Login] phone=${phone} | challenge=${result.ChallengeName || 'none'} | hasAuth=${!!result.AuthenticationResult}`);
+
+    // ── 2a. Cognito devolvió un challenge (no hay tokens todavía) ──
+    if (result.ChallengeName) {
+      const message = CHALLENGE_MESSAGES[result.ChallengeName]
+        || `Se requiere un paso adicional: ${result.ChallengeName}`;
+
+      return res.status(200).json({
+        ok: false,
+        challengeRequired: true,
+        challengeName: result.ChallengeName,
+        challengeParameters: result.ChallengeParameters || {},
+        session: result.Session || null,
+        message,
+      });
+    }
+
+    // ── 2b. Sin AuthenticationResult y sin challenge → respuesta inesperada ──
+    const auth = result.AuthenticationResult;
+    if (!auth) {
+      console.error('[Cognito Login] Respuesta inesperada: sin AuthenticationResult ni ChallengeName', JSON.stringify(result));
+      return res.status(502).json({ ok: false, error: 'Respuesta inesperada del proveedor de autenticación.' });
+    }
+
+    // 3. Buscar usuario en BD local por celular (normalizado + fallback legacy)
+    const user = await findUserByNormalizedPhone(rawPhone);
 
     if (!user) {
       return res.status(404).json({
@@ -230,7 +267,7 @@ async function login(req, res) {
       });
     }
 
-    // 3. Generar JWT local (mantiene compatibilidad con el resto de la app)
+    // 4. Generar JWT local (mantiene compatibilidad con el resto de la app)
     const token = jwt.sign(
       { id: user.id, rol: user.rol, celular: user.celular, nombre_completo: user.nombre_completo },
       process.env.JWT_SECRET,
@@ -349,12 +386,19 @@ async function confirmForgotPassword(req, res) {
 //   2. AdminSetUserPassword con Permanent = true
 //   3. AdminUpdateUserAttributes → phone_number_verified = true
 //
-// ⚠️  Bloqueado en producción (NODE_ENV === 'production').
+// Protegido por header X-Admin-Key que debe coincidir con ADMIN_TEST_KEY del .env.
+// Si ADMIN_TEST_KEY no está configurado, el endpoint queda deshabilitado.
 //
 
 async function createTestUser(req, res) {
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ ok: false, error: 'Endpoint deshabilitado en producción.' });
+  const adminKey = process.env.ADMIN_TEST_KEY;
+  if (!adminKey) {
+    return res.status(403).json({ ok: false, error: 'Endpoint deshabilitado (ADMIN_TEST_KEY no configurado).' });
+  }
+
+  const provided = req.headers['x-admin-key'];
+  if (provided !== adminKey) {
+    return res.status(401).json({ ok: false, error: 'X-Admin-Key inválido o ausente.' });
   }
 
   try {
