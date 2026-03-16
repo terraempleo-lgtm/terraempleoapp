@@ -14,6 +14,7 @@ const adminRoutes = require('./routes/admin');
 const trabajadoresRoutes = require('./routes/trabajadores');
 const notificacionesRoutes = require('./routes/notificaciones');
 const chatsRoutes = require('./routes/chats');
+const cognitoAuthRoutes = require('./routes/cognitoAuth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -53,6 +54,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/trabajadores', trabajadoresRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
 app.use('/api/chats', chatsRoutes);
+app.use('/api/cognito/auth', cognitoAuthRoutes);
 
 // Health check — con verificación de conectividad a BD
 app.get('/api/health', async (req, res) => {
