@@ -59,15 +59,10 @@ export default function LoginScreen({ navigation }) {
           token = response.data.token;
           user = response.data.user;
         } catch (cognitoErr) {
-          const code = cognitoErr.response?.status;
-          // 404 = user not in Cognito → try legacy login with celular
-          if (code === 404) {
-            const response = await authAPI.login({ celular: val, password: password.trim() });
-            token = response.data.token;
-            user = response.data.user;
-          } else {
-            throw cognitoErr;
-          }
+          // Cognito failed (404, 401, etc.) → fallback to legacy login with celular
+          const response = await authAPI.login({ celular: val, password: password.trim() });
+          token = response.data.token;
+          user = response.data.user;
         }
       }
 

@@ -45,7 +45,14 @@ async function register(req, res) {
     // Verificar si ya existe (busca tanto normalizado como legacy)
     const existingUser = await findAnyUserByPhone(celular);
     if (existingUser) {
-      return res.status(409).json({ error: 'Ya existe un usuario con este número de celular' });
+      const isDeleted = Number(existingUser.eliminado) === 1 || Number(existingUser.activo) === 0;
+      const isSameIdentity = existingUser.cedula === cedula;
+      if (isDeleted || isSameIdentity) {
+        // Re-registro: misma persona o usuario eliminado — borrar registro anterior
+        await query('DELETE FROM usuarios WHERE id = ?', [existingUser.id]);
+      } else {
+        return res.status(409).json({ error: 'Ya existe un usuario con este número de celular' });
+      }
     }
 
     const password_hash = await bcrypt.hash(password, 10);
@@ -355,7 +362,7 @@ async function getPerfil(req, res) {
     // Firmar URLs de S3
     await signFields(user, ['foto_selfie', 'foto_cedula', 'foto_selfie_cedula']);
     if (perfil) {
-      await signFields(perfil, ['hoja_vida_url']);
+      await signFields(perfil, ['hoja_vida_url', 'foto_finca_fachada']);
     }
 
     res.json({ user, perfil });
@@ -502,17 +509,24 @@ async function subirFotos(req, res) {
 
     if (!req.file) return res.status(400).json({ error: 'Archivo de imagen requerido' });
 
-    const columnas = {
+    const columnasUsuario = {
       selfie: 'foto_selfie',
       cedula: 'foto_cedula',
       selfie_cedula: 'foto_selfie_cedula'
     };
-
-    const columna = columnas[tipo];
-    if (!columna) return res.status(400).json({ error: 'Tipo de foto inválido. Use: selfie, cedula, selfie_cedula' });
+    const columnasEmpleador = {
+      finca_fachada: 'foto_finca_fachada',
+    };
 
     const filePath = req.file.location; // S3 URL
-    await query(`UPDATE usuarios SET ${columna} = ? WHERE id = ?`, [filePath, userId]);
+
+    if (columnasUsuario[tipo]) {
+      await query(`UPDATE usuarios SET ${columnasUsuario[tipo]} = ? WHERE id = ?`, [filePath, userId]);
+    } else if (columnasEmpleador[tipo]) {
+      await query(`UPDATE perfil_empleador SET ${columnasEmpleador[tipo]} = ? WHERE usuario_id = ?`, [filePath, userId]);
+    } else {
+      return res.status(400).json({ error: 'Tipo de foto inválido. Use: selfie, cedula, selfie_cedula, finca_fachada' });
+    }
 
     const signedPath = await signUrl(filePath);
     res.json({ message: 'Foto subida exitosamente', path: signedPath });

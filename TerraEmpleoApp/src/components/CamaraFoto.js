@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Modal, Alert, Image, ActivityIndicator, Platform
+  Modal, Alert, Image, ActivityIndicator, Platform, Animated
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -10,14 +10,49 @@ import { Ionicons } from '@expo/vector-icons';
 import { authAPI } from '../services/api';
 import { COLORS, SPACING, RADIUS } from '../theme';
 
+const useNative = Platform.OS !== 'web';
+
 export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = false, permitirGaleria = false }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [modalVisible, setModalVisible] = useState(false);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const cameraRef = useRef(null);
+  const successScale = useRef(new Animated.Value(0)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current;
 
   const facing = (tipo === 'selfie' || tipo === 'selfie_cedula') ? 'front' : 'back';
+
+  const playSuccessAnimation = (callback) => {
+    setShowSuccess(true);
+    successScale.setValue(0);
+    successOpacity.setValue(0);
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(successScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 80,
+          useNativeDriver: useNative,
+        }),
+        Animated.timing(successOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: useNative,
+        }),
+      ]),
+      Animated.delay(1200),
+      Animated.timing(successOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: useNative,
+      }),
+    ]).start(() => {
+      setShowSuccess(false);
+      if (callback) callback();
+    });
+  };
 
   const abrirCamara = async () => {
     if (Platform.OS === 'web') {
@@ -39,7 +74,7 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
   const abrirGaleria = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -84,23 +119,33 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
   const confirmarFoto = async () => {
     if (!preview) return;
     if (modoLocal) {
-      setModalVisible(false);
-      onFotoGuardada(tipo, preview);
-      Alert.alert('Foto tomada', `${label} lista.`);
+      const savedPreview = preview;
+      playSuccessAnimation(() => {
+        setModalVisible(false);
+        onFotoGuardada(tipo, savedPreview);
+      });
       return;
     }
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('foto', {
-        uri: preview,
-        type: 'image/jpeg',
-        name: `${tipo}_${Date.now()}.jpg`,
-      });
+      if (Platform.OS === 'web') {
+        const response = await fetch(preview);
+        const blob = await response.blob();
+        formData.append('foto', blob, `${tipo}_${Date.now()}.jpg`);
+      } else {
+        formData.append('foto', {
+          uri: preview,
+          type: 'image/jpeg',
+          name: `${tipo}_${Date.now()}.jpg`,
+        });
+      }
       await authAPI.subirFoto(tipo, formData);
-      setModalVisible(false);
-      onFotoGuardada(tipo, preview);
-      Alert.alert('Foto guardada', `${label} guardada correctamente.`);
+      const savedPreview = preview;
+      playSuccessAnimation(() => {
+        setModalVisible(false);
+        onFotoGuardada(tipo, savedPreview);
+      });
     } catch (err) {
       Alert.alert('Error', 'No se pudo guardar la foto. Verifica tu conexión.');
     } finally {
@@ -160,6 +205,14 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
               </View>
             </View>
           )}
+          {showSuccess && (
+            <Animated.View style={[styles.successOverlay, { opacity: successOpacity }]}>
+              <Animated.View style={[styles.successCircle, { transform: [{ scale: successScale }] }]}>
+                <Ionicons name="checkmark-circle" size={80} color="#fff" />
+                <Text style={styles.successText}>Foto guardada</Text>
+              </Animated.View>
+            </Animated.View>
+          )}
         </SafeAreaView>
       </Modal>
     </>
@@ -208,4 +261,22 @@ const styles = StyleSheet.create({
     gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: '#008d49',
   },
   btnConfirmarText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  successOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 141, 73, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  successCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 12,
+    letterSpacing: 0.5,
+  },
 });

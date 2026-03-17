@@ -317,7 +317,7 @@ function RootNavigator() {
               index: 0,
               routes: [{
                 name: 'Auth',
-                state: { routes: [{ name: 'Login' }] },
+                state: { routes: [{ name: 'Welcome' }] },
               }],
             })
           );

@@ -220,28 +220,45 @@ export default function RegisterTrabajadorScreen({ navigation }) {
       const response = await authAPI.register(data);
       const { token, user } = response.data;
 
-      // Activar token para subir fotos
+      // Activar token para subir fotos a S3
       setAuthToken(token);
       const fotos = [
         { tipo: 'selfie', uri: fotoSelfie },
         { tipo: 'cedula', uri: fotoCedula },
         { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
       ].filter(f => f.uri);
+      let fotosSubidas = 0;
       for (const { tipo, uri } of fotos) {
         try {
           const formData = new FormData();
-          formData.append('foto', { uri, type: 'image/jpeg', name: `${tipo}_${Date.now()}.jpg` });
+          if (Platform.OS === 'web') {
+            const resp = await fetch(uri);
+            const blob = await resp.blob();
+            formData.append('foto', blob, `${tipo}_${Date.now()}.jpg`);
+          } else {
+            formData.append('foto', { uri, type: 'image/jpeg', name: `${tipo}_${Date.now()}.jpg` });
+          }
           await authAPI.subirFoto(tipo, formData);
-        } catch {
-          // No bloqueamos el registro si falla la subida de una foto
+          fotosSubidas++;
+        } catch (fotoErr) {
+          console.error(`Error subiendo foto ${tipo}:`, fotoErr?.response?.data || fotoErr.message);
         }
       }
 
-      Alert.alert('¡Registro exitoso!', 'Tu cuenta ha sido creada.', [
-        { text: 'Continuar', onPress: () => signIn(user, token) }
-      ]);
+      // Sign in directly to redirect to home (Alert callback unreliable on web)
+      await signIn(user, token);
     } catch (err) {
-      const msg = err.response?.data?.error || 'Error al registrarse';
+      console.error('Error registro:', err?.response?.status, err?.response?.data, err.message);
+      let msg = 'Error al registrarse';
+      if (err.response?.data?.error) {
+        msg = err.response.data.error;
+      } else if (err.message?.includes('Network')) {
+        msg = 'No se pudo conectar al servidor. Verifica tu conexión a internet.';
+      } else if (err.message?.includes('timeout')) {
+        msg = 'La solicitud tardó demasiado. Intenta de nuevo.';
+      } else if (err.message) {
+        msg = err.message;
+      }
       Alert.alert('Error', msg);
     } finally {
       setLoading(false);
@@ -326,7 +343,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               <View style={styles.mapPin}>
                 <Ionicons name="location" size={22} color={COLORS.white} />
               </View>
-              {(municipio || departamento) && (
+              {!!(municipio || departamento) && (
                 <View style={styles.mapLabel}>
                   <Ionicons name="navigate-outline" size={12} color={COLORS.white} />
                   <Text style={styles.mapLabelText}>Ver en Google Maps</Text>
@@ -666,12 +683,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               <SummaryCard icon="person-outline" label="NOMBRE COMPLETO" value={nombre} />
               <View style={styles.summaryDivider} />
               <SummaryCard icon="call-outline" label="CELULAR" value={celular} />
-              {correo ? (
-                <>
-                  <View style={styles.summaryDivider} />
-                  <SummaryCard icon="mail-outline" label="CORREO" value={correo} />
-                </>
-              ) : null}
+              {correo ? <View style={styles.summaryDivider} /> : null}
+              {correo ? <SummaryCard icon="mail-outline" label="CORREO" value={correo} /> : null}
             </View>
 
             <Text style={styles.summaryGroupLabel}>UBICACIÓN</Text>
@@ -681,12 +694,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                 label="MUNICIPIO Y DEPARTAMENTO"
                 value={`${municipio}, ${departamento}`}
               />
-              {vereda ? (
-                <>
-                  <View style={styles.summaryDivider} />
-                  <SummaryCard icon="trail-sign-outline" label="VEREDA" value={vereda} />
-                </>
-              ) : null}
+              {vereda ? <View style={styles.summaryDivider} /> : null}
+              {vereda ? <SummaryCard icon="trail-sign-outline" label="VEREDA" value={vereda} /> : null}
             </View>
 
             <Text style={styles.summaryGroupLabel}>PERFIL PROFESIONAL</Text>
@@ -696,12 +705,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                 label="ESTUDIOS"
                 value={NIVELES_ESTUDIO.find(n => n.value === nivelEstudios)?.label || 'N/A'}
               />
-              {tituloEstudio ? (
-                <>
-                  <View style={styles.summaryDivider} />
-                  <SummaryCard icon="ribbon-outline" label="TÍTULO" value={tituloEstudio} />
-                </>
-              ) : null}
+              {tituloEstudio ? <View style={styles.summaryDivider} /> : null}
+              {tituloEstudio ? <SummaryCard icon="ribbon-outline" label="TÍTULO" value={tituloEstudio} /> : null}
               <View style={styles.summaryDivider} />
               <SummaryCard
                 icon="time-outline"
@@ -716,22 +721,22 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               />
             </View>
 
-            {(cultivos.length > 0 || habilidades.length > 0) && (
-              <>
+            {(cultivos.length > 0 || habilidades.length > 0) ? (
+              <View>
                 <Text style={styles.summaryGroupLabel}>HABILIDADES</Text>
                 <View style={styles.summaryGroup}>
-                  {cultivos.length > 0 && (
+                  {cultivos.length > 0 ? (
                     <SummaryCard icon="leaf-outline" label="CULTIVOS" value={cultivos.join(' · ')} />
-                  )}
-                  {cultivos.length > 0 && habilidades.length > 0 && (
+                  ) : null}
+                  {cultivos.length > 0 && habilidades.length > 0 ? (
                     <View style={styles.summaryDivider} />
-                  )}
-                  {habilidades.length > 0 && (
+                  ) : null}
+                  {habilidades.length > 0 ? (
                     <SummaryCard icon="construct-outline" label="HABILIDADES" value={habilidades.join(' · ')} />
-                  )}
+                  ) : null}
                 </View>
-              </>
-            )}
+              </View>
+            ) : null}
 
             <View style={styles.summaryFotosRow}>
               <View style={[styles.summaryFotoChip, fotoCedula && styles.summaryFotoChipDone]}>

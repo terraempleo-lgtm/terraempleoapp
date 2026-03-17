@@ -268,6 +268,7 @@ async function initializeDatabase() {
   try { await query('ALTER TABLE perfil_trabajador ADD COLUMN IF NOT EXISTS hoja_vida_url VARCHAR(500) DEFAULT NULL'); } catch (_) {}
   try { await query('ALTER TABLE perfil_trabajador ADD COLUMN IF NOT EXISTS hoja_vida_nombre VARCHAR(255) DEFAULT NULL'); } catch (_) {}
   try { await query('ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS acerca_de TEXT DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS foto_finca_fachada VARCHAR(500) DEFAULT NULL'); } catch (_) {}
 
   // Migración: compatibilidad de tipos de notificación + columnas de navegación
   try { await query('ALTER TABLE notificaciones MODIFY COLUMN tipo VARCHAR(60) NOT NULL'); } catch (_) {}

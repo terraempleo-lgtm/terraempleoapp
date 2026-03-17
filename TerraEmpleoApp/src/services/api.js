@@ -39,9 +39,11 @@ export const authAPI = {
   actualizarPerfil: (data) => api.put('/auth/perfil', data),
   subirFoto: (tipo, formData) => api.post(`/auth/fotos/${tipo}`, formData, {
     transformRequest: [(data) => data],
+    headers: { 'Content-Type': 'multipart/form-data' },
   }),
   subirHojaVida: (formData) => api.post('/auth/hoja-vida', formData, {
     transformRequest: [(data) => data],
+    headers: { 'Content-Type': 'multipart/form-data' },
   }),
 };
 
@@ -72,7 +74,8 @@ export const vacantesAPI = {
   actualizar: (id, data) => api.put(`/vacantes/${id}`, data),
   cerrar: (id) => api.put(`/vacantes/${id}/cerrar`),
   subirFotos: (vacanteId, formData) => api.post(`/vacantes/${vacanteId}/fotos`, formData, {
-    transformRequest: [(data) => data], // Evita que Axios serialice el FormData; XHR pone el boundary automáticamente
+    transformRequest: [(data) => data],
+    headers: { 'Content-Type': 'multipart/form-data' },
   }),
   eliminarFoto: (vacanteId, fotoId) => api.delete(`/vacantes/${vacanteId}/fotos/${fotoId}`),
   eliminar: (id) => api.delete(`/vacantes/${id}`),
