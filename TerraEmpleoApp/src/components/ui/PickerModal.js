@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from '../../theme';
@@ -25,6 +25,7 @@ export default function PickerModal({
     : options;
 
   const handleSelect = (item) => {
+    Keyboard.dismiss();
     onSelect(typeof item === 'string' ? item : item.value);
     onClose();
     setSearch('');
@@ -34,13 +35,13 @@ export default function PickerModal({
     <Modal visible={visible} animationType="slide" transparent>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <SafeAreaView style={styles.overlay}>
           <View style={styles.content}>
             <View style={styles.header}>
               <Text style={styles.title}>{title}</Text>
-              <TouchableOpacity onPress={() => { onClose(); setSearch(''); }}>
+              <TouchableOpacity onPress={() => { Keyboard.dismiss(); onClose(); setSearch(''); }}>
                 <Ionicons name="close-circle" size={30} color={COLORS.textLight} />
               </TouchableOpacity>
             </View>

@@ -100,9 +100,9 @@ export default function RegisterTrabajadorScreen({ navigation }) {
       case 4:
         if (!nivelEstudios) errs.estudios = 'Seleccione su nivel de estudios';
         break;
-      case 7:
-        if (!codigoSMS.trim()) errs.codigo = 'Ingrese el código';
-        break;
+      // case 7: SMS verification disabled temporarily
+      // if (!codigoSMS.trim()) errs.codigo = 'Ingrese el código';
+      // break;
       case 8:
         if (!fotoSelfie) errs.selfie = 'La selfie es obligatoria';
         if (!fotoCedula) errs.cedFoto = 'La foto de cédula es obligatoria';
@@ -130,16 +130,29 @@ export default function RegisterTrabajadorScreen({ navigation }) {
 
   const nextStep = async () => {
     if (!validateStep()) return;
-    // Step 7 = SMS verification: verify code against backend
-    if (step === 7) {
-      setLoading(true);
-      const ok = await verificarCodigo();
-      setLoading(false);
-      if (!ok) return;
+    // SMS verification disabled temporarily - skip step 7
+    // if (step === 7) {
+    //   setLoading(true);
+    //   const ok = await verificarCodigo();
+    //   setLoading(false);
+    //   if (!ok) return;
+    // }
+    // Skip SMS step (7)
+    if (step === 6) {
+      setStep(8);
+      return;
     }
     setStep(step + 1);
   };
-  const prevStep = () => step > 1 && setStep(step - 1);
+  const prevStep = () => {
+    if (step <= 1) return;
+    // Skip SMS step (7) going back
+    if (step === 8) {
+      setStep(6);
+      return;
+    }
+    setStep(step - 1);
+  };
 
   const enviarCodigo = async () => {
     try {
@@ -746,8 +759,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
       <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} labels={STEP_LABELS} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           ref={scrollRef}
@@ -764,15 +776,17 @@ export default function RegisterTrabajadorScreen({ navigation }) {
           <View style={styles.footerInScroll}>
             <View style={styles.footer}>
               {step > 1 && (
-                <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" fullWidth={false} style={{ flex: 1 }} />
+                <View style={{ flex: 1 }}>
+                  <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" icon="arrow-back" />
+                </View>
               )}
-              {step < TOTAL_STEPS ? (
-                <Button title="Siguiente" onPress={nextStep} size="medium" loading={loading}
-                  fullWidth={step > 1 ? false : true} style={step > 1 ? { flex: 1 } : undefined} />
-              ) : (
-                <Button title="Finalizar Registro" onPress={handleRegister} loading={loading}
-                  size="large" fullWidth={false} style={{ flex: 1 }} />
-              )}
+              <View style={{ flex: 1 }}>
+                {step < TOTAL_STEPS ? (
+                  <Button title="Siguiente" onPress={nextStep} size="medium" loading={loading} iconRight="arrow-forward" />
+                ) : (
+                  <Button title="Finalizar Registro" onPress={handleRegister} loading={loading} size="medium" icon="checkmark-circle" />
+                )}
+              </View>
             </View>
             <TerraFooter />
           </View>
@@ -989,6 +1003,6 @@ const styles = StyleSheet.create({
   summaryFotoChipText: { fontSize: 13, color: COLORS.textLight, fontWeight: '600' },
   summaryFotoChipTextDone: { color: COLORS.primary },
   footer: {
-    flexDirection: 'row', paddingVertical: SPACING.md, gap: SPACING.md,
+    flexDirection: 'row', paddingVertical: SPACING.md, gap: SPACING.md, alignItems: 'center',
   },
 });
