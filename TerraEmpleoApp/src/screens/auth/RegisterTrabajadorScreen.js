@@ -191,6 +191,9 @@ export default function RegisterTrabajadorScreen({ navigation }) {
   };
 
   const handleRegister = async () => {
+    if (loading) return;
+    if (!validateStep()) return;
+
     setLoading(true);
     try {
       const data = {
@@ -221,33 +224,41 @@ export default function RegisterTrabajadorScreen({ navigation }) {
       const response = await authAPI.register(data);
       const { token, user } = response.data;
 
-      // Activar token para subir fotos a S3
+      // Activar token para futuras peticiones autenticadas
       setAuthToken(token);
+
+      // Completar registro y navegación de inmediato.
+      await signIn(user, token);
+
+      // Subir fotos en segundo plano para evitar bloquear la UX en este paso final.
       const fotos = [
         { tipo: 'selfie', uri: fotoSelfie },
         { tipo: 'cedula', uri: fotoCedula },
         { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
       ].filter(f => f.uri);
-      let fotosSubidas = 0;
-      for (const { tipo, uri } of fotos) {
-        try {
-          const formData = new FormData();
-          if (Platform.OS === 'web') {
-            const resp = await fetch(uri);
-            const blob = await resp.blob();
-            formData.append('foto', blob, `${tipo}_${Date.now()}.jpg`);
-          } else {
-            formData.append('foto', { uri, type: 'image/jpeg', name: `${tipo}_${Date.now()}.jpg` });
-          }
-          await authAPI.subirFoto(tipo, formData);
-          fotosSubidas++;
-        } catch (fotoErr) {
-          console.error(`Error subiendo foto ${tipo}:`, fotoErr?.response?.data || fotoErr.message);
-        }
-      }
 
-      // Sign in directly to redirect to home (Alert callback unreliable on web)
-      await signIn(user, token);
+      if (fotos.length > 0) {
+        Promise.allSettled(
+          fotos.map(async ({ tipo, uri }) => {
+            const formData = new FormData();
+            if (Platform.OS === 'web') {
+              const resp = await fetch(uri);
+              const blob = await resp.blob();
+              formData.append('foto', blob, `${tipo}_${Date.now()}.jpg`);
+            } else {
+              formData.append('foto', { uri, type: 'image/jpeg', name: `${tipo}_${Date.now()}.jpg` });
+            }
+            await authAPI.subirFoto(tipo, formData);
+          })
+        ).then((results) => {
+          results.forEach((r, idx) => {
+            if (r.status === 'rejected') {
+              const tipo = fotos[idx]?.tipo || 'desconocido';
+              console.error(`Error subiendo foto ${tipo}:`, r.reason?.response?.data || r.reason?.message || r.reason);
+            }
+          });
+        });
+      }
     } catch (err) {
       console.error('Error registro:', err?.response?.status, err?.response?.data, err.message);
       let msg = 'Error al registrarse';
