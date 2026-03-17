@@ -103,12 +103,16 @@ const customTransition = {
   },
 };
 
-const screenOptions = {
+const headerOptions = {
   headerStyle: { backgroundColor: COLORS.primary },
   headerTintColor: COLORS.white,
   headerTitleStyle: { ...FONTS.subtitle, color: COLORS.white, fontWeight: FONTS.weight.bold },
   headerBackTitleVisible: false,
   headerRight: () => <SoporteHeaderButton />,
+};
+
+const stackScreenOptions = {
+  ...headerOptions,
   ...customTransition,
 };
 
@@ -137,7 +141,7 @@ const tabScreenOptions = ({ route }) => ({
 
 function PerfilStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="PerfilHome" component={PerfilScreen} options={{ title: 'Mi Perfil' }} />
       <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ title: 'Editar Perfil' }} />
     </Stack.Navigator>
@@ -151,7 +155,7 @@ function TrabajadorTabs() {
       <Tab.Screen name="Vacantes" component={TrabajadorVacantesStack}
         options={{ tabBarLabel: 'Vacantes' }} />
       <Tab.Screen name="Postulaciones" component={MisPostulacionesScreen}
-        options={{ tabBarLabel: 'Mis Postulaciones', headerShown: true, ...screenOptions, title: 'Mis Postulaciones' }} />
+        options={{ tabBarLabel: 'Mis Postulaciones', headerShown: true, ...headerOptions, title: 'Mis Postulaciones' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
         options={{ tabBarLabel: 'Mensajes' }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
@@ -162,7 +166,7 @@ function TrabajadorTabs() {
 
 function TrabajadorVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="VacantesHome" component={TrabajadorVacantesScreen}
         options={{ title: 'Vacantes Disponibles' }} />
       <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
@@ -175,7 +179,7 @@ function TrabajadorVacantesStack() {
 
 function ChatsStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="ChatsHome" component={ChatsScreen}
         options={{ title: 'Mensajes' }} />
       <Stack.Screen name="ChatDetalle" component={ChatDetalleScreen}
@@ -206,7 +210,7 @@ function EmpleadorTabs() {
 
 function ExplorarVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen
         name="ExplorarVacantesHome"
         component={ExplorarVacantesScreen}
@@ -223,7 +227,7 @@ function ExplorarVacantesStack() {
 
 function EmpleadorVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="EmpleadorHome" component={EmpleadorVacantesScreen}
         options={{ title: 'Mis Vacantes' }} />
       <Stack.Screen name="CrearVacante" component={CrearVacanteScreen}
@@ -251,7 +255,7 @@ function AdminTabs() {
       <Tab.Screen name="Dashboard" component={AdminDashboardStack}
         options={{ tabBarLabel: 'Dashboard' }} />
       <Tab.Screen name="Usuarios" component={AdminUsuariosScreen}
-        options={{ tabBarLabel: 'Usuarios', headerShown: true, ...screenOptions, title: 'Usuarios' }} />
+        options={{ tabBarLabel: 'Usuarios', headerShown: true, ...headerOptions, title: 'Usuarios' }} />
       <Tab.Screen name="AdminVacantes" component={AdminVacantesStack}
         options={{ tabBarLabel: 'Vacantes' }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
@@ -262,7 +266,7 @@ function AdminTabs() {
 
 function AdminVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen
         name="AdminVacantesHome"
         component={AdminVacantesScreen}
@@ -284,7 +288,7 @@ function AdminVacantesStack() {
 
 function AdminDashboardStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen}
         options={{ title: 'Admin Dashboard' }} />
       <Stack.Screen name="AdminUsuarios" component={AdminUsuariosScreen}
@@ -305,7 +309,7 @@ function AdminDashboardStack() {
 // ── Auth Stack ──
 function AuthStack() {
   return (
-    <Stack.Navigator screenOptions={{ ...screenOptions, headerShown: false, headerRight: undefined }}>
+    <Stack.Navigator screenOptions={{ ...stackScreenOptions, headerShown: false, headerRight: undefined }}>
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen}
         options={{ headerShown: true, title: 'Iniciar Sesión' }} />

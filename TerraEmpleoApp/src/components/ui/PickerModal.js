@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Keyboard, Platform } from 'react-native';
+import { View, Text, StyleSheet, Keyboard, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import BottomSheet, { BottomSheetFlatList, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from '../../theme';
 import { AnimatedPressable } from '../animated';
 import Input from './Input';
@@ -116,17 +116,25 @@ export default function PickerModal({
         </View>
       )}
 
-      <BottomSheetFlatList
-        data={filtered}
-        keyExtractor={(item, idx) => (typeof item === 'string' ? item : item.value) + idx}
+      <ScrollView
         keyboardShouldPersistTaps="handled"
-        renderItem={renderItem}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListEmptyComponent={() => (
-          <Text style={styles.empty}>No se encontraron resultados</Text>
-        )}
         contentContainerStyle={styles.listContent}
-      />
+        showsVerticalScrollIndicator={false}
+      >
+        {filtered.length === 0 ? (
+          <Text style={styles.empty}>No se encontraron resultados</Text>
+        ) : (
+          filtered.map((item, idx) => {
+            const keyBase = typeof item === 'string' ? item : item.value;
+            return (
+              <View key={`${keyBase}-${idx}`}>
+                {renderItem({ item })}
+                {idx < filtered.length - 1 ? <View style={styles.separator} /> : null}
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
     </BottomSheet>
   );
 }

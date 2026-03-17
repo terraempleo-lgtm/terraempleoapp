@@ -451,10 +451,18 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             {(nivelEstudios === 'tecnico_tecnologo' || nivelEstudios === 'universitario') && (
               <View style={{ marginTop: SPACING.md }}>
                 <Text style={styles.fieldLabel}>Título obtenido</Text>
+                <Input
+                  value={tituloEstudio}
+                  onChangeText={setTituloEstudio}
+                  placeholder="Ej: Ingeniería Agronómica"
+                  icon="create-outline"
+                  helper="Si no aparece en la lista, escríbelo manualmente."
+                  maxLength={80}
+                />
                 <TouchableOpacity style={styles.pickerButtonNew} onPress={() => setShowTituloPicker(true)}>
                   <Ionicons name="school-outline" size={20} color={tituloEstudio ? COLORS.primary : COLORS.textLight} />
                   <Text style={[styles.pickerText, !tituloEstudio && { color: COLORS.textLight }]}>
-                    {tituloEstudio || 'Seleccione su título'}
+                    {tituloEstudio || 'Seleccionar título sugerido'}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
                 </TouchableOpacity>
