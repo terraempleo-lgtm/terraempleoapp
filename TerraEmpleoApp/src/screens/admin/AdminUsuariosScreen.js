@@ -46,26 +46,52 @@ export default function AdminUsuariosScreen() {
     }
   };
 
-  const eliminar = async (id) => {
-    try {
-      await adminAPI.eliminarUsuario(id);
-      await load();
-      Alert.alert('Listo', 'Usuario eliminado correctamente');
-    } catch (err) {
-      const msg = err.response?.data?.error || 'No se pudo eliminar el usuario';
-      Alert.alert('Error', msg);
-    }
+  const eliminar = (id, nombre) => {
+    Alert.alert(
+      'Confirmar eliminación',
+      `¿Estás seguro de que deseas eliminar al usuario "${nombre}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await adminAPI.eliminarUsuario(id);
+              await load();
+              Alert.alert('Listo', 'Usuario eliminado correctamente');
+            } catch (err) {
+              const msg = err.response?.data?.error || 'No se pudo eliminar el usuario';
+              Alert.alert('Error', msg);
+            }
+          },
+        },
+      ]
+    );
   };
 
-  const eliminarFinca = async (item) => {
-    try {
-      await adminAPI.eliminarEmpleador(item.id);
-      await load();
-      Alert.alert('Listo', 'Empleador y sus datos eliminados correctamente');
-    } catch (err) {
-      const msg = err.response?.data?.error || 'No se pudo eliminar el empleador';
-      Alert.alert('Error', msg);
-    }
+  const eliminarFinca = (item) => {
+    Alert.alert(
+      'Confirmar eliminación',
+      `¿Estás seguro de que deseas eliminar al empleador "${item.nombre_completo}" y todos sus datos?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await adminAPI.eliminarEmpleador(item.id);
+              await load();
+              Alert.alert('Listo', 'Empleador y sus datos eliminados correctamente');
+            } catch (err) {
+              const msg = err.response?.data?.error || 'No se pudo eliminar el empleador';
+              Alert.alert('Error', msg);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const roleColor = (r) => r === 'trabajador' ? COLORS.primary : r === 'empleador' ? COLORS.accent : '#6A1B9A';
@@ -113,7 +139,7 @@ export default function AdminUsuariosScreen() {
               </AnimatedPressable>
             )}
             {item.rol !== 'admin' && (
-              <AnimatedPressable onPress={() => eliminar(item.id)} style={styles.actionBtn} scaleValue={0.85} haptic>
+              <AnimatedPressable onPress={() => eliminar(item.id, item.nombre_completo)} style={styles.actionBtn} scaleValue={0.85} haptic>
                 <Ionicons name="trash-outline" size={22} color={COLORS.error} />
               </AnimatedPressable>
             )}

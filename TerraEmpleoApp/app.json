@@ -2,6 +2,7 @@
   "expo": {
     "name": "TerraEmpleoApp",
     "slug": "TerraEmpleoApp",
+    "owner": "rendonv",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,7 +13,8 @@
       "backgroundColor": "#2E7D32"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.terraempleo.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -31,16 +33,13 @@
       "expo-secure-store",
       "expo-font"
     ],
-    "extra": {
-      "eas": {
-        "projectId": "e09f45b4-8fb4-434f-994c-efb95ab80e1c"
-      }
-    },
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "updates": {
-      "url": "https://u.expo.dev/e09f45b4-8fb4-434f-994c-efb95ab80e1c"
+    "extra": {
+      "eas": {
+        "projectId": "f0c2d1e1-9208-44e1-af6f-9a2c29a3e5ba"
+      }
     }
   }
 }
