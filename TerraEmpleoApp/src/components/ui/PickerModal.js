@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, Modal, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useRef, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, Keyboard, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import BottomSheet, { BottomSheetFlatList, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from '../../theme';
+import { AnimatedPressable } from '../animated';
 import Input from './Input';
 
 export default function PickerModal({
@@ -15,6 +16,15 @@ export default function PickerModal({
   searchable = true,
 }) {
   const [search, setSearch] = React.useState('');
+  const bottomSheetRef = useRef(null);
+
+  useEffect(() => {
+    if (visible) {
+      bottomSheetRef.current?.snapToIndex(0);
+    } else {
+      bottomSheetRef.current?.close();
+    }
+  }, [visible]);
 
   const filtered = search
     ? options.filter(opt =>
@@ -31,100 +41,137 @@ export default function PickerModal({
     setSearch('');
   };
 
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding"
+  const handleClose = useCallback(() => {
+    Keyboard.dismiss();
+    onClose();
+    setSearch('');
+  }, [onClose]);
+
+  const renderBackdrop = useCallback(
+    (props) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.5}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+
+  const renderItem = useCallback(({ item }) => {
+    const label = typeof item === 'string' ? item : item.label;
+    const value = typeof item === 'string' ? item : item.value;
+    const isSelected = value === selectedValue;
+
+    return (
+      <AnimatedPressable
+        style={[styles.option, isSelected && styles.optionSelected]}
+        onPress={() => handleSelect(item)}
+        scaleValue={0.98}
+        haptic={true}
       >
-        <SafeAreaView style={styles.overlay}>
-          <View style={styles.content}>
-            <View style={styles.header}>
-              <Text style={styles.title}>{title}</Text>
-              <TouchableOpacity onPress={() => { Keyboard.dismiss(); onClose(); setSearch(''); }}>
-                <Ionicons name="close-circle" size={30} color={COLORS.textLight} />
-              </TouchableOpacity>
-            </View>
+        <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+          {label}
+        </Text>
+        {isSelected && (
+          <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+        )}
+      </AnimatedPressable>
+    );
+  }, [selectedValue]);
 
-            {searchable && (
-              <Input
-                placeholder="Buscar..."
-                value={search}
-                onChangeText={setSearch}
-                icon="search"
-                style={{ marginBottom: SPACING.sm }}
-              />
-            )}
+  if (!visible) return null;
 
-            <FlatList
-              data={filtered}
-              keyExtractor={(item, idx) => (typeof item === 'string' ? item : item.value) + idx}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => {
-                const label = typeof item === 'string' ? item : item.label;
-                const value = typeof item === 'string' ? item : item.value;
-                const isSelected = value === selectedValue;
+  return (
+    <BottomSheet
+      ref={bottomSheetRef}
+      index={0}
+      snapPoints={['60%', '85%']}
+      onClose={handleClose}
+      enablePanDownToClose
+      backdropComponent={renderBackdrop}
+      handleIndicatorStyle={styles.handleIndicator}
+      backgroundStyle={styles.background}
+      style={styles.sheet}
+    >
+      <View style={styles.header}>
+        <Text style={styles.title}>{title}</Text>
+        <AnimatedPressable onPress={handleClose} scaleValue={0.9} haptic={false}>
+          <Ionicons name="close-circle" size={30} color={COLORS.textLight} />
+        </AnimatedPressable>
+      </View>
 
-                return (
-                  <TouchableOpacity
-                    style={[styles.option, isSelected && styles.optionSelected]}
-                    onPress={() => handleSelect(item)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                      {label}
-                    </Text>
-                    {isSelected && (
-                      <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
-                    )}
-                  </TouchableOpacity>
-                );
-              }}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              ListEmptyComponent={() => (
-                <Text style={styles.empty}>No se encontraron resultados</Text>
-              )}
-            />
-          </View>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
+      {searchable && (
+        <View style={styles.searchContainer}>
+          <Input
+            placeholder="Buscar..."
+            value={search}
+            onChangeText={setSearch}
+            icon="search"
+            style={{ marginBottom: 0 }}
+            containerStyle={{ marginBottom: SPACING.sm }}
+          />
+        </View>
+      )}
+
+      <BottomSheetFlatList
+        data={filtered}
+        keyExtractor={(item, idx) => (typeof item === 'string' ? item : item.value) + idx}
+        keyboardShouldPersistTaps="handled"
+        renderItem={renderItem}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={() => (
+          <Text style={styles.empty}>No se encontraron resultados</Text>
+        )}
+        contentContainerStyle={styles.listContent}
+      />
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: COLORS.overlay,
-    justifyContent: 'flex-end',
+  sheet: {
+    zIndex: 1000,
   },
-  content: {
+  background: {
     backgroundColor: COLORS.white,
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
-    maxHeight: '80%',
-    padding: SPACING.lg,
     ...SHADOWS.large,
+  },
+  handleIndicator: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.border,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.md,
   },
   title: {
     ...FONTS.subtitle,
+  },
+  searchContainer: {
+    paddingHorizontal: SPACING.lg,
   },
   option: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
   },
   optionSelected: {
     backgroundColor: COLORS.primarySoft,
     borderRadius: RADIUS.md,
+    marginHorizontal: SPACING.sm,
     paddingHorizontal: SPACING.md,
   },
   optionText: {
@@ -137,11 +184,15 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: COLORS.borderLight,
+    marginHorizontal: SPACING.lg,
   },
   empty: {
     textAlign: 'center',
     padding: SPACING.lg,
     ...FONTS.bodySmall,
     color: COLORS.textLight,
+  },
+  listContent: {
+    paddingBottom: SPACING.xxl,
   },
 });

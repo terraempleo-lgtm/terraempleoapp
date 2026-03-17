@@ -5,7 +5,8 @@ import {
   Linking, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
+import { FadeInView } from '../../components/animated';
 import { Button, Input, ChipSelector, ProgressBar, PickerModal, InfoBox, TerraFooter } from '../../components/ui';
 import { DEPARTAMENTOS, getMunicipios } from '../../data/colombia';
 import { CULTIVOS, LABORES, TIPO_PAGO_OPTIONS } from '../../data/options';
@@ -795,7 +796,11 @@ export default function RegisterEmpleadorScreen({ navigation }) {
           keyboardDismissMode={isWeb ? 'none' : 'on-drag'}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.formCard}>{renderStep()}</View>
+          <View style={styles.formCard}>
+            <FadeInView key={`step-${step}`} delay={50} translateY={10} duration={ANIMATION.duration.normal}>
+              {renderStep()}
+            </FadeInView>
+          </View>
 
           <View style={{ flex: 1 }} />
 

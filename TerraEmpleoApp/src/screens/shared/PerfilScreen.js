@@ -1,14 +1,20 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
-  Image, TouchableOpacity, Linking,
+  Image, Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { authAPI, vacantesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { MotiView } from 'moti';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withTiming,
+  withRepeat, withSequence, Easing,
+} from 'react-native-reanimated';
+import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 
 const HERO_H = 260;
 
@@ -30,6 +36,61 @@ const LABELS_PAGO = {
   jornal: 'Jornal (diario)', semanal: 'Semanal',
   quincenal: 'Quincenal', mensual: 'Mensual', destajo: 'Por tarea / destajo',
 };
+
+/* ── Animated count-up for employer stats ── */
+function AnimatedNumber({ value, style, prefix = '', suffix = '' }) {
+  const animVal = useSharedValue(0);
+
+  useEffect(() => {
+    animVal.value = 0;
+    animVal.value = withTiming(value, { duration: 800, easing: Easing.out(Easing.cubic) });
+  }, [value]);
+
+  const animStyle = useAnimatedStyle(() => ({ opacity: 1 }));
+
+  // For simplicity, render the final value with entrance animation
+  return (
+    <MotiView
+      from={{ opacity: 0, scale: 0.5 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 200 }}
+    >
+      <Text style={style}>{prefix}{value}{suffix}</Text>
+    </MotiView>
+  );
+}
+
+/* ── Pulsing timeline dot ── */
+function PulsingDot({ color = COLORS.primary, size = 14, delay = 0 }) {
+  const pulseScale = useSharedValue(1);
+
+  useEffect(() => {
+    pulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1.3, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width: size, height: size, borderRadius: size / 2,
+          backgroundColor: color, marginTop: 4, flexShrink: 0,
+        },
+        animStyle,
+      ]}
+    />
+  );
+}
 
 export default function PerfilScreen({ navigation }) {
   const { user, signOut } = useAuth();
@@ -116,115 +177,167 @@ export default function PerfilScreen({ navigation }) {
               <Image source={{ uri: fotoFincaPrincipal }} style={s.heroImg} resizeMode="cover" />
             ) : (
               <View style={s.heroPlaceholder}>
-                <View style={s.heroLeaf}><Ionicons name="leaf" size={44} color={COLORS.primaryLight} /></View>
+                <MotiView
+                  from={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 200 }}
+                >
+                  <View style={s.heroLeaf}><Ionicons name="leaf" size={44} color={COLORS.primaryLight} /></View>
+                </MotiView>
                 <Text style={s.heroPlaceholderText}>Agrega fotos en tus vacantes para mostrar tu finca aqui.</Text>
               </View>
             )}
             <View style={[s.heroBar, { top: insets.top + 8 }]}>
               <View style={{ width: 40 }} />
-              <Text style={s.heroBarTitle}>Perfil del Empleador</Text>
-              <TouchableOpacity style={s.heroCircleBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}>
+              <FadeInView delay={100} translateY={-5}>
+                <Text style={s.heroBarTitle}>Perfil del Empleador</Text>
+              </FadeInView>
+              <AnimatedPressable style={s.heroCircleBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.9} haptic>
                 <Ionicons name="settings-outline" size={20} color={COLORS.textPrimary} />
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
           </View>
 
           <View style={s.empCard}>
-            {/* Avatar centered above card */}
-            <View style={s.empAvatarRow}>
-              <View style={s.empAvatarWrap}>
-                {u?.foto_selfie && u.foto_selfie.startsWith('http') ? (
-                  <Image source={{ uri: u.foto_selfie }} style={s.empAvatar} />
-                ) : (
-                  <View style={s.empAvatarFallback}><Ionicons name="person" size={44} color={COLORS.textLight} /></View>
-                )}
-                <View style={s.empBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>
+            {/* Avatar centered above card — spring entrance */}
+            <MotiView
+              from={{ scale: 0.5, opacity: 0, translateY: 20 }}
+              animate={{ scale: 1, opacity: 1, translateY: 0 }}
+              transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 100 }}
+            >
+              <View style={s.empAvatarRow}>
+                <View style={s.empAvatarWrap}>
+                  {u?.foto_selfie && u.foto_selfie.startsWith('http') ? (
+                    <Image source={{ uri: u.foto_selfie }} style={s.empAvatar} />
+                  ) : (
+                    <View style={s.empAvatarFallback}><Ionicons name="person" size={44} color={COLORS.textLight} /></View>
+                  )}
+                  <View style={s.empBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>
+                </View>
               </View>
-            </View>
+            </MotiView>
 
-            <Text style={s.empName}>{u?.nombre_completo}</Text>
-            <Text style={s.empFinca}>🏠 {empresa}</Text>
-            {ubicacion && <Text style={s.empLoc}>📍 {ubicacion}</Text>}
+            <FadeInView delay={200}>
+              <Text style={s.empName}>{u?.nombre_completo}</Text>
+            </FadeInView>
+            <FadeInView delay={250}>
+              <Text style={s.empFinca}>🏠 {empresa}</Text>
+            </FadeInView>
+            {ubicacion && (
+              <FadeInView delay={300}>
+                <Text style={s.empLoc}>📍 {ubicacion}</Text>
+              </FadeInView>
+            )}
 
-            {/* 3 stats */}
-            <View style={s.empStats}>
-              <View style={s.empStatItem}>
-                <Text style={s.empStatVal}>{calificacion > 0 ? `★ ${calificacion.toFixed(1)}` : '—'}</Text>
-                <Text style={s.empStatLabel}>RATING</Text>
+            {/* 3 stats with animated numbers */}
+            <StaggeredItem index={0}>
+              <View style={s.empStats}>
+                <View style={s.empStatItem}>
+                  <AnimatedNumber
+                    value={calificacion > 0 ? `★ ${calificacion.toFixed(1)}` : '—'}
+                    style={s.empStatVal}
+                  />
+                  <Text style={s.empStatLabel}>RATING</Text>
+                </View>
+                <View style={s.empStatDiv} />
+                <View style={s.empStatItem}>
+                  <AnimatedNumber value={u?.total_vacantes || 0} style={s.empStatVal} />
+                  <Text style={s.empStatLabel}>VACANTES</Text>
+                </View>
+                <View style={s.empStatDiv} />
+                <View style={s.empStatItem}>
+                  <AnimatedNumber
+                    value={u?.verificado_sms ? '✓' : '—'}
+                    style={[s.empStatVal, { color: COLORS.primary }]}
+                  />
+                  <Text style={s.empStatLabel}>VERIFICADO</Text>
+                </View>
               </View>
-              <View style={s.empStatDiv} />
-              <View style={s.empStatItem}>
-                <Text style={s.empStatVal}>{u?.total_vacantes || 0}</Text>
-                <Text style={s.empStatLabel}>VACANTES</Text>
-              </View>
-              <View style={s.empStatDiv} />
-              <View style={s.empStatItem}>
-                <Text style={[s.empStatVal, { color: COLORS.primary }]}>{u?.verificado_sms ? '✓' : '—'}</Text>
-                <Text style={s.empStatLabel}>VERIFICADO</Text>
-              </View>
-            </View>
+            </StaggeredItem>
 
             {/* Sobre la finca */}
             {perfil?.nombre_empresa_finca && (
-              <View style={s.secWrap}>
-                <View style={s.secHead}><View style={s.secIcon}><Ionicons name="leaf-outline" size={16} color={COLORS.primary} /></View><Text style={s.secTitle}>Sobre la Finca</Text></View>
-                {acercaDeEmpleador ? (
-                  <Text style={s.secText}>{acercaDeEmpleador}</Text>
-                ) : (
-                  <Text style={s.secTextMuted}>
-                    {`Finca ${empresa}`}{ubicacion ? `, ubicada en ${ubicacion}` : ''}.
-                    {tipoPago ? ` Modalidad de pago: ${tipoPago}.` : ''}
-                    {beneficios.length > 0 ? ` Ofrecemos ${beneficios.join(' y ').toLowerCase()}.` : ''}
-                  </Text>
-                )}
-              </View>
+              <StaggeredItem index={1}>
+                <View style={s.secWrap}>
+                  <View style={s.secHead}><View style={s.secIcon}><Ionicons name="leaf-outline" size={16} color={COLORS.primary} /></View><Text style={s.secTitle}>Sobre la Finca</Text></View>
+                  {acercaDeEmpleador ? (
+                    <Text style={s.secText}>{acercaDeEmpleador}</Text>
+                  ) : (
+                    <Text style={s.secTextMuted}>
+                      {`Finca ${empresa}`}{ubicacion ? `, ubicada en ${ubicacion}` : ''}.
+                      {tipoPago ? ` Modalidad de pago: ${tipoPago}.` : ''}
+                      {beneficios.length > 0 ? ` Ofrecemos ${beneficios.join(' y ').toLowerCase()}.` : ''}
+                    </Text>
+                  )}
+                </View>
+              </StaggeredItem>
             )}
 
             {/* Cultivos */}
             {cultivosEmp.length > 0 && (
-              <View style={s.secWrap}>
-                <Text style={s.secTitle}>Cultivos Principales</Text>
-                <View style={s.chipWrap}>
-                  {cultivosEmp.map((c, i) => (
-                    <View key={i} style={s.chipColor}><Ionicons name="leaf" size={12} color={COLORS.primary} /><Text style={s.chipColorTxt}>{c}</Text></View>
-                  ))}
-                  {labores.map((l, i) => (
-                    <View key={`l${i}`} style={[s.chipColor, { borderColor: '#F59E0B', backgroundColor: '#FFFBEB' }]}><Text style={[s.chipColorTxt, { color: '#F59E0B' }]}>{l}</Text></View>
-                  ))}
+              <StaggeredItem index={2}>
+                <View style={s.secWrap}>
+                  <Text style={s.secTitle}>Cultivos Principales</Text>
+                  <View style={s.chipWrap}>
+                    {cultivosEmp.map((c, i) => (
+                      <MotiView
+                        key={i}
+                        from={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 40 }}
+                      >
+                        <View style={s.chipColor}><Ionicons name="leaf" size={12} color={COLORS.primary} /><Text style={s.chipColorTxt}>{c}</Text></View>
+                      </MotiView>
+                    ))}
+                    {labores.map((l, i) => (
+                      <MotiView
+                        key={`l${i}`}
+                        from={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: (cultivosEmp.length + i) * 40 }}
+                      >
+                        <View style={[s.chipColor, { borderColor: '#F59E0B', backgroundColor: '#FFFBEB' }]}><Text style={[s.chipColorTxt, { color: '#F59E0B' }]}>{l}</Text></View>
+                      </MotiView>
+                    ))}
+                  </View>
                 </View>
-              </View>
+              </StaggeredItem>
             )}
 
             {/* Verificación */}
-            <View style={s.secWrap}>
-              <Text style={s.secTitle}>Información Verificada</Text>
-              <View style={s.verList}>
-                <View style={s.verItem}>
-                  <View style={s.verIcon}><Ionicons name="document-text-outline" size={18} color={COLORS.primary} /></View>
-                  <Text style={s.verText}>Registro Empresarial</Text>
-                  <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-                </View>
-                <View style={s.verItem}>
-                  <View style={s.verIcon}><Ionicons name="call-outline" size={18} color={COLORS.primary} /></View>
-                  <Text style={s.verText}>Teléfono Verificado</Text>
-                  <Ionicons name={u?.verificado_sms ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={u?.verificado_sms ? COLORS.primary : COLORS.textLight} />
-                </View>
-                <View style={s.verItem}>
-                  <View style={s.verIcon}><Ionicons name="location-outline" size={18} color={COLORS.primary} /></View>
-                  <Text style={s.verText}>Ubicación de la Finca</Text>
-                  <Ionicons name={ubicacion ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={ubicacion ? COLORS.primary : COLORS.textLight} />
+            <StaggeredItem index={3}>
+              <View style={s.secWrap}>
+                <Text style={s.secTitle}>Información Verificada</Text>
+                <View style={s.verList}>
+                  <View style={s.verItem}>
+                    <View style={s.verIcon}><Ionicons name="document-text-outline" size={18} color={COLORS.primary} /></View>
+                    <Text style={s.verText}>Registro Empresarial</Text>
+                    <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                  </View>
+                  <View style={s.verItem}>
+                    <View style={s.verIcon}><Ionicons name="call-outline" size={18} color={COLORS.primary} /></View>
+                    <Text style={s.verText}>Teléfono Verificado</Text>
+                    <Ionicons name={u?.verificado_sms ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={u?.verificado_sms ? COLORS.primary : COLORS.textLight} />
+                  </View>
+                  <View style={s.verItem}>
+                    <View style={s.verIcon}><Ionicons name="location-outline" size={18} color={COLORS.primary} /></View>
+                    <Text style={s.verText}>Ubicación de la Finca</Text>
+                    <Ionicons name={ubicacion ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={ubicacion ? COLORS.primary : COLORS.textLight} />
+                  </View>
                 </View>
               </View>
-            </View>
+            </StaggeredItem>
 
             {/* Editar Perfil */}
-            <TouchableOpacity style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} activeOpacity={0.88}>
-              <Ionicons name="create-outline" size={20} color={COLORS.white} />
-              <Text style={s.ctaBtnTxt}>Editar Perfil</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.logoutRow} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
-            </TouchableOpacity>
+            <StaggeredItem index={4}>
+              <AnimatedPressable style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.96} haptic>
+                <Ionicons name="create-outline" size={20} color={COLORS.white} />
+                <Text style={s.ctaBtnTxt}>Editar Perfil</Text>
+              </AnimatedPressable>
+              <AnimatedPressable style={s.logoutRow} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
+                <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
+              </AnimatedPressable>
+            </StaggeredItem>
           </View>
         </ScrollView>
       </View>
@@ -244,143 +357,201 @@ export default function PerfilScreen({ navigation }) {
         {/* Top bar */}
         <View style={s.topBar}>
           <View style={{ width: 40 }} />
-          <Text style={s.topBarTitle}>Perfil del Trabajador</Text>
-          <TouchableOpacity style={s.shareBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}>
+          <FadeInView delay={100} translateY={-5}>
+            <Text style={s.topBarTitle}>Perfil del Trabajador</Text>
+          </FadeInView>
+          <AnimatedPressable style={s.shareBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.9} haptic>
             <Ionicons name="settings-outline" size={20} color={COLORS.textPrimary} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
 
-        {/* Avatar */}
+        {/* Avatar — spring bouncy entrance */}
         <View style={s.profileCenter}>
-          <View style={s.avatarWrap}>
-            {u?.foto_selfie && u.foto_selfie.startsWith('http') ? (
-              <Image source={{ uri: u.foto_selfie }} style={s.avatar} />
-            ) : (
-              <View style={s.avatarFallback}><Ionicons name="person" size={52} color={COLORS.textLight} /></View>
-            )}
-            <View style={s.verifiedBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>
-          </View>
-          <Text style={s.fullName}>{u?.nombre_completo || 'Usuario'}</Text>
+          <MotiView
+            from={{ scale: 0.4, opacity: 0, translateY: 30 }}
+            animate={{ scale: 1, opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 150 }}
+          >
+            <View style={s.avatarWrap}>
+              {u?.foto_selfie && u.foto_selfie.startsWith('http') ? (
+                <Image source={{ uri: u.foto_selfie }} style={s.avatar} />
+              ) : (
+                <View style={s.avatarFallback}><Ionicons name="person" size={52} color={COLORS.textLight} /></View>
+              )}
+              <View style={s.verifiedBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>
+            </View>
+          </MotiView>
+
+          <FadeInView delay={250}>
+            <Text style={s.fullName}>{u?.nombre_completo || 'Usuario'}</Text>
+          </FadeInView>
+
           {calificacion > 0 ? (
-            <View style={s.ratingRow}>
-              <Ionicons name="star" size={16} color="#FFB300" />
-              <Text style={s.ratingVal}>{calificacion.toFixed(1)}</Text>
-              <Text style={s.ratingCnt}>({totalCalif} reseñas)</Text>
-            </View>
+            <FadeInView delay={300}>
+              <View style={s.ratingRow}>
+                <Ionicons name="star" size={16} color="#FFB300" />
+                <Text style={s.ratingVal}>{calificacion.toFixed(1)}</Text>
+                <Text style={s.ratingCnt}>({totalCalif} reseñas)</Text>
+              </View>
+            </FadeInView>
           ) : (
-            <Text style={s.noRating}>Sin reseñas aún</Text>
+            <FadeInView delay={300}>
+              <Text style={s.noRating}>Sin reseñas aún</Text>
+            </FadeInView>
           )}
+
           {u?.verificado_sms && (
-            <View style={s.verPill}>
-              <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} /><Text style={s.verPillTxt}>VERIFICADO</Text>
-            </View>
+            <MotiView
+              from={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 350 }}
+            >
+              <View style={s.verPill}>
+                <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} /><Text style={s.verPillTxt}>VERIFICADO</Text>
+              </View>
+            </MotiView>
           )}
         </View>
 
         {/* ACERCA DE */}
-        <View style={s.secWrap}>
-          <Text style={s.secLabel}>ACERCA DE</Text>
-          {acercaDeTrabajador ? (
-            <Text style={s.secText}>{acercaDeTrabajador}</Text>
-          ) : (
-            <Text style={s.secTextMuted}>Aún no has agregado tu sección "Acerca de".</Text>
-          )}
-        </View>
+        <StaggeredItem index={0}>
+          <View style={s.secWrap}>
+            <Text style={s.secLabel}>ACERCA DE</Text>
+            {acercaDeTrabajador ? (
+              <Text style={s.secText}>{acercaDeTrabajador}</Text>
+            ) : (
+              <Text style={s.secTextMuted}>Aún no has agregado tu sección "Acerca de".</Text>
+            )}
+          </View>
+        </StaggeredItem>
 
         {perfil?.hoja_vida_url ? (
-          <View style={s.secWrap}>
-            <Text style={s.secLabel}>HOJA DE VIDA</Text>
-            <TouchableOpacity style={s.cvCard} onPress={() => abrirDocumento(perfil.hoja_vida_url)} activeOpacity={0.85}>
-              <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.cvCardTitle}>Hoja de vida cargada</Text>
-                <Text style={s.cvCardName} numberOfLines={1}>{perfil.hoja_vida_nombre || 'Hoja de vida.pdf'}</Text>
-              </View>
-              <Ionicons name="open-outline" size={18} color={COLORS.primary} />
-            </TouchableOpacity>
-          </View>
+          <StaggeredItem index={1}>
+            <View style={s.secWrap}>
+              <Text style={s.secLabel}>HOJA DE VIDA</Text>
+              <AnimatedPressable style={s.cvCard} onPress={() => abrirDocumento(perfil.hoja_vida_url)} scaleValue={0.98} haptic={false}>
+                <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.cvCardTitle}>Hoja de vida cargada</Text>
+                  <Text style={s.cvCardName} numberOfLines={1}>{perfil.hoja_vida_nombre || 'Hoja de vida.pdf'}</Text>
+                </View>
+                <Ionicons name="open-outline" size={18} color={COLORS.primary} />
+              </AnimatedPressable>
+            </View>
+          </StaggeredItem>
         ) : null}
 
         {/* HABILIDADES */}
         {especialidades.length > 0 && (
-          <View style={s.secWrap}>
-            <Text style={s.secLabel}>HABILIDADES Y ESPECIALIDADES</Text>
-            <View style={s.chipWrap}>
-              {especialidades.map((e, i) => (
-                <View key={i} style={s.chipOutline}><Text style={s.chipOutlineTxt}>{e}</Text></View>
-              ))}
+          <StaggeredItem index={2}>
+            <View style={s.secWrap}>
+              <Text style={s.secLabel}>HABILIDADES Y ESPECIALIDADES</Text>
+              <View style={s.chipWrap}>
+                {especialidades.map((e, i) => (
+                  <MotiView
+                    key={i}
+                    from={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 40 }}
+                  >
+                    <View style={s.chipOutline}><Text style={s.chipOutlineTxt}>{e}</Text></View>
+                  </MotiView>
+                ))}
+              </View>
             </View>
-          </View>
+          </StaggeredItem>
         )}
 
-        {/* EXPERIENCIA */}
+        {/* EXPERIENCIA — with pulsing timeline dots */}
         {experiencia && (
-          <View style={s.secWrap}>
-            <Text style={s.secLabel}>EXPERIENCIA LABORAL</Text>
-            <View style={s.timeline}>
-              <View style={s.tlItem}>
-                <View style={s.tlDotGreen} />
-                <View style={s.tlLine} />
-                <View style={s.tlContent}>
-                  <Text style={s.tlTitle}>Experiencia Agrícola</Text>
-                  <Text style={s.tlSub}>{experiencia}</Text>
-                  <Text style={s.tlDesc}>Trabajo en campo, cultivos y cosecha</Text>
-                </View>
-              </View>
-              {estudios && (
+          <StaggeredItem index={3}>
+            <View style={s.secWrap}>
+              <Text style={s.secLabel}>EXPERIENCIA LABORAL</Text>
+              <View style={s.timeline}>
                 <View style={s.tlItem}>
-                  <View style={[s.tlDotGreen, { backgroundColor: COLORS.primaryLight }]} />
+                  <PulsingDot color={COLORS.primary} />
+                  <View style={s.tlLine} />
                   <View style={s.tlContent}>
-                    <Text style={s.tlTitle}>Formación</Text>
-                    <Text style={s.tlSub}>{estudios}</Text>
-                    {perfil?.titulo_estudio && <Text style={s.tlDesc}>{perfil.titulo_estudio}</Text>}
+                    <Text style={s.tlTitle}>Experiencia Agrícola</Text>
+                    <Text style={s.tlSub}>{experiencia}</Text>
+                    <Text style={s.tlDesc}>Trabajo en campo, cultivos y cosecha</Text>
                   </View>
                 </View>
-              )}
+                {estudios && (
+                  <View style={s.tlItem}>
+                    <PulsingDot color={COLORS.primaryLight} delay={300} />
+                    <View style={s.tlContent}>
+                      <Text style={s.tlTitle}>Formación</Text>
+                      <Text style={s.tlSub}>{estudios}</Text>
+                      {perfil?.titulo_estudio && <Text style={s.tlDesc}>{perfil.titulo_estudio}</Text>}
+                    </View>
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
+          </StaggeredItem>
         )}
 
-        {/* Stat cards */}
-        <View style={s.statRow}>
-          <View style={s.statCard}>
-            <Ionicons name="location" size={20} color={COLORS.primary} />
-            <Text style={s.statLabel}>UBICACIÓN</Text>
-            <Text style={s.statVal}>{ubicacionT || 'Colombia'}</Text>
+        {/* Stat cards — staggered */}
+        <StaggeredItem index={4}>
+          <View style={s.statRow}>
+            <MotiView
+              from={{ opacity: 0, translateY: 20, scale: 0.9 }}
+              animate={{ opacity: 1, translateY: 0, scale: 1 }}
+              transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: 250 }}
+              style={{ flex: 1 }}
+            >
+              <View style={s.statCard}>
+                <Ionicons name="location" size={20} color={COLORS.primary} />
+                <Text style={s.statLabel}>UBICACIÓN</Text>
+                <Text style={s.statVal}>{ubicacionT || 'Colombia'}</Text>
+              </View>
+            </MotiView>
+            <MotiView
+              from={{ opacity: 0, translateY: 20, scale: 0.9 }}
+              animate={{ opacity: 1, translateY: 0, scale: 1 }}
+              transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: 350 }}
+              style={{ flex: 1 }}
+            >
+              <View style={s.statCard}>
+                <Ionicons name="calendar" size={20} color={COLORS.primary} />
+                <Text style={s.statLabel}>DISPONIBILIDAD</Text>
+                <Text style={s.statVal}>{disponibilidad || 'No indicada'}</Text>
+              </View>
+            </MotiView>
           </View>
-          <View style={s.statCard}>
-            <Ionicons name="calendar" size={20} color={COLORS.primary} />
-            <Text style={s.statLabel}>DISPONIBILIDAD</Text>
-            <Text style={s.statVal}>{disponibilidad || 'No indicada'}</Text>
-          </View>
-        </View>
+        </StaggeredItem>
 
         {/* DOCUMENTACIÓN */}
-        <View style={s.secWrap}>
-          <Text style={s.secLabel}>DOCUMENTACIÓN VERIFICADA</Text>
-          <View style={s.verList}>
-            <View style={s.verItem}>
-              <View style={s.verIcon}><Ionicons name="card-outline" size={18} color={COLORS.primary} /></View>
-              <Text style={s.verText}>Cédula de Ciudadanía</Text>
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-            </View>
-            <View style={s.verItem}>
-              <View style={s.verIcon}><Ionicons name="call-outline" size={18} color={COLORS.primary} /></View>
-              <Text style={s.verText}>Teléfono Verificado</Text>
-              <Ionicons name={u?.verificado_sms ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={u?.verificado_sms ? COLORS.primary : COLORS.textLight} />
+        <StaggeredItem index={5}>
+          <View style={s.secWrap}>
+            <Text style={s.secLabel}>DOCUMENTACIÓN VERIFICADA</Text>
+            <View style={s.verList}>
+              <View style={s.verItem}>
+                <View style={s.verIcon}><Ionicons name="card-outline" size={18} color={COLORS.primary} /></View>
+                <Text style={s.verText}>Cédula de Ciudadanía</Text>
+                <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+              </View>
+              <View style={s.verItem}>
+                <View style={s.verIcon}><Ionicons name="call-outline" size={18} color={COLORS.primary} /></View>
+                <Text style={s.verText}>Teléfono Verificado</Text>
+                <Ionicons name={u?.verificado_sms ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={u?.verificado_sms ? COLORS.primary : COLORS.textLight} />
+              </View>
             </View>
           </View>
-        </View>
+        </StaggeredItem>
 
         {/* Editar Perfil */}
-        <View style={s.secWrap}>
-          <TouchableOpacity style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} activeOpacity={0.88}>
-            <Ionicons name="create-outline" size={20} color={COLORS.white} /><Text style={s.ctaBtnTxt}>Editar Perfil</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.logoutRow} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
-          </TouchableOpacity>
-        </View>
+        <StaggeredItem index={6}>
+          <View style={s.secWrap}>
+            <AnimatedPressable style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.96} haptic>
+              <Ionicons name="create-outline" size={20} color={COLORS.white} /><Text style={s.ctaBtnTxt}>Editar Perfil</Text>
+            </AnimatedPressable>
+            <AnimatedPressable style={s.logoutRow} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
+              <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
+            </AnimatedPressable>
+          </View>
+        </StaggeredItem>
       </ScrollView>
     </SafeAreaView>
   );
@@ -427,7 +598,6 @@ const s = StyleSheet.create({
   /* Timeline */
   timeline: { paddingLeft: 4 },
   tlItem: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.lg },
-  tlDotGreen: { width: 14, height: 14, borderRadius: 7, backgroundColor: COLORS.primary, marginTop: 4, flexShrink: 0 },
   tlLine: { position: 'absolute', left: 6, top: 20, width: 2, height: 50, backgroundColor: COLORS.primarySoft },
   tlContent: { flex: 1 },
   tlTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },

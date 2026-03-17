@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, RefreshControl,
-  TouchableOpacity, Image, ScrollView,
+  Image, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { vacantesAPI } from '../../services/api';
+import { MotiView } from 'moti';
+import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 
 export default function MisPostulacionesScreen({ navigation }) {
   const [postulaciones, setPostulaciones] = useState([]);
@@ -120,79 +122,97 @@ export default function MisPostulacionesScreen({ navigation }) {
     return true;
   });
 
-  const renderItem = ({ item }) => {
+  const renderItem = ({ item, index }) => {
     const estado = getEstado(item.estado);
     const vacanteId = Number(item.vacante_id || item.id);
     const foto = fotosVacante[vacanteId] || null;
     const esAceptada = item.estado === 'aceptada';
 
     return (
-      <TouchableOpacity style={styles.card} activeOpacity={0.92} onPress={() => handlePostulacionClick(item)}>
-        <View style={styles.cardMain}>
-          <View style={styles.imageWrap}>
-            {foto ? (
-              <Image source={{ uri: foto }} style={styles.image} resizeMode="cover" />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Ionicons name="image-outline" size={20} color={COLORS.primaryLight} />
-              </View>
-            )}
-          </View>
-
-          <View style={styles.cardInfo}>
-            <View style={styles.cardTopRow}>
-              <View style={[styles.estadoPill, { backgroundColor: estado.bg }]}> 
-                <Text style={[styles.estadoPillText, { color: estado.color }]}>{estado.label}</Text>
-              </View>
-              <Text style={styles.fechaText}>{formatDateRelative(item.created_at)}</Text>
+      <StaggeredItem index={index}>
+        <AnimatedPressable style={styles.card} onPress={() => handlePostulacionClick(item)} scaleValue={0.98} haptic={false}>
+          <View style={styles.cardMain}>
+            <View style={styles.imageWrap}>
+              {foto ? (
+                <Image source={{ uri: foto }} style={styles.image} resizeMode="cover" />
+              ) : (
+                <View style={styles.imagePlaceholder}>
+                  <Ionicons name="image-outline" size={20} color={COLORS.primaryLight} />
+                </View>
+              )}
             </View>
 
-            <Text style={styles.vacanteTitle} numberOfLines={2}>{item.titulo}</Text>
+            <View style={styles.cardInfo}>
+              <View style={styles.cardTopRow}>
+                <MotiView
+                  from={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: index * 30 }}
+                >
+                  <View style={[styles.estadoPill, { backgroundColor: estado.bg }]}>
+                    <Text style={[styles.estadoPillText, { color: estado.color }]}>{estado.label}</Text>
+                  </View>
+                </MotiView>
+                <Text style={styles.fechaText}>{formatDateRelative(item.created_at)}</Text>
+              </View>
 
-            <Text style={styles.empresaText} numberOfLines={1}>
-              {item.nombre_empresa_finca || 'Finca sin nombre'}
-            </Text>
+              <Text style={styles.vacanteTitle} numberOfLines={2}>{item.titulo}</Text>
 
-            <View style={styles.locationRow}>
-              <Ionicons name="location-sharp" size={13} color={COLORS.textLight} />
-              <Text style={styles.locationText} numberOfLines={2}>
-                {[item.municipio, item.departamento].filter(Boolean).join(', ') || 'Ubicación por confirmar'}
+              <Text style={styles.empresaText} numberOfLines={1}>
+                {item.nombre_empresa_finca || 'Finca sin nombre'}
               </Text>
+
+              <View style={styles.locationRow}>
+                <Ionicons name="location-sharp" size={13} color={COLORS.textLight} />
+                <Text style={styles.locationText} numberOfLines={2}>
+                  {[item.municipio, item.departamento].filter(Boolean).join(', ') || 'Ubicación por confirmar'}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {esAceptada ? (
-          <View style={styles.okBox}>
-            <Ionicons name="information-circle" size={16} color={COLORS.primary} style={{ marginTop: 1 }} />
-            <Text style={styles.okBoxText}>
-              ¡Felicidades! Tu postulación fue aceptada. Espera que el empleador se comunique contigo pronto.
-            </Text>
+          {esAceptada ? (
+            <MotiView
+              from={{ opacity: 0, translateY: -5 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 300 }}
+            >
+              <View style={styles.okBox}>
+                <Ionicons name="information-circle" size={16} color={COLORS.primary} style={{ marginTop: 1 }} />
+                <Text style={styles.okBoxText}>
+                  ¡Felicidades! Tu postulación fue aceptada. Espera que el empleador se comunique contigo pronto.
+                </Text>
+              </View>
+            </MotiView>
+          ) : null}
+
+          <View style={styles.cardFooter}>
+            <AnimatedPressable style={styles.detailBtn} onPress={() => handlePostulacionClick(item)} scaleValue={0.95} haptic={false}>
+              <Text style={styles.detailBtnText}>Ver detalle</Text>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+            </AnimatedPressable>
           </View>
-        ) : null}
-
-        <View style={styles.cardFooter}>
-          <TouchableOpacity style={styles.detailBtn} onPress={() => handlePostulacionClick(item)}>
-            <Text style={styles.detailBtnText}>Ver detalle</Text>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+        </AnimatedPressable>
+      </StaggeredItem>
     );
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Vacantes'))}
-        >
-          <Ionicons name="arrow-back" size={22} color={COLORS.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mis Postulaciones</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <FadeInView delay={0}>
+        <View style={styles.headerRow}>
+          <AnimatedPressable
+            style={styles.backBtn}
+            onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Vacantes'))}
+            scaleValue={0.9}
+            haptic
+          >
+            <Ionicons name="arrow-back" size={22} color={COLORS.primary} />
+          </AnimatedPressable>
+          <Text style={styles.headerTitle}>Mis Postulaciones</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+      </FadeInView>
 
       <ScrollView
         horizontal
@@ -200,18 +220,20 @@ export default function MisPostulacionesScreen({ navigation }) {
         contentContainerStyle={styles.chipsRow}
         style={{ flexGrow: 0 }}
       >
-        {chips.map((chip) => {
+        {chips.map((chip, i) => {
           const activo = filtro === chip.key;
           return (
-            <TouchableOpacity
+            <AnimatedPressable
               key={chip.key}
               style={[styles.filterChip, activo && styles.filterChipActive]}
               onPress={() => setFiltro(chip.key)}
-              activeOpacity={0.85}
+              scaleValue={0.93}
+              haptic
+              hapticStyle="light"
             >
               <View style={[styles.filterDot, activo && styles.filterDotActive]} />
               <Text style={[styles.filterText, activo && styles.filterTextActive]}>{chip.label}</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           );
         })}
       </ScrollView>
@@ -230,19 +252,37 @@ export default function MisPostulacionesScreen({ navigation }) {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <View style={styles.emptyIconWrap}>
-              <Ionicons name="document-text-outline" size={48} color={COLORS.primaryLight} />
-            </View>
-            <Text style={styles.emptyTitle}>Sin postulaciones</Text>
-            <Text style={styles.emptyText}>No hay postulaciones en este filtro por ahora.</Text>
-            <TouchableOpacity
-              style={styles.emptyBtn}
-              onPress={() => navigation.navigate('Vacantes')}
-              activeOpacity={0.85}
+            <MotiView
+              from={{ translateY: 0 }}
+              animate={{ translateY: -8 }}
+              transition={{
+                type: 'timing',
+                duration: 1500,
+                loop: true,
+                repeatReverse: true,
+              }}
             >
-              <Ionicons name="search-outline" size={18} color={COLORS.white} />
-              <Text style={styles.emptyBtnText}>Explorar vacantes</Text>
-            </TouchableOpacity>
+              <View style={styles.emptyIconWrap}>
+                <Ionicons name="document-text-outline" size={48} color={COLORS.primaryLight} />
+              </View>
+            </MotiView>
+            <FadeInView delay={200}>
+              <Text style={styles.emptyTitle}>Sin postulaciones</Text>
+            </FadeInView>
+            <FadeInView delay={300}>
+              <Text style={styles.emptyText}>No hay postulaciones en este filtro por ahora.</Text>
+            </FadeInView>
+            <FadeInView delay={400}>
+              <AnimatedPressable
+                style={styles.emptyBtn}
+                onPress={() => navigation.navigate('Vacantes')}
+                scaleValue={0.96}
+                haptic
+              >
+                <Ionicons name="search-outline" size={18} color={COLORS.white} />
+                <Text style={styles.emptyBtnText}>Explorar vacantes</Text>
+              </AnimatedPressable>
+            </FadeInView>
           </View>
         }
       />
@@ -462,6 +502,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
+    textAlign: 'center',
   },
   emptyText: {
     fontSize: 15,

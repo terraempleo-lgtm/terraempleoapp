@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Modal } from 'react-native';
-import { COLORS, RADIUS, SPACING, SHADOWS, FONTS } from '../../theme';
+import { View, Text, TextInput, StyleSheet, Modal } from 'react-native';
+import { COLORS, RADIUS, SPACING, SHADOWS, FONTS, ANIMATION } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
+import { AnimatedPressable } from '../animated';
+import { MotiView, AnimatePresence } from 'moti';
 
 export default function ChipSelector({
   label,
@@ -51,47 +53,65 @@ export default function ChipSelector({
       )}
 
       <View style={styles.chipsContainer}>
-        {options.map((option) => {
+        {options.map((option, index) => {
           const isSelected = selected.includes(option);
           return (
-            <TouchableOpacity
+            <MotiView
               key={option}
-              style={[styles.chip, isSelected && styles.chipSelected]}
-              onPress={() => toggleOption(option)}
-              activeOpacity={0.7}
+              from={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'timing', duration: 300, delay: index * 30 }}
             >
-              {isSelected && (
-                <Ionicons name="checkmark-circle" size={18} color={COLORS.white} style={{ marginRight: 4 }} />
-              )}
-              <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                {option}
-              </Text>
-            </TouchableOpacity>
+              <AnimatedPressable
+                style={[styles.chip, isSelected && styles.chipSelected]}
+                onPress={() => toggleOption(option)}
+                scaleValue={ANIMATION.scale.chipPressed}
+                haptic={true}
+              >
+                <AnimatePresence>
+                  {isSelected && (
+                    <MotiView
+                      from={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0 }}
+                      transition={{ type: 'spring', damping: 12, stiffness: 200 }}
+                    >
+                      <Ionicons name="checkmark-circle" size={18} color={COLORS.white} style={{ marginRight: 4 }} />
+                    </MotiView>
+                  )}
+                </AnimatePresence>
+                <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                  {option}
+                </Text>
+              </AnimatedPressable>
+            </MotiView>
           );
         })}
 
         {/* Chips personalizados */}
         {selected.filter(s => !options.includes(s)).map((custom) => (
-          <TouchableOpacity
+          <AnimatedPressable
             key={custom}
             style={[styles.chip, styles.chipCustom]}
             onPress={() => onSelectionChange(selected.filter(s => s !== custom))}
-            activeOpacity={0.7}
+            scaleValue={ANIMATION.scale.chipPressed}
+            haptic={true}
           >
             <Text style={[styles.chipText, styles.chipTextSelected]}>{custom}</Text>
             <Ionicons name="close-circle" size={18} color={COLORS.white} style={{ marginLeft: 4 }} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         ))}
 
         {allowCustom && (
-          <TouchableOpacity
+          <AnimatedPressable
             style={[styles.chip, styles.chipAdd]}
             onPress={() => setShowCustomInput(true)}
-            activeOpacity={0.7}
+            scaleValue={ANIMATION.scale.chipPressed}
+            haptic={false}
           >
             <Ionicons name="add-circle-outline" size={18} color={COLORS.primary} />
             <Text style={[styles.chipText, { color: COLORS.primary }]}>{customLabel}</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         )}
       </View>
 
@@ -99,12 +119,18 @@ export default function ChipSelector({
 
       {/* Modal para agregar personalizado */}
       <Modal visible={showCustomInput} transparent animationType="fade">
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.modalOverlay}
-          activeOpacity={1}
           onPress={() => setShowCustomInput(false)}
+          haptic={false}
+          scaleValue={1}
         >
-          <View style={styles.modalContent}>
+          <MotiView
+            from={{ opacity: 0, scale: 0.9, translateY: 20 }}
+            animate={{ opacity: 1, scale: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 15, stiffness: 200 }}
+            style={styles.modalContent}
+          >
             <Text style={styles.modalTitle}>Agregar opción</Text>
             <TextInput
               style={styles.modalInput}
@@ -115,21 +141,25 @@ export default function ChipSelector({
               autoFocus
             />
             <View style={styles.modalButtons}>
-              <TouchableOpacity
+              <AnimatedPressable
                 style={[styles.modalBtn, styles.modalBtnCancel]}
                 onPress={() => { setShowCustomInput(false); setCustomText(''); }}
+                scaleValue={ANIMATION.scale.pressed}
+                haptic={false}
               >
                 <Text style={styles.modalBtnCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </AnimatedPressable>
+              <AnimatedPressable
                 style={[styles.modalBtn, styles.modalBtnAdd]}
                 onPress={addCustom}
+                scaleValue={ANIMATION.scale.pressed}
+                haptic={true}
               >
                 <Text style={styles.modalBtnAddText}>Agregar</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
-          </View>
-        </TouchableOpacity>
+          </MotiView>
+        </AnimatedPressable>
       </Modal>
     </View>
   );

@@ -1,7 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
-import { COLORS, RADIUS, SHADOWS, SPACING, LAYOUT, FONTS } from '../../theme';
+import { Text, StyleSheet, ActivityIndicator, View } from 'react-native';
+import { COLORS, RADIUS, SHADOWS, SPACING, LAYOUT, FONTS, ANIMATION } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
+import { AnimatedPressable } from '../animated';
 
 export default function Button({
   title,
@@ -86,12 +87,16 @@ export default function Button({
     return iconValue;
   };
 
+  const shouldHaptic = variant === 'primary' || variant === 'danger';
+  const scaleVal = size === 'large' ? ANIMATION.scale.pressed : ANIMATION.scale.pressedSubtle;
+
   return (
-    <TouchableOpacity
+    <AnimatedPressable
       style={[...getButtonStyle(), style]}
       onPress={onPress}
       disabled={isDisabled}
-      activeOpacity={0.75}
+      scaleValue={scaleVal}
+      haptic={shouldHaptic && !isDisabled}
     >
       {loading ? (
         <View style={styles.content}>
@@ -105,7 +110,7 @@ export default function Button({
           {iconRight && <View style={styles.iconRight}>{renderIcon(iconRight)}</View>}
         </View>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 

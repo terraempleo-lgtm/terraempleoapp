@@ -1,10 +1,37 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, RADIUS, FONTS } from '../../theme';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
+import { COLORS, SPACING, RADIUS, FONTS, ANIMATION } from '../../theme';
 
 export default function ProgressBar({ currentStep, totalSteps, labels = [] }) {
   const progress = Math.round((currentStep / totalSteps) * 100);
   const label = labels[currentStep - 1] || '';
+
+  const animatedProgress = useSharedValue(0);
+  const glowOpacity = useSharedValue(0.4);
+
+  useEffect(() => {
+    animatedProgress.value = withSpring(progress / 100, ANIMATION.spring.gentle);
+    glowOpacity.value = withRepeat(
+      withTiming(1, { duration: 1000 }),
+      -1,
+      true
+    );
+  }, [currentStep]);
+
+  const barStyle = useAnimatedStyle(() => ({
+    width: `${animatedProgress.value * 100}%`,
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+  }));
 
   return (
     <View style={styles.container}>
@@ -20,7 +47,9 @@ export default function ProgressBar({ currentStep, totalSteps, labels = [] }) {
       ) : null}
 
       <View style={styles.barContainer}>
-        <View style={[styles.barFill, { width: `${progress}%` }]} />
+        <Animated.View style={[styles.barFill, barStyle]}>
+          <Animated.View style={[styles.glow, glowStyle]} />
+        </Animated.View>
       </View>
     </View>
   );
@@ -64,5 +93,13 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: COLORS.primary,
     borderRadius: RADIUS.full,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  glow: {
+    width: 12,
+    height: '100%',
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primaryLight,
   },
 });

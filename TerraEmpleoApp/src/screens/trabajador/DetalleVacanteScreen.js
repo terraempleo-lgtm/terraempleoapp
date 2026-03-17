@@ -1,19 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert, Modal,
-  Image, Dimensions, FlatList, TouchableOpacity, ActivityIndicator,
+  Image, Dimensions, FlatList, ActivityIndicator,
   Platform, TextInput,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  withSequence,
+  withSpring,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+import { MotiView } from 'moti';
+import * as Haptics from 'expo-haptics';
+import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { vacantesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { Ionicons } from '@expo/vector-icons';
+import { AnimatedPressable, StaggeredItem } from '../../components/animated';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 320;
+
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 export default function DetalleVacanteScreen({ route, navigation }) {
   const { vacante } = route.params;
@@ -30,6 +44,20 @@ export default function DetalleVacanteScreen({ route, navigation }) {
   const [showPostModal, setShowPostModal] = useState(false);
   const [mensajePost, setMensajePost] = useState('');
   const [postExitosa, setPostExitosa] = useState(false);
+
+  // Parallax
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  // Heart animation
+  const heartScale = useSharedValue(1);
+  const heartAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartScale.value }],
+  }));
 
   useEffect(() => {
     const cargarDetalle = async () => {
@@ -71,6 +99,17 @@ export default function DetalleVacanteScreen({ route, navigation }) {
     }
   };
 
+  const toggleLike = () => {
+    setLiked(l => !l);
+    heartScale.value = withSequence(
+      withSpring(ANIMATION.scale.heartPop, ANIMATION.spring.bouncy),
+      withSpring(1, ANIMATION.spring.gentle)
+    );
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  };
+
   const onScroll = (e) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
     setActiveIndex(index);
@@ -82,7 +121,6 @@ export default function DetalleVacanteScreen({ route, navigation }) {
     fallback: 'Por definir',
   });
 
-  // Beneficios disponibles
   const beneficios = [
     vacante.ofrece_alojamiento && { icon: 'home-outline', label: 'Vivienda', desc: 'Alojamiento incluido' },
     vacante.ofrece_alimentacion && { icon: 'restaurant-outline', label: 'Comida', desc: 'Alimentación incluida' },
@@ -91,83 +129,105 @@ export default function DetalleVacanteScreen({ route, navigation }) {
   const requisitosTexto = vacante.requisitos?.trim();
   const labores = (vacante.labores || []).map((l) => l.labor || l).filter(Boolean);
 
-  // Imagen hero
   const heroFotos = fotos.length > 0
     ? fotos
     : vacante.foto_portada
       ? [{ url: vacante.foto_portada, id: 'portada' }]
       : [];
 
+  // Parallax hero style
+  const heroAnimStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(
+      scrollY.value,
+      [-100, 0, HERO_HEIGHT],
+      [-50, 0, HERO_HEIGHT * 0.3],
+      Extrapolation.CLAMP
+    );
+    const scale = interpolate(
+      scrollY.value,
+      [-100, 0],
+      [1.2, 1],
+      Extrapolation.CLAMP
+    );
+    return {
+      transform: [{ translateY }, { scale }],
+    };
+  });
+
   return (
     <View style={styles.root}>
-      <ScrollView
+      <AnimatedScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 130 }}
         showsVerticalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
       >
         {/* Hero */}
         <View style={styles.heroWrap}>
-          {heroFotos.length > 0 ? (
-            <>
-              <FlatList
-                ref={flatListRef}
-                data={heroFotos}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onScroll={onScroll}
-                scrollEventThrottle={16}
-                keyExtractor={(item, i) => item.id?.toString() || i.toString()}
-                renderItem={({ item }) => (
-                  <Image
-                    source={{ uri: item.url }}
-                    style={styles.heroImage}
-                    resizeMode="cover"
-                  />
-                )}
-              />
-              {heroFotos.length > 1 && (
-                <View style={styles.dotsWrap}>
-                  <View style={styles.dotsBar}>
-                    {heroFotos.map((_, i) => (
-                      <View key={i} style={[styles.dot, i === activeIndex && styles.dotActive]} />
-                    ))}
+          <Animated.View style={[{ width: '100%', height: HERO_HEIGHT }, heroAnimStyle]}>
+            {heroFotos.length > 0 ? (
+              <>
+                <FlatList
+                  ref={flatListRef}
+                  data={heroFotos}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={onScroll}
+                  scrollEventThrottle={16}
+                  keyExtractor={(item, i) => item.id?.toString() || i.toString()}
+                  renderItem={({ item }) => (
+                    <Image
+                      source={{ uri: item.url }}
+                      style={styles.heroImage}
+                      resizeMode="cover"
+                    />
+                  )}
+                />
+                {heroFotos.length > 1 && (
+                  <View style={styles.dotsWrap}>
+                    <View style={styles.dotsBar}>
+                      {heroFotos.map((_, i) => (
+                        <View key={i} style={[styles.dot, i === activeIndex && styles.dotActive]} />
+                      ))}
+                    </View>
                   </View>
+                )}
+              </>
+            ) : (
+              <View style={styles.heroPlaceholder}>
+                <View style={styles.heroPlaceholderIcon}>
+                  <Ionicons name="leaf" size={48} color={COLORS.primaryLight} />
                 </View>
-              )}
-            </>
-          ) : (
-            <View style={styles.heroPlaceholder}>
-              <View style={styles.heroPlaceholderIcon}>
-                <Ionicons name="leaf" size={48} color={COLORS.primaryLight} />
+                <Text style={styles.heroPlaceholderText}>Sin fotos disponibles</Text>
               </View>
-              <Text style={styles.heroPlaceholderText}>Sin fotos disponibles</Text>
-            </View>
-          )}
+            )}
+          </Animated.View>
 
-          {/* Gradient overlay */}
           <View style={styles.heroGradient} />
 
           {/* Botones sobre la imagen */}
           <View style={[styles.heroButtons, { top: insets.top + 8 }]}>
-            <TouchableOpacity style={styles.heroBtn} onPress={() => navigation.goBack()}>
+            <AnimatedPressable style={styles.heroBtn} onPress={() => navigation.goBack()} scaleValue={0.9} haptic={true}>
               <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
-            </TouchableOpacity>
+            </AnimatedPressable>
             <View style={styles.heroBtnRight}>
-              <TouchableOpacity style={styles.heroBtn}>
+              <AnimatedPressable style={styles.heroBtn} scaleValue={0.9} haptic={true}>
                 <Ionicons name="share-social-outline" size={20} color={COLORS.textPrimary} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.heroBtn} onPress={() => setLiked(l => !l)}>
-                <Ionicons
-                  name={liked ? 'heart' : 'heart-outline'}
-                  size={20}
-                  color={liked ? '#E53935' : COLORS.textPrimary}
-                />
-              </TouchableOpacity>
+              </AnimatedPressable>
+              <AnimatedPressable style={styles.heroBtn} onPress={toggleLike} scaleValue={0.9} haptic={false}>
+                <Animated.View style={heartAnimStyle}>
+                  <Ionicons
+                    name={liked ? 'heart' : 'heart-outline'}
+                    size={20}
+                    color={liked ? '#E53935' : COLORS.textPrimary}
+                  />
+                </Animated.View>
+              </AnimatedPressable>
             </View>
           </View>
 
-          {/* Foto counter */}
           {heroFotos.length > 0 && (
             <View style={styles.photoCounter}>
               <Ionicons name="images-outline" size={14} color={COLORS.white} />
@@ -176,130 +236,140 @@ export default function DetalleVacanteScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* Tarjeta de contenido (superpone la imagen) */}
-        <View style={styles.contentCard}>
-          {/* Badge row: URGENTE + tiempo */}
-          <View style={styles.badgeRow}>
-            {vacante.urgente && (
-              <View style={styles.urgentBadge}>
-                <Text style={styles.urgentText}>URGENTE</Text>
-              </View>
-            )}
-            {vacante.created_at && (
-              <Text style={styles.timeText}>
-                Publicado {(() => {
-                  const d = Math.floor((Date.now() - new Date(vacante.created_at)) / 86400000);
-                  if (d === 0) return 'hoy';
-                  if (d === 1) return 'hace 1 día';
-                  return `hace ${d} días`;
-                })()}
-              </Text>
-            )}
-          </View>
-
-          {/* Título */}
-          <Text style={styles.title}>{vacante.titulo}</Text>
-
-          {/* Descripción - barra izquierda verde */}
-          {vacante.descripcion && (
-            <View style={styles.barSection}>
-              <View style={styles.barGreen} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.barTitle}>Descripción</Text>
-                <Text style={styles.description}>{vacante.descripcion}</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Info principal */}
-          <View style={styles.infoBlock}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoCircle}><Ionicons name="location-outline" size={16} color={COLORS.primary} /></View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.infoLabel}>Ubicación</Text>
-                <Text style={styles.infoValue}>{[vacante.municipio, vacante.departamento].filter(Boolean).join(', ') || 'Colombia'}</Text>
-              </View>
-            </View>
-            <View style={styles.infoRow}>
-              <View style={styles.infoCircle}><Ionicons name="cash-outline" size={16} color={COLORS.primary} /></View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.infoLabel}>Salario</Text>
-                <Text style={styles.infoValue}>{pago.valor}</Text>
-              </View>
-            </View>
-            <View style={styles.infoRow}>
-              <View style={styles.infoCircle}><Ionicons name="calendar-clear-outline" size={16} color={COLORS.primary} /></View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.infoLabel}>Fecha de inicio</Text>
-                <Text style={styles.infoValue}>{fechaInicioTexto}</Text>
-              </View>
-            </View>
-            {vacante.duracion ? (
-              <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-                <View style={styles.infoCircle}><Ionicons name="calendar-outline" size={16} color={COLORS.primary} /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.infoLabel}>Duración</Text>
-                  <Text style={styles.infoValue}>{vacante.duracion}</Text>
-                </View>
-              </View>
-            ) : null}
-          </View>
-
-          {/* Requisitos reales del empleador */}
-          {requisitosTexto ? (
-            <View style={styles.barSection}>
-              <View style={styles.barGreen} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.barTitle}>Requisitos</Text>
-                <Text style={styles.description}>{requisitosTexto}</Text>
-              </View>
-            </View>
-          ) : null}
-
-          {/* Labores solicitadas */}
-          {labores.length > 0 && (
-            <View style={styles.barSection}>
-              <View style={styles.barGreen} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.barTitle}>Labores solicitadas</Text>
-                <View style={styles.chipsRow}>
-                  {labores.map((r, i) => (
-                    <View key={i} style={styles.reqChip}>
-                      <Ionicons name="checkmark-circle-outline" size={14} color={COLORS.textSecondary} />
-                      <Text style={styles.reqChipText}>{r}</Text>
-                    </View>
-                  ))}
-                  {(vacante.cultivos || []).map((c, i) => (
-                    <View key={`c${i}`} style={styles.chipGreen}>
-                      <Ionicons name="leaf" size={12} color={COLORS.primary} />
-                      <Text style={styles.chipGreenText}>{c.cultivo || c}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* Beneficios adicionales - card verde suave */}
-          {(beneficios.length > 0 || vacante.otros_beneficios) && (
-            <View style={styles.benefCard}>
-              <Text style={styles.benefTitle}>Beneficios adicionales</Text>
-              {beneficios.map((b, i) => (
-                <View key={i} style={styles.benefRow}>
-                  <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
-                  <Text style={styles.benefText}>{b.desc}</Text>
-                </View>
-              ))}
-              {vacante.otros_beneficios && (
-                <View style={styles.benefRow}>
-                  <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
-                  <Text style={styles.benefText}>{vacante.otros_beneficios}</Text>
+        {/* Tarjeta de contenido con animación de entrada */}
+        <MotiView
+          from={{ opacity: 0, translateY: 30 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 18, stiffness: 150, delay: 200 }}
+        >
+          <View style={styles.contentCard}>
+            <View style={styles.badgeRow}>
+              {vacante.urgente && (
+                <View style={styles.urgentBadge}>
+                  <Text style={styles.urgentText}>URGENTE</Text>
                 </View>
               )}
+              {vacante.created_at && (
+                <Text style={styles.timeText}>
+                  Publicado {(() => {
+                    const d = Math.floor((Date.now() - new Date(vacante.created_at)) / 86400000);
+                    if (d === 0) return 'hoy';
+                    if (d === 1) return 'hace 1 día';
+                    return `hace ${d} días`;
+                  })()}
+                </Text>
+              )}
             </View>
-          )}
-        </View>
-      </ScrollView>
+
+            <Text style={styles.title}>{vacante.titulo}</Text>
+
+            {vacante.descripcion && (
+              <StaggeredItem index={0}>
+                <View style={styles.barSection}>
+                  <View style={styles.barGreen} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.barTitle}>Descripción</Text>
+                    <Text style={styles.description}>{vacante.descripcion}</Text>
+                  </View>
+                </View>
+              </StaggeredItem>
+            )}
+
+            {/* Info principal */}
+            <StaggeredItem index={1}>
+              <View style={styles.infoBlock}>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoCircle}><Ionicons name="location-outline" size={16} color={COLORS.primary} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.infoLabel}>Ubicación</Text>
+                    <Text style={styles.infoValue}>{[vacante.municipio, vacante.departamento].filter(Boolean).join(', ') || 'Colombia'}</Text>
+                  </View>
+                </View>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoCircle}><Ionicons name="cash-outline" size={16} color={COLORS.primary} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.infoLabel}>Salario</Text>
+                    <Text style={styles.infoValue}>{pago.valor}</Text>
+                  </View>
+                </View>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoCircle}><Ionicons name="calendar-clear-outline" size={16} color={COLORS.primary} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.infoLabel}>Fecha de inicio</Text>
+                    <Text style={styles.infoValue}>{fechaInicioTexto}</Text>
+                  </View>
+                </View>
+                {vacante.duracion ? (
+                  <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+                    <View style={styles.infoCircle}><Ionicons name="calendar-outline" size={16} color={COLORS.primary} /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.infoLabel}>Duración</Text>
+                      <Text style={styles.infoValue}>{vacante.duracion}</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            </StaggeredItem>
+
+            {requisitosTexto ? (
+              <StaggeredItem index={2}>
+                <View style={styles.barSection}>
+                  <View style={styles.barGreen} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.barTitle}>Requisitos</Text>
+                    <Text style={styles.description}>{requisitosTexto}</Text>
+                  </View>
+                </View>
+              </StaggeredItem>
+            ) : null}
+
+            {labores.length > 0 && (
+              <StaggeredItem index={3}>
+                <View style={styles.barSection}>
+                  <View style={styles.barGreen} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.barTitle}>Labores solicitadas</Text>
+                    <View style={styles.chipsRow}>
+                      {labores.map((r, i) => (
+                        <View key={i} style={styles.reqChip}>
+                          <Ionicons name="checkmark-circle-outline" size={14} color={COLORS.textSecondary} />
+                          <Text style={styles.reqChipText}>{r}</Text>
+                        </View>
+                      ))}
+                      {(vacante.cultivos || []).map((c, i) => (
+                        <View key={`c${i}`} style={styles.chipGreen}>
+                          <Ionicons name="leaf" size={12} color={COLORS.primary} />
+                          <Text style={styles.chipGreenText}>{c.cultivo || c}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              </StaggeredItem>
+            )}
+
+            {(beneficios.length > 0 || vacante.otros_beneficios) && (
+              <StaggeredItem index={4}>
+                <View style={styles.benefCard}>
+                  <Text style={styles.benefTitle}>Beneficios adicionales</Text>
+                  {beneficios.map((b, i) => (
+                    <View key={i} style={styles.benefRow}>
+                      <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
+                      <Text style={styles.benefText}>{b.desc}</Text>
+                    </View>
+                  ))}
+                  {vacante.otros_beneficios && (
+                    <View style={styles.benefRow}>
+                      <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
+                      <Text style={styles.benefText}>{vacante.otros_beneficios}</Text>
+                    </View>
+                  )}
+                </View>
+              </StaggeredItem>
+            )}
+          </View>
+        </MotiView>
+      </AnimatedScrollView>
 
       {/* Footer sticky CTA */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
@@ -308,11 +378,12 @@ export default function DetalleVacanteScreen({ route, navigation }) {
           <Text style={styles.footerSalary}>{pago.valor}</Text>
         </View>
         {user?.rol === 'trabajador' && (
-          <TouchableOpacity
+          <AnimatedPressable
             style={[styles.postBtn, postulado && styles.postBtnDone]}
             onPress={!postulado ? () => setShowPostModal(true) : undefined}
             disabled={loading || postulado}
-            activeOpacity={0.85}
+            scaleValue={ANIMATION.scale.pressed}
+            haptic={!postulado}
           >
             {loading ? (
               <ActivityIndicator size="small" color={COLORS.white} />
@@ -328,17 +399,21 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                 </Text>
               </>
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
         )}
       </View>
 
       {/* Modal: Confirmar postulación */}
       <Modal visible={showPostModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <MotiView
+            from={{ translateY: 100, opacity: 0 }}
+            animate={{ translateY: 0, opacity: 1 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            style={styles.modalContent}
+          >
             {!postExitosa ? (
               <>
-                {/* Header del modal */}
                 <View style={styles.modalHeader}>
                   <View style={styles.modalHandle} />
                 </View>
@@ -350,7 +425,6 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                   {vacante.titulo} en {vacante.nombre_empresa_finca || 'la empresa'}
                 </Text>
 
-                {/* Mensaje opcional */}
                 <Text style={styles.modalFieldLabel}>Mensaje al empleador (opcional)</Text>
                 <TextInput
                   style={styles.modalInput}
@@ -363,12 +437,12 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                   textAlignVertical="top"
                 />
 
-                {/* Botones */}
-                <TouchableOpacity
+                <AnimatedPressable
                   style={styles.modalPostBtn}
                   onPress={handlePostularse}
                   disabled={loading}
-                  activeOpacity={0.85}
+                  scaleValue={ANIMATION.scale.pressed}
+                  haptic={true}
                 >
                   {loading ? (
                     <ActivityIndicator color={COLORS.white} />
@@ -378,23 +452,29 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                       <Text style={styles.modalPostBtnText}>Enviar postulación</Text>
                     </>
                   )}
-                </TouchableOpacity>
-                <TouchableOpacity
+                </AnimatedPressable>
+                <AnimatedPressable
                   style={styles.modalCancelBtn}
                   onPress={() => setShowPostModal(false)}
+                  scaleValue={0.97}
+                  haptic={false}
                 >
                   <Text style={styles.modalCancelText}>Cancelar</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               </>
             ) : (
               <>
-                {/* Postulación exitosa */}
                 <View style={styles.modalHeader}>
                   <View style={styles.modalHandle} />
                 </View>
-                <View style={styles.successIconWrap}>
+                <MotiView
+                  from={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', damping: 10, stiffness: 150, delay: 100 }}
+                  style={styles.successIconWrap}
+                >
                   <Ionicons name="checkmark-circle" size={64} color={COLORS.primary} />
-                </View>
+                </MotiView>
                 <Text style={styles.successTitle}>¡Postulación enviada!</Text>
                 <Text style={styles.successSubtitle}>
                   Tu perfil fue enviado a {vacante.nombre_empresa_finca || 'la empresa'}.
@@ -416,22 +496,25 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                     </Text>
                   </View>
                 </View>
-                <TouchableOpacity
+                <AnimatedPressable
                   style={styles.modalPostBtn}
                   onPress={() => { setShowPostModal(false); setPostExitosa(false); }}
-                  activeOpacity={0.85}
+                  scaleValue={ANIMATION.scale.pressed}
+                  haptic={true}
                 >
                   <Text style={styles.modalPostBtnText}>Entendido</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </AnimatedPressable>
+                <AnimatedPressable
                   style={styles.modalCancelBtn}
                   onPress={() => { setShowPostModal(false); setPostExitosa(false); navigation.goBack(); }}
+                  scaleValue={0.97}
+                  haptic={false}
                 >
                   <Text style={styles.modalCancelText}>Volver a vacantes</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               </>
             )}
-          </View>
+          </MotiView>
         </View>
       </Modal>
     </View>
@@ -442,7 +525,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.white },
 
   /* Hero */
-  heroWrap: { width: '100%', height: HERO_HEIGHT, backgroundColor: COLORS.primarySoft },
+  heroWrap: { width: '100%', height: HERO_HEIGHT, backgroundColor: COLORS.primarySoft, overflow: 'hidden' },
   heroImage: { width: SCREEN_WIDTH, height: HERO_HEIGHT },
   heroPlaceholder: {
     width: '100%', height: HERO_HEIGHT,
@@ -512,38 +595,30 @@ const styles = StyleSheet.create({
   urgentText: { fontSize: 11, fontWeight: '700', color: COLORS.primary, letterSpacing: 0.3 },
   timeText: { fontSize: 13, color: COLORS.textLight },
 
-  /* Título */
   title: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary, marginBottom: SPACING.lg, lineHeight: 32 },
 
-  /* Info block */
   infoBlock: { borderWidth: 1, borderColor: COLORS.borderLight, borderRadius: RADIUS.lg, overflow: 'hidden', marginBottom: SPACING.lg, backgroundColor: '#FAFAF9' },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm + 4, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight },
   infoCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
   infoLabel: { fontSize: 11, color: COLORS.textLight, fontWeight: '600', letterSpacing: 0.4 },
   infoValue: { fontSize: 15, color: COLORS.textPrimary, fontWeight: '700', marginTop: 1 },
 
-  /* Bar section */
   barSection: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg },
   barGreen: { width: 4, borderRadius: 4, backgroundColor: COLORS.primary, minHeight: 24 },
   barTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.sm },
   description: { fontSize: 15, color: COLORS.textSecondary, lineHeight: 24 },
 
-  /* Req chips */
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   reqChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderColor: '#D1D5DB', borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 7 },
   reqChipText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
   chipGreen: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: COLORS.primarySoft, paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.full },
   chipGreenText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
 
-  /* Benefits card */
   benefCard: { backgroundColor: COLORS.primarySoft, borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
   benefTitle: { fontSize: 15, fontWeight: '700', color: COLORS.primary, marginBottom: SPACING.sm },
   benefRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
   benefText: { fontSize: 14, color: COLORS.primaryDark, fontWeight: '500' },
 
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-
-  /* Footer */
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: COLORS.white,
@@ -568,7 +643,6 @@ const styles = StyleSheet.create({
   postBtnDone: { backgroundColor: COLORS.primaryLight, ...SHADOWS.none },
   postBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 16 },
 
-  /* Modal */
   modalOverlay: {
     flex: 1, backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
@@ -621,7 +695,6 @@ const styles = StyleSheet.create({
   },
   modalCancelText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: '600' },
 
-  /* Success state */
   successIconWrap: { alignItems: 'center', marginBottom: SPACING.md },
   successTitle: {
     fontSize: 24, fontWeight: '800', color: COLORS.textPrimary,

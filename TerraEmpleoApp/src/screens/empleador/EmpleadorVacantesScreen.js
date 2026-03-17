@@ -1,15 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  View, Text, StyleSheet, FlatList,
   RefreshControl, Image, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
+import { MotiView } from 'moti';
+import Animated, {
+  useSharedValue, useAnimatedStyle,
+  withRepeat, withSequence, withTiming, Easing,
+} from 'react-native-reanimated';
+import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -52,6 +58,32 @@ const stackStyles = StyleSheet.create({
   extra: { backgroundColor: COLORS.primaryLight },
   extraText: { fontSize: 9, fontWeight: '700', color: COLORS.white },
 });
+
+/* ── Pulsing notification badge ── */
+function PulsingBadge({ count }) {
+  const pulseScale = useSharedValue(1);
+
+  useEffect(() => {
+    pulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1.15, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.notifBadge, animStyle]}>
+      <Text style={styles.notifBadgeText}>{count > 99 ? '99+' : count}</Text>
+    </Animated.View>
+  );
+}
 
 export default function EmpleadorVacantesScreen({ navigation }) {
   const { user } = useAuth();
@@ -115,190 +147,214 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   const inactivas = vacantes.filter(v => v.estado !== 'activa');
   const lista = tabActiva === 'activa' ? activas : inactivas;
 
-  const renderVacante = ({ item }) => {
+  const renderVacante = ({ item, index }) => {
     const isActiva = item.estado === 'activa';
     const postulantes = item.total_postulaciones || 0;
     const inicioTexto = formatVacancyStartDate(item.fecha_inicio, { fallback: '' });
     const pago = getVacancyPayDisplay(item);
 
     return (
-      <View style={[styles.card, !isActiva && styles.cardInactiva]}>
-        {/* Action buttons */}
-        <View style={styles.cardActionsOverlay}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('EditarVacante', { vacante: item })}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.actionBtn}
-          >
-            <Ionicons name="pencil-outline" size={16} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-          {isActiva && (
-            <TouchableOpacity
-              onPress={() => confirmarArchivar(item)}
+      <StaggeredItem index={index}>
+        <View style={[styles.card, !isActiva && styles.cardInactiva]}>
+          {/* Action buttons */}
+          <View style={styles.cardActionsOverlay}>
+            <AnimatedPressable
+              onPress={() => navigation.navigate('EditarVacante', { vacante: item })}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={styles.actionBtn}
+              scaleValue={0.85}
+              haptic
+              hapticStyle="light"
             >
-              <Ionicons name="archive-outline" size={16} color={COLORS.accent} />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <TouchableOpacity
-          style={styles.cardPressable}
-          onPress={() => navigation.navigate('DetalleVacanteEmpleador', { vacante: item })}
-          activeOpacity={0.88}
-        >
-          {/* Image thumbnail */}
-          <View style={styles.cardImg}>
-            {item.foto_portada ? (
-              <Image source={{ uri: item.foto_portada }} style={styles.img} resizeMode="cover" />
-            ) : (
-              <View style={styles.imgPlaceholder}>
-                <Ionicons name="leaf" size={26} color={isActiva ? COLORS.primary : COLORS.textLight} />
-              </View>
+              <Ionicons name="pencil-outline" size={16} color={COLORS.textSecondary} />
+            </AnimatedPressable>
+            {isActiva && (
+              <AnimatedPressable
+                onPress={() => confirmarArchivar(item)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.actionBtn}
+                scaleValue={0.85}
+                haptic
+                hapticStyle="light"
+              >
+                <Ionicons name="archive-outline" size={16} color={COLORS.accent} />
+              </AnimatedPressable>
             )}
-            {/* Status dot on image */}
-            <View style={[styles.statusDot, { backgroundColor: isActiva ? COLORS.primary : COLORS.textLight }]} />
           </View>
 
-          {/* Content */}
-          <View style={styles.cardBody}>
-            <View style={styles.cardTopRow}>
-              <View style={[styles.estadoBadge, !isActiva && styles.estadoBadgeInactiva]}>
-                <View style={[styles.estadoDot, { backgroundColor: isActiva ? COLORS.primary : COLORS.textLight }]} />
-                <Text style={[styles.estadoText, !isActiva && styles.estadoTextInactiva]}>
-                  {isActiva ? 'Activa' : 'Inactiva'}
-                </Text>
-              </View>
+          <AnimatedPressable
+            style={styles.cardPressable}
+            onPress={() => navigation.navigate('DetalleVacanteEmpleador', { vacante: item })}
+            scaleValue={0.98}
+            haptic={false}
+          >
+            {/* Image thumbnail */}
+            <View style={styles.cardImg}>
+              {item.foto_portada ? (
+                <Image source={{ uri: item.foto_portada }} style={styles.img} resizeMode="cover" />
+              ) : (
+                <View style={styles.imgPlaceholder}>
+                  <Ionicons name="leaf" size={26} color={isActiva ? COLORS.primary : COLORS.textLight} />
+                </View>
+              )}
+              {/* Status dot on image */}
+              <View style={[styles.statusDot, { backgroundColor: isActiva ? COLORS.primary : COLORS.textLight }]} />
             </View>
 
-            <Text style={[styles.cardTitle, !isActiva && styles.cardTitleInactiva]} numberOfLines={1}>
-              {item.titulo}
-            </Text>
-
-            <View style={styles.cardLocationRow}>
-              <Ionicons name="location-outline" size={13} color={COLORS.textLight} />
-              <Text style={styles.cardLocation} numberOfLines={1}>
-                {[item.municipio, item.departamento].filter(Boolean).join(', ') || 'Colombia'}
-              </Text>
-            </View>
-
-            {inicioTexto ? (
-              <View style={styles.startDateBadge}>
-                <Ionicons name="calendar-outline" size={12} color={COLORS.primary} />
-                <Text style={styles.startDateBadgeText}>Inicio: {inicioTexto}</Text>
-              </View>
-            ) : null}
-
-            <View style={styles.salaryRow}>
-              <Ionicons name="cash-outline" size={13} color={COLORS.primary} />
-              <Text style={styles.salaryText} numberOfLines={1}>{pago.valor}</Text>
-            </View>
-
-            {/* Footer: postulantes + time */}
-            <View style={styles.cardFooter}>
-              {isActiva ? (
-                <View style={styles.postulantesRow}>
-                  {postulantes > 0 && <AvatarStack count={postulantes} />}
-                  <Text style={styles.postulantesText}>
-                    {postulantes} {postulantes === 1 ? 'postulante' : 'postulantes'}
+            {/* Content */}
+            <View style={styles.cardBody}>
+              <View style={styles.cardTopRow}>
+                <View style={[styles.estadoBadge, !isActiva && styles.estadoBadgeInactiva]}>
+                  <View style={[styles.estadoDot, { backgroundColor: isActiva ? COLORS.primary : COLORS.textLight }]} />
+                  <Text style={[styles.estadoText, !isActiva && styles.estadoTextInactiva]}>
+                    {isActiva ? 'Activa' : 'Inactiva'}
                   </Text>
                 </View>
-              ) : (
-                <View style={styles.cubiertoWrap}>
-                  <Ionicons name="checkmark-circle" size={14} color={COLORS.textLight} />
-                  <Text style={styles.cubierto}>Cubierto</Text>
+              </View>
+
+              <Text style={[styles.cardTitle, !isActiva && styles.cardTitleInactiva]} numberOfLines={1}>
+                {item.titulo}
+              </Text>
+
+              <View style={styles.cardLocationRow}>
+                <Ionicons name="location-outline" size={13} color={COLORS.textLight} />
+                <Text style={styles.cardLocation} numberOfLines={1}>
+                  {[item.municipio, item.departamento].filter(Boolean).join(', ') || 'Colombia'}
+                </Text>
+              </View>
+
+              {inicioTexto ? (
+                <View style={styles.startDateBadge}>
+                  <Ionicons name="calendar-outline" size={12} color={COLORS.primary} />
+                  <Text style={styles.startDateBadgeText}>Inicio: {inicioTexto}</Text>
                 </View>
-              )}
-              {item.created_at && (
-                <Text style={styles.timeText}>{timeAgo(item.created_at)}</Text>
-              )}
+              ) : null}
+
+              <View style={styles.salaryRow}>
+                <Ionicons name="cash-outline" size={13} color={COLORS.primary} />
+                <Text style={styles.salaryText} numberOfLines={1}>{pago.valor}</Text>
+              </View>
+
+              {/* Footer: postulantes + time */}
+              <View style={styles.cardFooter}>
+                {isActiva ? (
+                  <View style={styles.postulantesRow}>
+                    {postulantes > 0 && <AvatarStack count={postulantes} />}
+                    <Text style={styles.postulantesText}>
+                      {postulantes} {postulantes === 1 ? 'postulante' : 'postulantes'}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.cubiertoWrap}>
+                    <Ionicons name="checkmark-circle" size={14} color={COLORS.textLight} />
+                    <Text style={styles.cubierto}>Cubierto</Text>
+                  </View>
+                )}
+                {item.created_at && (
+                  <Text style={styles.timeText}>{timeAgo(item.created_at)}</Text>
+                )}
+              </View>
             </View>
-          </View>
-        </TouchableOpacity>
-      </View>
+          </AnimatedPressable>
+        </View>
+      </StaggeredItem>
     );
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Greeting */}
-      <View style={styles.greetingSection}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.greetingLabel}>Hola, {firstName}</Text>
-          <Text style={styles.greetingName}>{nombreCompleto}</Text>
+      <FadeInView delay={0}>
+        <View style={styles.greetingSection}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greetingLabel}>Hola, {firstName}</Text>
+            <Text style={styles.greetingName}>{nombreCompleto}</Text>
+          </View>
+          <View style={styles.headerActions}>
+            <AnimatedPressable
+              style={styles.notifBtn}
+              onPress={() => navigation.navigate('Notificaciones')}
+              scaleValue={0.9}
+              haptic
+            >
+              <Ionicons name="notifications-outline" size={22} color={COLORS.textPrimary} />
+              {noLeidas > 0 && <PulsingBadge count={noLeidas} />}
+            </AnimatedPressable>
+          </View>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.notifBtn}
-            onPress={() => navigation.navigate('Notificaciones')}
-          >
-            <Ionicons name="notifications-outline" size={22} color={COLORS.textPrimary} />
-            {noLeidas > 0 && (
-              <View style={styles.notifBadge}>
-                <Text style={styles.notifBadgeText}>{noLeidas > 99 ? '99+' : noLeidas}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+      </FadeInView>
 
       {/* Header row */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.headerIcon}>
-            <Ionicons name="leaf" size={20} color={COLORS.primary} />
-          </View>
-          <Text style={styles.headerTitle}>Mis Vacantes</Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{vacantes.length}</Text>
-          </View>
-        </View>
-        <View style={styles.headerRightActions}>
-          <TouchableOpacity
-            style={styles.postulantesBtn}
-            onPress={() => navigation.navigate('MisPostulantes')}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="people-outline" size={18} color={COLORS.primary} />
-            <Text style={styles.postulantesBtnText}>Mis postulantes</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => navigation.navigate('CrearVacante')}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add" size={22} color={COLORS.white} />
-            <Text style={styles.addBtnText}>Nueva</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        {[
-          { key: 'activa', label: 'Activas', count: activas.length },
-          { key: 'inactiva', label: 'Inactivas', count: inactivas.length },
-        ].map(tab => {
-          const isActive = tabActiva === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.tab, isActive && styles.tabActive]}
-              onPress={() => setTabActiva(tab.key)}
+      <FadeInView delay={100}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="leaf" size={20} color={COLORS.primary} />
+            </View>
+            <Text style={styles.headerTitle}>Mis Vacantes</Text>
+            <MotiView
+              from={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 300 }}
             >
-              <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
-                {tab.label}
-              </Text>
-              <View style={[styles.tabCount, isActive && styles.tabCountActive]}>
-                <Text style={[styles.tabCountText, isActive && styles.tabCountTextActive]}>
-                  {tab.count}
-                </Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{vacantes.length}</Text>
               </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+            </MotiView>
+          </View>
+          <View style={styles.headerRightActions}>
+            <AnimatedPressable
+              style={styles.postulantesBtn}
+              onPress={() => navigation.navigate('MisPostulantes')}
+              scaleValue={0.95}
+              haptic
+            >
+              <Ionicons name="people-outline" size={18} color={COLORS.primary} />
+              <Text style={styles.postulantesBtnText}>Mis postulantes</Text>
+            </AnimatedPressable>
+            <AnimatedPressable
+              style={styles.addBtn}
+              onPress={() => navigation.navigate('CrearVacante')}
+              scaleValue={0.95}
+              haptic
+            >
+              <Ionicons name="add" size={22} color={COLORS.white} />
+              <Text style={styles.addBtnText}>Nueva</Text>
+            </AnimatedPressable>
+          </View>
+        </View>
+      </FadeInView>
+
+      {/* Tabs — animated */}
+      <FadeInView delay={150}>
+        <View style={styles.tabs}>
+          {[
+            { key: 'activa', label: 'Activas', count: activas.length },
+            { key: 'inactiva', label: 'Inactivas', count: inactivas.length },
+          ].map(tab => {
+            const isActive = tabActiva === tab.key;
+            return (
+              <AnimatedPressable
+                key={tab.key}
+                style={[styles.tab, isActive && styles.tabActive]}
+                onPress={() => setTabActiva(tab.key)}
+                scaleValue={0.93}
+                haptic
+                hapticStyle="light"
+              >
+                <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                  {tab.label}
+                </Text>
+                <View style={[styles.tabCount, isActive && styles.tabCountActive]}>
+                  <Text style={[styles.tabCountText, isActive && styles.tabCountTextActive]}>
+                    {tab.count}
+                  </Text>
+                </View>
+              </AnimatedPressable>
+            );
+          })}
+        </View>
+      </FadeInView>
 
       {/* List */}
       <FlatList
@@ -317,26 +373,44 @@ export default function EmpleadorVacantesScreen({ navigation }) {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <View style={styles.emptyIconWrap}>
-              <Ionicons name="document-text-outline" size={44} color={COLORS.primaryLight} />
-            </View>
-            <Text style={styles.emptyTitle}>
-              {tabActiva === 'activa' ? 'Sin vacantes activas' : 'Sin vacantes inactivas'}
-            </Text>
-            <Text style={styles.emptyText}>
-              {tabActiva === 'activa'
-                ? 'Crea tu primera vacante y empieza a recibir postulantes'
-                : 'Las vacantes cerradas aparecerán aquí'}
-            </Text>
+            <MotiView
+              from={{ translateY: 0 }}
+              animate={{ translateY: -8 }}
+              transition={{
+                type: 'timing',
+                duration: 1500,
+                loop: true,
+                repeatReverse: true,
+              }}
+            >
+              <View style={styles.emptyIconWrap}>
+                <Ionicons name="document-text-outline" size={44} color={COLORS.primaryLight} />
+              </View>
+            </MotiView>
+            <FadeInView delay={200}>
+              <Text style={styles.emptyTitle}>
+                {tabActiva === 'activa' ? 'Sin vacantes activas' : 'Sin vacantes inactivas'}
+              </Text>
+            </FadeInView>
+            <FadeInView delay={300}>
+              <Text style={styles.emptyText}>
+                {tabActiva === 'activa'
+                  ? 'Crea tu primera vacante y empieza a recibir postulantes'
+                  : 'Las vacantes cerradas aparecerán aquí'}
+              </Text>
+            </FadeInView>
             {tabActiva === 'activa' && (
-              <TouchableOpacity
-                style={styles.emptyBtn}
-                onPress={() => navigation.navigate('CrearVacante')}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="add-circle-outline" size={18} color={COLORS.white} />
-                <Text style={styles.emptyBtnText}>Crear vacante</Text>
-              </TouchableOpacity>
+              <FadeInView delay={400}>
+                <AnimatedPressable
+                  style={styles.emptyBtn}
+                  onPress={() => navigation.navigate('CrearVacante')}
+                  scaleValue={0.96}
+                  haptic
+                >
+                  <Ionicons name="add-circle-outline" size={18} color={COLORS.white} />
+                  <Text style={styles.emptyBtnText}>Crear vacante</Text>
+                </AnimatedPressable>
+              </FadeInView>
             )}
           </View>
         }
@@ -535,7 +609,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     marginBottom: SPACING.md,
   },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.xs },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.xs, textAlign: 'center' },
   emptyText: {
     fontSize: 14, color: COLORS.textSecondary, textAlign: 'center',
     lineHeight: 20, marginBottom: SPACING.lg,

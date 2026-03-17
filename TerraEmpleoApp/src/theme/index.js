@@ -196,3 +196,28 @@ export const LAYOUT = {
   buttonHeightSmall: 44,
   chipHeight: 42,
 };
+
+// Constantes de animacion
+export const ANIMATION = {
+  duration: {
+    instant: 100,
+    fast: 200,
+    normal: 300,
+    slow: 500,
+    entrance: 600,
+    stagger: 50,
+  },
+  spring: {
+    gentle: { damping: 15, stiffness: 150, mass: 1 },
+    bouncy: { damping: 10, stiffness: 180, mass: 0.8 },
+    snappy: { damping: 20, stiffness: 300, mass: 0.9 },
+    stiff: { damping: 25, stiffness: 400, mass: 1 },
+  },
+  scale: {
+    pressed: 0.96,
+    pressedSubtle: 0.98,
+    chipPressed: 0.93,
+    heartPop: 1.3,
+    fabPulse: 1.08,
+  },
+};

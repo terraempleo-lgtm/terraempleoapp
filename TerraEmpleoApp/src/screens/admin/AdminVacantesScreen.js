@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, ScrollView,
-  RefreshControl, ActivityIndicator, Alert, TouchableOpacity,
+  RefreshControl, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { adminAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
+import { MotiView } from 'moti';
+import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 
 export default function AdminVacantesScreen({ navigation }) {
   const [vacantes, setVacantes] = useState([]);
@@ -65,70 +67,82 @@ export default function AdminVacantesScreen({ navigation }) {
     return { bg: '#FFF3E0', fg: COLORS.accent };
   };
 
-  const renderItem = ({ item }) => {
+  const renderItem = ({ item, index }) => {
     const ec = estadoColor(item.estado);
     const fechaTexto = item?.created_at
       ? new Date(item.created_at).toLocaleDateString('es-CO')
       : 'Sin fecha';
     return (
-      <View style={styles.card}>
-        <View style={styles.cardTop}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.titulo}>{item.titulo}</Text>
-            <Text style={styles.empresa}>{item.nombre_empresa_finca || 'Sin nombre'}</Text>
+      <StaggeredItem index={index}>
+        <View style={styles.card}>
+          <View style={styles.cardTop}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.titulo}>{item.titulo}</Text>
+              <Text style={styles.empresa}>{item.nombre_empresa_finca || 'Sin nombre'}</Text>
+            </View>
+            <View style={[styles.estadoBadge, { backgroundColor: ec.bg }]}>
+              <Text style={[styles.estadoText, { color: ec.fg }]}>{item.estado}</Text>
+            </View>
           </View>
-          <View style={[styles.estadoBadge, { backgroundColor: ec.bg }]}>
-            <Text style={[styles.estadoText, { color: ec.fg }]}>{item.estado}</Text>
-          </View>
-        </View>
 
-        <View style={styles.infoRow}>
-          <Ionicons name="location-outline" size={14} color={COLORS.textLight} />
-          <Text style={styles.infoText}>{item.municipio}, {item.departamento}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Ionicons name="cash-outline" size={14} color={COLORS.textLight} />
-          <Text style={styles.infoText}>
-            ${item.salario_ofrecido ? Number(item.salario_ofrecido).toLocaleString() : 'N/A'} - {item.tipo_pago || 'N/A'}
-          </Text>
-        </View>
-
-        {item.urgente ? (
-          <View style={[styles.urgenteBadge]}>
-            <Ionicons name="alert-circle" size={14} color={COLORS.error} />
-            <Text style={styles.urgenteText}>Urgente</Text>
+          <View style={styles.infoRow}>
+            <Ionicons name="location-outline" size={14} color={COLORS.textLight} />
+            <Text style={styles.infoText}>{item.municipio}, {item.departamento}</Text>
           </View>
-        ) : null}
+          <View style={styles.infoRow}>
+            <Ionicons name="cash-outline" size={14} color={COLORS.textLight} />
+            <Text style={styles.infoText}>
+              ${item.salario_ofrecido ? Number(item.salario_ofrecido).toLocaleString() : 'N/A'} - {item.tipo_pago || 'N/A'}
+            </Text>
+          </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.fecha}>{fechaTexto}</Text>
-          <View style={styles.actions}>
-            <TouchableOpacity onPress={() => verPostulantes(item)} style={styles.actionBtn}>
-              <Ionicons name="people-outline" size={16} color={COLORS.primary} />
-              <Text style={[styles.actionText, { color: COLORS.primary }]}>Ver postulantes</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => cambiarEstado(item)} style={styles.actionBtn}>
-              <Ionicons
-                name={item.estado === 'activa' ? 'pause-circle-outline' : 'play-circle-outline'}
-                size={16}
-                color={item.estado === 'activa' ? COLORS.accent : COLORS.primary}
-              />
-              <Text style={[styles.actionText, { color: item.estado === 'activa' ? COLORS.accent : COLORS.primary }]}> 
-                {item.estado === 'activa' ? 'Pausar' : 'Activar'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => eliminar(item)} style={styles.actionBtn}>
-              <Ionicons name="trash-outline" size={16} color={COLORS.error} />
-              <Text style={[styles.actionText, { color: COLORS.error }]}>Eliminar</Text>
-            </TouchableOpacity>
+          {item.urgente ? (
+            <View style={[styles.urgenteBadge]}>
+              <Ionicons name="alert-circle" size={14} color={COLORS.error} />
+              <Text style={styles.urgenteText}>Urgente</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.footer}>
+            <Text style={styles.fecha}>{fechaTexto}</Text>
+            <View style={styles.actions}>
+              <AnimatedPressable onPress={() => verPostulantes(item)} style={styles.actionBtn} scaleValue={0.9} haptic hapticStyle="light">
+                <Ionicons name="people-outline" size={16} color={COLORS.primary} />
+                <Text style={[styles.actionText, { color: COLORS.primary }]}>Ver postulantes</Text>
+              </AnimatedPressable>
+              <AnimatedPressable onPress={() => cambiarEstado(item)} style={styles.actionBtn} scaleValue={0.9} haptic hapticStyle="light">
+                <Ionicons
+                  name={item.estado === 'activa' ? 'pause-circle-outline' : 'play-circle-outline'}
+                  size={16}
+                  color={item.estado === 'activa' ? COLORS.accent : COLORS.primary}
+                />
+                <Text style={[styles.actionText, { color: item.estado === 'activa' ? COLORS.accent : COLORS.primary }]}>
+                  {item.estado === 'activa' ? 'Pausar' : 'Activar'}
+                </Text>
+              </AnimatedPressable>
+              <AnimatedPressable onPress={() => eliminar(item)} style={styles.actionBtn} scaleValue={0.9} haptic hapticStyle="light">
+                <Ionicons name="trash-outline" size={16} color={COLORS.error} />
+                <Text style={[styles.actionText, { color: COLORS.error }]}>Eliminar</Text>
+              </AnimatedPressable>
+            </View>
           </View>
         </View>
-      </View>
+      </StaggeredItem>
     );
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={COLORS.primary} /></View>;
+    return (
+      <View style={styles.center}>
+        <MotiView
+          from={{ scale: 0.8, opacity: 0.4 }}
+          animate={{ scale: 1.1, opacity: 1 }}
+          transition={{ loop: true, type: 'timing', duration: 800 }}
+        >
+          <Ionicons name="leaf" size={48} color={COLORS.primary} />
+        </MotiView>
+      </View>
+    );
   }
 
   if (error) {
@@ -138,11 +152,21 @@ export default function AdminVacantesScreen({ navigation }) {
           contentContainerStyle={[styles.center, { flex: 1 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         >
-          <Ionicons name="cloud-offline-outline" size={48} color={COLORS.textLight} />
-          <Text style={{ fontSize: 16, color: COLORS.textLight, marginTop: SPACING.md, textAlign: 'center' }}>{error}</Text>
-          <TouchableOpacity onPress={() => { setLoading(true); load(); }} style={{ marginTop: SPACING.lg, backgroundColor: COLORS.primary, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.sm, borderRadius: RADIUS.md }}>
-            <Text style={{ color: COLORS.white, fontWeight: '600' }}>Reintentar</Text>
-          </TouchableOpacity>
+          <MotiView
+            from={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', ...ANIMATION.spring.gentle }}
+          >
+            <Ionicons name="cloud-offline-outline" size={48} color={COLORS.textLight} />
+          </MotiView>
+          <FadeInView delay={100}>
+            <Text style={{ fontSize: 16, color: COLORS.textLight, marginTop: SPACING.md, textAlign: 'center' }}>{error}</Text>
+          </FadeInView>
+          <FadeInView delay={200}>
+            <AnimatedPressable onPress={() => { setLoading(true); load(); }} style={{ marginTop: SPACING.lg, backgroundColor: COLORS.primary, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.sm, borderRadius: RADIUS.md }} scaleValue={0.95} haptic>
+              <Text style={{ color: COLORS.white, fontWeight: '600' }}>Reintentar</Text>
+            </AnimatedPressable>
+          </FadeInView>
         </ScrollView>
       </SafeAreaView>
     );
@@ -157,7 +181,11 @@ export default function AdminVacantesScreen({ navigation }) {
         contentContainerStyle={{ padding: SPACING.md, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         ListEmptyComponent={
-          <View style={styles.center}><Text style={styles.empty}>No hay vacantes.</Text></View>
+          <View style={styles.center}>
+            <FadeInView delay={0}>
+              <Text style={styles.empty}>No hay vacantes.</Text>
+            </FadeInView>
+          </View>
         }
       />
     </SafeAreaView>

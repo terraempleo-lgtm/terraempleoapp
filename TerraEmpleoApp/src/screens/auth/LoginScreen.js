@@ -7,11 +7,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MotiView, AnimatePresence } from 'moti';
 import { COLORS, SPACING } from '../../theme';
 import { Button, Input, AppHeader, TerraFooter } from '../../components/ui';
+import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 import { authAPI, cognitoAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -48,18 +49,15 @@ export default function LoginScreen({ navigation }) {
       let token, user;
 
       if (isEmail(val)) {
-        // Email → legacy login
         const response = await authAPI.login({ correo: val, password: password.trim() });
         token = response.data.token;
         user = response.data.user;
       } else {
-        // Phone → Cognito login, fallback to legacy if user not in Cognito
         try {
           const response = await cognitoAPI.login(val, password.trim());
           token = response.data.token;
           user = response.data.user;
         } catch (cognitoErr) {
-          // Cognito failed (404, 401, etc.) → fallback to legacy login with celular
           const response = await authAPI.login({ celular: val, password: password.trim() });
           token = response.data.token;
           user = response.data.user;
@@ -91,69 +89,94 @@ export default function LoginScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Título de bienvenida */}
+          {/* Título de bienvenida con animación */}
           <View style={styles.headerSection}>
-            <Text style={styles.title}>Bienvenido de nuevo</Text>
-            <Text style={styles.subtitle}>
-              Ingresa a tu cuenta de TerraEmpleo
-            </Text>
+            <FadeInView delay={100} translateY={-10}>
+              <Text style={styles.title}>Bienvenido de nuevo</Text>
+            </FadeInView>
+            <FadeInView delay={200} translateY={-8}>
+              <Text style={styles.subtitle}>
+                Ingresa a tu cuenta de TerraEmpleo
+              </Text>
+            </FadeInView>
           </View>
 
-          {/* Formulario */}
+          {/* Formulario con stagger */}
           <View style={styles.form}>
-            <Input
-              label="Correo electrónico o Teléfono"
-              value={identificador}
-              onChangeText={setIdentificador}
-              placeholder="ejemplo@terra.com o 3001234567"
-              autoCapitalize="none"
-              required
-              error={errors.identificador}
-            />
+            <StaggeredItem index={0}>
+              <Input
+                label="Correo electrónico o Teléfono"
+                value={identificador}
+                onChangeText={setIdentificador}
+                placeholder="ejemplo@terra.com o 3001234567"
+                autoCapitalize="none"
+                required
+                error={errors.identificador}
+              />
+            </StaggeredItem>
 
-            <Input
-              label="Contraseña"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              secureTextEntry
-              required
-              error={errors.password}
-            />
+            <StaggeredItem index={1}>
+              <Input
+                label="Contraseña"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                secureTextEntry
+                required
+                error={errors.password}
+              />
+            </StaggeredItem>
 
-            {/* ¿Olvidaste tu contraseña? — solo aparece tras primer error */}
-            {loginFailed && (
-              <TouchableOpacity
-                style={styles.forgotContainer}
-                onPress={() => navigation.navigate('RecuperarPassword', {
-                  celularInicial: identificador.trim(),
-                })}
-              >
-                <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-              </TouchableOpacity>
-            )}
+            {/* ¿Olvidaste tu contraseña? — animación de entrada */}
+            <AnimatePresence>
+              {loginFailed && (
+                <MotiView
+                  from={{ opacity: 0, translateY: -10 }}
+                  animate={{ opacity: 1, translateY: 0 }}
+                  exit={{ opacity: 0, translateY: -10 }}
+                  transition={{ type: 'timing', duration: 300 }}
+                >
+                  <AnimatedPressable
+                    style={styles.forgotContainer}
+                    onPress={() => navigation.navigate('RecuperarPassword', {
+                      celularInicial: identificador.trim(),
+                    })}
+                    scaleValue={0.97}
+                    haptic={false}
+                  >
+                    <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+                  </AnimatedPressable>
+                </MotiView>
+              )}
+            </AnimatePresence>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Footer fijo */}
-      <View style={styles.footer}>
-        <Button
-          title="Entrar"
-          onPress={handleLogin}
-          loading={loading}
-          size="large"
-        />
+      <FadeInView delay={400} translateY={10}>
+        <View style={styles.footer}>
+          <Button
+            title="Entrar"
+            onPress={handleLogin}
+            loading={loading}
+            size="large"
+          />
 
-        <View style={styles.registerRow}>
-          <Text style={styles.registerText}>¿No tienes una cuenta?  </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('RoleSelect')}>
-            <Text style={styles.registerLink}>Crear cuenta</Text>
-          </TouchableOpacity>
+          <View style={styles.registerRow}>
+            <Text style={styles.registerText}>¿No tienes una cuenta?  </Text>
+            <AnimatedPressable
+              onPress={() => navigation.navigate('RoleSelect')}
+              scaleValue={0.97}
+              haptic={false}
+            >
+              <Text style={styles.registerLink}>Crear cuenta</Text>
+            </AnimatedPressable>
+          </View>
+
+          <TerraFooter />
         </View>
-
-        <TerraFooter />
-      </View>
+      </FadeInView>
     </SafeAreaView>
   );
 }

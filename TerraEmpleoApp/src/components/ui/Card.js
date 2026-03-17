@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { View, StyleSheet } from 'react-native';
+import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
+import { AnimatedPressable } from '../animated';
 
 export default function Card({
   children,
@@ -22,9 +23,14 @@ export default function Card({
 
   if (onPress) {
     return (
-      <TouchableOpacity style={cardStyle} onPress={onPress} activeOpacity={0.8}>
+      <AnimatedPressable
+        style={cardStyle}
+        onPress={onPress}
+        scaleValue={ANIMATION.scale.pressedSubtle}
+        haptic={false}
+      >
         {children}
-      </TouchableOpacity>
+      </AnimatedPressable>
     );
   }
 

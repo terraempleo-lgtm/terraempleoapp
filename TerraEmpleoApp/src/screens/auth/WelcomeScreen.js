@@ -1,10 +1,9 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ImageBackground,
-  TouchableOpacity,
   StatusBar,
   ScrollView,
   Platform,
@@ -12,7 +11,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS } from '../../theme';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  Easing,
+} from 'react-native-reanimated';
+import { MotiView } from 'moti';
+import { COLORS, SPACING, RADIUS, ANIMATION } from '../../theme';
+import { AnimatedPressable } from '../../components/animated';
 
 const SLIDES = [
   {
@@ -31,6 +39,30 @@ const SLIDES = [
     subtitle: 'Tu próxima oportunidad en el agro colombiano te espera.',
   },
 ];
+
+const AnimatedDot = ({ isActive, index, onPress }) => {
+  const dotWidth = useSharedValue(8);
+
+  useEffect(() => {
+    dotWidth.value = withSpring(isActive ? 24 : 8, ANIMATION.spring.bouncy);
+  }, [isActive]);
+
+  const dotStyle = useAnimatedStyle(() => ({
+    width: dotWidth.value,
+  }));
+
+  return (
+    <AnimatedPressable onPress={() => onPress(index)} haptic={false} scaleValue={0.9}>
+      <Animated.View
+        style={[
+          styles.dotTop,
+          isActive && styles.dotTopActive,
+          dotStyle,
+        ]}
+      />
+    </AnimatedPressable>
+  );
+};
 
 export default function WelcomeScreen({ navigation }) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -64,28 +96,35 @@ export default function WelcomeScreen({ navigation }) {
         <View style={[styles.overlayBottom, { height: height * 0.55 }]} />
 
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-          {/* Dots indicadores arriba */}
-          <View style={styles.dotsTopRow}>
-            {SLIDES.map((_, i) => (
-              <TouchableOpacity
-                key={i}
-                onPress={() => goToSlide(i)}
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-              >
-                <View
-                  style={[styles.dotTop, i === activeIndex && styles.dotTopActive]}
+          {/* Dots indicadores arriba - con animación de ancho */}
+          <MotiView
+            from={{ opacity: 0, translateY: -10 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 500, delay: 200 }}
+          >
+            <View style={styles.dotsTopRow}>
+              {SLIDES.map((_, i) => (
+                <AnimatedDot
+                  key={i}
+                  index={i}
+                  isActive={i === activeIndex}
+                  onPress={goToSlide}
                 />
-              </TouchableOpacity>
-            ))}
-          </View>
+              ))}
+            </View>
+          </MotiView>
 
-          {/* Icono leaf */}
-          <View style={[styles.leafContainer, { marginTop: height * 0.08 }]}>
+          {/* Icono leaf con animación de entrada */}
+          <MotiView
+            from={{ opacity: 0, scale: 0.5, rotate: '-30deg' }}
+            animate={{ opacity: 1, scale: 1, rotate: '0deg' }}
+            transition={{ type: 'spring', damping: 12, stiffness: 150, delay: 400 }}
+            style={[styles.leafContainer, { marginTop: height * 0.08 }]}
+          >
             <View style={styles.leafCircle}>
               <Ionicons name="leaf" size={26} color={COLORS.accent} />
             </View>
-          </View>
+          </MotiView>
 
           {/* Carrusel de slides */}
           <ScrollView
@@ -100,7 +139,6 @@ export default function WelcomeScreen({ navigation }) {
             snapToAlignment="start"
             style={styles.slider}
             contentContainerStyle={styles.sliderContent}
-            // Web: CSS scroll-snap
             {...(Platform.OS === 'web' ? {
               style: [styles.slider, {
                 scrollSnapType: 'x mandatory',
@@ -117,34 +155,66 @@ export default function WelcomeScreen({ navigation }) {
                   Platform.OS === 'web' ? { scrollSnapAlign: 'start' } : {},
                 ]}
               >
-                <Text style={styles.appName}>{item.title}</Text>
-                <Text style={styles.tagline}>{item.subtitle}</Text>
+                <MotiView
+                  from={{ opacity: 0, translateY: 20 }}
+                  animate={{ opacity: 1, translateY: 0 }}
+                  transition={{ type: 'timing', duration: 500, delay: 200 }}
+                >
+                  <Text style={styles.appName}>{item.title}</Text>
+                </MotiView>
+                <MotiView
+                  from={{ opacity: 0, translateY: 15 }}
+                  animate={{ opacity: 1, translateY: 0 }}
+                  transition={{ type: 'timing', duration: 500, delay: 400 }}
+                >
+                  <Text style={styles.tagline}>{item.subtitle}</Text>
+                </MotiView>
               </View>
             ))}
           </ScrollView>
 
-          {/* Botones */}
+          {/* Botones con entrada escalonada */}
           <View style={styles.buttonsContainer}>
-            <TouchableOpacity
-              style={styles.btnPrimary}
-              activeOpacity={0.85}
-              onPress={() => navigation.navigate('Login')}
+            <MotiView
+              from={{ opacity: 0, translateY: 30 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'spring', damping: 15, stiffness: 150, delay: 500 }}
             >
-              <Text style={styles.btnPrimaryText}>Iniciar sesión</Text>
-            </TouchableOpacity>
+              <AnimatedPressable
+                style={styles.btnPrimary}
+                onPress={() => navigation.navigate('Login')}
+                scaleValue={ANIMATION.scale.pressed}
+                haptic={true}
+              >
+                <Text style={styles.btnPrimaryText}>Iniciar sesión</Text>
+              </AnimatedPressable>
+            </MotiView>
 
-            <TouchableOpacity
-              style={styles.btnOutline}
-              activeOpacity={0.85}
-              onPress={() => navigation.navigate('RoleSelect')}
+            <MotiView
+              from={{ opacity: 0, translateY: 30 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'spring', damping: 15, stiffness: 150, delay: 650 }}
             >
-              <Text style={styles.btnOutlineText}>Crear cuenta</Text>
-            </TouchableOpacity>
+              <AnimatedPressable
+                style={styles.btnOutline}
+                onPress={() => navigation.navigate('RoleSelect')}
+                scaleValue={ANIMATION.scale.pressed}
+                haptic={true}
+              >
+                <Text style={styles.btnOutlineText}>Crear cuenta</Text>
+              </AnimatedPressable>
+            </MotiView>
 
             {/* Footer */}
-            <View style={styles.footerRow}>
-              <Text style={styles.footerText}>POTENCIANDO EL CAMPO</Text>
-            </View>
+            <MotiView
+              from={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ type: 'timing', duration: 600, delay: 800 }}
+            >
+              <View style={styles.footerRow}>
+                <Text style={styles.footerText}>POTENCIANDO EL CAMPO</Text>
+              </View>
+            </MotiView>
           </View>
         </SafeAreaView>
       </ImageBackground>
@@ -188,7 +258,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dotTop: {
-    width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: 'rgba(255,255,255,0.35)',

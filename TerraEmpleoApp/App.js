@@ -1,14 +1,17 @@
 import React, { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, TouchableOpacity, Linking, Alert } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, CommonActions } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { MotiView } from 'moti';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS, FONTS } from './src/theme';
+import { AnimatedTabBar } from './src/components/animated';
 
 // Auth
 import WelcomeScreen from './src/screens/auth/WelcomeScreen';
@@ -76,12 +79,37 @@ function SoporteHeaderButton() {
   );
 }
 
+// Custom screen transition: slide + fade
+const customTransition = {
+  cardStyleInterpolator: ({ current, layouts }) => ({
+    cardStyle: {
+      transform: [
+        {
+          translateX: current.progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [layouts.screen.width * 0.2, 0],
+          }),
+        },
+      ],
+      opacity: current.progress.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: [0, 0.6, 1],
+      }),
+    },
+  }),
+  transitionSpec: {
+    open: { animation: 'spring', config: { damping: 22, stiffness: 220, mass: 0.85 } },
+    close: { animation: 'spring', config: { damping: 22, stiffness: 220, mass: 0.85 } },
+  },
+};
+
 const screenOptions = {
   headerStyle: { backgroundColor: COLORS.primary },
   headerTintColor: COLORS.white,
   headerTitleStyle: { ...FONTS.subtitle, color: COLORS.white, fontWeight: FONTS.weight.bold },
   headerBackTitleVisible: false,
   headerRight: () => <SoporteHeaderButton />,
+  ...customTransition,
 };
 
 const tabScreenOptions = ({ route }) => ({
@@ -103,14 +131,7 @@ const tabScreenOptions = ({ route }) => ({
   },
   tabBarActiveTintColor: COLORS.primary,
   tabBarInactiveTintColor: COLORS.textLight,
-  tabBarStyle: {
-    height: 60,
-    paddingBottom: 8,
-    paddingTop: 4,
-    backgroundColor: COLORS.white,
-    borderTopColor: COLORS.borderLight,
-  },
-  tabBarLabelStyle: { ...FONTS.caption, fontWeight: FONTS.weight.medium },
+  tabBar: (props) => <AnimatedTabBar {...props} />,
   headerShown: false,
 });
 
@@ -329,7 +350,13 @@ function RootNavigator() {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <MotiView
+          from={{ scale: 0.8, opacity: 0.4 }}
+          animate={{ scale: 1.1, opacity: 1 }}
+          transition={{ loop: true, type: 'timing', duration: 800 }}
+        >
+          <Ionicons name="leaf" size={48} color={COLORS.primary} />
+        </MotiView>
       </View>
     );
   }
@@ -351,11 +378,13 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <NavigationContainer ref={navigationRef}>
-        <StatusBar style="light" backgroundColor={COLORS.primaryDark} />
-        <RootNavigator />
-      </NavigationContainer>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <NavigationContainer ref={navigationRef}>
+          <StatusBar style="light" backgroundColor={COLORS.primaryDark} />
+          <RootNavigator />
+        </NavigationContainer>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

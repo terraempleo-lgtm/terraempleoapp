@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  RefreshControl, ActivityIndicator, TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { adminAPI } from '../../services/api';
+import { MotiView } from 'moti';
+import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 
 export default function AdminPostulantesVacanteScreen({ route, navigation }) {
   const { vacante } = route.params;
@@ -32,56 +34,68 @@ export default function AdminPostulantesVacanteScreen({ route, navigation }) {
     cargar();
   }, []);
 
-  const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <View style={styles.topRow}>
-        <Text style={styles.nombre}>{item.nombre_completo || 'Trabajador'}</Text>
-        <View style={styles.estadoBadge}>
-          <Text style={styles.estadoText}>{item.estado || 'pendiente'}</Text>
+  const renderItem = ({ item, index }) => (
+    <StaggeredItem index={index}>
+      <View style={styles.card}>
+        <View style={styles.topRow}>
+          <Text style={styles.nombre}>{item.nombre_completo || 'Trabajador'}</Text>
+          <View style={styles.estadoBadge}>
+            <Text style={styles.estadoText}>{item.estado || 'pendiente'}</Text>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.infoRow}>
-        <Ionicons name="call-outline" size={14} color={COLORS.textLight} />
-        <Text style={styles.infoText}>{item.celular || 'Sin celular'}</Text>
-      </View>
+        <View style={styles.infoRow}>
+          <Ionicons name="call-outline" size={14} color={COLORS.textLight} />
+          <Text style={styles.infoText}>{item.celular || 'Sin celular'}</Text>
+        </View>
 
-      <View style={styles.infoRow}>
-        <Ionicons name="location-outline" size={14} color={COLORS.textLight} />
-        <Text style={styles.infoText}>
-          {item.municipio || 'Sin municipio'}, {item.departamento || 'Sin departamento'}
-        </Text>
-      </View>
+        <View style={styles.infoRow}>
+          <Ionicons name="location-outline" size={14} color={COLORS.textLight} />
+          <Text style={styles.infoText}>
+            {item.municipio || 'Sin municipio'}, {item.departamento || 'Sin departamento'}
+          </Text>
+        </View>
 
-      <View style={styles.infoRow}>
-        <Ionicons name="stats-chart-outline" size={14} color={COLORS.textLight} />
-        <Text style={styles.infoText}>Match: {Math.round(Number(item.puntaje_match || 0))}%</Text>
-      </View>
+        <View style={styles.infoRow}>
+          <Ionicons name="stats-chart-outline" size={14} color={COLORS.textLight} />
+          <Text style={styles.infoText}>Match: {Math.round(Number(item.puntaje_match || 0))}%</Text>
+        </View>
 
-      <TouchableOpacity
-        style={styles.perfilBtn}
-        onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.trabajador_id })}
-      >
-        <Ionicons name="person-outline" size={15} color={COLORS.primary} />
-        <Text style={styles.perfilBtnText}>Ver perfil</Text>
-      </TouchableOpacity>
-    </View>
+        <AnimatedPressable
+          style={styles.perfilBtn}
+          onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.trabajador_id })}
+          scaleValue={0.93}
+          haptic
+        >
+          <Ionicons name="person-outline" size={15} color={COLORS.primary} />
+          <Text style={styles.perfilBtnText}>Ver perfil</Text>
+        </AnimatedPressable>
+      </View>
+    </StaggeredItem>
   );
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <MotiView
+          from={{ scale: 0.8, opacity: 0.4 }}
+          animate={{ scale: 1.1, opacity: 1 }}
+          transition={{ loop: true, type: 'timing', duration: 800 }}
+        >
+          <Ionicons name="leaf" size={48} color={COLORS.primary} />
+        </MotiView>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{vacante?.titulo || 'Postulantes'}</Text>
-        <Text style={styles.subtitle}>{postulaciones.length} postulante(s)</Text>
-      </View>
+      <FadeInView delay={0}>
+        <View style={styles.header}>
+          <Text style={styles.title}>{vacante?.titulo || 'Postulantes'}</Text>
+          <Text style={styles.subtitle}>{postulaciones.length} postulante(s)</Text>
+        </View>
+      </FadeInView>
 
       <FlatList
         data={postulaciones}
@@ -100,7 +114,9 @@ export default function AdminPostulantesVacanteScreen({ route, navigation }) {
         }
         ListEmptyComponent={
           <View style={styles.center}>
-            <Text style={styles.empty}>Esta vacante no tiene postulantes todavía.</Text>
+            <FadeInView delay={0}>
+              <Text style={styles.empty}>Esta vacante no tiene postulantes todavía.</Text>
+            </FadeInView>
           </View>
         }
       />

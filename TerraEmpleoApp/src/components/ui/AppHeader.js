@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, LAYOUT, FONTS } from '../../theme';
+import { AnimatedPressable, FadeInView } from '../animated';
 
 export default function AppHeader({
   title,
@@ -19,25 +20,27 @@ export default function AppHeader({
     <View style={[styles.container, transparent && styles.transparent]}>
       <View style={styles.left}>
         {onBack && (
-          <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+          <AnimatedPressable onPress={onBack} style={styles.backBtn} scaleValue={0.9} haptic={true}>
             <Ionicons name="arrow-back" size={24} color={iconColor} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         )}
       </View>
 
       {title ? (
-        <Text style={[styles.title, { color: textColor }]} numberOfLines={1}>
-          {title}
-        </Text>
+        <FadeInView delay={100} translateY={-5} duration={300}>
+          <Text style={[styles.title, { color: textColor }]} numberOfLines={1}>
+            {title}
+          </Text>
+        </FadeInView>
       ) : (
         <View style={{ flex: 1 }} />
       )}
 
       <View style={styles.right}>
         {rightAction || (rightIcon && onRightPress && (
-          <TouchableOpacity onPress={onRightPress} style={styles.rightBtn} activeOpacity={0.7}>
+          <AnimatedPressable onPress={onRightPress} style={styles.rightBtn} scaleValue={0.9} haptic={true}>
             <Ionicons name={rightIcon} size={24} color={iconColor} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         ))}
       </View>
     </View>
