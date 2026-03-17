@@ -365,12 +365,6 @@ export default function RegisterTrabajadorScreen({ navigation }) {
 
             <InfoBox variant="info" text="Necesitamos tu ubicación para conectarte con empleadores y vacantes cerca de ti." />
 
-            <PickerModal visible={showDeptPicker} onClose={() => setShowDeptPicker(false)}
-              title="Departamento" options={DEPARTAMENTOS} selectedValue={departamento}
-              onSelect={(v) => { setDepartamento(v); setMunicipio(''); }} />
-            <PickerModal visible={showMunPicker} onClose={() => setShowMunPicker(false)}
-              title="Municipio" options={getMunicipios(departamento)} selectedValue={municipio}
-              onSelect={setMunicipio} />
           </View>
         );
 
@@ -466,9 +460,6 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   </Text>
                   <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
                 </TouchableOpacity>
-                <PickerModal visible={showTituloPicker} onClose={() => setShowTituloPicker(false)}
-                  title="Título obtenido" options={TITULOS_SUGERIDOS} selectedValue={tituloEstudio}
-                  onSelect={setTituloEstudio} />
               </View>
             )}
             <InfoBox variant="info" text="Tu nivel educativo ayuda a los empleadores a encontrar el perfil ideal para sus vacantes." />
@@ -819,6 +810,35 @@ export default function RegisterTrabajadorScreen({ navigation }) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <PickerModal
+        visible={showDeptPicker}
+        onClose={() => setShowDeptPicker(false)}
+        title="Departamento"
+        options={DEPARTAMENTOS}
+        selectedValue={departamento}
+        onSelect={(v) => {
+          setDepartamento(v);
+          setMunicipio('');
+          setShowMunPicker(false);
+        }}
+      />
+      <PickerModal
+        visible={showMunPicker}
+        onClose={() => setShowMunPicker(false)}
+        title="Municipio"
+        options={getMunicipios(departamento)}
+        selectedValue={municipio}
+        onSelect={setMunicipio}
+      />
+      <PickerModal
+        visible={showTituloPicker}
+        onClose={() => setShowTituloPicker(false)}
+        title="Título obtenido"
+        options={TITULOS_SUGERIDOS}
+        selectedValue={tituloEstudio}
+        onSelect={setTituloEstudio}
+      />
     </SafeAreaView>
   );
 }
