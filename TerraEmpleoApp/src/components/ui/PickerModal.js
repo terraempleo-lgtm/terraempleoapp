@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Keyboard, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import BottomSheet, { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from '../../theme';
 import { AnimatedPressable } from '../animated';
 import Input from './Input';
@@ -116,7 +116,7 @@ export default function PickerModal({
         </View>
       )}
 
-      <ScrollView
+      <BottomSheetScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -134,7 +134,7 @@ export default function PickerModal({
             );
           })
         )}
-      </ScrollView>
+      </BottomSheetScrollView>
     </BottomSheet>
   );
 }
