@@ -132,6 +132,11 @@ export const chatsAPI = {
 export const adminAPI = {
   getDashboard: () => api.get('/admin/dashboard'),
   getUsuarios: () => api.get('/admin/usuarios'),
+  getUsuarioDocumentosIdentidad: (id) => api.get(`/admin/usuarios/${id}/documentos-identidad`),
+  revisarValidacionIdentidad: (id, estado, comentario) => api.put(`/admin/usuarios/${id}/validacion-identidad`, {
+    estado,
+    comentario,
+  }),
   getVacantes: () => api.get('/admin/vacantes'),
   getPostulantesVacante: (vacanteId) => api.get(`/admin/vacantes/${vacanteId}/postulaciones`),
   updateUsuario: (id, data) => api.put('/admin/usuarios/' + id, data),

@@ -591,6 +591,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   <Text style={styles.fotoDesc}>Foto de tu cara, mirando a la cámara</Text>
                 </View>
               </View>
+              <InfoBox variant="info" text="Esta selfie será tu foto de perfil en TerraEmpleo." />
               {!fotoSelfie ? (
                 <CamaraFoto tipo="selfie" label="Selfie" onFotoGuardada={handleFotoGuardada} modoLocal={true} />
               ) : (

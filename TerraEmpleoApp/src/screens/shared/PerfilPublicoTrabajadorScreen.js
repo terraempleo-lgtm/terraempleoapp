@@ -18,7 +18,7 @@ const LABELS_DISPONIBILIDAD = {
   disponible_inmediatamente: 'Inmediata', inmediata: 'Inmediata',
 };
 const LABELS_ESTUDIOS = {
-  sin_estudios: 'Sin estudios', bachiller: 'Bachiller',
+  sin_estudios: 'Sin estudios', primaria_completa: 'Primaria completa', bachiller: 'Bachiller',
   tecnico_tecnologo: 'Técnico / Tecnólogo', universitario: 'Universitario',
 };
 

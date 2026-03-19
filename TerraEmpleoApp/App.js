@@ -50,6 +50,7 @@ import PerfilPublicoEmpleadorScreen from './src/screens/shared/PerfilPublicoEmpl
 import NotificacionesScreen from './src/screens/shared/NotificacionesScreen';
 import ChatsScreen from './src/screens/shared/ChatsScreen';
 import ChatDetalleScreen from './src/screens/shared/ChatDetalleScreen';
+import VerificationNavigator from './src/modules/verification/navigation/VerificationNavigator';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -321,6 +322,11 @@ function AuthStack() {
         options={{ headerShown: true, title: 'Registro Empleador' }} />
       <Stack.Screen name="RecuperarPassword" component={RecuperarPasswordScreen}
         options={{ headerShown: true, title: 'Recuperar contraseña' }} />
+      <Stack.Screen
+        name="ValidacionInternaIdentidad"
+        component={VerificationNavigator}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }

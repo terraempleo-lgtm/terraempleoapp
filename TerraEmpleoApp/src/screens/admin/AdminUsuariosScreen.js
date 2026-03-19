@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, ScrollView,
-  RefreshControl, Alert,
+  RefreshControl, Alert, Modal, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
@@ -15,6 +15,13 @@ export default function AdminUsuariosScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [usuarioRevision, setUsuarioRevision] = useState(null);
+  const [documentosRevision, setDocumentosRevision] = useState(null);
+  const [estadoRevision, setEstadoRevision] = useState('pendiente');
+  const [comentarioRevision, setComentarioRevision] = useState('');
+  const [cargandoDocumentos, setCargandoDocumentos] = useState(false);
+  const [guardandoRevision, setGuardandoRevision] = useState(false);
 
   const load = async () => {
     try {
@@ -94,6 +101,58 @@ export default function AdminUsuariosScreen() {
     );
   };
 
+  const abrirRevisionDocumentos = async (item) => {
+    try {
+      setCargandoDocumentos(true);
+      setUsuarioRevision(item);
+      setModalVisible(true);
+
+      const { data } = await adminAPI.getUsuarioDocumentosIdentidad(item.id);
+      if (!data?.tiene_documentos) {
+        setDocumentosRevision(null);
+        Alert.alert('Sin documentos', 'Este usuario aún no ha subido fotos para validación interna de identidad.');
+        return;
+      }
+
+      setDocumentosRevision(data.documentos || null);
+      setEstadoRevision(data?.revision?.estado || 'pendiente');
+      setComentarioRevision(data?.revision?.comentario || '');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudieron cargar los documentos.';
+      setDocumentosRevision(null);
+      Alert.alert('Error', msg);
+    } finally {
+      setCargandoDocumentos(false);
+    }
+  };
+
+  const cerrarRevisionDocumentos = () => {
+    setModalVisible(false);
+    setUsuarioRevision(null);
+    setDocumentosRevision(null);
+    setEstadoRevision('pendiente');
+    setComentarioRevision('');
+    setGuardandoRevision(false);
+  };
+
+  const guardarRevision = async (nuevoEstado) => {
+    if (!usuarioRevision?.id) return;
+    try {
+      setGuardandoRevision(true);
+      await adminAPI.revisarValidacionIdentidad(usuarioRevision.id, nuevoEstado, comentarioRevision);
+      setEstadoRevision(nuevoEstado);
+      Alert.alert('Listo', nuevoEstado === 'aprobada'
+        ? 'Validación interna aprobada.'
+        : 'Validación interna rechazada.');
+      await load();
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudo guardar la revisión.';
+      Alert.alert('Error', msg);
+    } finally {
+      setGuardandoRevision(false);
+    }
+  };
+
   const roleColor = (r) => r === 'trabajador' ? COLORS.primary : r === 'empleador' ? COLORS.accent : '#6A1B9A';
   const roleLabel = (r) => r === 'trabajador' ? 'Trabajador' : r === 'empleador' ? 'Empleador' : 'Admin';
 
@@ -127,12 +186,22 @@ export default function AdminUsuariosScreen() {
                 SMS: {item.verificado_sms ? 'Sí' : 'No'}
               </Text>
             </View>
+            <View style={[styles.statusBadge, getBadgeRevisionStyle(item.validacion_identidad_estado).badge]}>
+              <Text style={[styles.statusText, getBadgeRevisionStyle(item.validacion_identidad_estado).text]}>
+                ID: {getBadgeRevisionStyle(item.validacion_identidad_estado).label}
+              </Text>
+            </View>
           </View>
           <View style={styles.actions}>
             <AnimatedPressable onPress={() => toggleActivo(item.id, item.activo)} style={styles.actionBtn} scaleValue={0.85} haptic>
               <Ionicons name={item.activo ? 'pause-circle' : 'play-circle'} size={26}
                 color={item.activo ? COLORS.accent : COLORS.primary} />
             </AnimatedPressable>
+            {item.rol !== 'admin' && (
+              <AnimatedPressable onPress={() => abrirRevisionDocumentos(item)} style={styles.actionBtn} scaleValue={0.85} haptic>
+                <Ionicons name="id-card-outline" size={22} color={COLORS.info} />
+              </AnimatedPressable>
+            )}
             {item.rol === 'empleador' && (
               <AnimatedPressable onPress={() => eliminarFinca(item)} style={styles.actionBtn} scaleValue={0.85} haptic>
                 <Ionicons name="business-outline" size={22} color={COLORS.error} />
@@ -206,8 +275,113 @@ export default function AdminUsuariosScreen() {
           </View>
         }
       />
+
+      <Modal visible={modalVisible} animationType="slide" onRequestClose={cerrarRevisionDocumentos}>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Revisión manual de identidad</Text>
+            <AnimatedPressable onPress={cerrarRevisionDocumentos} style={styles.modalCloseBtn} scaleValue={0.9}>
+              <Ionicons name="close" size={22} color={COLORS.textPrimary} />
+            </AnimatedPressable>
+          </View>
+
+          <Text style={styles.modalUserName}>{usuarioRevision?.nombre_completo || 'Usuario'}</Text>
+          <Text style={styles.modalHelpText}>Verifica que selfie y cédula coincidan visualmente.</Text>
+          <View style={[styles.modalEstadoChip, getBadgeRevisionStyle(estadoRevision).badge]}>
+            <Text style={[styles.modalEstadoText, getBadgeRevisionStyle(estadoRevision).text]}>
+              Estado actual: {getBadgeRevisionStyle(estadoRevision).label}
+            </Text>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.modalScrollContent}>
+            {cargandoDocumentos ? (
+              <View style={styles.modalCenter}>
+                <Text style={styles.modalLoading}>Cargando documentos...</Text>
+              </View>
+            ) : (
+              <>
+                <DocumentoBloque
+                  titulo="1. Selfie"
+                  uri={documentosRevision?.selfie}
+                  placeholder="No hay selfie disponible"
+                />
+                <DocumentoBloque
+                  titulo="2. Frente de cédula"
+                  uri={documentosRevision?.cedula_frente}
+                  placeholder="No hay foto de cédula disponible"
+                />
+                <DocumentoBloque
+                  titulo="3. Selfie con cédula"
+                  uri={documentosRevision?.selfie_con_cedula}
+                  placeholder="No hay selfie con cédula disponible"
+                />
+                <View style={styles.reviewActions}>
+                  <AnimatedPressable
+                    onPress={() => guardarRevision('rechazada')}
+                    style={[styles.reviewBtn, styles.reviewBtnReject, guardandoRevision && styles.reviewBtnDisabled]}
+                    scaleValue={0.97}
+                    disabled={guardandoRevision}
+                  >
+                    <Ionicons name="close-circle-outline" size={18} color={COLORS.white} />
+                    <Text style={styles.reviewBtnText}>{guardandoRevision ? 'Guardando...' : 'Rechazar'}</Text>
+                  </AnimatedPressable>
+                  <AnimatedPressable
+                    onPress={() => guardarRevision('aprobada')}
+                    style={[styles.reviewBtn, styles.reviewBtnApprove, guardandoRevision && styles.reviewBtnDisabled]}
+                    scaleValue={0.97}
+                    disabled={guardandoRevision}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.white} />
+                    <Text style={styles.reviewBtnText}>{guardandoRevision ? 'Guardando...' : 'Aprobar'}</Text>
+                  </AnimatedPressable>
+                </View>
+              </>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
+}
+
+function DocumentoBloque({ titulo, uri, placeholder }) {
+  return (
+    <View style={styles.docBlock}>
+      <Text style={styles.docTitle}>{titulo}</Text>
+      {uri ? (
+        <Image source={{ uri }} style={styles.docImage} resizeMode="cover" />
+      ) : (
+        <View style={styles.docPlaceholder}>
+          <Ionicons name="image-outline" size={28} color={COLORS.textLight} />
+          <Text style={styles.docPlaceholderText}>{placeholder}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function getBadgeRevisionStyle(estado) {
+  if (estado === 'aprobada') {
+    return {
+      label: 'Aprobada',
+      badge: { backgroundColor: '#DCFCE7' },
+      text: { color: '#166534' },
+    };
+  }
+
+  if (estado === 'rechazada') {
+    return {
+      label: 'Rechazada',
+      badge: { backgroundColor: '#FEF2F2' },
+      text: { color: '#B91C1C' },
+    };
+  }
+
+  return {
+    label: 'Pendiente',
+    badge: { backgroundColor: '#F3F4F6' },
+    text: { color: '#4B5563' },
+  };
 }
 
 const styles = StyleSheet.create({
@@ -234,4 +408,126 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: SPACING.sm },
   actionBtn: { padding: 4 },
   empty: { fontSize: 16, color: COLORS.textLight },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xs,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  modalCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.cardHover,
+  },
+  modalUserName: {
+    paddingHorizontal: SPACING.md,
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  modalHelpText: {
+    paddingHorizontal: SPACING.md,
+    marginTop: 4,
+    color: COLORS.textLight,
+    marginBottom: SPACING.sm,
+  },
+  modalEstadoChip: {
+    marginHorizontal: SPACING.md,
+    alignSelf: 'flex-start',
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    marginBottom: SPACING.sm,
+  },
+  modalEstadoText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modalScrollContent: {
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.xl,
+  },
+  modalCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xl,
+  },
+  modalLoading: {
+    color: COLORS.textLight,
+    fontSize: 15,
+  },
+  docBlock: {
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.sm,
+    marginBottom: SPACING.md,
+    ...SHADOWS.small,
+  },
+  docTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
+  },
+  docImage: {
+    width: '100%',
+    height: 280,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.borderLight,
+  },
+  docPlaceholder: {
+    height: 120,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.cardHover,
+  },
+  docPlaceholderText: {
+    color: COLORS.textLight,
+  },
+  reviewActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.md,
+  },
+  reviewBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.md,
+  },
+  reviewBtnReject: {
+    backgroundColor: COLORS.error,
+  },
+  reviewBtnApprove: {
+    backgroundColor: COLORS.primary,
+  },
+  reviewBtnDisabled: {
+    opacity: 0.7,
+  },
+  reviewBtnText: {
+    color: COLORS.white,
+    fontWeight: '700',
+  },
 });

@@ -8,6 +8,8 @@ router.use(authMiddleware, adminMiddleware);
 router.get('/dashboard', adminController.dashboard);
 router.get('/usuarios', adminController.listarUsuarios);
 router.get('/usuarios/:id', adminController.getUsuarioDetalle);
+router.get('/usuarios/:id/documentos-identidad', adminController.getDocumentosIdentidadUsuario);
+router.put('/usuarios/:id/validacion-identidad', adminController.revisarValidacionIdentidadUsuario);
 router.put('/usuarios/:id', adminController.actualizarUsuario);
 router.put('/usuarios/:id/toggle', adminController.toggleUsuario);
 router.delete('/usuarios/:id', adminController.eliminarUsuario);

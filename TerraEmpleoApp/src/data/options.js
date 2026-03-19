@@ -15,6 +15,7 @@ export const LABORES = [
 
 export const NIVELES_ESTUDIO = [
   { label: 'Sin estudios', value: 'sin_estudios' },
+  { label: 'Primaria completa', value: 'primaria_completa' },
   { label: 'Bachiller', value: 'bachiller' },
   { label: 'Técnico / Tecnólogo', value: 'tecnico_tecnologo' },
   { label: 'Universitario', value: 'universitario' },

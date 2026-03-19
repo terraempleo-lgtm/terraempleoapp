@@ -1,4 +1,5 @@
 const { query } = require('../config/database');
+const { signFields } = require('../config/s3');
 
 // Dashboard - conteos
 async function dashboard(req, res) {
@@ -31,7 +32,7 @@ async function listarUsuarios(req, res) {
   try {
     const usuarios = await query(`
       SELECT u.id, u.rol, u.nombre_completo, u.celular, u.correo, u.departamento, u.municipio,
-        u.verificado_sms, u.calificacion_promedio, u.activo, u.created_at,
+        u.verificado_sms, u.validacion_identidad_estado, u.calificacion_promedio, u.activo, u.created_at,
         pe.nombre_empresa_finca
       FROM usuarios u
       LEFT JOIN perfil_empleador pe ON pe.usuario_id = u.id
@@ -104,6 +105,103 @@ async function getUsuarioDetalle(req, res) {
   } catch (err) {
     console.error('Error obteniendo usuario:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// Obtener documentos de validación interna de identidad para revisión manual
+async function getDocumentosIdentidadUsuario(req, res) {
+  try {
+    const { id } = req.params;
+    const usuarios = await query(
+      `SELECT id, rol, nombre_completo, foto_selfie, foto_cedula, foto_selfie_cedula,
+              validacion_identidad_estado, validacion_identidad_revisado_at, validacion_identidad_comentario
+       FROM usuarios
+       WHERE id = ? AND eliminado = 0`,
+      [id]
+    );
+
+    if (!usuarios || usuarios.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const usuario = usuarios[0];
+    await signFields(usuario, ['foto_selfie', 'foto_cedula', 'foto_selfie_cedula']);
+
+    const documentos = {
+      selfie: usuario.foto_selfie || null,
+      cedula_frente: usuario.foto_cedula || null,
+      selfie_con_cedula: usuario.foto_selfie_cedula || null,
+    };
+
+    res.json({
+      usuario: {
+        id: usuario.id,
+        rol: usuario.rol,
+        nombre_completo: usuario.nombre_completo,
+      },
+      documentos,
+      revision: {
+        estado: usuario.validacion_identidad_estado || 'pendiente',
+        revisado_at: usuario.validacion_identidad_revisado_at || null,
+        comentario: usuario.validacion_identidad_comentario || null,
+      },
+      tiene_documentos: Boolean(documentos.selfie || documentos.cedula_frente || documentos.selfie_con_cedula),
+    });
+  } catch (err) {
+    console.error('Error obteniendo documentos de identidad:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// Aprobar/rechazar validación interna de identidad
+async function revisarValidacionIdentidadUsuario(req, res) {
+  try {
+    const { id } = req.params;
+    const { estado, comentario } = req.body;
+
+    if (!['aprobada', 'rechazada'].includes(estado)) {
+      return res.status(400).json({ error: 'Estado inválido. Use: aprobada o rechazada.' });
+    }
+
+    const usuarios = await query(
+      `SELECT id, rol, foto_selfie, foto_cedula, foto_selfie_cedula
+       FROM usuarios
+       WHERE id = ? AND eliminado = 0`,
+      [id]
+    );
+
+    if (!usuarios || usuarios.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const usuario = usuarios[0];
+    if (usuario.rol === 'admin') {
+      return res.status(400).json({ error: 'No se revisa validación interna para usuarios admin' });
+    }
+
+    if (!usuario.foto_selfie || !usuario.foto_cedula || !usuario.foto_selfie_cedula) {
+      return res.status(400).json({ error: 'El usuario no tiene los 3 documentos completos para revisión.' });
+    }
+
+    await query(
+      `UPDATE usuarios
+       SET validacion_identidad_estado = ?,
+           validacion_identidad_revisado_por = ?,
+           validacion_identidad_revisado_at = NOW(),
+           validacion_identidad_comentario = ?
+       WHERE id = ?`,
+      [estado, req.user.id, comentario || null, id]
+    );
+
+    return res.json({
+      message: estado === 'aprobada'
+        ? 'Validación interna aprobada correctamente'
+        : 'Validación interna rechazada correctamente',
+      estado,
+    });
+  } catch (err) {
+    console.error('Error revisando validación interna de identidad:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
 
@@ -383,7 +481,7 @@ async function eliminarEmpleador(req, res) {
 }
 
 module.exports = {
-  dashboard, listarUsuarios, getUsuarioDetalle, actualizarUsuario, toggleUsuario, eliminarUsuario,
+  dashboard, listarUsuarios, getUsuarioDetalle, getDocumentosIdentidadUsuario, revisarValidacionIdentidadUsuario, actualizarUsuario, toggleUsuario, eliminarUsuario,
   listarTodasVacantes, listarTodasPostulaciones, eliminarVacante,
   crearVacanteComoAdmin, listarEmpleadores, verPostulacionesAdmin, cambiarEstadoVacante, actualizarVacante,
   eliminarEmpleador

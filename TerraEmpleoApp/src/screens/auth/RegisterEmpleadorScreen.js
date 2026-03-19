@@ -522,6 +522,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
                 </View>
                 <Text style={[styles.estadoFotoText, fotoSelfie && styles.estadoFotoOk]}>{fotoSelfie ? 'Cargada' : 'Pendiente'}</Text>
               </View>
+              <InfoBox variant="info" text="Esta selfie será tu foto de perfil en TerraEmpleo." />
               {fotoSelfie ? (
                 <Image source={{ uri: fotoSelfie }} style={styles.fotoPreview} />
               ) : null}

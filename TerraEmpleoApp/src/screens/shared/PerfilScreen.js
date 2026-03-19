@@ -29,8 +29,8 @@ const LABELS_DISPONIBILIDAD = {
   inmediato: 'Disponible inmediatamente',
 };
 const LABELS_ESTUDIOS = {
-  sin_estudios: 'Sin estudios', bachiller: 'Bachiller',
-  tecnico: 'Técnico / Tecnólogo', universitario: 'Universitario',
+  sin_estudios: 'Sin estudios', primaria_completa: 'Primaria completa', bachiller: 'Bachiller',
+  tecnico: 'Técnico / Tecnólogo', tecnico_tecnologo: 'Técnico / Tecnólogo', universitario: 'Universitario',
 };
 const LABELS_PAGO = {
   jornal: 'Jornal (diario)', semanal: 'Semanal',

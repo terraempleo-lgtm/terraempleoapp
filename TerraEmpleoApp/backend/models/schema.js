@@ -40,7 +40,7 @@ async function initializeDatabase() {
       acerca_de TEXT DEFAULT NULL,
       hoja_vida_url VARCHAR(500) DEFAULT NULL,
       hoja_vida_nombre VARCHAR(255) DEFAULT NULL,
-      nivel_estudios ENUM('sin_estudios','bachiller','tecnico_tecnologo','universitario') DEFAULT NULL,
+      nivel_estudios ENUM('sin_estudios','primaria_completa','bachiller','tecnico_tecnologo','universitario') DEFAULT NULL,
       titulo_estudio VARCHAR(200) DEFAULT NULL,
       anios_experiencia ENUM('sin','menos_1','1_3','3_5','5_10','mas_10') DEFAULT NULL,
       disponibilidad ENUM('tiempo_completo','por_dias','temporada_cosecha','fines_semana','disponible_inmediatamente') DEFAULT NULL,
@@ -269,6 +269,13 @@ async function initializeDatabase() {
   try { await query('ALTER TABLE perfil_trabajador ADD COLUMN IF NOT EXISTS hoja_vida_nombre VARCHAR(255) DEFAULT NULL'); } catch (_) {}
   try { await query('ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS acerca_de TEXT DEFAULT NULL'); } catch (_) {}
   try { await query('ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS foto_finca_fachada VARCHAR(500) DEFAULT NULL'); } catch (_) {}
+  try { await query("ALTER TABLE perfil_trabajador MODIFY COLUMN nivel_estudios ENUM('sin_estudios','primaria_completa','bachiller','tecnico_tecnologo','universitario') DEFAULT NULL"); } catch (_) {}
+
+  // Migración: estado de validación interna de identidad
+  try { await query("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS validacion_identidad_estado ENUM('pendiente','aprobada','rechazada') NOT NULL DEFAULT 'pendiente'"); } catch (_) {}
+  try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS validacion_identidad_revisado_por INT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS validacion_identidad_revisado_at TIMESTAMP NULL'); } catch (_) {}
+  try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS validacion_identidad_comentario VARCHAR(400) NULL'); } catch (_) {}
 
   // Migración: compatibilidad de tipos de notificación + columnas de navegación
   try { await query('ALTER TABLE notificaciones MODIFY COLUMN tipo VARCHAR(60) NOT NULL'); } catch (_) {}
