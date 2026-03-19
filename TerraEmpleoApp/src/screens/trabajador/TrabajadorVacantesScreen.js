@@ -14,11 +14,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MotiView } from 'moti';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { authAPI, vacantesAPI, notificacionesAPI } from '../../services/api';
+import { vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { PickerModal } from '../../components/ui';
-import CamaraFoto from '../../components/CamaraFoto';
 import { AnimatedPressable, StaggeredItem, SkeletonCard } from '../../components/animated';
 import { CULTIVOS } from '../../data/options';
 import { DEPARTAMENTOS } from '../../data/colombia';
@@ -111,7 +110,7 @@ function PulsingBadge({ count }) {
 /* ── Main ── */
 
 export default function TrabajadorVacantesScreen({ navigation }) {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const [vacantes, setVacantes] = useState([]);
   const [vacantesPostuladas, setVacantesPostuladas] = useState(new Set());
   const [refreshing, setRefreshing] = useState(false);
@@ -131,20 +130,6 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const yaEnvioCedula = Boolean(user?.validacion_identidad_enviado_at || user?.foto_cedula || user?.foto_selfie_cedula);
   const mostrarAccionSubirCedula = estadoIdentidad === 'rechazada' || (!yaEnvioCedula && necesitaSubirCedula);
   const mostrarTarjetaVerificacion = !identidadAprobada;
-
-  const recargarPerfilVerificacion = useCallback(async () => {
-    try {
-      const { data } = await authAPI.getPerfil();
-      if (data?.user) {
-        updateUser(data.user);
-      }
-    } catch (_) {}
-  }, [updateUser]);
-
-  const onFotoCedulaGuardada = useCallback(async () => {
-    await recargarPerfilVerificacion();
-    Alert.alert('Cédula enviada', 'Tu cédula quedó enviada para revisión manual del equipo administrador.');
-  }, [recargarPerfilVerificacion]);
 
   const cargarNoLeidas = useCallback(async () => {
     try {
@@ -380,18 +365,13 @@ export default function TrabajadorVacantesScreen({ navigation }) {
           <Text style={s.verificacionText}>
             {estadoIdentidad === 'rechazada'
               ? 'Tu verificación fue rechazada. ¿Quieres verificarte otra vez? Sube una nueva foto de cédula.'
-              : yaEnvioCedula
-                ? 'Tu cédula está en proceso de verificación. Te avisaremos cuando sea aprobada.'
-                : 'Debes subir tu cédula para completar tu verificación.'}
+              : 'Tu cédula está en proceso de verificación. Te avisaremos cuando sea aprobada.'}
           </Text>
-          {mostrarAccionSubirCedula && (
-            <CamaraFoto
-              tipo="cedula"
-              label={estadoIdentidad === 'rechazada' ? '¿Quieres verificarte? Subir nueva cédula' : 'Subir cédula'}
-              onFotoGuardada={onFotoCedulaGuardada}
-              permitirGaleria={false}
-            />
-          )}
+          {mostrarAccionSubirCedula && estadoIdentidad === 'rechazada' ? (
+            <Text style={s.verificacionAyuda}>
+              Para volver a verificarte, sube una nueva cédula desde tu perfil.
+            </Text>
+          ) : null}
         </View>
       )}
 
@@ -637,6 +617,11 @@ const s = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
     lineHeight: 20,
+  },
+  verificacionAyuda: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   /* Search */
