@@ -7,6 +7,7 @@ router.use(authMiddleware, adminMiddleware);
 
 router.get('/dashboard', adminController.dashboard);
 router.get('/usuarios', adminController.listarUsuarios);
+router.get('/validaciones-identidad/pendientes', adminController.listarCedulasPendientes);
 router.get('/usuarios/:id', adminController.getUsuarioDetalle);
 router.get('/usuarios/:id/documentos-identidad', adminController.getDocumentosIdentidadUsuario);
 router.put('/usuarios/:id/validacion-identidad', adminController.revisarValidacionIdentidadUsuario);

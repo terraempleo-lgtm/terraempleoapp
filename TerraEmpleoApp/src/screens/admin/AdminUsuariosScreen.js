@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 
-export default function AdminUsuariosScreen() {
+export default function AdminUsuariosScreen({ navigation }) {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -141,6 +141,7 @@ export default function AdminUsuariosScreen() {
       setGuardandoRevision(true);
       await adminAPI.revisarValidacionIdentidad(usuarioRevision.id, nuevoEstado, comentarioRevision);
       setEstadoRevision(nuevoEstado);
+      cerrarRevisionDocumentos();
       Alert.alert('Listo', nuevoEstado === 'aprobada'
         ? 'Validación interna aprobada.'
         : 'Validación interna rechazada.');
@@ -156,9 +157,13 @@ export default function AdminUsuariosScreen() {
   const roleColor = (r) => r === 'trabajador' ? COLORS.primary : r === 'empleador' ? COLORS.accent : '#6A1B9A';
   const roleLabel = (r) => r === 'trabajador' ? 'Trabajador' : r === 'empleador' ? 'Empleador' : 'Admin';
 
+  const abrirDetalleUsuario = (item) => {
+    navigation.navigate('AdminDetalleUsuario', { usuarioId: item.id });
+  };
+
   const renderItem = ({ item, index }) => (
     <StaggeredItem index={index}>
-      <View style={styles.card}>
+      <AnimatedPressable style={styles.card} onPress={() => abrirDetalleUsuario(item)} scaleValue={0.99} haptic={false}>
         <View style={styles.cardTop}>
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{item.nombre_completo}</Text>
@@ -214,7 +219,7 @@ export default function AdminUsuariosScreen() {
             )}
           </View>
         </View>
-      </View>
+      </AnimatedPressable>
     </StaggeredItem>
   );
 

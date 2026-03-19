@@ -147,7 +147,8 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
         onFotoGuardada(tipo, savedPreview);
       });
     } catch (err) {
-      Alert.alert('Error', 'No se pudo guardar la foto. Verifica tu conexión.');
+      const msg = err.response?.data?.error || 'No se pudo guardar la foto. Verifica tu conexión.';
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }

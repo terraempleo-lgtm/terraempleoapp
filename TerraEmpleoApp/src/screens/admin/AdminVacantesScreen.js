@@ -50,6 +50,15 @@ export default function AdminVacantesScreen({ navigation }) {
     navigation.navigate('AdminVerPostulantes', { vacante: item });
   };
 
+  const abrirDetalleVacante = (item) => {
+    navigation.navigate('AdminDetalleVacante', { vacante: item });
+  };
+
+  const abrirDetalleEmpleador = (item) => {
+    if (!item?.id) return;
+    navigation.navigate('PerfilPublicoEmpleador', { vacante_id: item.id });
+  };
+
   const eliminar = (vacante) => {
     Alert.alert(
       'Confirmar eliminación',
@@ -87,11 +96,16 @@ export default function AdminVacantesScreen({ navigation }) {
       : 'Sin fecha';
     return (
       <StaggeredItem index={index}>
-        <View style={styles.card}>
+        <AnimatedPressable style={styles.card} onPress={() => abrirDetalleVacante(item)} scaleValue={0.99} haptic={false}>
           <View style={styles.cardTop}>
             <View style={{ flex: 1 }}>
               <Text style={styles.titulo}>{item.titulo}</Text>
-              <Text style={styles.empresa}>{item.nombre_empresa_finca || 'Sin nombre'}</Text>
+              <TouchableOpacity
+                onPress={() => abrirDetalleEmpleador(item)}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Text style={styles.empresaLink}>{item.nombre_empresa_finca || 'Sin nombre'}</Text>
+              </TouchableOpacity>
             </View>
             <View style={[styles.estadoBadge, { backgroundColor: ec.bg }]}>
               <Text style={[styles.estadoText, { color: ec.fg }]}>{item.estado}</Text>
@@ -139,7 +153,7 @@ export default function AdminVacantesScreen({ navigation }) {
               </AnimatedPressable>
             </View>
           </View>
-        </View>
+        </AnimatedPressable>
       </StaggeredItem>
     );
   };
@@ -215,6 +229,14 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   titulo: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
   empresa: { fontSize: 13, color: COLORS.textLight, marginTop: 2 },
+  empresaLink: {
+    fontSize: 13,
+    color: COLORS.primary,
+    marginTop: 2,
+    textDecorationLine: 'underline',
+    fontWeight: '600',
+    alignSelf: 'flex-start',
+  },
   estadoBadge: { paddingHorizontal: SPACING.sm + 2, paddingVertical: 3, borderRadius: RADIUS.full },
   estadoText: { fontSize: 12, fontWeight: '600', textTransform: 'capitalize' },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: SPACING.xs },

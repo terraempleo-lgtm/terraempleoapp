@@ -20,6 +20,7 @@ import RoleSelectScreen from './src/screens/auth/RoleSelectScreen';
 import RegisterTrabajadorScreen from './src/screens/auth/RegisterTrabajadorScreen';
 import RegisterEmpleadorScreen from './src/screens/auth/RegisterEmpleadorScreen';
 import RecuperarPasswordScreen from './src/screens/auth/RecuperarPasswordScreen';
+import DocumentoLegalScreen from './src/screens/auth/DocumentoLegalScreen';
 
 // Trabajador
 import TrabajadorVacantesScreen from './src/screens/trabajador/TrabajadorVacantesScreen';
@@ -39,6 +40,8 @@ import MisPostulantesScreen from './src/screens/empleador/MisPostulantesScreen';
 // Admin
 import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
 import AdminUsuariosScreen from './src/screens/admin/AdminUsuariosScreen';
+import AdminDetalleUsuarioScreen from './src/screens/admin/AdminDetalleUsuarioScreen';
+import AdminVerificacionCedulasScreen from './src/screens/admin/AdminVerificacionCedulasScreen';
 import AdminVacantesScreen from './src/screens/admin/AdminVacantesScreen';
 import AdminPostulantesVacanteScreen from './src/screens/admin/AdminPostulantesVacanteScreen';
 
@@ -127,6 +130,7 @@ const tabScreenOptions = ({ route }) => ({
       case 'Explorar': iconName = focused ? 'search' : 'search-outline'; break;
       case 'Dashboard': iconName = focused ? 'stats-chart' : 'stats-chart-outline'; break;
       case 'Usuarios': iconName = focused ? 'people' : 'people-outline'; break;
+      case 'Verificacion': iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline'; break;
       case 'AdminVacantes': iconName = focused ? 'briefcase' : 'briefcase-outline'; break;
       case 'Mensajes': iconName = focused ? 'chatbubbles' : 'chatbubbles-outline'; break;
       case 'Perfil': iconName = focused ? 'person' : 'person-outline'; break;
@@ -250,13 +254,32 @@ function EmpleadorVacantesStack() {
 }
 
 // ── Admin Tabs ──
+function AdminUsuariosStack() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen
+        name="AdminUsuariosHome"
+        component={AdminUsuariosScreen}
+        options={{ title: 'Usuarios' }}
+      />
+      <Stack.Screen
+        name="AdminDetalleUsuario"
+        component={AdminDetalleUsuarioScreen}
+        options={{ title: 'Perfil de Usuario' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 function AdminTabs() {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="Dashboard" component={AdminDashboardStack}
         options={{ tabBarLabel: 'Dashboard' }} />
-      <Tab.Screen name="Usuarios" component={AdminUsuariosScreen}
-        options={{ tabBarLabel: 'Usuarios', headerShown: true, ...headerOptions, title: 'Usuarios' }} />
+      <Tab.Screen name="Usuarios" component={AdminUsuariosStack}
+        options={{ tabBarLabel: 'Usuarios' }} />
+      <Tab.Screen name="Verificacion" component={AdminVerificacionCedulasScreen}
+        options={{ tabBarLabel: 'Verificación', headerShown: true, ...headerOptions, title: 'Cédulas Pendientes' }} />
       <Tab.Screen name="AdminVacantes" component={AdminVacantesStack}
         options={{ tabBarLabel: 'Vacantes' }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
@@ -279,9 +302,29 @@ function AdminVacantesStack() {
         options={{ title: 'Postulantes' }}
       />
       <Stack.Screen
+        name="AdminDetalleVacante"
+        component={DetalleVacanteEmpleadorScreen}
+        options={{ title: 'Detalle de Vacante' }}
+      />
+      <Stack.Screen
+        name="EditarVacante"
+        component={EditarVacanteScreen}
+        options={{ title: 'Editar Vacante' }}
+      />
+      <Stack.Screen
+        name="VerPostulaciones"
+        component={AdminPostulantesVacanteScreen}
+        options={{ title: 'Postulantes' }}
+      />
+      <Stack.Screen
         name="PerfilPublicoTrabajador"
         component={PerfilPublicoTrabajadorScreen}
         options={{ title: 'Perfil del Trabajador' }}
+      />
+      <Stack.Screen
+        name="PerfilPublicoEmpleador"
+        component={PerfilPublicoEmpleadorScreen}
+        options={{ title: 'Perfil del Empleador' }}
       />
     </Stack.Navigator>
   );
@@ -292,8 +335,8 @@ function AdminDashboardStack() {
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen}
         options={{ title: 'Admin Dashboard' }} />
-      <Stack.Screen name="AdminUsuarios" component={AdminUsuariosScreen}
-        options={{ title: 'Usuarios' }} />
+      <Stack.Screen name="AdminUsuarios" component={AdminUsuariosStack}
+        options={{ headerShown: false }} />
       <Stack.Screen
         name="AdminVacantes"
         component={AdminVacantesStack}
@@ -322,6 +365,8 @@ function AuthStack() {
         options={{ headerShown: true, title: 'Registro Empleador' }} />
       <Stack.Screen name="RecuperarPassword" component={RecuperarPasswordScreen}
         options={{ headerShown: true, title: 'Recuperar contraseña' }} />
+      <Stack.Screen name="DocumentoLegal" component={DocumentoLegalScreen}
+        options={{ headerShown: true, title: 'Documento legal' }} />
       <Stack.Screen
         name="ValidacionInternaIdentidad"
         component={VerificationNavigator}

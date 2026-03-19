@@ -431,6 +431,9 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               <Text style={styles.legalCardText}>
                 Autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012
               </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('DocumentoLegal', { tipo: 'habeas' })}>
+                <Text style={styles.legalLink}>Leer documento de Habeas Data</Text>
+              </TouchableOpacity>
             </View>
             {errors.habeas && <Text style={styles.errorText}>{errors.habeas}</Text>}
 
@@ -450,6 +453,9 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               <Text style={styles.legalCardText}>
                 Acepto los Términos y Condiciones de uso de la plataforma TerraEmpleo
               </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('DocumentoLegal', { tipo: 'terminos' })}>
+                <Text style={styles.legalLink}>Leer Términos y Condiciones completos</Text>
+              </TouchableOpacity>
             </View>
             {errors.terminos && <Text style={styles.errorText}>{errors.terminos}</Text>}
 
@@ -943,6 +949,13 @@ const styles = StyleSheet.create({
   legalCardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
   legalCardDesc: { fontSize: 12, color: COLORS.textLight },
   legalCardText: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 19 },
+  legalLink: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+    textDecorationLine: 'underline',
+  },
   errorText: { fontSize: 13, color: COLORS.error, marginTop: -SPACING.sm, marginBottom: SPACING.sm },
   smsContainer: { alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.lg },
   smsIconCircle: {

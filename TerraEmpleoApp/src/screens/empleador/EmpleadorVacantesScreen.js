@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { vacantesAPI, notificacionesAPI } from '../../services/api';
+import { authAPI, vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
@@ -15,6 +15,7 @@ import Animated, {
   useSharedValue, useAnimatedStyle,
   withRepeat, withSequence, withTiming, Easing,
 } from 'react-native-reanimated';
+import CamaraFoto from '../../components/CamaraFoto';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 
 function timeAgo(dateStr) {
@@ -86,7 +87,7 @@ function PulsingBadge({ count }) {
 }
 
 export default function EmpleadorVacantesScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [vacantes, setVacantes] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [tabActiva, setTabActiva] = useState('activa');
@@ -94,6 +95,24 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
   const firstName = (user?.nombre_completo || user?.nombre || 'Empleador').split(' ')[0];
   const nombreCompleto = user?.nombre_completo || user?.nombre || firstName;
+  const estadoIdentidad = user?.validacion_identidad_estado || 'pendiente';
+  const identidadAprobada = estadoIdentidad === 'aprobada';
+  const necesitaSubirCedula = !user?.foto_cedula;
+  const mostrarTarjetaVerificacion = !identidadAprobada;
+
+  const recargarPerfilVerificacion = useCallback(async () => {
+    try {
+      const { data } = await authAPI.getPerfil();
+      if (data?.user) {
+        updateUser(data.user);
+      }
+    } catch (_) {}
+  }, [updateUser]);
+
+  const onFotoCedulaGuardada = useCallback(async () => {
+    await recargarPerfilVerificacion();
+    Alert.alert('Cédula enviada', 'Tu cédula quedó enviada para revisión manual del equipo administrador.');
+  }, [recargarPerfilVerificacion]);
 
   const cargarNoLeidas = useCallback(async () => {
     try {
@@ -266,9 +285,23 @@ export default function EmpleadorVacantesScreen({ navigation }) {
       {/* Greeting */}
       <FadeInView delay={0}>
         <View style={styles.greetingSection}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.greetingLabel}>Hola, {firstName}</Text>
-            <Text style={styles.greetingName}>{nombreCompleto}</Text>
+          <View style={styles.greetingLeft}>
+            <View style={styles.avatarWrap}>
+              {user?.foto_selfie ? (
+                <Image source={{ uri: user.foto_selfie }} style={styles.avatarImg} />
+              ) : (
+                <Ionicons name="person" size={20} color={COLORS.primary} />
+              )}
+              {identidadAprobada && (
+                <View style={styles.verificadoBadge}>
+                  <Ionicons name="checkmark" size={11} color={COLORS.white} />
+                </View>
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.greetingLabel}>Hola, {firstName}</Text>
+              <Text style={styles.greetingName}>{nombreCompleto}</Text>
+            </View>
           </View>
           <View style={styles.headerActions}>
             <AnimatedPressable
@@ -283,6 +316,38 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           </View>
         </View>
       </FadeInView>
+
+      {mostrarTarjetaVerificacion && (
+        <FadeInView delay={80}>
+          <View style={styles.verificacionCard}>
+            <View style={styles.verificacionHeader}>
+              <Ionicons
+                name={estadoIdentidad === 'rechazada' ? 'alert-circle' : 'shield-outline'}
+                size={18}
+                color={estadoIdentidad === 'rechazada' ? COLORS.error : COLORS.primary}
+              />
+              <Text style={styles.verificacionTitle}>
+                {estadoIdentidad === 'rechazada' ? 'Verificación rechazada' : 'Verificación de identidad'}
+              </Text>
+            </View>
+            <Text style={styles.verificacionText}>
+              {necesitaSubirCedula
+                ? 'Debes subir tu cédula para completar tu verificación.'
+                : estadoIdentidad === 'rechazada'
+                  ? 'Tu verificación fue rechazada. ¿Quieres verificarte otra vez? Sube una nueva foto de cédula.'
+                  : 'Tu cédula está en revisión. Te avisaremos cuando sea aprobada.'}
+            </Text>
+            {(necesitaSubirCedula || estadoIdentidad === 'rechazada') && (
+              <CamaraFoto
+                tipo="cedula"
+                label={estadoIdentidad === 'rechazada' ? '¿Quieres verificarte? Subir nueva cédula' : 'Subir cédula'}
+                onFotoGuardada={onFotoCedulaGuardada}
+                permitirGaleria={false}
+              />
+            )}
+          </View>
+        </FadeInView>
+      )}
 
       {/* Header row */}
       <FadeInView delay={100}>
@@ -428,6 +493,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, paddingBottom: SPACING.sm,
     backgroundColor: COLORS.white,
   },
+  greetingLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  avatarWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2.5,
+    borderColor: COLORS.primary,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  avatarImg: { width: 48, height: 48, borderRadius: 24 },
+  verificadoBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   greetingLabel: {
     fontSize: 14, color: COLORS.textSecondary, fontWeight: '500',
   },
@@ -445,6 +542,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   notifBadgeText: { fontSize: 10, fontWeight: '700', color: COLORS.white },
+
+  verificacionCard: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    ...SHADOWS.small,
+  },
+  verificacionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  verificacionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  verificacionText: {
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+    lineHeight: 20,
+  },
 
   /* Header */
   header: {

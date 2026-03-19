@@ -132,6 +132,8 @@ export const chatsAPI = {
 export const adminAPI = {
   getDashboard: () => api.get('/admin/dashboard'),
   getUsuarios: () => api.get('/admin/usuarios'),
+  getUsuarioDetalle: (id) => api.get(`/admin/usuarios/${id}`),
+  getCedulasPendientes: () => api.get('/admin/validaciones-identidad/pendientes'),
   getUsuarioDocumentosIdentidad: (id) => api.get(`/admin/usuarios/${id}/documentos-identidad`),
   revisarValidacionIdentidad: (id, estado, comentario) => api.put(`/admin/usuarios/${id}/validacion-identidad`, {
     estado,
@@ -145,6 +147,7 @@ export const adminAPI = {
   deleteVacante: (id) => api.delete('/admin/vacantes/' + id),
   dashboard: () => api.get('/admin/dashboard'),
   listarUsuarios: () => api.get('/admin/usuarios'),
+  listarCedulasPendientes: () => api.get('/admin/validaciones-identidad/pendientes'),
   toggleUsuario: (id, activo) => api.put(`/admin/usuarios/${id}/toggle`, { activo }),
   eliminarUsuario: (id) => api.delete(`/admin/usuarios/${id}`),
   listarVacantes: () => api.get('/admin/vacantes'),

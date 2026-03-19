@@ -50,6 +50,40 @@ async function listarUsuarios(req, res) {
   }
 }
 
+// Listar cédulas pendientes de validación manual
+async function listarCedulasPendientes(req, res) {
+  try {
+    const pendientes = await query(
+      `SELECT u.id, u.rol, u.nombre_completo, u.cedula, u.foto_cedula,
+              u.validacion_identidad_estado, u.validacion_identidad_enviado_at,
+              u.created_at
+       FROM usuarios u
+       WHERE u.eliminado = 0
+         AND u.rol IN ('trabajador', 'empleador')
+         AND u.foto_cedula IS NOT NULL
+         AND u.validacion_identidad_estado = 'pendiente'
+       ORDER BY COALESCE(u.validacion_identidad_enviado_at, u.updated_at, u.created_at) ASC`
+    );
+
+    await signArrayField(pendientes, 'foto_cedula');
+
+    const data = pendientes.map((item) => ({
+      id: item.id,
+      rol: item.rol,
+      nombre_completo: item.nombre_completo,
+      cedula: item.cedula,
+      foto_cedula: item.foto_cedula,
+      estado: item.validacion_identidad_estado,
+      enviado_at: item.validacion_identidad_enviado_at || item.created_at,
+    }));
+
+    return res.json({ pendientes: data, total: data.length });
+  } catch (err) {
+    console.error('Error listando cédulas pendientes:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 // Obtener detalle completo de un usuario (para admin preview)
 async function getUsuarioDetalle(req, res) {
   try {
@@ -179,8 +213,8 @@ async function revisarValidacionIdentidadUsuario(req, res) {
       return res.status(400).json({ error: 'No se revisa validación interna para usuarios admin' });
     }
 
-    if (!usuario.foto_selfie || !usuario.foto_cedula || !usuario.foto_selfie_cedula) {
-      return res.status(400).json({ error: 'El usuario no tiene los 3 documentos completos para revisión.' });
+    if (!usuario.foto_cedula) {
+      return res.status(400).json({ error: 'El usuario no tiene una foto de cédula para revisión.' });
     }
 
     await query(
@@ -481,7 +515,7 @@ async function eliminarEmpleador(req, res) {
 }
 
 module.exports = {
-  dashboard, listarUsuarios, getUsuarioDetalle, getDocumentosIdentidadUsuario, revisarValidacionIdentidadUsuario, actualizarUsuario, toggleUsuario, eliminarUsuario,
+  dashboard, listarUsuarios, listarCedulasPendientes, getUsuarioDetalle, getDocumentosIdentidadUsuario, revisarValidacionIdentidadUsuario, actualizarUsuario, toggleUsuario, eliminarUsuario,
   listarTodasVacantes, listarTodasPostulaciones, eliminarVacante,
   crearVacanteComoAdmin, listarEmpleadores, verPostulacionesAdmin, cambiarEstadoVacante, actualizarVacante,
   eliminarEmpleador

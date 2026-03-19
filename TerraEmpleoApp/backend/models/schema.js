@@ -276,6 +276,7 @@ async function initializeDatabase() {
   try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS validacion_identidad_revisado_por INT NULL'); } catch (_) {}
   try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS validacion_identidad_revisado_at TIMESTAMP NULL'); } catch (_) {}
   try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS validacion_identidad_comentario VARCHAR(400) NULL'); } catch (_) {}
+  try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS validacion_identidad_enviado_at TIMESTAMP NULL'); } catch (_) {}
 
   // Migración: compatibilidad de tipos de notificación + columnas de navegación
   try { await query('ALTER TABLE notificaciones MODIFY COLUMN tipo VARCHAR(60) NOT NULL'); } catch (_) {}

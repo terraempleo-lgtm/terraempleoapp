@@ -133,7 +133,13 @@ async function register(req, res) {
     res.status(201).json({
       message: 'Usuario registrado exitosamente',
       token,
-      user: { id: userId, rol, nombre_completo, celular: celularNorm }
+      user: {
+        id: userId,
+        rol,
+        nombre_completo,
+        celular: celularNorm,
+        validacion_identidad_estado: 'pendiente',
+      }
     });
 
   } catch (err) {
@@ -217,6 +223,8 @@ async function login(req, res) {
           verificado_sms: toBool(user.verificado_sms),
           calificacion_promedio: user.calificacion_promedio,
           foto_selfie: fotoSelfie,
+          foto_cedula: user.foto_cedula || null,
+          validacion_identidad_estado: user.validacion_identidad_estado || 'pendiente',
         },
       });
     }
@@ -265,6 +273,8 @@ async function login(req, res) {
         verificado_sms: toBool(user.verificado_sms),
         calificacion_promedio: user.calificacion_promedio,
         foto_selfie: fotoSelfie,
+        foto_cedula: user.foto_cedula || null,
+        validacion_identidad_estado: user.validacion_identidad_estado || 'pendiente',
       }
     });
   } catch (err) {
@@ -521,7 +531,21 @@ async function subirFotos(req, res) {
     const filePath = req.file.location; // S3 URL
 
     if (columnasUsuario[tipo]) {
-      await query(`UPDATE usuarios SET ${columnasUsuario[tipo]} = ? WHERE id = ?`, [filePath, userId]);
+      if (tipo === 'cedula') {
+        await query(
+          `UPDATE usuarios
+           SET ${columnasUsuario[tipo]} = ?,
+               validacion_identidad_estado = 'pendiente',
+               validacion_identidad_enviado_at = NOW(),
+               validacion_identidad_revisado_por = NULL,
+               validacion_identidad_revisado_at = NULL,
+               validacion_identidad_comentario = NULL
+           WHERE id = ?`,
+          [filePath, userId]
+        );
+      } else {
+        await query(`UPDATE usuarios SET ${columnasUsuario[tipo]} = ? WHERE id = ?`, [filePath, userId]);
+      }
     } else if (columnasEmpleador[tipo]) {
       await query(`UPDATE perfil_empleador SET ${columnasEmpleador[tipo]} = ? WHERE usuario_id = ?`, [filePath, userId]);
     } else {
