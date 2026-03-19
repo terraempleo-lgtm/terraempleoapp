@@ -5,69 +5,69 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 
 const CONTENIDOS = {
   habeas: {
-    titulo: 'Autorizacion de Habeas Data',
+    titulo: 'Autorización de Habeas Data',
     subtitulo: 'Tratamiento de datos personales - Ley 1581 de 2012',
     secciones: [
       {
         titulo: '1. Finalidad del tratamiento',
         texto:
-          'TerraEmpleo tratara los datos personales para crear y administrar tu cuenta, validar identidad, publicar perfiles y vacantes, facilitar procesos de postulacion y mantener comunicacion sobre el servicio.',
+          'TerraEmpleo tratará los datos personales para crear y administrar tu cuenta, validar identidad, publicar perfiles y vacantes, facilitar procesos de postulación y mantener comunicación sobre el servicio.',
       },
       {
         titulo: '2. Datos que se recolectan',
         texto:
-          'Se pueden recolectar datos de identificacion, contacto, ubicacion, experiencia laboral y documentos de verificacion (como fotos de cédula y selfie) cuando sean necesarios para la operacion de la plataforma.',
+          'Se pueden recolectar datos de identificación, contacto, ubicación, experiencia laboral y documentos de verificación (como fotos de cédula y selfie), cuando sean necesarios para la operación de la plataforma.',
       },
       {
         titulo: '3. Derechos del titular',
         texto:
-          'Como titular puedes conocer, actualizar, rectificar o solicitar la supresion de tus datos, asi como revocar esta autorizacion cuando proceda legalmente.',
+          'Como titular, puedes conocer, actualizar, rectificar o solicitar la supresión de tus datos, así como revocar esta autorización cuando proceda legalmente.',
       },
       {
         titulo: '4. Seguridad y confidencialidad',
         texto:
-          'TerraEmpleo adopta medidas razonables de seguridad para proteger tu informacion contra perdida, acceso no autorizado, uso indebido o divulgacion.',
+          'TerraEmpleo adopta medidas razonables de seguridad para proteger tu información contra pérdida, acceso no autorizado, uso indebido o divulgación.',
       },
       {
         titulo: '5. Aceptacion',
         texto:
-          'Al activar la opcion de aceptacion, autorizas de manera previa, expresa e informada el tratamiento de tus datos personales para las finalidades aqui descritas.',
+          'Al activar la opción de aceptación, autorizas de manera previa, expresa e informada el tratamiento de tus datos personales para las finalidades aquí descritas.',
       },
     ],
   },
   terminos: {
-    titulo: 'Terminos y Condiciones de Uso',
+    titulo: 'Términos y Condiciones de Uso',
     subtitulo: 'Condiciones para trabajadores y empleadores',
     secciones: [
       {
         titulo: '1. Uso de la plataforma',
         texto:
-          'TerraEmpleo conecta trabajadores y empleadores del sector rural. El usuario se compromete a usar la plataforma de buena fe y con informacion veraz.',
+          'TerraEmpleo conecta trabajadores y empleadores del sector rural. El usuario se compromete a usar la plataforma de buena fe y con información veraz.',
       },
       {
         titulo: '2. Cuenta y acceso',
         texto:
-          'Cada usuario es responsable de la custodia de su cuenta y credenciales. No se permite suplantacion, uso fraudulento ni creacion de perfiles falsos.',
+          'Cada usuario es responsable de la custodia de su cuenta y credenciales. No se permite suplantación, uso fraudulento ni creación de perfiles falsos.',
       },
       {
         titulo: '3. Publicaciones y contenido',
         texto:
-          'Vacantes, perfiles, mensajes y demas contenidos deben cumplir la ley y no incluir informacion enganosa, ofensiva o que afecte derechos de terceros.',
+          'Vacantes, perfiles, mensajes y demás contenidos deben cumplir la ley y no incluir información engañosa, ofensiva o que afecte derechos de terceros.',
       },
       {
-        titulo: '4. Verificacion de identidad',
+        titulo: '4. Verificación de identidad',
         texto:
-          'Para proteger la comunidad, TerraEmpleo puede solicitar y revisar evidencia de identidad. El estado de verificacion puede ser pendiente, aprobada o rechazada.',
+          'Para proteger la comunidad, TerraEmpleo puede solicitar y revisar evidencia de identidad. El estado de verificación puede ser pendiente, aprobada o rechazada.',
       },
       {
-        titulo: '5. Suspension de cuenta',
+        titulo: '5. Suspensión de cuenta',
         texto:
-          'TerraEmpleo puede suspender o desactivar cuentas por incumplimiento de estas condiciones, fraude, suplantacion o cualquier uso indebido del servicio.',
+          'TerraEmpleo puede suspender o desactivar cuentas por incumplimiento de estas condiciones, fraude, suplantación o cualquier uso indebido del servicio.',
       },
       {
-        titulo: '6. Aceptacion',
+        titulo: '6. Aceptación',
         texto:
-          'Al activar la opcion de aceptacion, declaras que leiste y aceptas estos terminos y condiciones para el uso de la plataforma TerraEmpleo.',
+          'Al activar la opción de aceptación, declaras que leíste y aceptas estos términos y condiciones para el uso de la plataforma TerraEmpleo.',
       },
     ],
   },

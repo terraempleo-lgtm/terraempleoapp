@@ -28,8 +28,8 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
   const [celular, setCelular] = useState(celularInicial);
   const [codigoSMS, setCodigoSMS] = useState('');
   const [resetToken, setResetToken] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const otpRefs = useRef([]);
+  const [otpCodigo, setOtpCodigo] = useState('');
+  const otpInputRef = useRef(null);
   const [countdown, setCountdown] = useState(60);
 
   // Email
@@ -40,6 +40,8 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
   const [nuevaPassword, setNuevaPassword] = useState('');
   const [confirmarPassword, setConfirmarPassword] = useState('');
   const [errores, setErrores] = useState({});
+
+  const CODIGO_MOCK = '123456';
 
   useEffect(() => {
     if (paso !== 2 || countdown <= 0) return undefined;
@@ -93,7 +95,7 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
       const valor = celular.replace(/\s/g, '');
       const { data } = await cognitoAPI.forgotPassword(valor);
       setCelular(valor);
-      setOtp(['', '', '', '', '', '']);
+      setOtpCodigo('');
       setCodigoSMS('');
       setCountdown(60);
       setPaso(2);
@@ -120,6 +122,7 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
       }
 
       setOtp(['', '', '', '', '', '']);
+      setOtpCodigo('');
       setCountdown(60);
       setPaso(2);
 
@@ -137,24 +140,13 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
   };
 
   // ── OTP ──
-  const onOtpChange = (valor, index) => {
-    const digito = valor.replace(/\D/g, '').slice(-1);
-    const next = [...otp];
-    next[index] = digito;
-    setOtp(next);
-    if (digito && index < 5) {
-      otpRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const onOtpKeyPress = (e, index) => {
-    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
+  const onOtpCodeChange = (valor) => {
+    const clean = valor.replace(/\D/g, '').slice(0, 6);
+    setOtpCodigo(clean);
   };
 
   const verificarCodigo = async () => {
-    const codigo = otp.join('');
+    const codigo = otpCodigo;
     if (codigo.length !== 6) {
       Alert.alert('Código incompleto', 'Ingresa los 6 dígitos del código');
       return;
@@ -163,6 +155,9 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
     const celularVerificar = metodo === 'email' ? celularFromEmail || celular : celular;
 
     if (metodo === 'sms') {
+      if (codigo === CODIGO_MOCK) {
+        setResetToken(`mock-reset-${Date.now()}`);
+      }
       setCodigoSMS(codigo);
       setPaso(3);
       return;
@@ -193,6 +188,7 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
         data = resp.data;
       }
       setOtp(['', '', '', '', '', '']);
+      setOtpCodigo('');
       setCountdown(60);
       if (data?.codigo_debug) {
         Alert.alert('Nuevo código', `Tu nuevo OTP es: ${data.codigo_debug}`);
@@ -222,7 +218,11 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
     setLoading(true);
     try {
       if (metodo === 'sms') {
-        await cognitoAPI.confirmForgotPassword(celularFinal, codigoSMS, nuevaPassword);
+        if (codigoSMS === CODIGO_MOCK || String(resetToken).startsWith('mock-reset-')) {
+          await authAPI.actualizarPasswordRecuperacion(celularFinal, resetToken || `mock-reset-${Date.now()}`, nuevaPassword);
+        } else {
+          await cognitoAPI.confirmForgotPassword(celularFinal, codigoSMS, nuevaPassword);
+        }
       } else {
         await authAPI.actualizarPasswordRecuperacion(celularFinal, resetToken, nuevaPassword);
       }
@@ -339,20 +339,35 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
                     : `Enviamos un código de 6 dígitos al ${celular}`}
                 </Text>
 
+                <View style={styles.mockNotice}>
+                  <Ionicons name="information-circle-outline" size={18} color={COLORS.primary} />
+                  <Text style={styles.mockNoticeText}>
+                    Modo temporal de pruebas: usa el código 123456 para recuperar tu contraseña.
+                  </Text>
+                </View>
+
                 <View style={styles.otpContainer}>
-                  {otp.map((digit, index) => (
-                    <TextInput
-                      key={index}
-                      ref={(ref) => { otpRefs.current[index] = ref; }}
-                      value={digit}
-                      onChangeText={(value) => onOtpChange(value, index)}
-                      onKeyPress={(e) => onOtpKeyPress(e, index)}
-                      style={styles.otpInput}
-                      keyboardType="number-pad"
-                      maxLength={1}
-                      textAlign="center"
-                    />
-                  ))}
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    style={styles.otpTouchArea}
+                    onPress={() => otpInputRef.current?.focus()}
+                  >
+                    {[0, 1, 2, 3, 4, 5].map((index) => (
+                      <View key={index} style={[styles.otpInput, otpCodigo.length > index && styles.otpInputFilled]}>
+                        <Text style={styles.otpDigit}>{otpCodigo[index] || ''}</Text>
+                      </View>
+                    ))}
+                  </TouchableOpacity>
+                  <TextInput
+                    ref={otpInputRef}
+                    value={otpCodigo}
+                    onChangeText={onOtpCodeChange}
+                    keyboardType="number-pad"
+                    textContentType="oneTimeCode"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    style={styles.hiddenOtpInput}
+                  />
                 </View>
 
                 <Button title="Verificar" onPress={verificarCodigo} loading={loading} size="large" style={styles.actionBtn} />
@@ -371,7 +386,7 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
 
                 <TouchableOpacity
                   style={styles.linkBtn}
-                  onPress={() => { setPaso(1); setOtp(['', '', '', '', '', '']); }}
+                  onPress={() => { setPaso(1); setOtpCodigo(''); }}
                 >
                   <Text style={styles.linkText}>← Cambiar método de recuperación</Text>
                 </TouchableOpacity>
@@ -500,11 +515,34 @@ const styles = StyleSheet.create({
   },
   linkTextDisabled: { color: COLORS.textLight },
 
+  mockNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primarySoft,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  mockNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.textPrimary,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+
   otpContainer: {
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  otpTouchArea: {
     flexDirection: 'row',
     gap: 10,
     justifyContent: 'center',
-    marginVertical: 24,
   },
   otpInput: {
     width: 48,
@@ -516,6 +554,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0d0d0d',
     backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  otpInputFilled: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primarySoft,
+  },
+  otpDigit: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#0d0d0d',
+  },
+  hiddenOtpInput: {
+    position: 'absolute',
+    opacity: 0,
+    width: 1,
+    height: 1,
   },
 
   strengthWrap: {

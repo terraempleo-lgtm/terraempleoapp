@@ -119,7 +119,7 @@ export default function ChatsScreen({ navigation, route }) {
   };
 
   const renderChat = ({ item, index }) => {
-    const tieneFoto = item.otro_foto && item.otro_foto.startsWith('http');
+    const tieneFoto = Boolean(item.otro_foto && item.otro_foto.startsWith('http'));
     const iniciales = item.otro_nombre
       ? item.otro_nombre.split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase()
       : '?';
@@ -129,12 +129,11 @@ export default function ChatsScreen({ navigation, route }) {
         <AnimatedPressable style={styles.chatItem} onPress={() => abrirChat(item)} scaleValue={0.98} haptic={false}>
           {/* Avatar */}
           <View style={styles.avatarContainer}>
-            {tieneFoto ? (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>{iniciales}</Text>
+            </View>
+            {tieneFoto && (
               <Image source={{ uri: item.otro_foto }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>{iniciales}</Text>
-              </View>
             )}
             {item.no_leidos > 0 && (
               <PulsingBadge count={item.no_leidos} />
@@ -248,7 +247,14 @@ const styles = StyleSheet.create({
   },
   separator: { height: 1, backgroundColor: COLORS.borderLight, marginLeft: 76 },
   avatarContainer: { position: 'relative', marginRight: 12 },
-  avatar: { width: 52, height: 52, borderRadius: 26 },
+  avatar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
   avatarPlaceholder: {
     width: 52,
     height: 52,

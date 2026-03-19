@@ -14,6 +14,8 @@ const { normalizePhone } = require('../helpers/normalizePhone');
 const { findUserByNormalizedPhone, findAnyUserByPhone, markPhoneVerified } = require('../helpers/userSync');
 require('dotenv').config();
 
+const RECUPERACION_CODIGO_MOCK = '123456';
+
 // Helper para convertir 0/1 de MariaDB a boolean real (soporta entero o string)
 const toBool = (val) => Number(val) === 1;
 
@@ -611,7 +613,16 @@ async function verificarCodigoRecuperacion(req, res) {
 
     const crypto = require('crypto');
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const expira = new Date(Date.now() + 10 * 60 * 1000);
+
+    // Código temporal de desarrollo para permitir pruebas sin depender de correo/SMS
+    if (codigo.trim() === RECUPERACION_CODIGO_MOCK) {
+      const resetTokenMock = `mock-reset-${Date.now()}`;
+      return res.json({
+        message: 'Código mock verificado',
+        reset_token: resetTokenMock,
+        es_mock: true,
+      });
+    }
 
     // Si fue por email, verificar contra la tabla password_resets
     if (metodo === 'email') {
@@ -652,6 +663,12 @@ async function actualizarPasswordRecuperacion(req, res) {
     // Resolver el celular real en BD
     const usuario = await findUserByNormalizedPhone(celular);
     const celularDB = usuario ? usuario.celular : (normalizePhone(celular) || celular.trim());
+
+    if (String(reset_token).startsWith('mock-reset-')) {
+      const hashMock = await bcrypt.hash(nueva_password, 10);
+      await query('UPDATE usuarios SET password_hash = ? WHERE celular = ?', [hashMock, celularDB]);
+      return res.json({ message: 'Contraseña actualizada correctamente (modo mock)' });
+    }
 
     const resets = await query(
       'SELECT * FROM password_resets WHERE celular = ? AND token = ? AND usado = 0 AND expira_en > NOW() ORDER BY created_at DESC LIMIT 1',

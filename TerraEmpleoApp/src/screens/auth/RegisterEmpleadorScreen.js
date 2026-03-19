@@ -99,8 +99,8 @@ export default function RegisterEmpleadorScreen({ navigation }) {
         break;
       case 4:
         if (!cedula.trim()) errs.cedula = 'La cédula es obligatoria';
-        if (!aceptaHabeasData) errs.habeas = 'Debe aceptar';
-        if (!aceptaTerminos) errs.terminos = 'Debe aceptar los términos';
+        if (!aceptaHabeasData) errs.habeas = 'Debe aceptar el tratamiento de datos personales';
+        if (!aceptaTerminos) errs.terminos = 'Debe aceptar los términos y condiciones';
         break;
       // case 5: SMS verification disabled temporarily
       // if (!codigoSMS.trim()) errs.codigo = 'Ingrese el código';
@@ -196,9 +196,12 @@ export default function RegisterEmpleadorScreen({ navigation }) {
     if (tipo === 'finca_fachada') setFotoFincaFachada(uri);
   };
 
-  const getLabelCarga = (uri) => {
+  const getLabelCarga = (uri, permitirGaleria = true) => {
     if (isWeb) return uri ? 'Reemplazar foto' : 'Subir foto';
-    return uri ? 'Tomar o subir de nuevo' : 'Tomar o subir';
+    if (permitirGaleria) {
+      return uri ? 'Tomar o subir de nuevo' : 'Tomar o subir';
+    }
+    return uri ? 'Tomar de nuevo' : 'Tomar foto';
   };
 
   const handleRegister = async () => {
@@ -371,12 +374,6 @@ export default function RegisterEmpleadorScreen({ navigation }) {
 
             <InfoBox variant="info" text="Necesitamos tu ubicación exacta para conectar tu finca o negocio con trabajadores locales y optimizar la logística de pagos." />
 
-            <PickerModal visible={showDeptPicker} onClose={() => setShowDeptPicker(false)}
-              title="Departamento" options={DEPARTAMENTOS} selectedValue={departamento}
-              onSelect={(v) => { setDepartamento(v); setMunicipio(''); }} />
-            <PickerModal visible={showMunPicker} onClose={() => setShowMunPicker(false)}
-              title="Municipio" options={getMunicipios(departamento)} selectedValue={municipio}
-              onSelect={setMunicipio} />
           </View>
         );
 
@@ -429,7 +426,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
                   thumbColor={aceptaHabeasData ? COLORS.primary : '#f4f3f4'} />
               </View>
               <Text style={styles.legalCardText}>
-                Autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012
+                Autorizo el tratamiento de mis datos personales, según la Ley 1581 de 2012.
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('DocumentoLegal', { tipo: 'habeas' })}>
                 <Text style={styles.legalLink}>Leer documento de Habeas Data</Text>
@@ -451,7 +448,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
                   thumbColor={aceptaTerminos ? COLORS.primary : '#f4f3f4'} />
               </View>
               <Text style={styles.legalCardText}>
-                Acepto los Términos y Condiciones de uso de la plataforma TerraEmpleo
+                Acepto los Términos y Condiciones de uso de la plataforma TerraEmpleo.
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('DocumentoLegal', { tipo: 'terminos' })}>
                 <Text style={styles.legalLink}>Leer Términos y Condiciones completos</Text>
@@ -532,7 +529,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               {fotoSelfie ? (
                 <Image source={{ uri: fotoSelfie }} style={styles.fotoPreview} />
               ) : null}
-              <CamaraFoto tipo="selfie" label={getLabelCarga(fotoSelfie)} onFotoGuardada={handleFotoGuardada} modoLocal={true} permitirGaleria={true} />
+              <CamaraFoto tipo="selfie" label={getLabelCarga(fotoSelfie, false)} onFotoGuardada={handleFotoGuardada} modoLocal={true} permitirGaleria={false} />
             </View>
             {errors.selfie && <Text style={styles.errorTextFoto}>{errors.selfie}</Text>}
 
@@ -554,7 +551,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               {fotoCedula ? (
                 <Image source={{ uri: fotoCedula }} style={styles.fotoPreview} />
               ) : null}
-              <CamaraFoto tipo="cedula" label={getLabelCarga(fotoCedula)} onFotoGuardada={handleFotoGuardada} modoLocal={true} permitirGaleria={true} />
+              <CamaraFoto tipo="cedula" label={getLabelCarga(fotoCedula, false)} onFotoGuardada={handleFotoGuardada} modoLocal={true} permitirGaleria={false} />
             </View>
             {errors.cedFoto && <Text style={styles.errorTextFoto}>{errors.cedFoto}</Text>}
 
@@ -576,7 +573,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               {fotoSelfieCedula ? (
                 <Image source={{ uri: fotoSelfieCedula }} style={styles.fotoPreview} />
               ) : null}
-              <CamaraFoto tipo="selfie_cedula" label={getLabelCarga(fotoSelfieCedula)} onFotoGuardada={handleFotoGuardada} modoLocal={true} permitirGaleria={true} />
+              <CamaraFoto tipo="selfie_cedula" label={getLabelCarga(fotoSelfieCedula, false)} onFotoGuardada={handleFotoGuardada} modoLocal={true} permitirGaleria={false} />
             </View>
             {errors.selfieCed && <Text style={styles.errorTextFoto}>{errors.selfieCed}</Text>}
 
@@ -676,7 +673,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
 
               <CamaraFoto
                 tipo="finca_fachada"
-                label={getLabelCarga(fotoFincaFachada)}
+                label={getLabelCarga(fotoFincaFachada, true)}
                 onFotoGuardada={handleFotoGuardada}
                 modoLocal={true}
                 permitirGaleria={true}
@@ -840,6 +837,27 @@ export default function RegisterEmpleadorScreen({ navigation }) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <PickerModal
+        visible={showDeptPicker}
+        onClose={() => setShowDeptPicker(false)}
+        title="Departamento"
+        options={DEPARTAMENTOS}
+        selectedValue={departamento}
+        onSelect={(v) => {
+          setDepartamento(v);
+          setMunicipio('');
+          setShowMunPicker(false);
+        }}
+      />
+      <PickerModal
+        visible={showMunPicker}
+        onClose={() => setShowMunPicker(false)}
+        title="Municipio"
+        options={getMunicipios(departamento)}
+        selectedValue={municipio}
+        onSelect={setMunicipio}
+      />
     </SafeAreaView>
   );
 }

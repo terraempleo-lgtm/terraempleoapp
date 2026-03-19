@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
-  KeyboardAvoidingView, Platform, TouchableOpacity, Switch,
+  KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input, ChipSelector, PickerModal, FechaInicioField } from '../../components/ui';
 import { CULTIVOS, LABORES, TIPO_PAGO_OPTIONS } from '../../data/options';
@@ -32,6 +33,7 @@ export default function CrearVacanteScreen({ navigation }) {
   const [alimentacion, setAlimentacion] = useState(false);
   const [otrosBeneficios, setOtrosBeneficios] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fotosVacante, setFotosVacante] = useState([]);
 
   const [showDeptPicker, setShowDeptPicker] = useState(false);
   const [showMunPicker, setShowMunPicker] = useState(false);
@@ -46,6 +48,41 @@ export default function CrearVacanteScreen({ navigation }) {
     };
   }, []);
 
+  const seleccionarFotosVacante = async () => {
+    try {
+      const disponibles = Math.max(0, 5 - fotosVacante.length);
+      if (disponibles === 0) {
+        Alert.alert('Límite alcanzado', 'Puedes subir máximo 5 fotos por vacante.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsMultipleSelection: true,
+        selectionLimit: disponibles,
+      });
+
+      if (result.canceled) return;
+      const uris = (result.assets || [])
+        .map((asset) => asset?.uri)
+        .filter(Boolean);
+
+      if (uris.length === 0) return;
+
+      setFotosVacante((prev) => {
+        const merged = [...prev, ...uris];
+        return merged.slice(0, 5);
+      });
+    } catch (_) {
+      Alert.alert('Error', 'No se pudieron seleccionar las fotos. Intenta de nuevo.');
+    }
+  };
+
+  const eliminarFotoSeleccionada = (uri) => {
+    setFotosVacante((prev) => prev.filter((item) => item !== uri));
+  };
+
 
   const handleCrear = async () => {
     const errs = {};
@@ -55,7 +92,7 @@ export default function CrearVacanteScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await vacantesAPI.crear({
+      const response = await vacantesAPI.crear({
         titulo,
         descripcion,
         cultivos: cultivosV,
@@ -74,6 +111,27 @@ export default function CrearVacanteScreen({ navigation }) {
         ofrece_alimentacion: alimentacion,
         otros_beneficios: otrosBeneficios.trim() || undefined,
       });
+
+      const vacanteId = response?.data?.vacanteId;
+      if (vacanteId && fotosVacante.length > 0) {
+        const formData = new FormData();
+        for (let i = 0; i < fotosVacante.length; i++) {
+          const uri = fotosVacante[i];
+          if (Platform.OS === 'web') {
+            const fotoResp = await fetch(uri);
+            const blob = await fotoResp.blob();
+            formData.append('fotos', blob, `vacante_${vacanteId}_${i}.jpg`);
+          } else {
+            formData.append('fotos', {
+              uri,
+              type: 'image/jpeg',
+              name: `vacante_${vacanteId}_${i}.jpg`,
+            });
+          }
+        }
+        await vacantesAPI.subirFotos(vacanteId, formData);
+      }
+
       setPublicadoExitoso(true);
       successTimerRef.current = setTimeout(() => {
         setPublicadoExitoso(false);
@@ -221,6 +279,38 @@ export default function CrearVacanteScreen({ navigation }) {
                 thumbColor={urgente ? '#fff' : '#f4f3f4'} />
             </View>
 
+            <Text style={styles.sectionLabel}>Fotos de la finca o vacante (opcional)</Text>
+            <View style={styles.fotosCard}>
+              <View style={styles.fotosHeader}>
+                <Ionicons name="images-outline" size={18} color={COLORS.primary} />
+                <Text style={styles.fotosTitle}>Agregar fotos te da un plus</Text>
+              </View>
+              <Text style={styles.fotosHelper}>
+                Las vacantes con fotos generan más confianza y suelen recibir más postulaciones.
+              </Text>
+
+              <TouchableOpacity style={styles.addFotoBtn} onPress={seleccionarFotosVacante}>
+                <Ionicons name="add-circle-outline" size={18} color={COLORS.primary} />
+                <Text style={styles.addFotoBtnText}>Agregar fotos ({fotosVacante.length}/5)</Text>
+              </TouchableOpacity>
+
+              {fotosVacante.length > 0 && (
+                <View style={styles.fotosPreviewWrap}>
+                  {fotosVacante.map((uri) => (
+                    <View key={uri} style={styles.fotoThumbWrap}>
+                      <Image source={{ uri }} style={styles.fotoThumb} />
+                      <TouchableOpacity
+                        style={styles.fotoRemoveBtn}
+                        onPress={() => eliminarFotoSeleccionada(uri)}
+                      >
+                        <Ionicons name="close" size={12} color={COLORS.white} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+
             <Button title="Publicar vacante" onPress={handleCrear}
               loading={loading} size="large" style={{ marginTop: SPACING.lg }} />
           </View>
@@ -283,6 +373,72 @@ const styles = StyleSheet.create({
   },
   urgentLabel: { fontSize: 16, fontWeight: '600', color: COLORS.urgent },
   urgentDesc: { fontSize: 13, color: COLORS.textSecondary },
+  fotosCard: {
+    marginTop: SPACING.md,
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    gap: SPACING.sm,
+  },
+  fotosHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  fotosTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  fotosHelper: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 19,
+  },
+  addFotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    alignSelf: 'flex-start',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 9,
+  },
+  addFotoBtnText: {
+    color: COLORS.primary,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  fotosPreviewWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  fotoThumbWrap: {
+    position: 'relative',
+  },
+  fotoThumb: {
+    width: 84,
+    height: 84,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.borderLight,
+  },
+  fotoRemoveBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.white,
+  },
   successOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

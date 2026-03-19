@@ -24,6 +24,14 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
 
   const facing = (tipo === 'selfie' || tipo === 'selfie_cedula') ? 'front' : 'back';
 
+  const getGuiaTexto = () => {
+    if (tipo === 'selfie') return 'Centra tu cara';
+    if (tipo === 'cedula') return 'Coloca tu cédula';
+    if (tipo === 'selfie_cedula') return 'Cara y cédula juntas';
+    if (tipo === 'finca_fachada') return 'Centra la fachada o entrada de la finca';
+    return 'Centra la foto en el recuadro';
+  };
+
   const playSuccessAnimation = (callback) => {
     setShowSuccess(true);
     successScale.setValue(0);
@@ -176,9 +184,7 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
               <CameraView ref={cameraRef} style={{ flex: 1 }} facing={facing} />
               <View style={[styles.overlay, StyleSheet.absoluteFillObject]}>
                 <View style={styles.guideBox} />
-                <Text style={styles.guideText}>
-                  {tipo === 'selfie' ? 'Centra tu cara' : tipo === 'cedula' ? 'Coloca tu cédula' : 'Cara y cédula juntas'}
-                </Text>
+                <Text style={styles.guideText}>{getGuiaTexto()}</Text>
               </View>
               <View style={styles.captureBar}>
                 <TouchableOpacity style={styles.captureBtn} onPress={tomarFoto}>

@@ -128,6 +128,8 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const estadoIdentidad = user?.validacion_identidad_estado || 'pendiente';
   const identidadAprobada = estadoIdentidad === 'aprobada';
   const necesitaSubirCedula = !user?.foto_cedula;
+  const yaEnvioCedula = Boolean(user?.validacion_identidad_enviado_at || user?.foto_cedula || user?.foto_selfie_cedula);
+  const mostrarAccionSubirCedula = estadoIdentidad === 'rechazada' || (!yaEnvioCedula && necesitaSubirCedula);
   const mostrarTarjetaVerificacion = !identidadAprobada;
 
   const recargarPerfilVerificacion = useCallback(async () => {
@@ -376,13 +378,13 @@ export default function TrabajadorVacantesScreen({ navigation }) {
             </Text>
           </View>
           <Text style={s.verificacionText}>
-            {necesitaSubirCedula
-              ? 'Debes subir tu cédula para completar tu verificación.'
-              : estadoIdentidad === 'rechazada'
-                ? 'Tu verificación fue rechazada. ¿Quieres verificarte otra vez? Sube una nueva foto de cédula.'
-                : 'Tu cédula está en revisión. Te avisaremos cuando sea aprobada.'}
+            {estadoIdentidad === 'rechazada'
+              ? 'Tu verificación fue rechazada. ¿Quieres verificarte otra vez? Sube una nueva foto de cédula.'
+              : yaEnvioCedula
+                ? 'Tu cédula está en proceso de verificación. Te avisaremos cuando sea aprobada.'
+                : 'Debes subir tu cédula para completar tu verificación.'}
           </Text>
-          {(necesitaSubirCedula || estadoIdentidad === 'rechazada') && (
+          {mostrarAccionSubirCedula && (
             <CamaraFoto
               tipo="cedula"
               label={estadoIdentidad === 'rechazada' ? '¿Quieres verificarte? Subir nueva cédula' : 'Subir cédula'}

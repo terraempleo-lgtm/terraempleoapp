@@ -95,7 +95,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
         break;
       case 3:
         if (!cedula.trim()) errs.cedula = 'La cédula es obligatoria';
-        if (!aceptaHabeasData) errs.habeas = 'Debe aceptar el tratamiento de datos';
+        if (!aceptaHabeasData) errs.habeas = 'Debe aceptar el tratamiento de datos personales';
         if (!aceptaTerminos) errs.terminos = 'Debe aceptar los términos y condiciones';
         break;
       case 4:
@@ -395,7 +395,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   thumbColor={aceptaHabeasData ? COLORS.primary : '#f4f3f4'} />
               </View>
               <Text style={styles.legalCardText}>
-                Autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012
+                Autorizo el tratamiento de mis datos personales, según la Ley 1581 de 2012.
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('DocumentoLegal', { tipo: 'habeas' })}>
                 <Text style={styles.legalLink}>Leer documento de Habeas Data</Text>
@@ -417,7 +417,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   thumbColor={aceptaTerminos ? COLORS.primary : '#f4f3f4'} />
               </View>
               <Text style={styles.legalCardText}>
-                Acepto los Términos y Condiciones de uso de la plataforma TerraEmpleo
+                Acepto los Términos y Condiciones de uso de la plataforma TerraEmpleo.
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('DocumentoLegal', { tipo: 'terminos' })}>
                 <Text style={styles.legalLink}>Leer Términos y Condiciones completos</Text>

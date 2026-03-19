@@ -1,4 +1,5 @@
 const { query } = require('../config/database');
+const { signArrayField } = require('../config/s3');
 
 // Listar mis chats con último mensaje y datos del otro usuario
 async function misChats(req, res) {
@@ -48,6 +49,8 @@ async function misChats(req, res) {
     }
 
     const chats = await query(sql, params);
+
+    await signArrayField(chats, 'otro_foto');
 
     for (const c of chats) {
       c.no_leidos = Number(c.no_leidos || 0);

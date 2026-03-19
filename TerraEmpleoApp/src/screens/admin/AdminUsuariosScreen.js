@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, ScrollView,
   RefreshControl, Alert, Modal, Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { adminAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 
 export default function AdminUsuariosScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -281,11 +282,16 @@ export default function AdminUsuariosScreen({ navigation }) {
         }
       />
 
-      <Modal visible={modalVisible} animationType="slide" onRequestClose={cerrarRevisionDocumentos}>
-        <SafeAreaView style={styles.modalContainer}>
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={cerrarRevisionDocumentos}
+      >
+        <SafeAreaView style={[styles.modalContainer, { paddingTop: Math.max(insets.top, SPACING.md) }]} edges={['bottom']}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Revisión manual de identidad</Text>
-            <AnimatedPressable onPress={cerrarRevisionDocumentos} style={styles.modalCloseBtn} scaleValue={0.9}>
+            <AnimatedPressable onPress={cerrarRevisionDocumentos} style={styles.modalCloseBtn} scaleValue={0.9} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={22} color={COLORS.textPrimary} />
             </AnimatedPressable>
           </View>
@@ -424,6 +430,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.xs,
+    minHeight: 54,
   },
   modalTitle: {
     fontSize: 18,

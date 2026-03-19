@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -68,9 +69,12 @@ const TabItem = ({ route, isFocused, onPress, onLongPress, iconName, label }) =>
 };
 
 const AnimatedTabBar = ({ state, descriptors, navigation }) => {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 10 : 6);
+
   return (
     <View style={styles.container}>
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { paddingBottom: bottomInset, height: TAB_BAR_HEIGHT + bottomInset }] }>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const label = options.tabBarLabel ?? options.title ?? route.name;
@@ -123,6 +127,8 @@ const AnimatedTabBar = ({ state, descriptors, navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
+    position: 'relative',
+    zIndex: 40,
     backgroundColor: COLORS.white,
     borderTopWidth: 1,
     borderTopColor: COLORS.borderLight,
@@ -134,7 +140,7 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
       },
       android: {
-        elevation: 8,
+        elevation: 16,
       },
     }),
   },

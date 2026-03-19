@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, FlatList,
   RefreshControl, Image, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { authAPI, vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -88,6 +88,7 @@ function PulsingBadge({ count }) {
 
 export default function EmpleadorVacantesScreen({ navigation }) {
   const { user, updateUser } = useAuth();
+  const insets = useSafeAreaInsets();
   const [vacantes, setVacantes] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [tabActiva, setTabActiva] = useState('activa');
@@ -98,6 +99,8 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   const estadoIdentidad = user?.validacion_identidad_estado || 'pendiente';
   const identidadAprobada = estadoIdentidad === 'aprobada';
   const necesitaSubirCedula = !user?.foto_cedula;
+  const yaEnvioCedula = Boolean(user?.validacion_identidad_enviado_at || user?.foto_cedula || user?.foto_selfie_cedula);
+  const mostrarAccionSubirCedula = estadoIdentidad === 'rechazada' || (!yaEnvioCedula && necesitaSubirCedula);
   const mostrarTarjetaVerificacion = !identidadAprobada;
 
   const recargarPerfilVerificacion = useCallback(async () => {
@@ -165,6 +168,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   const activas = vacantes.filter(v => v.estado === 'activa');
   const inactivas = vacantes.filter(v => v.estado !== 'activa');
   const lista = tabActiva === 'activa' ? activas : inactivas;
+  const postulantesCount = vacantes.reduce((acc, v) => acc + Number(v.total_postulaciones || 0), 0);
 
   const renderVacante = ({ item, index }) => {
     const isActiva = item.estado === 'activa';
@@ -280,8 +284,8 @@ export default function EmpleadorVacantesScreen({ navigation }) {
     );
   };
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+  const ListHeader = (
+    <View>
       {/* Greeting */}
       <FadeInView delay={0}>
         <View style={styles.greetingSection}>
@@ -331,13 +335,13 @@ export default function EmpleadorVacantesScreen({ navigation }) {
               </Text>
             </View>
             <Text style={styles.verificacionText}>
-              {necesitaSubirCedula
-                ? 'Debes subir tu cédula para completar tu verificación.'
-                : estadoIdentidad === 'rechazada'
-                  ? 'Tu verificación fue rechazada. ¿Quieres verificarte otra vez? Sube una nueva foto de cédula.'
-                  : 'Tu cédula está en revisión. Te avisaremos cuando sea aprobada.'}
+              {estadoIdentidad === 'rechazada'
+                ? 'Tu verificación fue rechazada. ¿Quieres verificarte otra vez? Sube una nueva foto de cédula.'
+                : yaEnvioCedula
+                  ? 'Tu cédula está en proceso de verificación. Te avisaremos cuando sea aprobada.'
+                  : 'Debes subir tu cédula para completar tu verificación.'}
             </Text>
-            {(necesitaSubirCedula || estadoIdentidad === 'rechazada') && (
+            {mostrarAccionSubirCedula && (
               <CamaraFoto
                 tipo="cedula"
                 label={estadoIdentidad === 'rechazada' ? '¿Quieres verificarte? Subir nueva cédula' : 'Subir cédula'}
@@ -352,22 +356,33 @@ export default function EmpleadorVacantesScreen({ navigation }) {
       {/* Header row */}
       <FadeInView delay={100}>
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.headerIcon}>
-              <Ionicons name="leaf" size={20} color={COLORS.primary} />
-            </View>
-            <Text style={styles.headerTitle}>Mis Vacantes</Text>
-            <MotiView
-              from={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 300 }}
-            >
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{vacantes.length}</Text>
+          <View style={styles.headerTopRow}>
+            <View style={styles.headerLeft}>
+              <View style={styles.headerIcon}>
+                <Ionicons name="leaf" size={20} color={COLORS.primary} />
               </View>
-            </MotiView>
+              <Text style={styles.headerTitle}>Mis Vacantes</Text>
+              <MotiView
+                from={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 300 }}
+              >
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{vacantes.length}</Text>
+                </View>
+              </MotiView>
+            </View>
+            <AnimatedPressable
+              style={styles.addBtnIcon}
+              onPress={() => navigation.navigate('CrearVacante')}
+              scaleValue={0.95}
+              haptic
+            >
+              <Ionicons name="add" size={20} color={COLORS.white} />
+            </AnimatedPressable>
           </View>
-          <View style={styles.headerRightActions}>
+
+          <View style={styles.headerBottomRow}>
             <AnimatedPressable
               style={styles.postulantesBtn}
               onPress={() => navigation.navigate('MisPostulantes')}
@@ -375,16 +390,10 @@ export default function EmpleadorVacantesScreen({ navigation }) {
               haptic
             >
               <Ionicons name="people-outline" size={18} color={COLORS.primary} />
-              <Text style={styles.postulantesBtnText}>Mis postulantes</Text>
-            </AnimatedPressable>
-            <AnimatedPressable
-              style={styles.addBtn}
-              onPress={() => navigation.navigate('CrearVacante')}
-              scaleValue={0.95}
-              haptic
-            >
-              <Ionicons name="add" size={22} color={COLORS.white} />
-              <Text style={styles.addBtnText}>Nueva</Text>
+              <Text style={styles.postulantesBtnText}>Postulantes</Text>
+              <View style={styles.postulantesCountBadge}>
+                <Text style={styles.postulantesCountText}>{postulantesCount}</Text>
+              </View>
             </AnimatedPressable>
           </View>
         </View>
@@ -420,13 +429,17 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           })}
         </View>
       </FadeInView>
+    </View>
+  );
 
-      {/* List */}
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <FlatList
         data={lista}
         keyExtractor={(item) => item.id?.toString()}
         renderItem={renderVacante}
-        contentContainerStyle={styles.list}
+        ListHeaderComponent={ListHeader}
+        contentContainerStyle={[styles.list, { paddingBottom: Math.max(120, insets.bottom + 96) }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -572,12 +585,20 @@ const styles = StyleSheet.create({
 
   /* Header */
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm,
     backgroundColor: COLORS.white,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  headerRightActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerBottomRow: {
+    marginTop: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 },
   headerIcon: {
     width: 38, height: 38, borderRadius: 12,
     backgroundColor: COLORS.primarySoft,
@@ -597,6 +618,15 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
     ...SHADOWS.button,
   },
+  addBtnIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    ...SHADOWS.button,
+  },
   addBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
   postulantesBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -604,8 +634,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 10,
     borderRadius: RADIUS.full,
     borderWidth: 1.2, borderColor: COLORS.primary,
+    alignSelf: 'flex-start',
   },
-  postulantesBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
+  postulantesBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+  postulantesCountBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  postulantesCountText: {
+    color: COLORS.white,
+    fontSize: 10,
+    fontWeight: '800',
+  },
 
   /* Tabs */
   tabs: {
