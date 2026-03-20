@@ -1,4 +1,4 @@
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://107.20.220.171:3000/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.terrampleo.com/api';
 
 export default {
   API_URL,
