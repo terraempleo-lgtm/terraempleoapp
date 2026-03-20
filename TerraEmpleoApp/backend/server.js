@@ -100,8 +100,10 @@ function validateEnv() {
     console.error(`[INIT] ERROR: Variables de entorno requeridas no configuradas: ${missing.join(', ')}`);
     process.exit(1);
   }
-  if (process.env.JWT_SECRET === 'terraempleo_secret_key_2026_super_segura' && process.env.NODE_ENV === 'production') {
-    console.warn('[INIT] ADVERTENCIA: JWT_SECRET tiene valor por defecto. Cámbialo en producción.');
+  const jwtSecret = process.env.JWT_SECRET || '';
+  if (process.env.NODE_ENV === 'production' && jwtSecret.length < 32) {
+    console.error('[INIT] ERROR: JWT_SECRET es demasiado corto para producción (mínimo 32 caracteres).');
+    process.exit(1);
   }
 }
 

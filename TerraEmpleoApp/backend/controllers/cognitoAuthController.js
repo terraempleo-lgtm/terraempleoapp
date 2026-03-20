@@ -376,99 +376,6 @@ async function confirmForgotPassword(req, res) {
   }
 }
 
-// ─── 7) POST /api/auth/cognito/admin-create-test-user ────────────────────────
-//
-// Endpoint de TESTING: crea (o actualiza) un usuario en Cognito listo para
-// login inmediato, sin pasar por el flujo NEW_PASSWORD_REQUIRED.
-//
-// Pasos internos:
-//   1. AdminCreateUser (si no existe) ─ suprime el SMS de invitación
-//   2. AdminSetUserPassword con Permanent = true
-//   3. AdminUpdateUserAttributes → phone_number_verified = true
-//
-// Protegido por header X-Admin-Key que debe coincidir con ADMIN_TEST_KEY del .env.
-// Si ADMIN_TEST_KEY no está configurado, el endpoint queda deshabilitado.
-//
-
-async function createTestUser(req, res) {
-  const adminKey = process.env.ADMIN_TEST_KEY;
-  if (!adminKey) {
-    return res.status(403).json({ ok: false, error: 'Endpoint deshabilitado (ADMIN_TEST_KEY no configurado).' });
-  }
-
-  const provided = req.headers['x-admin-key'];
-  if (provided !== adminKey) {
-    return res.status(401).json({ ok: false, error: 'X-Admin-Key inválido o ausente.' });
-  }
-
-  try {
-    const { phoneNumber, password } = req.body;
-
-    if (!phoneNumber || !password) {
-      return res.status(400).json({ ok: false, error: 'phoneNumber y password son obligatorios.' });
-    }
-
-    const phone = normalizePhone(phoneNumber);
-    if (!phone) {
-      return res.status(400).json({ ok: false, error: 'Número de teléfono inválido. Usa formato colombiano (ej: 3001234567).' });
-    }
-
-    // 1. Verificar si el usuario ya existe en Cognito
-    let userExists = false;
-    try {
-      await cognitoClient.send(new AdminGetUserCommand({
-        UserPoolId: COGNITO_USER_POOL_ID,
-        Username: phone,
-      }));
-      userExists = true;
-    } catch (err) {
-      if (err.name !== 'UserNotFoundException') {
-        throw err;
-      }
-    }
-
-    // 2. Crear usuario si no existe (suprime el mensaje de invitación)
-    if (!userExists) {
-      await cognitoClient.send(new AdminCreateUserCommand({
-        UserPoolId: COGNITO_USER_POOL_ID,
-        Username: phone,
-        UserAttributes: [
-          { Name: 'phone_number', Value: phone },
-          { Name: 'phone_number_verified', Value: 'true' },
-        ],
-        MessageAction: 'SUPPRESS', // no enviar SMS/email de invitación
-      }));
-    }
-
-    // 3. Establecer contraseña permanente (resuelve NEW_PASSWORD_REQUIRED)
-    await cognitoClient.send(new AdminSetUserPasswordCommand({
-      UserPoolId: COGNITO_USER_POOL_ID,
-      Username: phone,
-      Password: password,
-      Permanent: true,
-    }));
-
-    // 4. Marcar phone_number_verified = true (por si ya existía sin verificar)
-    await cognitoClient.send(new AdminUpdateUserAttributesCommand({
-      UserPoolId: COGNITO_USER_POOL_ID,
-      Username: phone,
-      UserAttributes: [
-        { Name: 'phone_number_verified', Value: 'true' },
-      ],
-    }));
-
-    return res.status(userExists ? 200 : 201).json({
-      ok: true,
-      message: userExists
-        ? 'Usuario actualizado: contraseña permanente y teléfono verificado.'
-        : 'Usuario creado con contraseña permanente y teléfono verificado.',
-      phone,
-      userExisted: userExists,
-    });
-  } catch (err) {
-    return handleCognitoError(err, res);
-  }
-}
 
 module.exports = {
   register,
@@ -477,5 +384,4 @@ module.exports = {
   login,
   forgotPassword,
   confirmForgotPassword,
-  createTestUser,
 };

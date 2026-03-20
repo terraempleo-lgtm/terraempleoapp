@@ -315,12 +315,17 @@ async function initializeDatabase() {
   const bcrypt = require('bcryptjs');
   const adminExists = await query('SELECT id FROM usuarios WHERE rol = ? AND celular = ?', ['admin', '0000000000']);
   if (!adminExists || adminExists.length === 0) {
-    const hash = await bcrypt.hash('admin123', 10);
-    await query(`
-      INSERT INTO usuarios (rol, nombre_completo, celular, correo, password_hash, cedula, acepta_habeas_data, verificado_sms)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, ['admin', 'Administrador TerraEmpleo', '0000000000', 'admin@terraempleo.co', hash, '0000000000', 1, 1]);
-    console.log('Usuario admin creado: celular=0000000000, password=admin123');
+    const adminSeedPassword = (process.env.ADMIN_SEED_PASSWORD || '').trim();
+    if (!adminSeedPassword) {
+      console.warn('ADMIN_SEED_PASSWORD no configurado; no se creará el usuario admin por defecto.');
+    } else {
+      const hash = await bcrypt.hash(adminSeedPassword, 10);
+      await query(`
+        INSERT INTO usuarios (rol, nombre_completo, celular, correo, password_hash, cedula, acepta_habeas_data, verificado_sms)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, ['admin', 'Administrador TerraEmpleo', '0000000000', 'admin@terraempleo.co', hash, '0000000000', 1, 1]);
+      console.log('Usuario admin creado con ADMIN_SEED_PASSWORD (celular=0000000000).');
+    }
   }
 
   console.log('Base de datos inicializada correctamente.');

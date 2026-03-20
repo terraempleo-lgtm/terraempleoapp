@@ -4,12 +4,17 @@ require('dotenv').config();
 
 const dbHost = process.env.DB_HOST || 'localhost';
 const dbUser = process.env.DB_USER || 'root';
-const dbPass = process.env.DB_PASSWORD || '12345';
+const dbPass = process.env.DB_PASSWORD;
 const dbName = process.env.DB_NAME || 'terraempleo';
 const dbPort = parseInt(process.env.DB_PORT) || 3306;
 const dbSSL = process.env.DB_SSL === 'true';
 const dbSSLCAPath = process.env.DB_SSL_CA_PATH || '';
 const isRDS = dbHost.includes('rds.amazonaws.com');
+
+if (!dbPass) {
+  console.error('[DB] ERROR: DB_PASSWORD no está configurado. Define esta variable en el entorno.');
+  process.exit(1);
+}
 
 console.log(`[DB] Configurado → ${dbHost}:${dbPort} | user: ${dbUser} | db: ${dbName} | RDS: ${isRDS} | SSL: ${dbSSL}`);
 

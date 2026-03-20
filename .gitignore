@@ -4,7 +4,10 @@ SKILL.md
 node_modules/
 node_modules/.bin/.env
 .env
+.env.*
+!.env.example
 .DS_Store
 *.pem
 
 node_modules
+.env

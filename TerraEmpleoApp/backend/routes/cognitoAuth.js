@@ -20,7 +20,5 @@ router.post('/forgot-password', cognitoAuthController.forgotPassword);
 // POST /api/auth/cognito/confirm-forgot-password
 router.post('/confirm-forgot-password', cognitoAuthController.confirmForgotPassword);
 
-// POST /api/auth/cognito/admin-create-test-user  (testing only, blocked in production)
-router.post('/admin-create-test-user', cognitoAuthController.createTestUser);
 
 module.exports = router;
