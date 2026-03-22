@@ -55,41 +55,128 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-// ─── Department centroids (fallback when vacancy has no coordinates) ──────────
+// ─── Municipality-level coordinates (checked first, more precise) ─────────────
+
+const MUNICIPIO_COORDS: Record<string, { latitude: number; longitude: number }> = {
+  // Caldas
+  'Chinchiná':         { latitude: 5.0037,  longitude: -75.6097 },
+  'Manizales':         { latitude: 5.0700,  longitude: -75.5174 },
+  'Anserma':           { latitude: 5.2167,  longitude: -75.7833 },
+  'Riosucio':          { latitude: 5.4200,  longitude: -75.7100 },
+  'Supía':             { latitude: 5.4550,  longitude: -75.6380 },
+  'Salamina':          { latitude: 5.4029,  longitude: -75.4828 },
+  'Manzanares':        { latitude: 5.2481,  longitude: -75.1523 },
+  'Neira':             { latitude: 5.1696,  longitude: -75.5186 },
+  'Villamaría':        { latitude: 5.0280,  longitude: -75.5160 },
+  'Palestina':         { latitude: 5.0428,  longitude: -75.6667 },
+  // Quindío
+  'Armenia':           { latitude: 4.5339,  longitude: -75.6811 },
+  'Salento':           { latitude: 4.6369,  longitude: -75.5736 },
+  'Montenegro':        { latitude: 4.5660,  longitude: -75.7479 },
+  'Calarcá':           { latitude: 4.5170,  longitude: -75.6430 },
+  'Filandia':          { latitude: 4.6750,  longitude: -75.6550 },
+  'Quimbaya':          { latitude: 4.6240,  longitude: -75.7620 },
+  'Pijao':             { latitude: 4.3371,  longitude: -75.6963 },
+  // Risaralda
+  'Pereira':           { latitude: 4.8087,  longitude: -75.6906 },
+  'Dos Quebradas':     { latitude: 4.8389,  longitude: -75.6690 },
+  'Santa Rosa de Cabal': { latitude: 4.8690, longitude: -75.6190 },
+  'Marsella':          { latitude: 4.9358,  longitude: -75.7480 },
+  'Belén de Umbría':   { latitude: 5.2100,  longitude: -75.8700 },
+  'La Virginia':       { latitude: 4.8997,  longitude: -75.8799 },
+  // Antioquia
+  'Medellín':          { latitude: 6.2442,  longitude: -75.5812 },
+  'Rionegro':          { latitude: 6.1547,  longitude: -75.3741 },
+  'Fredonia':          { latitude: 5.9352,  longitude: -75.6734 },
+  'Jericó':            { latitude: 5.7892,  longitude: -75.7843 },
+  'Jardín':            { latitude: 5.5997,  longitude: -75.8236 },
+  'Concordia':         { latitude: 6.0411,  longitude: -75.9017 },
+  'Andes':             { latitude: 5.6561,  longitude: -75.8808 },
+  'Turbo':             { latitude: 8.0967,  longitude: -76.7258 },
+  'Apartadó':          { latitude: 7.8842,  longitude: -76.6278 },
+  'San Vicente':       { latitude: 6.2987,  longitude: -75.3380 },
+  'Bello':             { latitude: 6.3353,  longitude: -75.5564 },
+  'Envigado':          { latitude: 6.1752,  longitude: -75.5909 },
+  // Tolima
+  'Ibagué':            { latitude: 4.4389,  longitude: -75.2322 },
+  'Chaparral':         { latitude: 3.7272,  longitude: -75.4864 },
+  'Planadas':          { latitude: 3.1989,  longitude: -75.6400 },
+  'Fresno':            { latitude: 5.1516,  longitude: -75.0409 },
+  'Honda':             { latitude: 5.2089,  longitude: -74.7394 },
+  // Valle del Cauca
+  'Cali':              { latitude: 3.4516,  longitude: -76.5320 },
+  'Buga':              { latitude: 3.9020,  longitude: -76.2980 },
+  'Tuluá':             { latitude: 4.0846,  longitude: -76.1978 },
+  'Cartago':           { latitude: 4.7462,  longitude: -75.9122 },
+  'Buenaventura':      { latitude: 3.8801,  longitude: -77.0311 },
+  'Palmira':           { latitude: 3.5397,  longitude: -76.3036 },
+  // Huila
+  'Neiva':             { latitude: 2.9273,  longitude: -75.2819 },
+  'Pitalito':          { latitude: 1.8540,  longitude: -76.0509 },
+  'Garzón':            { latitude: 2.1990,  longitude: -75.6280 },
+  // Nariño
+  'Pasto':             { latitude: 1.2136,  longitude: -77.2811 },
+  'Tumaco':            { latitude: 1.7991,  longitude: -78.7618 },
+  // Cauca
+  'Popayán':           { latitude: 2.4448,  longitude: -76.6147 },
+  'Santander de Quilichao': { latitude: 3.0077, longitude: -76.4836 },
+  // Cundinamarca / Bogotá
+  'Bogotá':            { latitude: 4.7110,  longitude: -74.0721 },
+  'La Mesa':           { latitude: 4.6329,  longitude: -74.4714 },
+  'Fusagasugá':        { latitude: 4.3367,  longitude: -74.3635 },
+  'Sutatenza':         { latitude: 5.0509,  longitude: -73.4467 },
+  // Boyacá
+  'Tunja':             { latitude: 5.5353,  longitude: -73.3678 },
+  'Duitama':           { latitude: 5.8270,  longitude: -73.0270 },
+  // Santander
+  'Bucaramanga':       { latitude: 7.1194,  longitude: -73.1227 },
+  'Barrancabermeja':   { latitude: 7.0650,  longitude: -73.8541 },
+  // Meta
+  'Villavicencio':     { latitude: 4.1420,  longitude: -73.6266 },
+  // Costa
+  'Barranquilla':      { latitude: 10.9639, longitude: -74.7964 },
+  'Cartagena':         { latitude: 10.3910, longitude: -75.4794 },
+  'Montería':          { latitude: 8.7575,  longitude: -75.8757 },
+  'Sincelejo':         { latitude: 9.3047,  longitude: -75.3978 },
+  'Valledupar':        { latitude: 10.4631, longitude: -73.2536 },
+  'Riohacha':          { latitude: 11.5444, longitude: -72.9072 },
+};
+
+// ─── Department centroids (fallback when no municipality match) ───────────────
 
 const DEPT_COORDS: Record<string, { latitude: number; longitude: number }> = {
-  'Amazonas': { latitude: -1.4429, longitude: -71.5724 },
-  'Antioquia': { latitude: 7.1986, longitude: -75.3412 },
-  'Arauca': { latitude: 6.5477, longitude: -71.0020 },
-  'Atlántico': { latitude: 10.6966, longitude: -74.8741 },
-  'Bolívar': { latitude: 8.6704, longitude: -74.0300 },
-  'Boyacá': { latitude: 5.4545, longitude: -73.3620 },
-  'Caldas': { latitude: 5.2983, longitude: -75.2479 },
-  'Caquetá': { latitude: 1.0144, longitude: -74.8125 },
-  'Casanare': { latitude: 5.7589, longitude: -71.5724 },
-  'Cauca': { latitude: 2.7097, longitude: -76.6413 },
-  'Cesar': { latitude: 9.3373, longitude: -73.6536 },
-  'Chocó': { latitude: 5.6917, longitude: -76.6583 },
-  'Córdoba': { latitude: 8.3491, longitude: -75.8873 },
-  'Cundinamarca': { latitude: 4.5981, longitude: -74.0758 },
-  'Guainía': { latitude: 2.5854, longitude: -68.5247 },
-  'Guaviare': { latitude: 2.0408, longitude: -72.3356 },
-  'Huila': { latitude: 2.5359, longitude: -75.5277 },
-  'La Guajira': { latitude: 11.3548, longitude: -72.5205 },
-  'Magdalena': { latitude: 10.4113, longitude: -74.4057 },
-  'Meta': { latitude: 3.9928, longitude: -73.2667 },
-  'Nariño': { latitude: 1.2892, longitude: -77.3579 },
-  'Norte de Santander': { latitude: 7.9463, longitude: -72.8988 },
-  'Putumayo': { latitude: 0.4360, longitude: -76.6413 },
-  'Quindío': { latitude: 4.4617, longitude: -75.6674 },
-  'Risaralda': { latitude: 5.3158, longitude: -76.0000 },
-  'San Andrés y Providencia': { latitude: 12.5567, longitude: -81.7185 },
-  'Santander': { latitude: 6.6437, longitude: -73.6536 },
-  'Sucre': { latitude: 8.8109, longitude: -74.7233 },
-  'Tolima': { latitude: 4.0925, longitude: -75.1545 },
-  'Valle del Cauca': { latitude: 3.8009, longitude: -76.6413 },
-  'Vaupés': { latitude: 0.8554, longitude: -70.8119 },
-  'Vichada': { latitude: 4.4233, longitude: -69.2878 },
+  'Amazonas':                  { latitude: -1.4429,  longitude: -71.5724 },
+  'Antioquia':                 { latitude: 6.7010,   longitude: -75.5873 },
+  'Arauca':                    { latitude: 6.5477,   longitude: -71.0020 },
+  'Atlántico':                 { latitude: 10.6966,  longitude: -74.8741 },
+  'Bolívar':                   { latitude: 8.6704,   longitude: -74.0300 },
+  'Boyacá':                    { latitude: 5.4545,   longitude: -73.3620 },
+  'Caldas':                    { latitude: 5.0980,   longitude: -75.6200 },
+  'Caquetá':                   { latitude: 1.0144,   longitude: -74.8125 },
+  'Casanare':                  { latitude: 5.7589,   longitude: -71.5724 },
+  'Cauca':                     { latitude: 2.7097,   longitude: -76.6413 },
+  'Cesar':                     { latitude: 9.3373,   longitude: -73.6536 },
+  'Chocó':                     { latitude: 5.6917,   longitude: -76.6583 },
+  'Córdoba':                   { latitude: 8.3491,   longitude: -75.8873 },
+  'Cundinamarca':               { latitude: 4.5981,   longitude: -74.0758 },
+  'Guainía':                   { latitude: 2.5854,   longitude: -68.5247 },
+  'Guaviare':                  { latitude: 2.0408,   longitude: -72.3356 },
+  'Huila':                     { latitude: 2.5359,   longitude: -75.5277 },
+  'La Guajira':                { latitude: 11.3548,  longitude: -72.5205 },
+  'Magdalena':                 { latitude: 10.4113,  longitude: -74.4057 },
+  'Meta':                      { latitude: 3.9928,   longitude: -73.2667 },
+  'Nariño':                    { latitude: 1.2892,   longitude: -77.3579 },
+  'Norte de Santander':        { latitude: 7.9463,   longitude: -72.8988 },
+  'Putumayo':                  { latitude: 0.4360,   longitude: -76.6413 },
+  'Quindío':                   { latitude: 4.5339,   longitude: -75.6811 },
+  'Risaralda':                 { latitude: 4.9830,   longitude: -75.7410 },
+  'San Andrés y Providencia':  { latitude: 12.5567,  longitude: -81.7185 },
+  'Santander':                 { latitude: 6.6437,   longitude: -73.6536 },
+  'Sucre':                     { latitude: 8.8109,   longitude: -74.7233 },
+  'Tolima':                    { latitude: 4.0925,   longitude: -75.1545 },
+  'Valle del Cauca':           { latitude: 3.8009,   longitude: -76.6413 },
+  'Vaupés':                    { latitude: 0.8554,   longitude: -70.8119 },
+  'Vichada':                   { latitude: 4.4233,   longitude: -69.2878 },
 };
 
 // ─── API → Vacancy mapper ─────────────────────────────────────────────────────
@@ -127,16 +214,28 @@ function mapApiVacante(v: any): VacancyBase | null {
 
   let latitude: number;
   let longitude: number;
+  let offsetScale = 0.008; // ~800m when using municipality
 
   if (hasRealCoords) {
     latitude = lat;
     longitude = lon;
+    offsetScale = 0; // exact coords — no offset needed
   } else {
-    const dept = DEPT_COORDS[v.departamento];
-    if (!dept) return null; // skip if no coords and unknown department
-    const { dLat, dLon } = getOrCreateOffset(String(v.id));
-    latitude = dept.latitude + dLat;
-    longitude = dept.longitude + dLon;
+    // 1st priority: municipality-level lookup
+    const mun = v.municipio ? MUNICIPIO_COORDS[v.municipio] : null;
+    if (mun) {
+      const { dLat, dLon } = getOrCreateOffset(String(v.id));
+      latitude = mun.latitude + dLat * offsetScale / 0.008;
+      longitude = mun.longitude + dLon * offsetScale / 0.008;
+    } else {
+      // 2nd priority: department centroid with larger offset to spread markers
+      const dept = DEPT_COORDS[v.departamento];
+      if (!dept) return null;
+      offsetScale = 0.04; // ~4km spread within department
+      const { dLat, dLon } = getOrCreateOffset(String(v.id));
+      latitude = dept.latitude + dLat * offsetScale / 0.008;
+      longitude = dept.longitude + dLon * offsetScale / 0.008;
+    }
   }
 
   const cultivos: any[] = v.cultivos || [];
@@ -180,7 +279,7 @@ function formatPrice(amount: number): string {
 
 // ─── SearchBar ────────────────────────────────────────────────────────────────
 
-function SearchBar({ value, onChange }: { value: string; onChange: (t: string) => void }) {
+function SearchBar({ value, onChange, count }: { value: string; onChange: (t: string) => void; count: number }) {
   return (
     <View style={sbStyles.wrap}>
       <Ionicons name="search" size={18} color="#9E9E9E" />
@@ -192,11 +291,16 @@ function SearchBar({ value, onChange }: { value: string; onChange: (t: string) =
         onChangeText={onChange}
         returnKeyType="search"
       />
-      {value.length > 0 && (
-        <TouchableOpacity onPress={() => onChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="close-circle" size={18} color="#BDBDBD" />
-        </TouchableOpacity>
-      )}
+      {value.length > 0
+        ? <TouchableOpacity onPress={() => onChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={18} color="#BDBDBD" />
+          </TouchableOpacity>
+        : count > 0
+          ? <View style={sbStyles.countBadge}>
+              <Text style={sbStyles.countText}>{count}</Text>
+            </View>
+          : null
+      }
       <View style={sbStyles.divider} />
       <Ionicons name="options-outline" size={18} color="#757575" />
     </View>
@@ -212,6 +316,11 @@ const sbStyles = StyleSheet.create({
   },
   input: { flex: 1, fontSize: 14, color: '#212121', paddingVertical: 0 },
   divider: { width: 1, height: 20, backgroundColor: '#E0E0E0' },
+  countBadge: {
+    backgroundColor: COLORS.primary, borderRadius: 10,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  countText: { fontSize: 11, fontWeight: '700', color: '#FFF' },
 });
 
 // ─── FilterChips ──────────────────────────────────────────────────────────────
@@ -579,22 +688,12 @@ export default function VacantesMapaScreen() {
       {/* Top overlay */}
       <SafeAreaView style={styles.topOverlay} edges={['top']}>
         <View style={styles.searchRow}>
-          <SearchBar value={search} onChange={setSearch} />
+          <SearchBar value={search} onChange={setSearch} count={filtered.length} />
         </View>
         <View style={styles.chipsRow}>
           <FilterChips selected={filter} onSelect={(f) => setFilter(f)} />
         </View>
       </SafeAreaView>
-
-      {/* Counter badge */}
-      {filtered.length > 0 && (
-        <View style={styles.counterWrap}>
-          <View style={styles.counterBadge}>
-            <Ionicons name="briefcase-outline" size={12} color={COLORS.primary} />
-            <Text style={styles.counterText}>{filtered.length} vacante{filtered.length !== 1 ? 's' : ''}</Text>
-          </View>
-        </View>
-      )}
 
       {/* Zoom + locate controls */}
       <View style={styles.fabColumn}>
@@ -665,17 +764,6 @@ const styles = StyleSheet.create({
   },
   searchRow: { marginBottom: 10 },
   chipsRow: {},
-
-  counterWrap: {
-    position: 'absolute', top: 130, left: 0, right: 0,
-    alignItems: 'center', zIndex: 10,
-  },
-  counterBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 7,
-    borderRadius: RADIUS.full, ...SHADOWS.medium,
-  },
-  counterText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
 
   fabColumn: {
     position: 'absolute', right: SPACING.md, bottom: 210, zIndex: 10,
