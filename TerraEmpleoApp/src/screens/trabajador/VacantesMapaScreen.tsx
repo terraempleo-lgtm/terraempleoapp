@@ -431,6 +431,10 @@ function VacancyCard({ vacancy, selected, onPress }: { vacancy: Vacancy; selecte
       <View style={vcStyles.info}>
         <Text style={vcStyles.title} numberOfLines={1}>{vacancy.titulo}</Text>
         <Text style={vcStyles.farm} numberOfLines={1}>{vacancy.fincaNombre}</Text>
+        <View style={vcStyles.locationRow}>
+          <Ionicons name="location-outline" size={11} color="#9E9E9E" />
+          <Text style={vcStyles.locationText} numberOfLines={1}>{vacancy.municipio}, {vacancy.departamento}</Text>
+        </View>
         <View style={vcStyles.metaRow}>
           {vacancy.rating !== undefined && vacancy.rating > 0 && (
             <View style={vcStyles.metaItem}>
@@ -468,6 +472,8 @@ const vcStyles = StyleSheet.create({
   info: { flex: 1, padding: 13, justifyContent: 'space-between' },
   title: { fontSize: 13, fontWeight: '700', color: '#212121' },
   farm: { fontSize: 11, color: '#757575', marginTop: 2 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  locationText: { fontSize: 10, color: '#9E9E9E', flex: 1 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   metaText: { fontSize: 12, fontWeight: '600', color: '#212121' },
