@@ -61,9 +61,6 @@ async function crearVacante(req, res) {
       }
     }
 
-    // Ejecutar matching automático
-    await ejecutarMatching(vacanteId);
-
     res.status(201).json({ message: 'Vacante creada exitosamente', vacanteId });
   } catch (err) {
     console.error('Error creando vacante:', err);
@@ -347,9 +344,12 @@ async function verPostulaciones(req, res) {
   try {
     const { vacante_id } = req.params;
     const empleadorId = req.user.id;
+    const isAdmin = req.user.rol === 'admin';
 
-    // Verificar que la vacante pertenece al empleador
-    const vacantes = await query('SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?', [vacante_id, empleadorId]);
+    // Verificar que la vacante pertenece al empleador (admin puede ver cualquiera)
+    const vacantes = isAdmin
+      ? await query('SELECT id FROM vacantes WHERE id = ?', [vacante_id])
+      : await query('SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?', [vacante_id, empleadorId]);
     if (!vacantes || vacantes.length === 0) {
       return res.status(404).json({ error: 'Vacante no encontrada' });
     }
@@ -829,10 +829,133 @@ async function perfilPublicoTrabajador(req, res) {
   }
 }
 
+// Vacantes recomendadas para un trabajador según su perfil
+async function vacantesRecomendadas(req, res) {
+  try {
+    const trabajadorId = req.user.id;
+
+    // Perfil del trabajador
+    const perfiles = await query(
+      'SELECT id FROM perfil_trabajador WHERE usuario_id = ?',
+      [trabajadorId]
+    );
+    if (!perfiles || perfiles.length === 0) {
+      return res.json({ vacantes: [] });
+    }
+    const perfilId = perfiles[0].id;
+
+    const tCultivos = await query(
+      'SELECT cultivo FROM trabajador_cultivos WHERE perfil_trabajador_id = ?',
+      [perfilId]
+    );
+    const tHabilidades = await query(
+      'SELECT habilidad FROM trabajador_habilidades WHERE perfil_trabajador_id = ?',
+      [perfilId]
+    );
+    const cultivosTrabajador = tCultivos.map((c) => c.cultivo.toLowerCase());
+    const habilidadesTrabajador = tHabilidades.map((h) => h.habilidad.toLowerCase());
+
+    // Ubicación del trabajador
+    const users = await query(
+      'SELECT departamento, municipio FROM usuarios WHERE id = ?',
+      [trabajadorId]
+    );
+    const tDept = users[0]?.departamento?.toLowerCase() || null;
+    const tMun = users[0]?.municipio?.toLowerCase() || null;
+
+    // IDs de vacantes a las que ya se postuló (excluir)
+    const postuladas = await query(
+      'SELECT vacante_id FROM postulaciones WHERE trabajador_id = ?',
+      [trabajadorId]
+    );
+    const idsPostuladas = new Set(postuladas.map((p) => Number(p.vacante_id)));
+
+    // Todas las vacantes activas
+    const vacantes = await query(`
+      SELECT v.*, u.nombre_completo as nombre_empleador,
+        pe.nombre_empresa_finca,
+        (SELECT COUNT(*) FROM postulaciones p WHERE p.vacante_id = v.id) as total_postulaciones
+      FROM vacantes v
+      JOIN usuarios u ON u.id = v.empleador_id
+      LEFT JOIN perfil_empleador pe ON pe.usuario_id = v.empleador_id
+      WHERE v.estado = 'activa' AND v.eliminado = 0
+    `);
+
+    const resultados = [];
+
+    for (const v of vacantes) {
+      if (idsPostuladas.has(Number(v.id))) continue;
+
+      const vCultivos = await query(
+        'SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?',
+        [v.id]
+      );
+      const vLabores = await query(
+        'SELECT labor FROM vacante_labores WHERE vacante_id = ?',
+        [v.id]
+      );
+      const cultivosVacante = vCultivos.map((c) => c.cultivo.toLowerCase());
+      const laboresVacante = vLabores.map((l) => l.labor.toLowerCase());
+
+      let puntaje = 0;
+
+      // Cultivos: hasta 40 pts
+      if (cultivosVacante.length > 0) {
+        const match = cultivosVacante.filter((c) => cultivosTrabajador.includes(c));
+        puntaje += (match.length / cultivosVacante.length) * 40;
+      }
+
+      // Habilidades/labores: hasta 30 pts
+      if (laboresVacante.length > 0) {
+        const match = laboresVacante.filter((l) => habilidadesTrabajador.includes(l));
+        puntaje += (match.length / laboresVacante.length) * 30;
+      }
+
+      // Ubicación: hasta 30 pts
+      let proximidad = 'lejano';
+      if (tDept && v.departamento && v.departamento.toLowerCase() === tDept) {
+        puntaje += 15;
+        proximidad = 'mismo_departamento';
+        if (tMun && v.municipio && v.municipio.toLowerCase() === tMun) {
+          puntaje += 15;
+          proximidad = 'mismo_municipio';
+        }
+      }
+
+      if (puntaje < 10) continue; // Solo mostrar si hay al menos algo de match
+
+      // Normalizar campos
+      v.total_postulaciones = Number(v.total_postulaciones || 0);
+      if (v.monto_pago != null) v.monto_pago = Number(v.monto_pago);
+      v.urgente = Number(v.urgente) === 1;
+      v.cultivos = vCultivos;
+      v.labores = vLabores;
+
+      const portada = await query(
+        'SELECT url FROM vacante_fotos WHERE vacante_id = ? ORDER BY orden ASC LIMIT 1',
+        [v.id]
+      );
+      v.foto_portada = portada.length > 0 ? await signUrl(portada[0].url) : null;
+      v.puntaje_match = Math.round(puntaje);
+      v.proximidad = proximidad;
+
+      resultados.push(v);
+    }
+
+    // Ordenar por puntaje de match descendente
+    resultados.sort((a, b) => b.puntaje_match - a.puntaje_match);
+
+    res.json({ vacantes: resultados });
+  } catch (err) {
+    console.error('Error obteniendo vacantes recomendadas:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
   crearVacante, actualizarVacante, eliminarVacante, misVacantes, listarVacantes, detalleVacante,
   postularse, verPostulaciones, actualizarPostulacion,
   misPostulaciones, cerrarVacante, subirFotosVacante, eliminarFotoVacante,
   ejecutarMatchingEndpoint, ejecutarMatchingParaTrabajador,
-  perfilPublicoTrabajador
+  perfilPublicoTrabajador, vacantesRecomendadas
 };

@@ -166,6 +166,15 @@ export default function AdminUsuariosScreen({ navigation }) {
     <StaggeredItem index={index}>
       <AnimatedPressable style={styles.card} onPress={() => abrirDetalleUsuario(item)} scaleValue={0.99} haptic={false}>
         <View style={styles.cardTop}>
+          <View style={styles.avatarWrap}>
+            {item.foto_selfie ? (
+              <Image source={{ uri: item.foto_selfie }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Ionicons name="person" size={18} color={COLORS.white} />
+              </View>
+            )}
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{item.nombre_completo}</Text>
             <Text style={styles.celular}>{item.celular}</Text>
@@ -402,7 +411,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
     padding: SPACING.lg, marginBottom: SPACING.sm, ...SHADOWS.small,
   },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
+  avatarWrap: {
+    width: 42, height: 42, borderRadius: 21, overflow: 'hidden', backgroundColor: '#B0BEC5', flexShrink: 0,
+  },
+  avatarImg: { width: 42, height: 42 },
+  avatarFallback: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+  },
   name: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
   celular: { fontSize: 13, color: COLORS.textLight, marginTop: 2 },
   roleBadge: { paddingHorizontal: SPACING.sm + 2, paddingVertical: 3, borderRadius: RADIUS.full },

@@ -1,7 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
-const { ejecutarMatchingParaTrabajador } = require('./vacantesController');
 const { signUrl, signFields, signArrayField } = require('../config/s3');
 const {
   InitiateAuthCommand,
@@ -91,10 +90,6 @@ async function register(req, res) {
         }
       }
 
-      // Matching automático en background: no bloqueamos la respuesta de registro
-      ejecutarMatchingParaTrabajador(userId).catch(err =>
-        console.error('Error en matching post-registro:', err)
-      );
     }
 
     // Si es empleador, crear perfil

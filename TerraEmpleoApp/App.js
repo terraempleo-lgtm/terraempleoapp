@@ -26,6 +26,8 @@ import DocumentoLegalScreen from './src/screens/auth/DocumentoLegalScreen';
 import TrabajadorVacantesScreen from './src/screens/trabajador/TrabajadorVacantesScreen';
 import DetalleVacanteScreen from './src/screens/trabajador/DetalleVacanteScreen';
 import MisPostulacionesScreen from './src/screens/trabajador/MisPostulacionesScreen';
+import VacantesRecomendadasScreen from './src/screens/trabajador/VacantesRecomendadasScreen';
+import VacantesMapaScreen from './src/screens/trabajador/VacantesMapaScreen';
 
 // Empleador
 import EmpleadorVacantesScreen from './src/screens/empleador/EmpleadorVacantesScreen';
@@ -36,6 +38,7 @@ import DetalleVacanteEmpleadorScreen from './src/screens/empleador/DetalleVacant
 import ExplorarVacantesScreen from './src/screens/empleador/ExplorarVacantesScreen';
 import DetalleVacanteReferenciaScreen from './src/screens/empleador/DetalleVacanteReferenciaScreen';
 import MisPostulantesScreen from './src/screens/empleador/MisPostulantesScreen';
+import BuscarTrabajadoresScreen from './src/screens/empleador/BuscarTrabajadoresScreen';
 
 // Admin
 import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
@@ -132,6 +135,9 @@ const tabScreenOptions = ({ route }) => ({
       case 'Usuarios': iconName = focused ? 'people' : 'people-outline'; break;
       case 'Verificacion': iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline'; break;
       case 'AdminVacantes': iconName = focused ? 'briefcase' : 'briefcase-outline'; break;
+      case 'Trabajadores': iconName = focused ? 'people' : 'people-outline'; break;
+      case 'ParaTi': iconName = focused ? 'sparkles' : 'sparkles-outline'; break;
+      case 'Mapa': iconName = focused ? 'map' : 'map-outline'; break;
       case 'Mensajes': iconName = focused ? 'chatbubbles' : 'chatbubbles-outline'; break;
       case 'Perfil': iconName = focused ? 'person' : 'person-outline'; break;
       default: iconName = 'ellipse';
@@ -159,6 +165,10 @@ function TrabajadorTabs() {
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="Vacantes" component={TrabajadorVacantesStack}
         options={{ tabBarLabel: 'Vacantes' }} />
+      <Tab.Screen name="Mapa" component={VacantesMapaStack}
+        options={{ tabBarLabel: 'Mapa' }} />
+      <Tab.Screen name="ParaTi" component={VacantesRecomendadasStack}
+        options={{ tabBarLabel: 'Para ti' }} />
       <Tab.Screen name="Postulaciones" component={MisPostulacionesScreen}
         options={{ tabBarLabel: 'Mis Postulaciones', headerShown: true, ...headerOptions, title: 'Mis Postulaciones' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
@@ -166,6 +176,17 @@ function TrabajadorTabs() {
       <Tab.Screen name="Perfil" component={PerfilStack}
         options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
+  );
+}
+
+function VacantesRecomendadasStack() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen name="RecomendadasHome" component={VacantesRecomendadasScreen}
+        options={{ title: 'Recomendadas para ti' }} />
+      <Stack.Screen name="DetalleVacanteRecomendada" component={DetalleVacanteScreen}
+        options={{ title: 'Detalle de Vacante' }} />
+    </Stack.Navigator>
   );
 }
 
@@ -178,6 +199,17 @@ function TrabajadorVacantesStack() {
         options={{ title: 'Detalle de Vacante' }} />
       <Stack.Screen name="Notificaciones" component={NotificacionesScreen}
         options={{ title: 'Notificaciones' }} />
+    </Stack.Navigator>
+  );
+}
+
+function VacantesMapaStack() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen name="VacantesMapaHome" component={VacantesMapaScreen}
+        options={{ title: 'Mapa de Vacantes' }} />
+      <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
+        options={{ title: 'Detalle de Vacante' }} />
     </Stack.Navigator>
   );
 }
@@ -203,6 +235,8 @@ function EmpleadorTabs() {
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="MisVacantes" component={EmpleadorVacantesStack}
         options={{ tabBarLabel: 'Mis Vacantes' }} />
+      <Tab.Screen name="Trabajadores" component={BuscarTrabajadoresStack}
+        options={{ tabBarLabel: 'Trabajadores' }} />
       <Tab.Screen name="Explorar" component={ExplorarVacantesStack}
         options={{ tabBarLabel: 'Explorar ofertas' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
@@ -210,6 +244,23 @@ function EmpleadorTabs() {
       <Tab.Screen name="Perfil" component={PerfilStack}
         options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
+  );
+}
+
+function BuscarTrabajadoresStack() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen
+        name="BuscarTrabajadoresHome"
+        component={BuscarTrabajadoresScreen}
+        options={{ title: 'Trabajadores disponibles' }}
+      />
+      <Stack.Screen
+        name="PerfilPublicoTrabajador"
+        component={PerfilPublicoTrabajadorScreen}
+        options={{ title: 'Perfil del Trabajador' }}
+      />
+    </Stack.Navigator>
   );
 }
 

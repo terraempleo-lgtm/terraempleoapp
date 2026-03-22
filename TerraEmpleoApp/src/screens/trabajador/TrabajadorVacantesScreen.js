@@ -484,22 +484,6 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         </View>
       </MotiView>
 
-      <PickerModal
-        visible={showCultivoModal}
-        onClose={() => setShowCultivoModal(false)}
-        title="Filtrar por cultivo"
-        options={CULTIVOS}
-        selectedValue={filterCultivo}
-        onSelect={(v) => { setFilterCultivo(v); setShowCultivoModal(false); }}
-      />
-      <PickerModal
-        visible={showDeptoModal}
-        onClose={() => setShowDeptoModal(false)}
-        title="Filtrar por departamento"
-        options={DEPARTAMENTOS}
-        selectedValue={filterDepto}
-        onSelect={(v) => { setFilterDepto(v); setShowDeptoModal(false); }}
-      />
     </View>
   );
 
@@ -540,6 +524,23 @@ export default function TrabajadorVacantesScreen({ navigation }) {
             </View>
           )
         }
+      />
+
+      <PickerModal
+        visible={showCultivoModal}
+        onClose={() => setShowCultivoModal(false)}
+        title="Filtrar por cultivo"
+        options={CULTIVOS}
+        selectedValue={filterCultivo}
+        onSelect={(v) => { setFilterCultivo(v); setShowCultivoModal(false); }}
+      />
+      <PickerModal
+        visible={showDeptoModal}
+        onClose={() => setShowDeptoModal(false)}
+        title="Filtrar por departamento"
+        options={DEPARTAMENTOS}
+        selectedValue={filterDepto}
+        onSelect={(v) => { setFilterDepto(v); setShowDeptoModal(false); }}
       />
     </SafeAreaView>
   );

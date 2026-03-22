@@ -1,5 +1,5 @@
 const { query } = require('../config/database');
-const { signFields } = require('../config/s3');
+const { signFields, signArrayField, signUrl } = require('../config/s3');
 
 // Dashboard - conteos
 async function dashboard(req, res) {
@@ -33,6 +33,7 @@ async function listarUsuarios(req, res) {
     const usuarios = await query(`
       SELECT u.id, u.rol, u.nombre_completo, u.celular, u.correo, u.departamento, u.municipio,
         u.verificado_sms, u.validacion_identidad_estado, u.calificacion_promedio, u.activo, u.created_at,
+        u.foto_selfie,
         pe.nombre_empresa_finca
       FROM usuarios u
       LEFT JOIN perfil_empleador pe ON pe.usuario_id = u.id
@@ -42,6 +43,7 @@ async function listarUsuarios(req, res) {
     for (const u of usuarios) {
       u.activo = Number(u.activo) === 1;
       u.verificado_sms = Number(u.verificado_sms) === 1;
+      u.foto_selfie = await signUrl(u.foto_selfie);
     }
     res.json(usuarios);
   } catch (err) {
@@ -93,6 +95,7 @@ async function getUsuarioDetalle(req, res) {
     const user = users[0];
     delete user.password_hash;
     delete user.codigo_sms;
+    user.foto_selfie = await signUrl(user.foto_selfie);
 
     let perfil = null;
     if (user.rol === 'trabajador') {
@@ -331,6 +334,8 @@ async function listarTodasVacantes(req, res) {
       v.urgente = Boolean(v.urgente);
       v.cultivos = await query('SELECT cultivo FROM vacante_cultivos WHERE vacante_id = ?', [v.id]);
       v.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [v.id]);
+      const portada = await query('SELECT url FROM vacante_fotos WHERE vacante_id = ? ORDER BY orden ASC LIMIT 1', [v.id]);
+      v.foto_portada = portada.length > 0 ? await signUrl(portada[0].url) : null;
     }
     res.json(vacantes);
   } catch (err) {

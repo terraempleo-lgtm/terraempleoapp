@@ -288,8 +288,8 @@ export default function EmpleadorVacantesScreen({ navigation }) {
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.greetingLabel}>Hola, {firstName}</Text>
-              <Text style={styles.greetingName}>{nombreCompleto}</Text>
+              <Text style={styles.greetingLabel}>Hola,</Text>
+              <Text style={styles.greetingName}>{firstName}</Text>
             </View>
           </View>
           <View style={styles.headerActions}>

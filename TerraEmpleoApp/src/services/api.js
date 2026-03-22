@@ -66,6 +66,7 @@ export const vacantesAPI = {
   crear: (data) => api.post('/vacantes', data),
   misVacantes: () => api.get('/vacantes/mis-vacantes'),
   listar: (params) => api.get('/vacantes', { params }),
+  recomendadas: () => api.get('/vacantes/recomendadas'),
   detalle: (id) => api.get(`/vacantes/${id}`),
   postularse: (data) => api.post('/vacantes/postularse', data),
   misPostulaciones: () => api.get('/vacantes/mis-postulaciones/lista'),
@@ -89,6 +90,7 @@ export const calificacionesAPI = {
 
 // Trabajadores
 export const trabajadoresAPI = {
+  listar: (params) => api.get('/trabajadores', { params }),
   perfilPublico: (id) => api.get(`/trabajadores/${id}/perfil`),
 };
 

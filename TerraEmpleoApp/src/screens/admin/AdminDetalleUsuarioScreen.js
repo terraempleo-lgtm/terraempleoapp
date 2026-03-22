@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -76,18 +76,31 @@ export default function AdminDetalleUsuarioScreen({ route }) {
         }
       >
         <View style={styles.headerCard}>
-          <Text style={styles.nombre}>{user.nombre_completo}</Text>
-          <Text style={styles.rol}>{(user.rol || 'usuario').toUpperCase()}</Text>
-          <View style={styles.badgesRow}>
-            <View style={[styles.badge, { backgroundColor: Number(user.activo) === 1 ? '#DCFCE7' : '#FEE2E2' }]}>
-              <Text style={[styles.badgeText, { color: Number(user.activo) === 1 ? '#166534' : '#B91C1C' }]}>
-                {Number(user.activo) === 1 ? 'Activo' : 'Inactivo'}
-              </Text>
+          <View style={styles.headerTop}>
+            <View style={styles.profilePhotoWrap}>
+              {user.foto_selfie ? (
+                <Image source={{ uri: user.foto_selfie }} style={styles.profilePhoto} />
+              ) : (
+                <View style={styles.profilePhotoFallback}>
+                  <Ionicons name="person" size={32} color={COLORS.white} />
+                </View>
+              )}
             </View>
-            <View style={[styles.badge, { backgroundColor: '#F3F4F6' }]}>
-              <Text style={[styles.badgeText, { color: '#4B5563' }]}>
-                ID: {user.validacion_identidad_estado || 'pendiente'}
-              </Text>
+            <View style={styles.headerInfo}>
+              <Text style={styles.nombre}>{user.nombre_completo}</Text>
+              <Text style={styles.rol}>{(user.rol || 'usuario').toUpperCase()}</Text>
+              <View style={styles.badgesRow}>
+                <View style={[styles.badge, { backgroundColor: Number(user.activo) === 1 ? '#DCFCE7' : '#FEE2E2' }]}>
+                  <Text style={[styles.badgeText, { color: Number(user.activo) === 1 ? '#166534' : '#B91C1C' }]}>
+                    {Number(user.activo) === 1 ? 'Activo' : 'Inactivo'}
+                  </Text>
+                </View>
+                <View style={[styles.badge, { backgroundColor: '#F3F4F6' }]}>
+                  <Text style={[styles.badgeText, { color: '#4B5563' }]}>
+                    ID: {user.validacion_identidad_estado || 'pendiente'}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
         </View>
@@ -164,6 +177,31 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     marginBottom: SPACING.md,
     ...SHADOWS.small,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  profilePhotoWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    overflow: 'hidden',
+    backgroundColor: '#B0BEC5',
+    flexShrink: 0,
+  },
+  profilePhoto: {
+    width: 72,
+    height: 72,
+  },
+  profilePhotoFallback: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerInfo: {
+    flex: 1,
   },
   nombre: {
     fontSize: 20,

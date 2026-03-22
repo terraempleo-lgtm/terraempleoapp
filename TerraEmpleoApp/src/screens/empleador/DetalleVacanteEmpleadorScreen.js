@@ -71,6 +71,15 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
 
   const cargar = useCallback(async () => {
     try {
+      // Cargar vacante completa con fotos firmadas
+      const vacanteRes = await vacantesAPI.detalle(vacanteParam.id);
+      if (vacanteRes.data?.vacante) {
+        setVacante(vacanteRes.data.vacante);
+      }
+    } catch (_) {
+      // Si falla el detalle, mantener datos del param
+    }
+    try {
       const res = await vacantesAPI.verPostulaciones(vacanteParam.id);
       const posts = res.data.postulaciones || [];
       setStats({
