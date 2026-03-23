@@ -31,10 +31,21 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      "expo-camera",
+      "expo-image-picker",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "TerraEmpleo necesita acceso a tu ubicacion para mostrar vacantes cercanas."
+        }
+      ]
     ],
     "runtimeVersion": {
       "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f0c2d1e1-9208-44e1-af6f-9a2c29a3e5ba"
     },
     "extra": {
       "eas": {

@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
+const { authLoginLimiter, authSmsLimiter, authRecoveryLimiter } = require('../middleware/rateLimit');
 const authController = require('../controllers/authController');
 const { storage, storageHojasVida } = require('../config/s3');
 
@@ -22,14 +23,14 @@ const uploadHojaVida = multer({
 });
 
 // Rutas públicas
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.post('/sms/enviar', authController.enviarCodigoSMS);
-router.post('/sms/verificar', authController.verificarCodigoSMS);
-router.post('/recuperar/solicitar', authController.solicitarRecuperacion);
-router.post('/recuperar/verificar', authController.verificarCodigoRecuperacion);
-router.post('/recuperar/nueva-password', authController.actualizarPasswordRecuperacion);
-router.post('/recuperar/solicitar-email', authController.solicitarRecuperacionEmail);
+router.post('/register', authLoginLimiter, authController.register);
+router.post('/login', authLoginLimiter, authController.login);
+router.post('/sms/enviar', authSmsLimiter, authController.enviarCodigoSMS);
+router.post('/sms/verificar', authSmsLimiter, authController.verificarCodigoSMS);
+router.post('/recuperar/solicitar', authRecoveryLimiter, authController.solicitarRecuperacion);
+router.post('/recuperar/verificar', authRecoveryLimiter, authController.verificarCodigoRecuperacion);
+router.post('/recuperar/nueva-password', authRecoveryLimiter, authController.actualizarPasswordRecuperacion);
+router.post('/recuperar/solicitar-email', authRecoveryLimiter, authController.solicitarRecuperacionEmail);
 
 // Rutas protegidas
 router.get('/perfil', authMiddleware, authController.getPerfil);

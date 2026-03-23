@@ -56,6 +56,24 @@ app.use('/api/notificaciones', notificacionesRoutes);
 app.use('/api/chats', chatsRoutes);
 app.use('/api/auth/cognito', cognitoAuthRoutes);
 
+// Endpoint base de API para diagnóstico rápido
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'TerraEmpleo API funcionando',
+    endpoints: [
+      '/api/health',
+      '/api/auth',
+      '/api/vacantes',
+      '/api/calificaciones',
+      '/api/trabajadores',
+      '/api/notificaciones',
+      '/api/chats',
+      '/api/admin',
+    ],
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Health check — con verificación de conectividad a BD
 app.get('/api/health', async (req, res) => {
   const { testConnection } = require('./config/database');
