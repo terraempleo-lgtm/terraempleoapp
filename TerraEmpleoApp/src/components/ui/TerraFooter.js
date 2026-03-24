@@ -2,11 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONTS } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 
 export default function TerraFooter({ tagline, light = false }) {
-  const iconColor = light ? 'rgba(255,255,255,0.5)' : COLORS.primary;
-  const textColor = light ? 'rgba(255,255,255,0.5)' : COLORS.textLight;
-  const bgColor = light ? 'rgba(255,255,255,0.1)' : COLORS.primaryMuted;
+  const { colors, isDark } = useAppTheme();
+  const iconColor = light ? 'rgba(255,255,255,0.5)' : colors.primary;
+  const textColor = light ? 'rgba(255,255,255,0.5)' : colors.textMuted;
+  const bgColor = light ? 'rgba(255,255,255,0.1)' : (isDark ? '#1e3a2f' : COLORS.primaryMuted);
 
   return (
     <View style={styles.wrap}>

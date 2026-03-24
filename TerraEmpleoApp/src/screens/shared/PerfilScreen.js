@@ -8,6 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { authAPI, vacantesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import Animated, {
@@ -15,6 +16,7 @@ import Animated, {
   withRepeat, withSequence, Easing,
 } from 'react-native-reanimated';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
+import DecorativeBackground from '../../components/ui/DecorativeBackground';
 
 const HERO_H = 260;
 
@@ -94,6 +96,7 @@ function PulsingDot({ color = COLORS.primary, size = 14, delay = 0 }) {
 
 export default function PerfilScreen({ navigation }) {
   const { user, signOut } = useAuth();
+  const { isDark, toggleMode, colors } = useAppTheme();
   const [perfil, setPerfil] = useState(null);
   const [userData, setUserData] = useState(null);
   const [fotoFincaPrincipal, setFotoFincaPrincipal] = useState(null);
@@ -169,7 +172,8 @@ export default function PerfilScreen({ navigation }) {
     const acercaDeEmpleador = perfil?.acerca_de?.trim();
 
     return (
-      <View style={s.root}>
+      <View style={[s.root, { backgroundColor: colors.background }]}>
+        <DecorativeBackground intensity="strong" />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
           {/* Hero */}
           <View style={s.heroWrap}>
@@ -334,6 +338,20 @@ export default function PerfilScreen({ navigation }) {
                 <Ionicons name="create-outline" size={20} color={COLORS.white} />
                 <Text style={s.ctaBtnTxt}>Editar Perfil</Text>
               </AnimatedPressable>
+              <AnimatedPressable
+                style={[s.themeRow, { backgroundColor: isDark ? '#1a322a' : '#F8FAF9', borderColor: isDark ? '#2a4c41' : COLORS.borderLight }]}
+                onPress={toggleMode}
+                scaleValue={0.97}
+                haptic
+              >
+                <View style={[s.themeIcon, { backgroundColor: isDark ? '#244238' : COLORS.primarySoft }]}>
+                  <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={17} color={colors.primary} />
+                </View>
+                <Text style={[s.themeTxt, { color: colors.textPrimary }]}>
+                  {isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+              </AnimatedPressable>
               <AnimatedPressable style={s.logoutRow} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
                 <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
               </AnimatedPressable>
@@ -352,16 +370,17 @@ export default function PerfilScreen({ navigation }) {
   const acercaDeTrabajador = perfil?.acerca_de?.trim();
 
   return (
-    <SafeAreaView style={s.root} edges={['top', 'bottom']}>
+    <SafeAreaView style={[s.root, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <DecorativeBackground intensity="strong" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* Top bar */}
         <View style={s.topBar}>
           <View style={{ width: 40 }} />
           <FadeInView delay={100} translateY={-5}>
-            <Text style={s.topBarTitle}>Perfil del Trabajador</Text>
+            <Text style={[s.topBarTitle, { color: colors.textPrimary }]}>Perfil del Trabajador</Text>
           </FadeInView>
           <AnimatedPressable style={s.shareBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.9} haptic>
-            <Ionicons name="settings-outline" size={20} color={COLORS.textPrimary} />
+            <Ionicons name="settings-outline" size={20} color={colors.textPrimary} />
           </AnimatedPressable>
         </View>
 
@@ -383,20 +402,20 @@ export default function PerfilScreen({ navigation }) {
           </MotiView>
 
           <FadeInView delay={250}>
-            <Text style={s.fullName}>{u?.nombre_completo || 'Usuario'}</Text>
+            <Text style={[s.fullName, { color: colors.textPrimary }]}>{u?.nombre_completo || 'Usuario'}</Text>
           </FadeInView>
 
           {calificacion > 0 ? (
             <FadeInView delay={300}>
               <View style={s.ratingRow}>
                 <Ionicons name="star" size={16} color="#FFB300" />
-                <Text style={s.ratingVal}>{calificacion.toFixed(1)}</Text>
-                <Text style={s.ratingCnt}>({totalCalif} reseñas)</Text>
+                <Text style={[s.ratingVal, { color: colors.textPrimary }]}>{calificacion.toFixed(1)}</Text>
+                <Text style={[s.ratingCnt, { color: colors.textSecondary }]}>({totalCalif} reseñas)</Text>
               </View>
             </FadeInView>
           ) : (
             <FadeInView delay={300}>
-              <Text style={s.noRating}>Sin reseñas aún</Text>
+              <Text style={[s.noRating, { color: colors.textMuted }]}>Sin reseñas aún</Text>
             </FadeInView>
           )}
 
@@ -416,11 +435,11 @@ export default function PerfilScreen({ navigation }) {
         {/* ACERCA DE */}
         <StaggeredItem index={0}>
           <View style={s.secWrap}>
-            <Text style={s.secLabel}>ACERCA DE</Text>
+            <Text style={[s.secLabel, { color: colors.primary }]}>ACERCA DE</Text>
             {acercaDeTrabajador ? (
-              <Text style={s.secText}>{acercaDeTrabajador}</Text>
+              <Text style={[s.secText, { color: colors.textSecondary }]}>{acercaDeTrabajador}</Text>
             ) : (
-              <Text style={s.secTextMuted}>Aún no has agregado tu sección "Acerca de".</Text>
+              <Text style={[s.secTextMuted, { color: colors.textMuted }]}>Aún no has agregado tu sección "Acerca de".</Text>
             )}
           </View>
         </StaggeredItem>
@@ -429,11 +448,19 @@ export default function PerfilScreen({ navigation }) {
           <StaggeredItem index={1}>
             <View style={s.secWrap}>
               <Text style={s.secLabel}>HOJA DE VIDA</Text>
-              <AnimatedPressable style={s.cvCard} onPress={() => abrirDocumento(perfil.hoja_vida_url)} scaleValue={0.98} haptic={false}>
+              <AnimatedPressable
+                style={[
+                  s.cvCard,
+                  { backgroundColor: isDark ? '#1a322a' : COLORS.primarySoft, borderColor: isDark ? '#2a4c41' : COLORS.borderLight },
+                ]}
+                onPress={() => abrirDocumento(perfil.hoja_vida_url)}
+                scaleValue={0.98}
+                haptic={false}
+              >
                 <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.cvCardTitle}>Hoja de vida cargada</Text>
-                  <Text style={s.cvCardName} numberOfLines={1}>{perfil.hoja_vida_nombre || 'Hoja de vida.pdf'}</Text>
+                  <Text style={[s.cvCardTitle, { color: colors.textPrimary }]}>Hoja de vida cargada</Text>
+                  <Text style={[s.cvCardName, { color: colors.textSecondary }]} numberOfLines={1}>{perfil.hoja_vida_nombre || 'Hoja de vida.pdf'}</Text>
                 </View>
                 <Ionicons name="open-outline" size={18} color={COLORS.primary} />
               </AnimatedPressable>
@@ -445,7 +472,7 @@ export default function PerfilScreen({ navigation }) {
         {especialidades.length > 0 && (
           <StaggeredItem index={2}>
             <View style={s.secWrap}>
-              <Text style={s.secLabel}>HABILIDADES Y ESPECIALIDADES</Text>
+              <Text style={[s.secLabel, { color: colors.primary }]}>HABILIDADES Y ESPECIALIDADES</Text>
               <View style={s.chipWrap}>
                 {especialidades.map((e, i) => (
                   <MotiView
@@ -454,7 +481,7 @@ export default function PerfilScreen({ navigation }) {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 40 }}
                   >
-                    <View style={s.chipOutline}><Text style={s.chipOutlineTxt}>{e}</Text></View>
+                    <View style={[s.chipOutline, { borderColor: colors.border }]}><Text style={[s.chipOutlineTxt, { color: colors.textSecondary }]}>{e}</Text></View>
                   </MotiView>
                 ))}
               </View>
@@ -466,24 +493,24 @@ export default function PerfilScreen({ navigation }) {
         {experiencia && (
           <StaggeredItem index={3}>
             <View style={s.secWrap}>
-              <Text style={s.secLabel}>EXPERIENCIA LABORAL</Text>
+              <Text style={[s.secLabel, { color: colors.primary }]}>EXPERIENCIA LABORAL</Text>
               <View style={s.timeline}>
                 <View style={s.tlItem}>
                   <PulsingDot color={COLORS.primary} />
                   <View style={s.tlLine} />
                   <View style={s.tlContent}>
-                    <Text style={s.tlTitle}>Experiencia Agrícola</Text>
-                    <Text style={s.tlSub}>{experiencia}</Text>
-                    <Text style={s.tlDesc}>Trabajo en campo, cultivos y cosecha</Text>
+                    <Text style={[s.tlTitle, { color: colors.textPrimary }]}>Experiencia Agrícola</Text>
+                    <Text style={[s.tlSub, { color: colors.primary }]}>{experiencia}</Text>
+                    <Text style={[s.tlDesc, { color: colors.textSecondary }]}>Trabajo en campo, cultivos y cosecha</Text>
                   </View>
                 </View>
                 {estudios && (
                   <View style={s.tlItem}>
                     <PulsingDot color={COLORS.primaryLight} delay={300} />
                     <View style={s.tlContent}>
-                      <Text style={s.tlTitle}>Formación</Text>
-                      <Text style={s.tlSub}>{estudios}</Text>
-                      {perfil?.titulo_estudio && <Text style={s.tlDesc}>{perfil.titulo_estudio}</Text>}
+                      <Text style={[s.tlTitle, { color: colors.textPrimary }]}>Formación</Text>
+                      <Text style={[s.tlSub, { color: colors.primary }]}>{estudios}</Text>
+                      {perfil?.titulo_estudio && <Text style={[s.tlDesc, { color: colors.textSecondary }]}>{perfil.titulo_estudio}</Text>}
                     </View>
                   </View>
                 )}
@@ -501,10 +528,10 @@ export default function PerfilScreen({ navigation }) {
               transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: 250 }}
               style={{ flex: 1 }}
             >
-              <View style={s.statCard}>
+              <View style={[s.statCard, { backgroundColor: colors.card, borderColor: colors.border }] }>
                 <Ionicons name="location" size={20} color={COLORS.primary} />
-                <Text style={s.statLabel}>UBICACIÓN</Text>
-                <Text style={s.statVal}>{ubicacionT || 'Colombia'}</Text>
+                <Text style={[s.statLabel, { color: colors.textMuted }]}>UBICACIÓN</Text>
+                <Text style={[s.statVal, { color: colors.textPrimary }]}>{ubicacionT || 'Colombia'}</Text>
               </View>
             </MotiView>
             <MotiView
@@ -513,10 +540,10 @@ export default function PerfilScreen({ navigation }) {
               transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: 350 }}
               style={{ flex: 1 }}
             >
-              <View style={s.statCard}>
+              <View style={[s.statCard, { backgroundColor: colors.card, borderColor: colors.border }] }>
                 <Ionicons name="calendar" size={20} color={COLORS.primary} />
-                <Text style={s.statLabel}>DISPONIBILIDAD</Text>
-                <Text style={s.statVal}>{disponibilidad || 'No indicada'}</Text>
+                <Text style={[s.statLabel, { color: colors.textMuted }]}>DISPONIBILIDAD</Text>
+                <Text style={[s.statVal, { color: colors.textPrimary }]}>{disponibilidad || 'No indicada'}</Text>
               </View>
             </MotiView>
           </View>
@@ -525,16 +552,16 @@ export default function PerfilScreen({ navigation }) {
         {/* DOCUMENTACIÓN */}
         <StaggeredItem index={5}>
           <View style={s.secWrap}>
-            <Text style={s.secLabel}>DOCUMENTACIÓN VERIFICADA</Text>
+            <Text style={[s.secLabel, { color: colors.primary }]}>DOCUMENTACIÓN VERIFICADA</Text>
             <View style={s.verList}>
-              <View style={s.verItem}>
-                <View style={s.verIcon}><Ionicons name="card-outline" size={18} color={COLORS.primary} /></View>
-                <Text style={s.verText}>Cédula de Ciudadanía</Text>
+              <View style={[s.verItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={[s.verIcon, { backgroundColor: isDark ? '#223a32' : COLORS.primarySoft }]}><Ionicons name="card-outline" size={18} color={COLORS.primary} /></View>
+                <Text style={[s.verText, { color: colors.textPrimary }]}>Cédula de Ciudadanía</Text>
                 <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
               </View>
-              <View style={s.verItem}>
-                <View style={s.verIcon}><Ionicons name="call-outline" size={18} color={COLORS.primary} /></View>
-                <Text style={s.verText}>Teléfono Verificado</Text>
+              <View style={[s.verItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={[s.verIcon, { backgroundColor: isDark ? '#223a32' : COLORS.primarySoft }]}><Ionicons name="call-outline" size={18} color={COLORS.primary} /></View>
+                <Text style={[s.verText, { color: colors.textPrimary }]}>Teléfono Verificado</Text>
                 <Ionicons name={u?.verificado_sms ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={u?.verificado_sms ? COLORS.primary : COLORS.textLight} />
               </View>
             </View>
@@ -547,7 +574,21 @@ export default function PerfilScreen({ navigation }) {
             <AnimatedPressable style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.96} haptic>
               <Ionicons name="create-outline" size={20} color={COLORS.white} /><Text style={s.ctaBtnTxt}>Editar Perfil</Text>
             </AnimatedPressable>
-            <AnimatedPressable style={s.logoutRow} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
+            <AnimatedPressable
+              style={[s.themeRow, { backgroundColor: isDark ? '#1a322a' : '#F8FAF9', borderColor: isDark ? '#2a4c41' : COLORS.borderLight }]}
+              onPress={toggleMode}
+              scaleValue={0.97}
+              haptic
+            >
+              <View style={[s.themeIcon, { backgroundColor: isDark ? '#244238' : COLORS.primarySoft }]}>
+                <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={17} color={colors.primary} />
+              </View>
+              <Text style={[s.themeTxt, { color: colors.textPrimary }]}>
+                {isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+            </AnimatedPressable>
+            <AnimatedPressable style={[s.logoutRow, { backgroundColor: isDark ? '#2a1717' : 'transparent' }]} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
               <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
             </AnimatedPressable>
           </View>
@@ -629,6 +670,28 @@ const s = StyleSheet.create({
   /* CTA */
   ctaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, backgroundColor: COLORS.primary, paddingVertical: 16, borderRadius: RADIUS.full, ...SHADOWS.button },
   ctaBtnTxt: { fontSize: 17, fontWeight: '700', color: COLORS.white },
+  themeRow: {
+    marginTop: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
+  },
+  themeIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  themeTxt: {
+    flex: 1,
+    marginLeft: SPACING.sm,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   logoutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, marginTop: SPACING.sm, borderWidth: 1.5, borderColor: COLORS.error, borderRadius: RADIUS.full },
   logoutTxt: { fontSize: 14, fontWeight: '600', color: COLORS.error },
 

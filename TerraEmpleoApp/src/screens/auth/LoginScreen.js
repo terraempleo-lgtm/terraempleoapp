@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../theme';
 import { Button, Input, AppHeader, TerraFooter } from '../../components/ui';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 import { authAPI, cognitoAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 
 function isEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -22,6 +24,7 @@ function isEmail(value) {
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
+  const { colors, gradients } = useAppTheme();
   const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -71,7 +74,9 @@ export default function LoginScreen({ navigation }) {
 
       await signIn(user, token);
     } catch (err) {
-      const msg = err.response?.data?.error || 'Error al iniciar sesión. Verifica tus datos.';
+      const msg = err.code === 'ECONNABORTED'
+        ? 'El servidor tardó demasiado en responder. Verifica que el backend y la base de datos estén activos.'
+        : err.response?.data?.error || 'Error al iniciar sesión. Verifica tus datos.';
       Alert.alert('Error', msg);
       setLoginFailed(true);
     } finally {
@@ -80,22 +85,26 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <AppHeader title="Iniciar sesión" onBack={() => navigation.goBack()} />
+    <LinearGradient colors={gradients.screen} style={styles.gradientBg}>
+      <View style={[styles.blobA, { backgroundColor: gradients.agroBlobA }]} />
+      <View style={[styles.blobB, { backgroundColor: gradients.agroBlobB }]} />
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+      <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
+        <AppHeader title="Iniciar sesión" onBack={() => navigation.goBack()} />
+
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           {/* Título de bienvenida con animación */}
           <View style={styles.headerSection}>
             <FadeInView delay={100} translateY={-10}>
-              <Text style={styles.title}>Bienvenido de nuevo</Text>
+              <Text style={[styles.title, { color: colors.textPrimary }]}>Bienvenido de nuevo</Text>
             </FadeInView>
             <FadeInView delay={200} translateY={-8}>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 Ingresa a tu cuenta de TerraEmpleo
               </Text>
             </FadeInView>
@@ -144,47 +153,51 @@ export default function LoginScreen({ navigation }) {
                     scaleValue={0.97}
                     haptic={false}
                   >
-                    <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+                    <Text style={[styles.forgotText, { color: colors.primary }]}>¿Olvidaste tu contraseña?</Text>
                   </AnimatedPressable>
                 </MotiView>
               )}
             </AnimatePresence>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
-      {/* Footer fijo */}
-      <FadeInView delay={400} translateY={10}>
-        <View style={styles.footer}>
-          <Button
-            title="Entrar"
-            onPress={handleLogin}
-            loading={loading}
-            size="large"
-          />
+        {/* Footer fijo */}
+        <FadeInView delay={400} translateY={10}>
+          <View style={[styles.footer, { backgroundColor: 'transparent' }]}>
+            <Button
+              title="Entrar"
+              onPress={handleLogin}
+              loading={loading}
+              size="large"
+            />
 
-          <View style={styles.registerRow}>
-            <Text style={styles.registerText}>¿No tienes una cuenta?  </Text>
-            <AnimatedPressable
-              onPress={() => navigation.navigate('RoleSelect')}
-              scaleValue={0.97}
-              haptic={false}
-            >
-              <Text style={styles.registerLink}>Crear cuenta</Text>
-            </AnimatedPressable>
+            <View style={styles.registerRow}>
+              <Text style={[styles.registerText, { color: colors.textSecondary }]}>¿No tienes una cuenta?  </Text>
+              <AnimatedPressable
+                onPress={() => navigation.navigate('RoleSelect')}
+                scaleValue={0.97}
+                haptic={false}
+              >
+                <Text style={[styles.registerLink, { color: colors.primary }]}>Crear cuenta</Text>
+              </AnimatedPressable>
+            </View>
+
+            <TerraFooter />
           </View>
-
-          <TerraFooter />
-        </View>
-      </FadeInView>
-    </SafeAreaView>
+        </FadeInView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: 'transparent',
+  },
+  gradientBg: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
@@ -237,5 +250,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.primary,
+  },
+  blobA: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    top: -55,
+    right: -45,
+  },
+  blobB: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    left: -40,
+    bottom: 130,
   },
 });

@@ -6,21 +6,26 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
+import DecorativeBackground from '../../components/ui/DecorativeBackground';
 
 export default function VacantesMapaScreen() {
+  const { colors, gradients, isDark } = useAppTheme();
+
   return (
-    <View style={styles.root}>
-      <View style={styles.card}>
-        <View style={styles.iconWrap}>
-          <Ionicons name="map-outline" size={52} color={COLORS.primary} />
+    <View style={[styles.root, { backgroundColor: colors.background }]}> 
+      <DecorativeBackground intensity="strong" />
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+        <View style={[styles.iconWrap, { backgroundColor: isDark ? '#1f332b' : '#E8F5E9' }]}> 
+          <Ionicons name="map-outline" size={52} color={colors.primary} />
         </View>
-        <Text style={styles.title}>Mapa de Vacantes</Text>
-        <Text style={styles.sub}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Mapa de Vacantes</Text>
+        <Text style={[styles.sub, { color: colors.textSecondary }]}> 
           El mapa interactivo está disponible únicamente en la app móvil (Android / iOS).
         </Text>
-        <View style={styles.hint}>
-          <Ionicons name="phone-portrait-outline" size={16} color={COLORS.primary} />
-          <Text style={styles.hintText}>Abre TerraEmpleo desde tu celular para ver las vacantes en el mapa.</Text>
+        <View style={[styles.hint, { backgroundColor: isDark ? '#1d3a2f' : '#E8F5E9' }]}> 
+          <Ionicons name="phone-portrait-outline" size={16} color={colors.primary} />
+          <Text style={[styles.hintText, { color: colors.primary }]}>Abre TerraEmpleo desde tu celular para ver las vacantes en el mapa.</Text>
         </View>
       </View>
     </View>
@@ -37,6 +42,8 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
     borderRadius: RADIUS.xl,
     padding: SPACING.xl,
     alignItems: 'center',

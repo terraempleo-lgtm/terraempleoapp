@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { COLORS, RADIUS, SPACING, LAYOUT, FONTS, ANIMATION } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '../../context/ThemeContext';
 
 const AnimatedView = Animated.View;
 
@@ -34,6 +35,7 @@ export default function Input({
   inputStyle,
   containerStyle,
 }) {
+  const { colors, isDark } = useAppTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState(false);
 
@@ -63,19 +65,19 @@ export default function Input({
 
   const animatedContainerStyle = useAnimatedStyle(() => {
     const borderColor = error
-      ? COLORS.error
+      ? colors.error
       : interpolateColor(
           focusProgress.value,
           [0, 1],
-          [COLORS.border, COLORS.primary]
+          [colors.border, colors.primary]
         );
 
     const backgroundColor = error
-      ? COLORS.errorSoft
+      ? (isDark ? 'rgba(248, 113, 113, 0.12)' : COLORS.errorSoft)
       : interpolateColor(
           focusProgress.value,
           [0, 1],
-          ['#F9FAFB', COLORS.white]
+          [isDark ? '#0f201a' : '#F9FAFB', isDark ? '#152a22' : COLORS.white]
         );
 
     return {
@@ -89,14 +91,14 @@ export default function Input({
   return (
     <View style={[styles.container, containerStyle]}>
       {label && (
-        <Text style={styles.label}>
+        <Text style={[styles.label, { color: colors.textPrimary }]}> 
           {label}
-          {required && <Text style={styles.required}> *</Text>}
+          {required && <Text style={[styles.required, { color: colors.error }]}> *</Text>}
         </Text>
       )}
       <AnimatedView style={[
         styles.inputContainer,
-        !editable && styles.inputDisabled,
+        !editable && [styles.inputDisabled, { backgroundColor: isDark ? '#20352d' : COLORS.disabledBg, borderColor: colors.border }],
         multiline && styles.inputMultiline,
         style,
         animatedContainerStyle,
@@ -105,7 +107,7 @@ export default function Input({
           <Ionicons
             name={icon}
             size={20}
-            color={focused ? COLORS.primary : COLORS.textLight}
+            color={focused ? colors.primary : colors.textMuted}
             style={styles.icon}
           />
         )}
@@ -113,12 +115,13 @@ export default function Input({
           style={[
             styles.input,
             multiline && { minHeight: numberOfLines * 24, textAlignVertical: 'top' },
+            { color: colors.textPrimary },
             inputStyle,
           ]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.textLight}
+          placeholderTextColor={colors.textMuted}
           keyboardType={keyboardType}
           secureTextEntry={secureTextEntry && !showPassword}
           multiline={multiline}
@@ -130,19 +133,19 @@ export default function Input({
         />
         {secureTextEntry && (
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={COLORS.textLight} />
+            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
           </TouchableOpacity>
         )}
         {rightIcon && !secureTextEntry && (
           <TouchableOpacity onPress={onRightIconPress} style={styles.eyeBtn} disabled={!onRightIconPress}>
-            <Ionicons name={rightIcon} size={20} color={COLORS.textLight} />
+            <Ionicons name={rightIcon} size={20} color={colors.textMuted} />
           </TouchableOpacity>
         )}
       </AnimatedView>
-      {error && <Text style={styles.error}>{error}</Text>}
-      {helper && !error && <Text style={styles.helper}>{helper}</Text>}
+      {error && <Text style={[styles.error, { color: colors.error }]}>{error}</Text>}
+      {helper && !error && <Text style={[styles.helper, { color: colors.textMuted }]}>{helper}</Text>}
       {maxLength && value && (
-        <Text style={styles.counter}>{value.length} / {maxLength}</Text>
+        <Text style={[styles.counter, { color: colors.textMuted }]}>{value.length} / {maxLength}</Text>
       )}
     </View>
   );

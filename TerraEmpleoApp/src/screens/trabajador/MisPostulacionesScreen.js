@@ -7,10 +7,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { vacantesAPI } from '../../services/api';
+import { useAppTheme } from '../../context/ThemeContext';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
+import DecorativeBackground from '../../components/ui/DecorativeBackground';
 
 export default function MisPostulacionesScreen({ navigation }) {
+  const { colors, isDark } = useAppTheme();
   const [postulaciones, setPostulaciones] = useState([]);
   const [fotosVacante, setFotosVacante] = useState({});
   const [refreshing, setRefreshing] = useState(false);
@@ -130,7 +133,12 @@ export default function MisPostulacionesScreen({ navigation }) {
 
     return (
       <StaggeredItem index={index}>
-        <AnimatedPressable style={styles.card} onPress={() => handlePostulacionClick(item)} scaleValue={0.98} haptic={false}>
+        <AnimatedPressable
+          style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => handlePostulacionClick(item)}
+          scaleValue={0.98}
+          haptic={false}
+        >
           <View style={styles.cardMain}>
             <View style={styles.imageWrap}>
               {foto ? (
@@ -153,18 +161,18 @@ export default function MisPostulacionesScreen({ navigation }) {
                     <Text style={[styles.estadoPillText, { color: estado.color }]}>{estado.label}</Text>
                   </View>
                 </MotiView>
-                <Text style={styles.fechaText}>{formatDateRelative(item.created_at)}</Text>
+                <Text style={[styles.fechaText, { color: colors.textMuted }]}>{formatDateRelative(item.created_at)}</Text>
               </View>
 
-              <Text style={styles.vacanteTitle} numberOfLines={2}>{item.titulo}</Text>
+              <Text style={[styles.vacanteTitle, { color: colors.textPrimary }]} numberOfLines={2}>{item.titulo}</Text>
 
-              <Text style={styles.empresaText} numberOfLines={1}>
+              <Text style={[styles.empresaText, { color: colors.textSecondary }]} numberOfLines={1}>
                 {item.nombre_empresa_finca || 'Finca sin nombre'}
               </Text>
 
               <View style={styles.locationRow}>
-                <Ionicons name="location-sharp" size={13} color={COLORS.textLight} />
-                <Text style={styles.locationText} numberOfLines={2}>
+                <Ionicons name="location-sharp" size={13} color={colors.textMuted} />
+                <Text style={[styles.locationText, { color: colors.textMuted }]} numberOfLines={2}>
                   {[item.municipio, item.departamento].filter(Boolean).join(', ') || 'Ubicación por confirmar'}
                 </Text>
               </View>
@@ -177,19 +185,19 @@ export default function MisPostulacionesScreen({ navigation }) {
               animate={{ opacity: 1, translateY: 0 }}
               transition={{ type: 'timing', duration: 300 }}
             >
-              <View style={styles.okBox}>
-                <Ionicons name="information-circle" size={16} color={COLORS.primary} style={{ marginTop: 1 }} />
-                <Text style={styles.okBoxText}>
+              <View style={[styles.okBox, { borderColor: isDark ? '#2e5a48' : '#BDE2C9', backgroundColor: isDark ? '#1d3a2f' : '#ECF7F0' }]}>
+                <Ionicons name="information-circle" size={16} color={colors.primary} style={{ marginTop: 1 }} />
+                <Text style={[styles.okBoxText, { color: colors.textSecondary }]}>
                   ¡Felicidades! Tu postulación fue aceptada. Espera que el empleador se comunique contigo pronto.
                 </Text>
               </View>
             </MotiView>
           ) : null}
 
-          <View style={styles.cardFooter}>
+          <View style={[styles.cardFooter, { borderTopColor: colors.border }]}> 
             <AnimatedPressable style={styles.detailBtn} onPress={() => handlePostulacionClick(item)} scaleValue={0.95} haptic={false}>
-              <Text style={styles.detailBtnText}>Ver detalle</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+              <Text style={[styles.detailBtnText, { color: colors.primary }]}>Ver detalle</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
             </AnimatedPressable>
           </View>
         </AnimatedPressable>
@@ -198,18 +206,19 @@ export default function MisPostulacionesScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <DecorativeBackground intensity="strong" />
       <FadeInView delay={0}>
         <View style={styles.headerRow}>
           <AnimatedPressable
-            style={styles.backBtn}
+            style={[styles.backBtn, { backgroundColor: isDark ? '#1f332b' : '#EEF4EF', borderColor: colors.border }]}
             onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Vacantes'))}
             scaleValue={0.9}
             haptic
           >
-            <Ionicons name="arrow-back" size={22} color={COLORS.primary} />
+            <Ionicons name="arrow-back" size={22} color={colors.primary} />
           </AnimatedPressable>
-          <Text style={styles.headerTitle}>Mis Postulaciones</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Mis Postulaciones</Text>
           <View style={styles.headerSpacer} />
         </View>
       </FadeInView>
@@ -225,14 +234,18 @@ export default function MisPostulacionesScreen({ navigation }) {
           return (
             <AnimatedPressable
               key={chip.key}
-              style={[styles.filterChip, activo && styles.filterChipActive]}
+              style={[
+                styles.filterChip,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                activo && [styles.filterChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
+              ]}
               onPress={() => setFiltro(chip.key)}
               scaleValue={0.93}
               haptic
               hapticStyle="light"
             >
               <View style={[styles.filterDot, activo && styles.filterDotActive]} />
-              <Text style={[styles.filterText, activo && styles.filterTextActive]}>{chip.label}</Text>
+              <Text style={[styles.filterText, { color: colors.textSecondary }, activo && [styles.filterTextActive, { color: COLORS.white }]]}>{chip.label}</Text>
             </AnimatedPressable>
           );
         })}
@@ -247,7 +260,7 @@ export default function MisPostulacionesScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); cargar(); }}
-            colors={[COLORS.primary]}
+            colors={[colors.primary]}
           />
         }
         ListEmptyComponent={
@@ -263,14 +276,14 @@ export default function MisPostulacionesScreen({ navigation }) {
               }}
             >
               <View style={styles.emptyIconWrap}>
-                <Ionicons name="document-text-outline" size={48} color={COLORS.primaryLight} />
+                <Ionicons name="document-text-outline" size={48} color={colors.primary} />
               </View>
             </MotiView>
             <FadeInView delay={200}>
-              <Text style={styles.emptyTitle}>Sin postulaciones</Text>
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin postulaciones</Text>
             </FadeInView>
             <FadeInView delay={300}>
-              <Text style={styles.emptyText}>No hay postulaciones en este filtro por ahora.</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No hay postulaciones en este filtro por ahora.</Text>
             </FadeInView>
             <FadeInView delay={400}>
               <AnimatedPressable

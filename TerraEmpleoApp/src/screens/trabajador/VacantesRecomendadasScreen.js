@@ -6,10 +6,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { vacantesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { AnimatedPressable, StaggeredItem, SkeletonCard } from '../../components/animated';
+import DecorativeBackground from '../../components/ui/DecorativeBackground';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 
 const PROXIMIDAD_CONFIG = {
@@ -41,6 +44,7 @@ function timeAgo(dateStr) {
 
 export default function VacantesRecomendadasScreen({ navigation }) {
   const { user } = useAuth();
+  const { colors, isDark, gradients } = useAppTheme();
   const [vacantes, setVacantes] = useState([]);
   const [vacantesPostuladas, setVacantesPostuladas] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -99,7 +103,14 @@ export default function VacantesRecomendadasScreen({ navigation }) {
     return (
       <StaggeredItem index={index}>
         <AnimatedPressable
-          style={styles.card}
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              shadowColor: isDark ? '#000000' : '#0f3d2d',
+            },
+          ]}
           onPress={() => navigation.navigate('DetalleVacanteRecomendada', { vacante: item })}
           scaleValue={ANIMATION.scale.pressedSubtle}
           haptic={false}
@@ -137,10 +148,10 @@ export default function VacantesRecomendadasScreen({ navigation }) {
 
           {/* Body */}
           <View style={styles.cardBody}>
-            <Text style={styles.cardTitle} numberOfLines={1}>{item.titulo}</Text>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]} numberOfLines={1}>{item.titulo}</Text>
 
             {item.nombre_empresa_finca ? (
-              <Text style={styles.cardFarm} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
+              <Text style={[styles.cardFarm, { color: colors.textSecondary }]} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
             ) : null}
 
             {/* Proximidad + time */}
@@ -151,39 +162,44 @@ export default function VacantesRecomendadasScreen({ navigation }) {
                   <Text style={[styles.proxText, { color: prox.color }]}>{prox.label}</Text>
                 </View>
               ) : null}
-              <Text style={styles.timeText}>{timeAgo(item.created_at)}</Text>
+              <Text style={[styles.timeText, { color: colors.textMuted }]}>{timeAgo(item.created_at)}</Text>
             </View>
 
             {/* Tags */}
             <View style={styles.tagsRow}>
               {cultivos.map((c, i) => (
-                <View key={`c${i}`} style={styles.tagGreen}>
+                <View key={`c${i}`} style={[styles.tagGreen, { backgroundColor: isDark ? '#1e3a31' : COLORS.primarySoft }]}>
                   <Ionicons name="leaf" size={10} color={COLORS.primary} />
                   <Text style={styles.tagGreenTxt}>{c}</Text>
                 </View>
               ))}
               {labores.map((l, i) => (
-                <View key={`l${i}`} style={styles.tagGray}>
-                  <Ionicons name="construct-outline" size={10} color={COLORS.textSecondary} />
-                  <Text style={styles.tagGrayTxt}>{l}</Text>
+                <View key={`l${i}`} style={[styles.tagGray, { backgroundColor: isDark ? '#223a32' : '#F3F4F6' }]}>
+                  <Ionicons name="construct-outline" size={10} color={isDark ? colors.textSecondary : COLORS.textSecondary} />
+                  <Text style={[styles.tagGrayTxt, { color: isDark ? colors.textSecondary : COLORS.textSecondary }]}>{l}</Text>
                 </View>
               ))}
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Bottom: pago + postular */}
             <View style={styles.bottomRow}>
               <View>
-                <Text style={styles.salaryLabel}>
+                <Text style={[styles.salaryLabel, { color: colors.textMuted }]}>
                   {pago.tipoLabel ? pago.tipoLabel.toUpperCase() : 'SALARIO'}
                 </Text>
-                <Text style={styles.salaryValue}>
+                <Text style={[styles.salaryValue, { color: colors.textPrimary }]}>
                   {pago.valor !== 'A convenir' ? pago.valor : 'A convenir'}
                 </Text>
               </View>
               <AnimatedPressable
-                style={[styles.postBtn, yaPostulado && styles.postBtnOff]}
+                style={[
+                  styles.postBtn,
+                  { backgroundColor: colors.primary },
+                  yaPostulado && styles.postBtnOff,
+                  yaPostulado && { backgroundColor: isDark ? '#31423c' : '#E5E7EB' },
+                ]}
                 onPress={() => { if (!yaPostulado) postularse(item); }}
                 disabled={yaPostulado}
                 scaleValue={ANIMATION.scale.pressed}
@@ -192,9 +208,15 @@ export default function VacantesRecomendadasScreen({ navigation }) {
                 <Ionicons
                   name={yaPostulado ? 'checkmark-circle' : 'paper-plane'}
                   size={14}
-                  color={yaPostulado ? '#888' : COLORS.white}
+                  color={yaPostulado ? (isDark ? '#d7e7df' : '#6b7280') : COLORS.white}
                 />
-                <Text style={[styles.postBtnTxt, yaPostulado && styles.postBtnTxtOff]}>
+                <Text
+                  style={[
+                    styles.postBtnTxt,
+                    yaPostulado && styles.postBtnTxtOff,
+                    yaPostulado && { color: isDark ? '#d7e7df' : '#6b7280' },
+                  ]}
+                >
                   {yaPostulado ? 'Postulado' : 'Postularme'}
                 </Text>
               </AnimatedPressable>
@@ -207,19 +229,25 @@ export default function VacantesRecomendadasScreen({ navigation }) {
 
   const ListHeader = (
     <View>
+      <View style={styles.headerDecorWrap}>
+        <View style={[styles.headerBlobA, { backgroundColor: gradients.agroBlobA }]} />
+        <View style={[styles.headerBlobB, { backgroundColor: gradients.agroBlobB }]} />
+        <View style={[styles.headerBlobC, { backgroundColor: isDark ? 'rgba(154, 226, 103, 0.18)' : 'rgba(0, 141, 73, 0.10)' }]} />
+        <View style={[styles.headerRing, { borderColor: isDark ? 'rgba(154, 226, 103, 0.24)' : 'rgba(0, 141, 73, 0.14)' }]} />
+      </View>
       <MotiView
         from={{ opacity: 0, translateY: -10 }}
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'timing', duration: 400 }}
       >
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <View style={styles.headerLeft}>
-            <View style={styles.headerIconWrap}>
-              <Ionicons name="sparkles" size={22} color={COLORS.primary} />
+            <View style={[styles.headerIconWrap, { backgroundColor: isDark ? '#1f332b' : COLORS.primarySoft }]}>
+              <Ionicons name="sparkles" size={22} color={colors.primary} />
             </View>
             <View>
-              <Text style={styles.headerTitle}>Para ti, {firstName}</Text>
-              <Text style={styles.headerSub}>Vacantes que coinciden con tu perfil</Text>
+              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Para ti, {firstName}</Text>
+              <Text style={[styles.headerSub, { color: colors.textSecondary }]}>Vacantes que coinciden con tu perfil</Text>
             </View>
           </View>
         </View>
@@ -227,21 +255,21 @@ export default function VacantesRecomendadasScreen({ navigation }) {
 
       {vacantes.length > 0 ? (
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>{vacantes.length}</Text>
-            <Text style={styles.statLabel}>Recomendadas</Text>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.statNum, { color: colors.textPrimary }]}>{vacantes.length}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Recomendadas</Text>
           </View>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.statNum, { color: COLORS.primary }]}>
               {vacantes.filter((v) => v.puntaje_match >= 60).length}
             </Text>
-            <Text style={styles.statLabel}>Alto match</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Alto match</Text>
           </View>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.statNum, { color: COLORS.info }]}>
               {vacantes.filter((v) => v.proximidad !== 'lejano').length}
             </Text>
-            <Text style={styles.statLabel}>Cerca de ti</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Cerca de ti</Text>
           </View>
         </View>
       ) : null}
@@ -249,7 +277,9 @@ export default function VacantesRecomendadasScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <LinearGradient colors={gradients.screen} style={{ flex: 1 }}>
+      <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+      <DecorativeBackground intensity="strong" />
       <FlatList
         data={vacantes}
         renderItem={renderVacante}
@@ -261,8 +291,8 @@ export default function VacantesRecomendadasScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); cargar(); }}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
         ListEmptyComponent={
@@ -273,29 +303,75 @@ export default function VacantesRecomendadasScreen({ navigation }) {
             </View>
           ) : (
             <View style={styles.empty}>
+              <View pointerEvents="none" style={styles.emptyGraphics}>
+                <View style={[styles.emptyBlobA, { backgroundColor: gradients.agroBlobA }]} />
+                <View style={[styles.emptyBlobB, { backgroundColor: gradients.agroBlobB }]} />
+                <View style={[styles.emptyBlobC, { backgroundColor: isDark ? 'rgba(154, 226, 103, 0.16)' : 'rgba(0, 141, 73, 0.08)' }]} />
+              </View>
               <MotiView
                 from={{ translateY: 0 }}
                 animate={{ translateY: -8 }}
                 transition={{ loop: true, type: 'timing', duration: 1500 }}
               >
-                <View style={styles.emptyIcon}>
+                <LinearGradient
+                  colors={isDark ? ['#d6f4e4', '#b9ebd1'] : ['#e9fff3', '#dff8eb']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.emptyIcon}
+                >
                   <Ionicons name="sparkles-outline" size={48} color={COLORS.primary} />
-                </View>
+                </LinearGradient>
               </MotiView>
-              <Text style={styles.emptyTitle}>Sin recomendaciones aún</Text>
-              <Text style={styles.emptySub}>
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin recomendaciones aún</Text>
+              <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
                 Completa tu perfil con cultivos y habilidades para recibir mejores recomendaciones.
               </Text>
             </View>
           )
         }
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAF9' },
+
+  headerDecorWrap: { position: 'absolute', top: -20, left: 0, right: 0, height: 170 },
+  headerBlobA: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    left: -55,
+    top: -10,
+  },
+  headerBlobB: {
+    position: 'absolute',
+    width: 185,
+    height: 185,
+    borderRadius: 92,
+    right: -70,
+    top: -70,
+  },
+  headerBlobC: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    right: 56,
+    top: 46,
+  },
+  headerRing: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 16,
+    left: -34,
+    top: 68,
+  },
 
   header: {
     flexDirection: 'row',
@@ -305,6 +381,8 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.md,
     backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    marginBottom: SPACING.xs,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   headerIconWrap: {
@@ -327,6 +405,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     paddingVertical: SPACING.sm,
     alignItems: 'center',
+    borderWidth: 1,
     ...SHADOWS.small,
   },
   statNum: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
@@ -340,6 +419,7 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.md,
     overflow: 'hidden',
+    borderWidth: 1,
     ...SHADOWS.card,
   },
 
@@ -427,12 +507,39 @@ const styles = StyleSheet.create({
   postBtnTxt: { fontSize: 13, fontWeight: '700', color: COLORS.white },
   postBtnTxtOff: { color: '#888' },
 
-  empty: { alignItems: 'center', paddingTop: 60, gap: SPACING.sm, paddingHorizontal: SPACING.xl },
+  empty: { alignItems: 'center', paddingTop: 60, gap: SPACING.sm, paddingHorizontal: SPACING.xl, overflow: 'hidden', minHeight: 420 },
+  emptyGraphics: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  emptyBlobA: {
+    position: 'absolute',
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    top: -50,
+    left: -92,
+  },
+  emptyBlobB: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    bottom: -110,
+    right: -90,
+  },
+  emptyBlobC: {
+    position: 'absolute',
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+    top: 124,
+    right: 28,
+  },
   emptyIcon: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: COLORS.primarySoft,
     justifyContent: 'center', alignItems: 'center',
     marginBottom: SPACING.sm,
+    ...SHADOWS.small,
   },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
   emptySub: { fontSize: 14, color: COLORS.textLight, textAlign: 'center' },

@@ -11,10 +11,11 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import AnimatedPressable from './AnimatedPressable';
 import { COLORS, FONTS, ANIMATION } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 
 const TAB_BAR_HEIGHT = 65;
 
-const TabItem = ({ route, isFocused, onPress, onLongPress, iconName, label }) => {
+const TabItem = ({ route, isFocused, onPress, onLongPress, iconName, label, colors }) => {
   const scale = useSharedValue(1);
   const translateY = useSharedValue(0);
 
@@ -50,13 +51,13 @@ const TabItem = ({ route, isFocused, onPress, onLongPress, iconName, label }) =>
         <Ionicons
           name={iconName}
           size={24}
-          color={isFocused ? COLORS.primary : COLORS.textLight}
+          color={isFocused ? colors.primary : colors.textMuted}
         />
       </Animated.View>
       <Animated.Text
         style={[
           styles.tabLabel,
-          { color: isFocused ? COLORS.primary : COLORS.textLight },
+          { color: isFocused ? colors.primary : colors.textMuted },
           isFocused && styles.tabLabelActive,
         ]}
         numberOfLines={1}
@@ -69,11 +70,18 @@ const TabItem = ({ route, isFocused, onPress, onLongPress, iconName, label }) =>
 };
 
 const AnimatedTabBar = ({ state, descriptors, navigation }) => {
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 10 : 6);
 
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container,
+      {
+        backgroundColor: isDark ? '#0f201a' : COLORS.white,
+        borderTopColor: isDark ? '#1f3a30' : COLORS.borderLight,
+      },
+    ]}>
       <View style={[styles.tabBar, { paddingBottom: bottomInset, height: TAB_BAR_HEIGHT + bottomInset }] }>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
@@ -102,7 +110,7 @@ const AnimatedTabBar = ({ state, descriptors, navigation }) => {
           let iconName;
           const tabBarIcon = options.tabBarIcon;
           if (tabBarIcon) {
-            const iconResult = tabBarIcon({ focused: isFocused, color: COLORS.primary, size: 24 });
+            const iconResult = tabBarIcon({ focused: isFocused, color: colors.primary, size: 24 });
             iconName = iconResult?.props?.name || 'ellipse';
           } else {
             iconName = 'ellipse';
@@ -117,6 +125,7 @@ const AnimatedTabBar = ({ state, descriptors, navigation }) => {
               onLongPress={onLongPress}
               iconName={iconName}
               label={label}
+              colors={colors}
             />
           );
         })}

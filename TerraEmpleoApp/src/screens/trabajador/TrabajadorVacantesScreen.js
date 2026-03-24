@@ -4,6 +4,7 @@ import {
   RefreshControl, Image, TextInput, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -16,8 +17,10 @@ import { MotiView } from 'moti';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { PickerModal } from '../../components/ui';
+import DecorativeBackground from '../../components/ui/DecorativeBackground';
 import { AnimatedPressable, StaggeredItem, SkeletonCard } from '../../components/animated';
 import { CULTIVOS } from '../../data/options';
 import { DEPARTAMENTOS } from '../../data/colombia';
@@ -111,6 +114,7 @@ function PulsingBadge({ count }) {
 
 export default function TrabajadorVacantesScreen({ navigation }) {
   const { user } = useAuth();
+  const { colors, gradients, isDark } = useAppTheme();
   const [vacantes, setVacantes] = useState([]);
   const [vacantesPostuladas, setVacantesPostuladas] = useState(new Set());
   const [refreshing, setRefreshing] = useState(false);
@@ -212,7 +216,14 @@ export default function TrabajadorVacantesScreen({ navigation }) {
     return (
       <StaggeredItem index={index}>
         <AnimatedPressable
-          style={s.card}
+          style={[
+            s.card,
+            {
+              backgroundColor: colors.card,
+              borderColor: isDark ? colors.border : COLORS.borderLight,
+              borderWidth: 1,
+            },
+          ]}
           onPress={() => navigation.navigate('DetalleVacante', { vacante: item })}
           scaleValue={ANIMATION.scale.pressedSubtle}
           haptic={false}
@@ -254,12 +265,12 @@ export default function TrabajadorVacantesScreen({ navigation }) {
           {/* Card body */}
           <View style={s.cardBody}>
             <View style={s.titleRow}>
-              <Text style={s.cardTitle} numberOfLines={1}>{item.titulo}</Text>
-              <Text style={s.cardTime}>{timeAgo(item.fecha_creacion)}</Text>
+              <Text style={[s.cardTitle, { color: colors.textPrimary }]} numberOfLines={1}>{item.titulo}</Text>
+              <Text style={[s.cardTime, { color: colors.textMuted }]}>{timeAgo(item.fecha_creacion)}</Text>
             </View>
 
             {item.nombre_empresa_finca && (
-              <Text style={s.cardFarm} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
+              <Text style={[s.cardFarm, { color: colors.textSecondary }]} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
             )}
             {inicioTexto ? (
               <View style={s.startDateBadge}>
@@ -278,15 +289,20 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 
             <View style={s.bottomRow}>
               <View>
-                <Text style={s.salaryLabel}>{getSalaryLabel(item)}</Text>
+                <Text style={[s.salaryLabel, { color: colors.textMuted }]}>{getSalaryLabel(item)}</Text>
                 {salaryDisplay.valor !== 'A convenir' ? (
-                  <Text style={s.salaryValue}>{salaryDisplay.valor}</Text>
+                  <Text style={[s.salaryValue, { color: colors.textPrimary }]}>{salaryDisplay.valor}</Text>
                 ) : (
-                  <Text style={s.salaryNA}>A convenir</Text>
+                  <Text style={[s.salaryNA, { color: colors.textSecondary }]}>A convenir</Text>
                 )}
               </View>
               <AnimatedPressable
-                style={[s.postBtn, yaPostulado && s.postBtnOff]}
+                style={[
+                  s.postBtn,
+                  { backgroundColor: colors.primary },
+                  yaPostulado && s.postBtnOff,
+                  yaPostulado && { backgroundColor: isDark ? '#31423c' : '#E5E7EB' },
+                ]}
                 onPress={() => { if (!yaPostulado) manejarPostulacionRapida(item); }}
                 disabled={yaPostulado}
                 scaleValue={ANIMATION.scale.pressed}
@@ -295,9 +311,15 @@ export default function TrabajadorVacantesScreen({ navigation }) {
                 <Ionicons
                   name={yaPostulado ? 'checkmark-circle' : 'paper-plane'}
                   size={15}
-                  color={yaPostulado ? '#888' : COLORS.white}
+                  color={yaPostulado ? (isDark ? '#d7e7df' : '#6b7280') : COLORS.white}
                 />
-                <Text style={[s.postBtnTxt, yaPostulado && s.postBtnTxtOff]}>
+                <Text
+                  style={[
+                    s.postBtnTxt,
+                    yaPostulado && s.postBtnTxtOff,
+                    yaPostulado && { color: isDark ? '#d7e7df' : '#6b7280' },
+                  ]}
+                >
                   {yaPostulado ? 'Postulado' : 'Postularme'}
                 </Text>
               </AnimatedPressable>
@@ -310,14 +332,20 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 
   /* ── List Header ── */
   const ListHeader = (
-    <View>
+    <View style={s.headerBlock}>
+      <View style={[s.heroBlobA, { backgroundColor: gradients.agroBlobA }]} />
+      <View style={[s.heroBlobB, { backgroundColor: gradients.agroBlobB }]} />
+      <View style={[s.heroBlobC, { backgroundColor: isDark ? 'rgba(61, 208, 143, 0.16)' : 'rgba(0, 141, 73, 0.10)' }]} />
+      <View style={[s.heroRing, { borderColor: isDark ? 'rgba(154, 226, 103, 0.25)' : 'rgba(0, 141, 73, 0.14)' }]} />
+      <View style={[s.heroLeaf, { backgroundColor: isDark ? 'rgba(154, 226, 103, 0.12)' : 'rgba(0, 141, 73, 0.08)' }]} />
+
       {/* Header greeting */}
       <MotiView
         from={{ opacity: 0, translateY: -10 }}
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'timing', duration: 400 }}
       >
-        <View style={s.header}>
+        <View style={[s.header, { backgroundColor: colors.surface }]}> 
           <View style={s.headerLeft}>
             <View style={s.avatarWrap}>
               {user?.foto_selfie ? (
@@ -332,8 +360,8 @@ export default function TrabajadorVacantesScreen({ navigation }) {
               )}
             </View>
             <View>
-              <Text style={s.greeting}>Hola, {firstName}</Text>
-              <Text style={s.greetingSub}>Encuentra tu próximo empleo</Text>
+              <Text style={[s.greeting, { color: colors.textPrimary }]}>Hola, {firstName}</Text>
+              <Text style={[s.greetingSub, { color: colors.textSecondary }]}>Encuentra tu próximo empleo</Text>
             </View>
           </View>
           <AnimatedPressable
@@ -342,8 +370,8 @@ export default function TrabajadorVacantesScreen({ navigation }) {
             scaleValue={0.9}
             haptic={true}
           >
-            <View style={s.bellCircle}>
-              <Ionicons name="notifications-outline" size={22} color={COLORS.textPrimary} />
+            <View style={[s.bellCircle, { backgroundColor: isDark ? '#1f332b' : '#F3F4F6' }]}>
+              <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
             </View>
             <PulsingBadge count={noLeidas} />
           </AnimatedPressable>
@@ -351,18 +379,18 @@ export default function TrabajadorVacantesScreen({ navigation }) {
       </MotiView>
 
       {mostrarTarjetaVerificacion && (
-        <View style={s.verificacionCard}>
+        <View style={[s.verificacionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={s.verificacionHeader}>
             <Ionicons
               name={estadoIdentidad === 'rechazada' ? 'alert-circle' : 'shield-outline'}
               size={18}
               color={estadoIdentidad === 'rechazada' ? COLORS.error : COLORS.primary}
             />
-            <Text style={s.verificacionTitle}>
+            <Text style={[s.verificacionTitle, { color: colors.textPrimary }]}>
               {estadoIdentidad === 'rechazada' ? 'Verificación rechazada' : 'Verificación de identidad'}
             </Text>
           </View>
-          <Text style={s.verificacionText}>
+          <Text style={[s.verificacionText, { color: colors.textSecondary }]}>
             {estadoIdentidad === 'rechazada'
               ? 'Tu verificación fue rechazada. ¿Quieres verificarte otra vez? Sube una nueva foto de cédula.'
               : 'Tu cédula está en proceso de verificación. Te avisaremos cuando sea aprobada.'}
@@ -381,25 +409,25 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'timing', duration: 400, delay: 100 }}
       >
-        <View style={s.searchBar}>
-          <Ionicons name="search" size={18} color={COLORS.textLight} />
+        <View style={[s.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="search" size={18} color={colors.textMuted} />
           <TextInput
-            style={s.searchInput}
+            style={[s.searchInput, { color: colors.textPrimary }]}
             placeholder="Buscar fincas, cultivos o labores..."
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
           />
           {search.length > 0 && (
             <AnimatedPressable onPress={() => setSearch('')} scaleValue={0.9} haptic={false}>
-              <Ionicons name="close-circle" size={18} color={COLORS.textLight} />
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </AnimatedPressable>
           )}
         </View>
       </MotiView>
 
       {/* Filtros rápidos label */}
-      <Text style={s.filterLabel}>FILTROS RÁPIDOS</Text>
+      <Text style={[s.filterLabel, { color: colors.primary }]}>FILTROS RÁPIDOS</Text>
 
       {/* Filter chips */}
       <ScrollView
@@ -409,45 +437,45 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         contentContainerStyle={s.filterRow}
       >
         <AnimatedPressable
-          style={[s.filterChip, filterDepto ? s.filterChipOn : null]}
+          style={[s.filterChip, { backgroundColor: colors.surface, borderColor: colors.border }, filterDepto ? s.filterChipOn : null]}
           onPress={() => setShowDeptoModal(true)}
           scaleValue={0.95}
           haptic={true}
         >
-          <Ionicons name="location-outline" size={14} color={filterDepto ? COLORS.primary : COLORS.textSecondary} />
-          <Text style={[s.filterChipTxt, filterDepto && s.filterChipTxtOn]}>
+          <Ionicons name="location-outline" size={14} color={filterDepto ? colors.primary : colors.textSecondary} />
+          <Text style={[s.filterChipTxt, { color: colors.textSecondary }, filterDepto && s.filterChipTxtOn]}>
             {filterDepto || 'Ubicación'}
           </Text>
           {filterDepto
             ? <AnimatedPressable onPress={() => setFilterDepto('')} scaleValue={0.9} haptic={false}><Ionicons name="close-circle" size={14} color={COLORS.primary} /></AnimatedPressable>
-            : <Ionicons name="chevron-down" size={13} color={COLORS.textSecondary} />
+            : <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
           }
         </AnimatedPressable>
 
         <AnimatedPressable
-          style={[s.filterChip, filterCultivo ? s.filterChipOn : null]}
+          style={[s.filterChip, { backgroundColor: colors.surface, borderColor: colors.border }, filterCultivo ? s.filterChipOn : null]}
           onPress={() => setShowCultivoModal(true)}
           scaleValue={0.95}
           haptic={true}
         >
-          <Ionicons name="leaf-outline" size={14} color={filterCultivo ? COLORS.primary : COLORS.textSecondary} />
-          <Text style={[s.filterChipTxt, filterCultivo && s.filterChipTxtOn]}>
+          <Ionicons name="leaf-outline" size={14} color={filterCultivo ? colors.primary : colors.textSecondary} />
+          <Text style={[s.filterChipTxt, { color: colors.textSecondary }, filterCultivo && s.filterChipTxtOn]}>
             {filterCultivo || 'Cultivo'}
           </Text>
           {filterCultivo
             ? <AnimatedPressable onPress={() => setFilterCultivo('')} scaleValue={0.9} haptic={false}><Ionicons name="close-circle" size={14} color={COLORS.primary} /></AnimatedPressable>
-            : <Ionicons name="chevron-down" size={13} color={COLORS.textSecondary} />
+            : <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
           }
         </AnimatedPressable>
 
         <AnimatedPressable
-          style={[s.filterChip, filterUrgente ? s.filterChipOn : null]}
+          style={[s.filterChip, { backgroundColor: colors.surface, borderColor: colors.border }, filterUrgente ? s.filterChipOn : null]}
           onPress={() => setFilterUrgente(v => !v)}
           scaleValue={0.95}
           haptic={true}
         >
-          <Ionicons name="flash-outline" size={14} color={filterUrgente ? COLORS.primary : COLORS.textSecondary} />
-          <Text style={[s.filterChipTxt, filterUrgente && s.filterChipTxtOn]}>Urgente</Text>
+          <Ionicons name="flash-outline" size={14} color={filterUrgente ? colors.primary : colors.textSecondary} />
+          <Text style={[s.filterChipTxt, { color: colors.textSecondary }, filterUrgente && s.filterChipTxtOn]}>Urgente</Text>
           {filterUrgente && <Ionicons name="checkmark" size={14} color={COLORS.primary} />}
         </AnimatedPressable>
 
@@ -471,7 +499,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         transition={{ type: 'timing', duration: 400, delay: 200 }}
       >
         <View style={s.secHeader}>
-          <Text style={s.secTitle}>Vacantes Disponibles</Text>
+          <Text style={[s.secTitle, { color: colors.textPrimary }]}>Vacantes Disponibles</Text>
           <MotiView
             from={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -488,7 +516,9 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={s.root} edges={['top', 'bottom']}>
+    <LinearGradient colors={gradients.screen} style={{ flex: 1 }}>
+      <SafeAreaView style={[s.root, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+      <DecorativeBackground intensity="strong" />
       <FlatList
         data={filtered}
         renderItem={renderVacante}
@@ -499,7 +529,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         initialNumToRender={6}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
         }
         ListEmptyComponent={
           loading ? (
@@ -520,7 +550,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
                 </View>
               </MotiView>
               <Text style={s.emptyTitle}>No hay vacantes disponibles</Text>
-              <Text style={s.emptySub}>Desliza hacia abajo para actualizar</Text>
+              <Text style={[s.emptySub, { color: colors.textMuted }]}>Desliza hacia abajo para actualizar</Text>
             </View>
           )
         }
@@ -542,7 +572,8 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         selectedValue={filterDepto}
         onSelect={(v) => { setFilterDepto(v); setShowDeptoModal(false); }}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
@@ -550,6 +581,51 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F8FAF9' },
+  headerBlock: {
+    position: 'relative',
+  },
+  heroBlobA: {
+    position: 'absolute',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    left: -60,
+    top: -30,
+  },
+  heroBlobB: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    right: -70,
+    top: -70,
+  },
+  heroBlobC: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    right: 64,
+    top: 62,
+  },
+  heroRing: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 17,
+    left: -42,
+    top: 84,
+  },
+  heroLeaf: {
+    position: 'absolute',
+    width: 120,
+    height: 54,
+    borderRadius: 38,
+    right: 18,
+    top: 28,
+    transform: [{ rotate: '-18deg' }],
+  },
 
   /* Header */
   header: {

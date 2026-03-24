@@ -18,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { vacantesAPI } from '../../services/api';
+import { useAppTheme } from '../../context/ThemeContext';
+import DecorativeBackground from '../../components/ui/DecorativeBackground';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -280,20 +282,22 @@ function formatPrice(amount: number): string {
 // ─── SearchBar ────────────────────────────────────────────────────────────────
 
 function SearchBar({ value, onChange, count }: { value: string; onChange: (t: string) => void; count: number }) {
+  const { colors } = useAppTheme();
+
   return (
-    <View style={sbStyles.wrap}>
-      <Ionicons name="search" size={18} color="#9E9E9E" />
+    <View style={[sbStyles.wrap, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+      <Ionicons name="search" size={18} color={colors.textMuted} />
       <TextInput
-        style={sbStyles.input}
+        style={[sbStyles.input, { color: colors.textPrimary }]}
         placeholder="Buscar fincas o cultivos..."
-        placeholderTextColor="#BDBDBD"
+        placeholderTextColor={colors.textMuted}
         value={value}
         onChangeText={onChange}
         returnKeyType="search"
       />
       {value.length > 0
         ? <TouchableOpacity onPress={() => onChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="close-circle" size={18} color="#BDBDBD" />
+            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
           </TouchableOpacity>
         : count > 0
           ? <View style={sbStyles.countBadge}>
@@ -301,8 +305,8 @@ function SearchBar({ value, onChange, count }: { value: string; onChange: (t: st
             </View>
           : null
       }
-      <View style={sbStyles.divider} />
-      <Ionicons name="options-outline" size={18} color="#757575" />
+      <View style={[sbStyles.divider, { backgroundColor: colors.border }]} />
+      <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
     </View>
   );
 }
@@ -312,6 +316,8 @@ const sbStyles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: '#FFFFFF', borderRadius: RADIUS.full,
     paddingHorizontal: SPACING.md, height: 50,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
     ...SHADOWS.medium,
   },
   input: { flex: 1, fontSize: 14, color: '#212121', paddingVertical: 0 },
@@ -326,6 +332,8 @@ const sbStyles = StyleSheet.create({
 // ─── FilterChips ──────────────────────────────────────────────────────────────
 
 function FilterChips({ selected, onSelect }: { selected: FilterType; onSelect: (f: FilterType) => void }) {
+  const { colors } = useAppTheme();
+
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={fcStyles.row}>
       {FILTERS.map((f) => {
@@ -333,11 +341,17 @@ function FilterChips({ selected, onSelect }: { selected: FilterType; onSelect: (
         const active = selected === f;
         return (
           <TouchableOpacity key={f} onPress={() => onSelect(f)}
-            style={[fcStyles.chip, active && fcStyles.chipActive]} activeOpacity={0.8}>
+            style={[
+              fcStyles.chip,
+              { backgroundColor: colors.surface, borderColor: colors.primary },
+              active && [fcStyles.chipActive, { backgroundColor: colors.primary }],
+            ]}
+            activeOpacity={0.8}
+          >
             {cfg.emoji
               ? <Text style={fcStyles.emoji}>{cfg.emoji}</Text>
-              : <Ionicons name={cfg.icon} size={13} color={active ? '#FFF' : COLORS.primary} />}
-            <Text style={[fcStyles.label, active && fcStyles.labelActive]}>{cfg.label}</Text>
+              : <Ionicons name={cfg.icon} size={13} color={active ? '#FFF' : colors.primary} />}
+            <Text style={[fcStyles.label, { color: colors.primary }, active && fcStyles.labelActive]}>{cfg.label}</Text>
           </TouchableOpacity>
         );
       })}
@@ -521,6 +535,7 @@ const COLOMBIA_CENTER: Region = {
 };
 
 export default function VacantesMapaScreen() {
+  const { colors } = useAppTheme();
   const [rawData, setRawData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -658,15 +673,16 @@ export default function VacantesMapaScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Cargando vacantes...</Text>
+      <View style={[styles.loadingWrap, { backgroundColor: colors.background }]}>
+        <DecorativeBackground />
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Cargando vacantes...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}> 
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -737,10 +753,11 @@ export default function VacantesMapaScreen() {
         </View>
       ) : (
         <View style={styles.emptyWrap}>
+          <DecorativeBackground />
           <View style={styles.emptyCard}>
-            <Ionicons name="search-outline" size={34} color={COLORS.primary} />
-            <Text style={styles.emptyTitle}>Sin resultados</Text>
-            <Text style={styles.emptySub}>
+              <Ionicons name="search-outline" size={34} color={colors.primary} />
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin resultados</Text>
+              <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
               {search
                 ? `No hay vacantes para "${search}"`
                 : 'No hay vacantes en esta categoría con ubicación disponible.'}
@@ -789,6 +806,8 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     backgroundColor: '#FFFFFF', borderRadius: 18,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
     padding: SPACING.lg, alignItems: 'center', gap: 6,
     marginHorizontal: SPACING.xl, ...SHADOWS.large,
   },

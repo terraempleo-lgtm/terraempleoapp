@@ -1,7 +1,9 @@
 import React from 'react';
 import { Text, StyleSheet, ActivityIndicator, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, RADIUS, SHADOWS, SPACING, LAYOUT, FONTS, ANIMATION } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '../../context/ThemeContext';
 import { AnimatedPressable } from '../animated';
 
 export default function Button({
@@ -18,6 +20,7 @@ export default function Button({
   textStyle,
   fullWidth = true,
 }) {
+  const { colors, gradients, isDark } = useAppTheme();
   const isDisabled = disabled || loading;
 
   const getButtonStyle = () => {
@@ -49,9 +52,9 @@ export default function Button({
     else if (size === 'medium') base.push(styles.textMedium);
     else base.push(styles.textSmall);
 
-    if (variant === 'outline') base.push({ color: COLORS.primary });
-    else if (variant === 'secondary') base.push({ color: COLORS.primary });
-    else if (variant === 'ghost') base.push({ color: COLORS.primary });
+    if (variant === 'outline') base.push({ color: colors.primary });
+    else if (variant === 'secondary') base.push({ color: colors.primary });
+    else if (variant === 'ghost') base.push({ color: colors.primary });
     else if (variant === 'danger') base.push({ color: COLORS.white });
     else base.push({ color: COLORS.white });
 
@@ -59,19 +62,38 @@ export default function Button({
       base.push({ color: COLORS.white });
     }
     if (isDisabled && (variant === 'outline' || variant === 'ghost')) {
-      base.push({ color: COLORS.disabled });
+      base.push({ color: '#9CA3AF' });
     }
 
     return base;
   };
 
   const spinnerColor = (variant === 'outline' || variant === 'ghost' || variant === 'secondary')
-    ? COLORS.primary
+    ? colors.primary
     : COLORS.white;
 
   const iconColor = (variant === 'outline' || variant === 'ghost' || variant === 'secondary')
-    ? COLORS.primary
+    ? colors.primary
     : COLORS.white;
+
+  const shouldUseGradient = !isDisabled && (variant === 'primary' || variant === 'secondary' || variant === 'danger');
+
+  const gradientColors = variant === 'danger'
+    ? ['#ef4444', '#dc2626']
+    : variant === 'secondary'
+      ? gradients.buttonSoft
+      : gradients.buttonPrimary;
+
+  const themedSurface = {
+    backgroundColor: variant === 'primary' || variant === 'danger'
+      ? colors.primary
+      : variant === 'secondary'
+        ? (isDark ? '#244238' : COLORS.primarySoft)
+        : variant === 'outline' || variant === 'ghost'
+          ? 'transparent'
+          : colors.primary,
+    borderColor: variant === 'outline' ? colors.primary : undefined,
+  };
 
   const renderIcon = (iconValue) => {
     if (!iconValue) return null;
@@ -92,12 +114,21 @@ export default function Button({
 
   return (
     <AnimatedPressable
-      style={[...getButtonStyle(), style]}
+      style={[...getButtonStyle(), themedSurface, style]}
       onPress={onPress}
       disabled={isDisabled}
       scaleValue={scaleVal}
       haptic={shouldHaptic && !isDisabled}
     >
+      {shouldUseGradient && (
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+      )}
+
       {loading ? (
         <View style={styles.content}>
           <ActivityIndicator color={spinnerColor} size="small" />
@@ -120,6 +151,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: RADIUS.full,
+    overflow: 'hidden',
   },
   fullWidth: {
     width: '100%',

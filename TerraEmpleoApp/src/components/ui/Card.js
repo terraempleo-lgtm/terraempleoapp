@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import { AnimatedPressable } from '../animated';
 
 export default function Card({
@@ -11,8 +13,13 @@ export default function Card({
   style,
   padded = true,
 }) {
+  const { colors, gradients, isDark } = useAppTheme();
   const cardStyle = [
     styles.base,
+    {
+      backgroundColor: colors.card,
+      borderColor: isDark ? colors.border : COLORS.borderLight,
+    },
     padded && styles.padded,
     variant === 'elevated' && styles.elevated,
     variant === 'outlined' && styles.outlined,
@@ -29,12 +36,28 @@ export default function Card({
         scaleValue={ANIMATION.scale.pressedSubtle}
         haptic={false}
       >
+        <LinearGradient
+          colors={gradients.card}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
         {children}
       </AnimatedPressable>
     );
   }
 
-  return <View style={cardStyle}>{children}</View>;
+  return (
+    <View style={cardStyle}>
+      <LinearGradient
+        colors={gradients.card}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -44,6 +67,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.borderLight,
     ...SHADOWS.card,
+    overflow: 'hidden',
   },
   padded: {
     padding: SPACING.lg,

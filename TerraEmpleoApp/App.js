@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS, FONTS } from './src/theme';
 import { AnimatedTabBar } from './src/components/animated';
@@ -407,7 +408,7 @@ function AuthStack() {
     <Stack.Navigator screenOptions={{ ...stackScreenOptions, headerShown: false, headerRight: undefined }}>
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen}
-        options={{ headerShown: true, title: 'Iniciar Sesión' }} />
+        options={{ headerShown: false }} />
       <Stack.Screen name="RoleSelect" component={RoleSelectScreen}
         options={{ headerShown: true, title: 'Tipo de cuenta' }} />
       <Stack.Screen name="RegisterTrabajador" component={RegisterTrabajadorScreen}
@@ -430,6 +431,7 @@ function AuthStack() {
 // ── Root Navigator ──
 function RootNavigator() {
   const { user, loading } = useAuth();
+  const { colors } = useAppTheme();
   const wasLoggedIn = useRef(false);
 
   useEffect(() => {
@@ -455,13 +457,13 @@ function RootNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
         <MotiView
           from={{ scale: 0.8, opacity: 0.4 }}
           animate={{ scale: 1.1, opacity: 1 }}
           transition={{ loop: true, type: 'timing', duration: 800 }}
         >
-          <Ionicons name="leaf" size={48} color={COLORS.primary} />
+          <Ionicons name="leaf" size={48} color={colors.primary} />
         </MotiView>
       </View>
     );
@@ -482,15 +484,25 @@ function RootNavigator() {
   );
 }
 
-export default function App() {
+function AppShell() {
+  const { navigationTheme, colors, isDark } = useAppTheme();
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
-        <NavigationContainer ref={navigationRef}>
-          <StatusBar style="light" backgroundColor={COLORS.primaryDark} />
+        <NavigationContainer ref={navigationRef} theme={navigationTheme}>
+          <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.primaryDark} />
           <RootNavigator />
         </NavigationContainer>
       </AuthProvider>
     </GestureHandlerRootView>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppShell />
+    </ThemeProvider>
   );
 }
