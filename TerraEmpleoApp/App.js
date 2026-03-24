@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS, FONTS } from './src/theme';
 import { AnimatedTabBar } from './src/components/animated';
@@ -485,12 +486,14 @@ function RootNavigator() {
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <NavigationContainer ref={navigationRef}>
-          <StatusBar style="light" backgroundColor={COLORS.primaryDark} />
-          <RootNavigator />
-        </NavigationContainer>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <NavigationContainer ref={navigationRef}>
+            <StatusBar style="light" backgroundColor={COLORS.primaryDark} />
+            <RootNavigator />
+          </NavigationContainer>
+        </AuthProvider>
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }

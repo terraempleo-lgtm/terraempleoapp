@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { COLORS, SPACING } from '../../theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input, AppHeader, TerraFooter } from '../../components/ui';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 import { authAPI, cognitoAPI } from '../../services/api';
@@ -80,8 +82,43 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <AppHeader title="Iniciar sesión" onBack={() => navigation.goBack()} />
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      {/* Header visual con gradiente */}
+      <LinearGradient
+        colors={[COLORS.primary, COLORS.primaryDark]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <SafeAreaView edges={['top']} style={styles.headerSafe}>
+          <AnimatedPressable
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+            scaleValue={0.9}
+            haptic
+          >
+            <Ionicons name="arrow-back" size={22} color={COLORS.white} />
+          </AnimatedPressable>
+
+          <MotiView
+            from={{ scale: 0.5, opacity: 0, rotate: '-30deg' }}
+            animate={{ scale: 1, opacity: 1, rotate: '0deg' }}
+            transition={{ type: 'spring', damping: 12, stiffness: 150, delay: 200 }}
+            style={styles.iconContainer}
+          >
+            <View style={styles.iconCircle}>
+              <Ionicons name="leaf" size={32} color={COLORS.accent} />
+            </View>
+          </MotiView>
+
+          <FadeInView delay={300} translateY={-10}>
+            <Text style={styles.headerTitle}>TerraEmpleo</Text>
+          </FadeInView>
+          <FadeInView delay={400} translateY={-8}>
+            <Text style={styles.headerSubtitle}>Tu conexión con el campo</Text>
+          </FadeInView>
+        </SafeAreaView>
+      </LinearGradient>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
@@ -91,12 +128,12 @@ export default function LoginScreen({ navigation }) {
         >
           {/* Título de bienvenida con animación */}
           <View style={styles.headerSection}>
-            <FadeInView delay={100} translateY={-10}>
+            <FadeInView delay={500} translateY={-10}>
               <Text style={styles.title}>Bienvenido de nuevo</Text>
             </FadeInView>
-            <FadeInView delay={200} translateY={-8}>
+            <FadeInView delay={600} translateY={-8}>
               <Text style={styles.subtitle}>
-                Ingresa a tu cuenta de TerraEmpleo
+                Ingresa a tu cuenta para continuar
               </Text>
             </FadeInView>
           </View>
@@ -186,13 +223,58 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.white,
   },
+  headerGradient: {
+    paddingBottom: SPACING.xl,
+  },
+  headerSafe: {
+    alignItems: 'center',
+    paddingTop: SPACING.sm,
+  },
+  backBtn: {
+    position: 'absolute',
+    left: SPACING.md,
+    top: SPACING.sm,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconContainer: {
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.md,
+  },
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.medium,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: COLORS.accent,
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: SPACING.xs,
+  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.xl,
+    paddingTop: SPACING.lg,
   },
   headerSection: {
-    marginBottom: SPACING.xl + SPACING.sm,
+    marginBottom: SPACING.lg,
   },
   title: {
     fontSize: 30,

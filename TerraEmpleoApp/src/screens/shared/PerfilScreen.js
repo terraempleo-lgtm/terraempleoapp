@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
-  Image, Linking,
+  Image, Linking, Switch,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { authAPI, vacantesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import Animated, {
@@ -94,6 +95,7 @@ function PulsingDot({ color = COLORS.primary, size = 14, delay = 0 }) {
 
 export default function PerfilScreen({ navigation }) {
   const { user, signOut } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [perfil, setPerfil] = useState(null);
   const [userData, setUserData] = useState(null);
   const [fotoFincaPrincipal, setFotoFincaPrincipal] = useState(null);
@@ -544,6 +546,25 @@ export default function PerfilScreen({ navigation }) {
         {/* Editar Perfil */}
         <StaggeredItem index={6}>
           <View style={s.secWrap}>
+            {/* Toggle modo oscuro */}
+            <View style={s.settingRow}>
+              <View style={s.settingLeft}>
+                <View style={[s.verIcon, { backgroundColor: isDark ? '#374151' : COLORS.primarySoft }]}>
+                  <Ionicons name={isDark ? 'moon' : 'sunny'} size={18} color={isDark ? '#FBBF24' : COLORS.primary} />
+                </View>
+                <View>
+                  <Text style={s.settingTitle}>Modo oscuro</Text>
+                  <Text style={s.settingDesc}>{isDark ? 'Activado' : 'Desactivado'}</Text>
+                </View>
+              </View>
+              <Switch
+                value={isDark}
+                onValueChange={toggleTheme}
+                trackColor={{ false: '#D1D5DB', true: COLORS.primaryLight }}
+                thumbColor={isDark ? COLORS.primary : '#F9FAFB'}
+              />
+            </View>
+
             <AnimatedPressable style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.96} haptic>
               <Ionicons name="create-outline" size={20} color={COLORS.white} /><Text style={s.ctaBtnTxt}>Editar Perfil</Text>
             </AnimatedPressable>
@@ -631,6 +652,34 @@ const s = StyleSheet.create({
   ctaBtnTxt: { fontSize: 17, fontWeight: '700', color: COLORS.white },
   logoutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, marginTop: SPACING.sm, borderWidth: 1.5, borderColor: COLORS.error, borderRadius: RADIUS.full },
   logoutTxt: { fontSize: 14, fontWeight: '600', color: COLORS.error },
+
+  /* Setting row (modo oscuro) */
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAF9',
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  settingTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  settingDesc: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginTop: 2,
+  },
 
   /* ── EMPLEADOR ── */
   heroWrap: { width: '100%', height: HERO_H, position: 'relative' },
