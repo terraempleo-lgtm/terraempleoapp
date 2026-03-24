@@ -7,17 +7,25 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MotiView, AnimatePresence } from 'moti';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../theme';
 import { Button, Input, AppHeader, TerraFooter } from '../../components/ui';
-import { authAPI } from '../../services/api';
+import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
+import { authAPI, cognitoAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
+
+function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
-  const [celular, setCelular] = useState('');
+  const { colors, gradients } = useAppTheme();
+  const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -25,8 +33,12 @@ export default function LoginScreen({ navigation }) {
 
   const validate = () => {
     const errs = {};
-    if (!celular.trim()) errs.celular = 'El número de celular es obligatorio';
-    else if (!/^\d{7,15}$/.test(celular.trim())) errs.celular = 'Ingresa un número de celular válido';
+    const val = identificador.trim();
+    if (!val) {
+      errs.identificador = 'El correo o número de celular es obligatorio';
+    } else if (!isEmail(val) && !/^\d{7,15}$/.test(val)) {
+      errs.identificador = 'Ingresa un correo válido o número de celular';
+    }
     if (!password.trim()) errs.password = 'La contraseña es obligatoria';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -36,16 +48,35 @@ export default function LoginScreen({ navigation }) {
     if (!validate()) return;
     setLoading(true);
     try {
-      const payload = {
-        celular: celular.trim(),
-        password: password.trim(),
-      };
+      const val = identificador.trim();
+      let token, user;
 
-      const response = await authAPI.login(payload);
-      const { token, user } = response.data;
-      signIn(user, token);
+      if (isEmail(val)) {
+        const response = await authAPI.login({ correo: val, password: password.trim() });
+        token = response.data.token;
+        user = response.data.user;
+      } else {
+        try {
+          const response = await cognitoAPI.login(val, password.trim());
+          token = response.data.token;
+          user = response.data.user;
+        } catch (cognitoErr) {
+          const response = await authAPI.login({ celular: val, password: password.trim() });
+          token = response.data.token;
+          user = response.data.user;
+        }
+      }
+
+      if (!token || !user) {
+        Alert.alert('Error', 'Respuesta del servidor incompleta');
+        return;
+      }
+
+      await signIn(user, token);
     } catch (err) {
-      const msg = err.response?.data?.error || 'Error al iniciar sesión. Verifica tus datos.';
+      const msg = err.code === 'ECONNABORTED'
+        ? 'El servidor tardó demasiado en responder. Verifica que el backend y la base de datos estén activos.'
+        : err.response?.data?.error || 'Error al iniciar sesión. Verifica tus datos.';
       Alert.alert('Error', msg);
       setLoginFailed(true);
     } finally {
@@ -54,86 +85,119 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <AppHeader title="Iniciar sesión" onBack={() => navigation.goBack()} />
+    <LinearGradient colors={gradients.screen} style={styles.gradientBg}>
+      <View style={[styles.blobA, { backgroundColor: gradients.agroBlobA }]} />
+      <View style={[styles.blobB, { backgroundColor: gradients.agroBlobB }]} />
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Título de bienvenida */}
+      <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
+        <AppHeader title="Iniciar sesión" onBack={() => navigation.goBack()} />
+
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+          {/* Título de bienvenida con animación */}
           <View style={styles.headerSection}>
-            <Text style={styles.title}>Bienvenido de nuevo</Text>
-            <Text style={styles.subtitle}>
-              Ingresa a tu cuenta de TerraEmpleo
-            </Text>
+            <FadeInView delay={100} translateY={-10}>
+              <Text style={[styles.title, { color: colors.textPrimary }]}>Bienvenido de nuevo</Text>
+            </FadeInView>
+            <FadeInView delay={200} translateY={-8}>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                Ingresa a tu cuenta de TerraEmpleo
+              </Text>
+            </FadeInView>
           </View>
 
-          {/* Formulario */}
+          {/* Formulario con stagger */}
           <View style={styles.form}>
-            <Input
-              label="Correo electrónico o Teléfono"
-              value={celular}
-              onChangeText={setCelular}
-              placeholder="ejemplo@terra.com"
-              keyboardType="phone-pad"
-              required
-              error={errors.celular}
-            />
+            <StaggeredItem index={0}>
+              <Input
+                label="Correo electrónico o Teléfono"
+                value={identificador}
+                onChangeText={setIdentificador}
+                placeholder="ejemplo@terra.com o 3001234567"
+                autoCapitalize="none"
+                required
+                error={errors.identificador}
+              />
+            </StaggeredItem>
 
-            <Input
-              label="Contraseña"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              secureTextEntry
-              required
-              error={errors.password}
-            />
+            <StaggeredItem index={1}>
+              <Input
+                label="Contraseña"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                secureTextEntry
+                required
+                error={errors.password}
+              />
+            </StaggeredItem>
 
-            {/* ¿Olvidaste tu contraseña? — solo aparece tras primer error */}
-            {loginFailed && (
-              <TouchableOpacity
-                style={styles.forgotContainer}
-                onPress={() => navigation.navigate('RecuperarPassword', {
-                  celularInicial: celular.trim(),
-                })}
-              >
-                <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-              </TouchableOpacity>
-            )}
+            {/* ¿Olvidaste tu contraseña? — animación de entrada */}
+            <AnimatePresence>
+              {loginFailed && (
+                <MotiView
+                  from={{ opacity: 0, translateY: -10 }}
+                  animate={{ opacity: 1, translateY: 0 }}
+                  exit={{ opacity: 0, translateY: -10 }}
+                  transition={{ type: 'timing', duration: 300 }}
+                >
+                  <AnimatedPressable
+                    style={styles.forgotContainer}
+                    onPress={() => navigation.navigate('RecuperarPassword', {
+                      celularInicial: identificador.trim(),
+                    })}
+                    scaleValue={0.97}
+                    haptic={false}
+                  >
+                    <Text style={[styles.forgotText, { color: colors.primary }]}>¿Olvidaste tu contraseña?</Text>
+                  </AnimatedPressable>
+                </MotiView>
+              )}
+            </AnimatePresence>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
-      {/* Footer fijo */}
-      <View style={styles.footer}>
-        <Button
-          title="Entrar"
-          onPress={handleLogin}
-          loading={loading}
-          size="large"
-        />
+        {/* Footer fijo */}
+        <FadeInView delay={400} translateY={10}>
+          <View style={[styles.footer, { backgroundColor: 'transparent' }]}>
+            <Button
+              title="Entrar"
+              onPress={handleLogin}
+              loading={loading}
+              size="large"
+            />
 
-        <View style={styles.registerRow}>
-          <Text style={styles.registerText}>¿No tienes una cuenta?  </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('RoleSelect')}>
-            <Text style={styles.registerLink}>Crear cuenta</Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.registerRow}>
+              <Text style={[styles.registerText, { color: colors.textSecondary }]}>¿No tienes una cuenta?  </Text>
+              <AnimatedPressable
+                onPress={() => navigation.navigate('RoleSelect')}
+                scaleValue={0.97}
+                haptic={false}
+              >
+                <Text style={[styles.registerLink, { color: colors.primary }]}>Crear cuenta</Text>
+              </AnimatedPressable>
+            </View>
 
-        <TerraFooter />
-      </View>
-    </SafeAreaView>
+            <TerraFooter />
+          </View>
+        </FadeInView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: 'transparent',
+  },
+  gradientBg: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
@@ -186,5 +250,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.primary,
+  },
+  blobA: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    top: -55,
+    right: -45,
+  },
+  blobB: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    left: -40,
+    bottom: 130,
   },
 });

@@ -9,6 +9,7 @@ const dbName = process.env.DB_NAME || 'terraempleo';
 const dbPort = parseInt(process.env.DB_PORT) || 3306;
 const dbSSL = process.env.DB_SSL === 'true';
 const dbSSLCAPath = process.env.DB_SSL_CA_PATH || '';
+const dbAllowPublicKeyRetrieval = process.env.DB_ALLOW_PUBLIC_KEY_RETRIEVAL === 'true';
 const isRDS = dbHost.includes('rds.amazonaws.com');
 
 console.log(`[DB] Configurado → ${dbHost}:${dbPort} | user: ${dbUser} | db: ${dbName} | RDS: ${isRDS} | SSL: ${dbSSL}`);
@@ -25,6 +26,7 @@ const poolConfig = {
   bigNumberStrings: true,
   supportBigNumbers: true,
   decimalNumbers: true,
+  allowPublicKeyRetrieval: dbAllowPublicKeyRetrieval,
 };
 
 // SSL configuration

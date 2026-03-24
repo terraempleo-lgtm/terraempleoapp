@@ -1,13 +1,18 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, TouchableOpacity, Linking, Alert } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { View, TouchableOpacity, Linking, Alert } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { NavigationContainer, CommonActions } from '@react-navigation/native';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { MotiView } from 'moti';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
+import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS, FONTS } from './src/theme';
+import { AnimatedTabBar } from './src/components/animated';
 
 // Auth
 import WelcomeScreen from './src/screens/auth/WelcomeScreen';
@@ -16,11 +21,14 @@ import RoleSelectScreen from './src/screens/auth/RoleSelectScreen';
 import RegisterTrabajadorScreen from './src/screens/auth/RegisterTrabajadorScreen';
 import RegisterEmpleadorScreen from './src/screens/auth/RegisterEmpleadorScreen';
 import RecuperarPasswordScreen from './src/screens/auth/RecuperarPasswordScreen';
+import DocumentoLegalScreen from './src/screens/auth/DocumentoLegalScreen';
 
 // Trabajador
 import TrabajadorVacantesScreen from './src/screens/trabajador/TrabajadorVacantesScreen';
 import DetalleVacanteScreen from './src/screens/trabajador/DetalleVacanteScreen';
 import MisPostulacionesScreen from './src/screens/trabajador/MisPostulacionesScreen';
+import VacantesRecomendadasScreen from './src/screens/trabajador/VacantesRecomendadasScreen';
+import VacantesMapaScreen from './src/screens/trabajador/VacantesMapaScreen';
 
 // Empleador
 import EmpleadorVacantesScreen from './src/screens/empleador/EmpleadorVacantesScreen';
@@ -31,10 +39,13 @@ import DetalleVacanteEmpleadorScreen from './src/screens/empleador/DetalleVacant
 import ExplorarVacantesScreen from './src/screens/empleador/ExplorarVacantesScreen';
 import DetalleVacanteReferenciaScreen from './src/screens/empleador/DetalleVacanteReferenciaScreen';
 import MisPostulantesScreen from './src/screens/empleador/MisPostulantesScreen';
+import BuscarTrabajadoresScreen from './src/screens/empleador/BuscarTrabajadoresScreen';
 
 // Admin
 import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
 import AdminUsuariosScreen from './src/screens/admin/AdminUsuariosScreen';
+import AdminDetalleUsuarioScreen from './src/screens/admin/AdminDetalleUsuarioScreen';
+import AdminVerificacionCedulasScreen from './src/screens/admin/AdminVerificacionCedulasScreen';
 import AdminVacantesScreen from './src/screens/admin/AdminVacantesScreen';
 import AdminPostulantesVacanteScreen from './src/screens/admin/AdminPostulantesVacanteScreen';
 
@@ -46,6 +57,7 @@ import PerfilPublicoEmpleadorScreen from './src/screens/shared/PerfilPublicoEmpl
 import NotificacionesScreen from './src/screens/shared/NotificacionesScreen';
 import ChatsScreen from './src/screens/shared/ChatsScreen';
 import ChatDetalleScreen from './src/screens/shared/ChatDetalleScreen';
+import VerificationNavigator from './src/modules/verification/navigation/VerificationNavigator';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -75,12 +87,41 @@ function SoporteHeaderButton() {
   );
 }
 
-const screenOptions = {
+// Custom screen transition: slide + fade
+const customTransition = {
+  cardStyleInterpolator: ({ current, layouts }) => ({
+    cardStyle: {
+      transform: [
+        {
+          translateX: current.progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [layouts.screen.width * 0.2, 0],
+          }),
+        },
+      ],
+      opacity: current.progress.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: [0, 0.6, 1],
+      }),
+    },
+  }),
+  transitionSpec: {
+    open: { animation: 'spring', config: { damping: 22, stiffness: 220, mass: 0.85 } },
+    close: { animation: 'spring', config: { damping: 22, stiffness: 220, mass: 0.85 } },
+  },
+};
+
+const headerOptions = {
   headerStyle: { backgroundColor: COLORS.primary },
   headerTintColor: COLORS.white,
   headerTitleStyle: { ...FONTS.subtitle, color: COLORS.white, fontWeight: FONTS.weight.bold },
   headerBackTitleVisible: false,
   headerRight: () => <SoporteHeaderButton />,
+};
+
+const stackScreenOptions = {
+  ...headerOptions,
+  ...customTransition,
 };
 
 const tabScreenOptions = ({ route }) => ({
@@ -93,7 +134,11 @@ const tabScreenOptions = ({ route }) => ({
       case 'Explorar': iconName = focused ? 'search' : 'search-outline'; break;
       case 'Dashboard': iconName = focused ? 'stats-chart' : 'stats-chart-outline'; break;
       case 'Usuarios': iconName = focused ? 'people' : 'people-outline'; break;
+      case 'Verificacion': iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline'; break;
       case 'AdminVacantes': iconName = focused ? 'briefcase' : 'briefcase-outline'; break;
+      case 'Trabajadores': iconName = focused ? 'people' : 'people-outline'; break;
+      case 'ParaTi': iconName = focused ? 'sparkles' : 'sparkles-outline'; break;
+      case 'Mapa': iconName = focused ? 'map' : 'map-outline'; break;
       case 'Mensajes': iconName = focused ? 'chatbubbles' : 'chatbubbles-outline'; break;
       case 'Perfil': iconName = focused ? 'person' : 'person-outline'; break;
       default: iconName = 'ellipse';
@@ -102,20 +147,13 @@ const tabScreenOptions = ({ route }) => ({
   },
   tabBarActiveTintColor: COLORS.primary,
   tabBarInactiveTintColor: COLORS.textLight,
-  tabBarStyle: {
-    height: 60,
-    paddingBottom: 8,
-    paddingTop: 4,
-    backgroundColor: COLORS.white,
-    borderTopColor: COLORS.borderLight,
-  },
-  tabBarLabelStyle: { ...FONTS.caption, fontWeight: FONTS.weight.medium },
+  tabBar: (props) => <AnimatedTabBar {...props} />,
   headerShown: false,
 });
 
 function PerfilStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="PerfilHome" component={PerfilScreen} options={{ title: 'Mi Perfil' }} />
       <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ title: 'Editar Perfil' }} />
     </Stack.Navigator>
@@ -128,8 +166,12 @@ function TrabajadorTabs() {
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="Vacantes" component={TrabajadorVacantesStack}
         options={{ tabBarLabel: 'Vacantes' }} />
+      <Tab.Screen name="Mapa" component={VacantesMapaStack}
+        options={{ tabBarLabel: 'Mapa' }} />
+      <Tab.Screen name="ParaTi" component={VacantesRecomendadasStack}
+        options={{ tabBarLabel: 'Para ti' }} />
       <Tab.Screen name="Postulaciones" component={MisPostulacionesScreen}
-        options={{ tabBarLabel: 'Mis Postulaciones', headerShown: true, ...screenOptions, title: 'Mis Postulaciones' }} />
+        options={{ tabBarLabel: 'Mis Postulaciones', headerShown: true, ...headerOptions, title: 'Mis Postulaciones' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
         options={{ tabBarLabel: 'Mensajes' }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
@@ -138,9 +180,20 @@ function TrabajadorTabs() {
   );
 }
 
+function VacantesRecomendadasStack() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen name="RecomendadasHome" component={VacantesRecomendadasScreen}
+        options={{ title: 'Recomendadas para ti' }} />
+      <Stack.Screen name="DetalleVacanteRecomendada" component={DetalleVacanteScreen}
+        options={{ title: 'Detalle de Vacante' }} />
+    </Stack.Navigator>
+  );
+}
+
 function TrabajadorVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="VacantesHome" component={TrabajadorVacantesScreen}
         options={{ title: 'Vacantes Disponibles' }} />
       <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
@@ -151,9 +204,20 @@ function TrabajadorVacantesStack() {
   );
 }
 
+function VacantesMapaStack() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen name="VacantesMapaHome" component={VacantesMapaScreen}
+        options={{ title: 'Mapa de Vacantes' }} />
+      <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
+        options={{ title: 'Detalle de Vacante' }} />
+    </Stack.Navigator>
+  );
+}
+
 function ChatsStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="ChatsHome" component={ChatsScreen}
         options={{ title: 'Mensajes' }} />
       <Stack.Screen name="ChatDetalle" component={ChatDetalleScreen}
@@ -172,6 +236,8 @@ function EmpleadorTabs() {
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="MisVacantes" component={EmpleadorVacantesStack}
         options={{ tabBarLabel: 'Mis Vacantes' }} />
+      <Tab.Screen name="Trabajadores" component={BuscarTrabajadoresStack}
+        options={{ tabBarLabel: 'Trabajadores' }} />
       <Tab.Screen name="Explorar" component={ExplorarVacantesStack}
         options={{ tabBarLabel: 'Explorar ofertas' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
@@ -182,9 +248,26 @@ function EmpleadorTabs() {
   );
 }
 
+function BuscarTrabajadoresStack() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen
+        name="BuscarTrabajadoresHome"
+        component={BuscarTrabajadoresScreen}
+        options={{ title: 'Trabajadores disponibles' }}
+      />
+      <Stack.Screen
+        name="PerfilPublicoTrabajador"
+        component={PerfilPublicoTrabajadorScreen}
+        options={{ title: 'Perfil del Trabajador' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 function ExplorarVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen
         name="ExplorarVacantesHome"
         component={ExplorarVacantesScreen}
@@ -201,7 +284,7 @@ function ExplorarVacantesStack() {
 
 function EmpleadorVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="EmpleadorHome" component={EmpleadorVacantesScreen}
         options={{ title: 'Mis Vacantes' }} />
       <Stack.Screen name="CrearVacante" component={CrearVacanteScreen}
@@ -223,13 +306,32 @@ function EmpleadorVacantesStack() {
 }
 
 // ── Admin Tabs ──
+function AdminUsuariosStack() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen
+        name="AdminUsuariosHome"
+        component={AdminUsuariosScreen}
+        options={{ title: 'Usuarios' }}
+      />
+      <Stack.Screen
+        name="AdminDetalleUsuario"
+        component={AdminDetalleUsuarioScreen}
+        options={{ title: 'Perfil de Usuario' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 function AdminTabs() {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="Dashboard" component={AdminDashboardStack}
         options={{ tabBarLabel: 'Dashboard' }} />
-      <Tab.Screen name="Usuarios" component={AdminUsuariosScreen}
-        options={{ tabBarLabel: 'Usuarios', headerShown: true, ...screenOptions, title: 'Usuarios' }} />
+      <Tab.Screen name="Usuarios" component={AdminUsuariosStack}
+        options={{ tabBarLabel: 'Usuarios' }} />
+      <Tab.Screen name="Verificacion" component={AdminVerificacionCedulasScreen}
+        options={{ tabBarLabel: 'Verificación', headerShown: true, ...headerOptions, title: 'Cédulas Pendientes' }} />
       <Tab.Screen name="AdminVacantes" component={AdminVacantesStack}
         options={{ tabBarLabel: 'Vacantes' }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
@@ -240,7 +342,7 @@ function AdminTabs() {
 
 function AdminVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen
         name="AdminVacantesHome"
         component={AdminVacantesScreen}
@@ -252,9 +354,29 @@ function AdminVacantesStack() {
         options={{ title: 'Postulantes' }}
       />
       <Stack.Screen
+        name="AdminDetalleVacante"
+        component={DetalleVacanteEmpleadorScreen}
+        options={{ title: 'Detalle de Vacante' }}
+      />
+      <Stack.Screen
+        name="EditarVacante"
+        component={EditarVacanteScreen}
+        options={{ title: 'Editar Vacante' }}
+      />
+      <Stack.Screen
+        name="VerPostulaciones"
+        component={AdminPostulantesVacanteScreen}
+        options={{ title: 'Postulantes' }}
+      />
+      <Stack.Screen
         name="PerfilPublicoTrabajador"
         component={PerfilPublicoTrabajadorScreen}
         options={{ title: 'Perfil del Trabajador' }}
+      />
+      <Stack.Screen
+        name="PerfilPublicoEmpleador"
+        component={PerfilPublicoEmpleadorScreen}
+        options={{ title: 'Perfil del Empleador' }}
       />
     </Stack.Navigator>
   );
@@ -262,11 +384,11 @@ function AdminVacantesStack() {
 
 function AdminDashboardStack() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen}
         options={{ title: 'Admin Dashboard' }} />
-      <Stack.Screen name="AdminUsuarios" component={AdminUsuariosScreen}
-        options={{ title: 'Usuarios' }} />
+      <Stack.Screen name="AdminUsuarios" component={AdminUsuariosStack}
+        options={{ headerShown: false }} />
       <Stack.Screen
         name="AdminVacantes"
         component={AdminVacantesStack}
@@ -283,10 +405,10 @@ function AdminDashboardStack() {
 // ── Auth Stack ──
 function AuthStack() {
   return (
-    <Stack.Navigator screenOptions={{ ...screenOptions, headerShown: false, headerRight: undefined }}>
+    <Stack.Navigator screenOptions={{ ...stackScreenOptions, headerShown: false, headerRight: undefined }}>
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen}
-        options={{ headerShown: true, title: 'Iniciar Sesión' }} />
+        options={{ headerShown: false }} />
       <Stack.Screen name="RoleSelect" component={RoleSelectScreen}
         options={{ headerShown: true, title: 'Tipo de cuenta' }} />
       <Stack.Screen name="RegisterTrabajador" component={RegisterTrabajadorScreen}
@@ -295,6 +417,13 @@ function AuthStack() {
         options={{ headerShown: true, title: 'Registro Empleador' }} />
       <Stack.Screen name="RecuperarPassword" component={RecuperarPasswordScreen}
         options={{ headerShown: true, title: 'Recuperar contraseña' }} />
+      <Stack.Screen name="DocumentoLegal" component={DocumentoLegalScreen}
+        options={{ headerShown: true, title: 'Documento legal' }} />
+      <Stack.Screen
+        name="ValidacionInternaIdentidad"
+        component={VerificationNavigator}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
@@ -302,11 +431,40 @@ function AuthStack() {
 // ── Root Navigator ──
 function RootNavigator() {
   const { user, loading } = useAuth();
+  const { colors } = useAppTheme();
+  const wasLoggedIn = useRef(false);
+
+  useEffect(() => {
+    if (user) {
+      wasLoggedIn.current = true;
+    } else if (wasLoggedIn.current) {
+      wasLoggedIn.current = false;
+      setTimeout(() => {
+        if (navigationRef.isReady()) {
+          navigationRef.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{
+                name: 'Auth',
+                state: { routes: [{ name: 'Welcome' }] },
+              }],
+            })
+          );
+        }
+      }, 100);
+    }
+  }, [user]);
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <MotiView
+          from={{ scale: 0.8, opacity: 0.4 }}
+          animate={{ scale: 1.1, opacity: 1 }}
+          transition={{ loop: true, type: 'timing', duration: 800 }}
+        >
+          <Ionicons name="leaf" size={48} color={colors.primary} />
+        </MotiView>
       </View>
     );
   }
@@ -326,13 +484,25 @@ function RootNavigator() {
   );
 }
 
+function AppShell() {
+  const { navigationTheme, colors, isDark } = useAppTheme();
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <NavigationContainer ref={navigationRef} theme={navigationTheme}>
+          <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.primaryDark} />
+          <RootNavigator />
+        </NavigationContainer>
+      </AuthProvider>
+    </GestureHandlerRootView>
+  );
+}
+
 export default function App() {
   return (
-    <AuthProvider>
-      <NavigationContainer>
-        <StatusBar style="light" backgroundColor={COLORS.primaryDark} />
-        <RootNavigator />
-      </NavigationContainer>
-    </AuthProvider>
+    <ThemeProvider>
+      <AppShell />
+    </ThemeProvider>
   );
 }

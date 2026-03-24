@@ -1,7 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { COLORS, RADIUS, SPACING, LAYOUT, FONTS } from '../../theme';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  interpolateColor,
+  Easing,
+} from 'react-native-reanimated';
+import { COLORS, RADIUS, SPACING, LAYOUT, FONTS, ANIMATION } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '../../context/ThemeContext';
+
+const AnimatedView = Animated.View;
 
 export default function Input({
   label,
@@ -24,30 +35,79 @@ export default function Input({
   inputStyle,
   containerStyle,
 }) {
+  const { colors, isDark } = useAppTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState(false);
+
+  const focusProgress = useSharedValue(0);
+  const shakeX = useSharedValue(0);
+  const prevError = useSharedValue(false);
+
+  useEffect(() => {
+    focusProgress.value = withTiming(focused ? 1 : 0, {
+      duration: ANIMATION.duration.fast,
+      easing: Easing.out(Easing.ease),
+    });
+  }, [focused]);
+
+  useEffect(() => {
+    if (error && !prevError.value) {
+      shakeX.value = withSequence(
+        withTiming(-6, { duration: 50 }),
+        withTiming(6, { duration: 50 }),
+        withTiming(-4, { duration: 50 }),
+        withTiming(4, { duration: 50 }),
+        withTiming(0, { duration: 50 })
+      );
+    }
+    prevError.value = !!error;
+  }, [error]);
+
+  const animatedContainerStyle = useAnimatedStyle(() => {
+    const borderColor = error
+      ? colors.error
+      : interpolateColor(
+          focusProgress.value,
+          [0, 1],
+          [colors.border, colors.primary]
+        );
+
+    const backgroundColor = error
+      ? (isDark ? 'rgba(248, 113, 113, 0.12)' : COLORS.errorSoft)
+      : interpolateColor(
+          focusProgress.value,
+          [0, 1],
+          [isDark ? '#0f201a' : '#F9FAFB', isDark ? '#152a22' : COLORS.white]
+        );
+
+    return {
+      borderColor,
+      backgroundColor,
+      borderWidth: focused ? 2 : 1.5,
+      transform: [{ translateX: shakeX.value }],
+    };
+  });
 
   return (
     <View style={[styles.container, containerStyle]}>
       {label && (
-        <Text style={styles.label}>
+        <Text style={[styles.label, { color: colors.textPrimary }]}> 
           {label}
-          {required && <Text style={styles.required}> *</Text>}
+          {required && <Text style={[styles.required, { color: colors.error }]}> *</Text>}
         </Text>
       )}
-      <View style={[
+      <AnimatedView style={[
         styles.inputContainer,
-        focused && styles.inputFocused,
-        error && styles.inputError,
-        !editable && styles.inputDisabled,
+        !editable && [styles.inputDisabled, { backgroundColor: isDark ? '#20352d' : COLORS.disabledBg, borderColor: colors.border }],
         multiline && styles.inputMultiline,
         style,
+        animatedContainerStyle,
       ]}>
         {icon && (
           <Ionicons
             name={icon}
             size={20}
-            color={focused ? COLORS.primary : COLORS.textLight}
+            color={focused ? colors.primary : colors.textMuted}
             style={styles.icon}
           />
         )}
@@ -55,12 +115,13 @@ export default function Input({
           style={[
             styles.input,
             multiline && { minHeight: numberOfLines * 24, textAlignVertical: 'top' },
+            { color: colors.textPrimary },
             inputStyle,
           ]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.textLight}
+          placeholderTextColor={colors.textMuted}
           keyboardType={keyboardType}
           secureTextEntry={secureTextEntry && !showPassword}
           multiline={multiline}
@@ -72,19 +133,19 @@ export default function Input({
         />
         {secureTextEntry && (
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={COLORS.textLight} />
+            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
           </TouchableOpacity>
         )}
         {rightIcon && !secureTextEntry && (
           <TouchableOpacity onPress={onRightIconPress} style={styles.eyeBtn} disabled={!onRightIconPress}>
-            <Ionicons name={rightIcon} size={20} color={COLORS.textLight} />
+            <Ionicons name={rightIcon} size={20} color={colors.textMuted} />
           </TouchableOpacity>
         )}
-      </View>
-      {error && <Text style={styles.error}>{error}</Text>}
-      {helper && !error && <Text style={styles.helper}>{helper}</Text>}
+      </AnimatedView>
+      {error && <Text style={[styles.error, { color: colors.error }]}>{error}</Text>}
+      {helper && !error && <Text style={[styles.helper, { color: colors.textMuted }]}>{helper}</Text>}
       {maxLength && value && (
-        <Text style={styles.counter}>{value.length} / {maxLength}</Text>
+        <Text style={[styles.counter, { color: colors.textMuted }]}>{value.length} / {maxLength}</Text>
       )}
     </View>
   );
@@ -104,21 +165,9 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
     borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.md,
     minHeight: LAYOUT.inputHeight,
-  },
-  inputFocused: {
-    borderColor: COLORS.primary,
-    borderWidth: 2,
-    backgroundColor: COLORS.white,
-  },
-  inputError: {
-    borderColor: COLORS.error,
-    backgroundColor: COLORS.errorSoft,
   },
   inputDisabled: {
     backgroundColor: COLORS.disabledBg,

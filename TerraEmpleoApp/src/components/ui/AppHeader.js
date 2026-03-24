@@ -1,7 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, LAYOUT, FONTS } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
+import { AnimatedPressable, FadeInView } from '../animated';
 
 export default function AppHeader({
   title,
@@ -12,35 +15,50 @@ export default function AppHeader({
   transparent = false,
   lightContent = false,
 }) {
-  const textColor = lightContent ? COLORS.white : COLORS.textPrimary;
-  const iconColor = lightContent ? COLORS.white : COLORS.textPrimary;
+  const { colors, gradients } = useAppTheme();
+  const useLightContent = lightContent || !transparent;
+  const textColor = useLightContent ? COLORS.white : colors.textPrimary;
+  const iconColor = useLightContent ? COLORS.white : colors.textPrimary;
 
   return (
-    <View style={[styles.container, transparent && styles.transparent]}>
+    <LinearGradient
+      colors={transparent ? ['transparent', 'transparent'] : gradients.header}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[styles.container, transparent && styles.transparent]}
+    >
+      {!transparent && (
+        <>
+          <View style={[styles.blobA, { backgroundColor: gradients.agroBlobA }]} />
+          <View style={[styles.blobB, { backgroundColor: gradients.agroBlobB }]} />
+        </>
+      )}
       <View style={styles.left}>
         {onBack && (
-          <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+          <AnimatedPressable onPress={onBack} style={styles.backBtn} scaleValue={0.9} haptic={true}>
             <Ionicons name="arrow-back" size={24} color={iconColor} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         )}
       </View>
 
       {title ? (
-        <Text style={[styles.title, { color: textColor }]} numberOfLines={1}>
-          {title}
-        </Text>
+        <FadeInView delay={100} translateY={-5} duration={300}>
+          <Text style={[styles.title, { color: textColor }]} numberOfLines={1}>
+            {title}
+          </Text>
+        </FadeInView>
       ) : (
         <View style={{ flex: 1 }} />
       )}
 
       <View style={styles.right}>
         {rightAction || (rightIcon && onRightPress && (
-          <TouchableOpacity onPress={onRightPress} style={styles.rightBtn} activeOpacity={0.7}>
+          <AnimatedPressable onPress={onRightPress} style={styles.rightBtn} scaleValue={0.9} haptic={true}>
             <Ionicons name={rightIcon} size={24} color={iconColor} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         ))}
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -52,6 +70,7 @@ const styles = StyleSheet.create({
     height: LAYOUT.headerHeight,
     paddingHorizontal: SPACING.md,
     backgroundColor: COLORS.white,
+    overflow: 'hidden',
   },
   transparent: {
     backgroundColor: 'transparent',
@@ -82,5 +101,21 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  blobA: {
+    position: 'absolute',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    top: -46,
+    left: -26,
+  },
+  blobB: {
+    position: 'absolute',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    right: -18,
+    bottom: -34,
   },
 });

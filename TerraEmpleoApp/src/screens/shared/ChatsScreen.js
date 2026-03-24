@@ -1,12 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
-  Image, ActivityIndicator, RefreshControl,
+  View, Text, FlatList, StyleSheet,
+  Image, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { chatsAPI } from '../../services/api';
-import { COLORS } from '../../theme';
+import { COLORS, SPACING, ANIMATION } from '../../theme';
+import { MotiView } from 'moti';
+import Animated, {
+  useSharedValue, useAnimatedStyle,
+  withRepeat, withSequence, withTiming, Easing,
+} from 'react-native-reanimated';
+import { AnimatedPressable, ShimmerPlaceholder, FadeInView, StaggeredItem } from '../../components/animated';
+import DecorativeBackground from '../../components/ui/DecorativeBackground';
 
 function formatHora(dateStr) {
   if (!dateStr) return '';
@@ -23,8 +31,54 @@ function formatHora(dateStr) {
   return date.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' });
 }
 
+/* ── Shimmer skeleton row for loading ── */
+function ChatSkeleton() {
+  return (
+    <View style={styles.chatItem}>
+      <ShimmerPlaceholder width={52} height={52} borderRadius={26} />
+      <View style={styles.chatContent}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+          <ShimmerPlaceholder width={120} height={14} borderRadius={4} />
+          <ShimmerPlaceholder width={40} height={12} borderRadius={4} />
+        </View>
+        <ShimmerPlaceholder width={160} height={12} borderRadius={4} style={{ marginBottom: 4 }} />
+        <ShimmerPlaceholder width={200} height={12} borderRadius={4} />
+      </View>
+    </View>
+  );
+}
+
+/* ── Pulsing badge for unread count ── */
+function PulsingBadge({ count }) {
+  const pulseScale = useSharedValue(1);
+
+  useEffect(() => {
+    pulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1.15, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.badge, animStyle]}>
+      <Text style={styles.badgeText}>
+        {count > 9 ? '9+' : count}
+      </Text>
+    </Animated.View>
+  );
+}
+
 export default function ChatsScreen({ navigation, route }) {
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -43,7 +97,6 @@ export default function ChatsScreen({ navigation, route }) {
 
   useEffect(() => {
     cargarChats();
-    // Polling cada 5 segundos para nuevos mensajes
     const interval = setInterval(cargarChats, 5000);
     return () => clearInterval(interval);
   }, [cargarChats]);
@@ -68,76 +121,102 @@ export default function ChatsScreen({ navigation, route }) {
     navigation.navigate('ChatDetalle', { chat });
   };
 
-  const renderChat = ({ item }) => {
-    const tieneFoto = item.otro_foto && item.otro_foto.startsWith('http');
+  const renderChat = ({ item, index }) => {
+    const tieneFoto = Boolean(item.otro_foto && item.otro_foto.startsWith('http'));
     const iniciales = item.otro_nombre
       ? item.otro_nombre.split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase()
       : '?';
 
     return (
-      <TouchableOpacity style={styles.chatItem} onPress={() => abrirChat(item)} activeOpacity={0.7}>
-        {/* Avatar */}
-        <View style={styles.avatarContainer}>
-          {tieneFoto ? (
-            <Image source={{ uri: item.otro_foto }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>{iniciales}</Text>
+      <StaggeredItem index={index}>
+        <AnimatedPressable style={[styles.chatItem, { backgroundColor: colors.card }]} onPress={() => abrirChat(item)} scaleValue={0.98} haptic={false}>
+          {/* Avatar */}
+          <View style={styles.avatarContainer}>
+            <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? '#1f332b' : COLORS.primarySoft }]}>
+              <Text style={[styles.avatarText, { color: colors.primary }]}>{iniciales}</Text>
             </View>
-          )}
-          {item.no_leidos > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {item.no_leidos > 9 ? '9+' : item.no_leidos}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Contenido */}
-        <View style={styles.chatContent}>
-          <View style={styles.chatHeader}>
-            <Text style={styles.nombreUsuario} numberOfLines={1}>{item.otro_nombre}</Text>
-            <Text style={styles.hora}>{formatHora(item.ultimo_mensaje_at)}</Text>
+            {tieneFoto && (
+              <Image source={{ uri: item.otro_foto }} style={styles.avatar} />
+            )}
+            {item.no_leidos > 0 && (
+              <PulsingBadge count={item.no_leidos} />
+            )}
           </View>
-          <Text style={styles.vacanteTitulo} numberOfLines={1}>
-            {item.vacante_titulo}
-          </Text>
-          <Text
-            style={[styles.ultimoMensaje, item.no_leidos > 0 && styles.ultimoMensajeNoLeido]}
-            numberOfLines={1}
-          >
-            {item.ultimo_mensaje || 'Sin mensajes aún'}
-          </Text>
-        </View>
-      </TouchableOpacity>
+
+          {/* Contenido */}
+          <View style={styles.chatContent}>
+            <View style={styles.chatHeader}>
+              <Text style={[styles.nombreUsuario, { color: colors.textPrimary }]} numberOfLines={1}>{item.otro_nombre}</Text>
+              <Text style={[styles.hora, { color: colors.textMuted }]}>{formatHora(item.ultimo_mensaje_at)}</Text>
+            </View>
+            <Text style={[styles.vacanteTitulo, { color: colors.primary }]} numberOfLines={1}>
+              {item.vacante_titulo}
+            </Text>
+            <Text
+              style={[
+                styles.ultimoMensaje,
+                { color: colors.textSecondary },
+                item.no_leidos > 0 && [styles.ultimoMensajeNoLeido, { color: colors.textPrimary }],
+              ]}
+              numberOfLines={1}
+            >
+              {item.ultimo_mensaje || 'Sin mensajes aún'}
+            </Text>
+          </View>
+        </AnimatedPressable>
+      </StaggeredItem>
     );
   };
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <DecorativeBackground />
+        <FadeInView delay={0}>
+          {[0, 1, 2, 3].map(i => (
+            <View key={i}>
+              <ChatSkeleton />
+              <View style={styles.separator} />
+            </View>
+          ))}
+        </FadeInView>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <DecorativeBackground />
       {chats.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="chatbubbles-outline" size={64} color={COLORS.disabled} />
-          <Text style={styles.emptyTitle}>Sin conversaciones</Text>
-          <Text style={styles.emptyText}>
-            Los chats aparecen cuando un empleador acepta tu postulación.
-          </Text>
+          <MotiView
+            from={{ translateY: 0 }}
+            animate={{ translateY: -8 }}
+            transition={{
+              type: 'timing',
+              duration: 1500,
+              loop: true,
+              repeatReverse: true,
+              easing: Easing.inOut(Easing.ease),
+            }}
+          >
+            <Ionicons name="chatbubbles-outline" size={64} color={colors.textMuted} />
+          </MotiView>
+          <FadeInView delay={200}>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin conversaciones</Text>
+          </FadeInView>
+          <FadeInView delay={300}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}> 
+              Los chats aparecen cuando un empleador acepta tu postulación.
+            </Text>
+          </FadeInView>
         </View>
       ) : (
         <FlatList
           data={chats}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderChat}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
       )}
@@ -160,6 +239,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     marginTop: 16,
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptyText: {
     fontSize: 14,
@@ -176,7 +256,14 @@ const styles = StyleSheet.create({
   },
   separator: { height: 1, backgroundColor: COLORS.borderLight, marginLeft: 76 },
   avatarContainer: { position: 'relative', marginRight: 12 },
-  avatar: { width: 52, height: 52, borderRadius: 26 },
+  avatar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
   avatarPlaceholder: {
     width: 52,
     height: 52,

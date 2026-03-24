@@ -1,30 +1,33 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  View, Text, StyleSheet, FlatList,
   RefreshControl, Image, TextInput, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withSpring,
+} from 'react-native-reanimated';
+import { MotiView } from 'moti';
+import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { PickerModal } from '../../components/ui';
+import DecorativeBackground from '../../components/ui/DecorativeBackground';
+import { AnimatedPressable, StaggeredItem, SkeletonCard } from '../../components/animated';
 import { CULTIVOS } from '../../data/options';
 import { DEPARTAMENTOS } from '../../data/colombia';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 
 /* ── Helpers ── */
-
-function getCropIcon(cultivos) {
-  const c = (cultivos?.[0]?.cultivo || cultivos?.[0] || '').toLowerCase();
-  if (c.includes('café') || c.includes('cafe')) return 'cafe-outline';
-  if (c.includes('flor')) return 'flower-outline';
-  if (c.includes('maíz') || c.includes('maiz') || c.includes('arroz') || c.includes('trigo')) return 'nutrition-outline';
-  if (c.includes('caña') || c.includes('cana')) return 'leaf-outline';
-  if (c.includes('maquinaria') || c.includes('mecánica')) return 'construct-outline';
-  return 'leaf-outline';
-}
 
 function getSalaryLabel(item) {
   const tp = (item.tipo_pago || '').toLowerCase();
@@ -77,10 +80,41 @@ function BenefitChip({ label }) {
   );
 }
 
+/* ── Animated Badge ── */
+function PulsingBadge({ count }) {
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    if (count > 0) {
+      scale.value = withRepeat(
+        withSequence(
+          withTiming(1.15, { duration: 600 }),
+          withTiming(1, { duration: 600 })
+        ),
+        -1,
+        true
+      );
+    }
+  }, [count]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  if (count <= 0) return null;
+
+  return (
+    <Animated.View style={[s.bellBadge, animatedStyle]}>
+      <Text style={s.bellBadgeTxt}>{count > 99 ? '99+' : count}</Text>
+    </Animated.View>
+  );
+}
+
 /* ── Main ── */
 
 export default function TrabajadorVacantesScreen({ navigation }) {
   const { user } = useAuth();
+  const { colors, gradients, isDark } = useAppTheme();
   const [vacantes, setVacantes] = useState([]);
   const [vacantesPostuladas, setVacantesPostuladas] = useState(new Set());
   const [refreshing, setRefreshing] = useState(false);
@@ -94,6 +128,12 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const [showDeptoModal, setShowDeptoModal] = useState(false);
 
   const firstName = (user?.nombre_completo || user?.nombre || 'Usuario').split(' ')[0];
+  const estadoIdentidad = user?.validacion_identidad_estado || 'pendiente';
+  const identidadAprobada = estadoIdentidad === 'aprobada';
+  const necesitaSubirCedula = !user?.foto_cedula;
+  const yaEnvioCedula = Boolean(user?.validacion_identidad_enviado_at || user?.foto_cedula || user?.foto_selfie_cedula);
+  const mostrarAccionSubirCedula = estadoIdentidad === 'rechazada' || (!yaEnvioCedula && necesitaSubirCedula);
+  const mostrarTarjetaVerificacion = !identidadAprobada;
 
   const cargarNoLeidas = useCallback(async () => {
     try {
@@ -160,7 +200,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
     : vacantes;
 
   /* ── Card ── */
-  const renderVacante = ({ item }) => {
+  const renderVacante = ({ item, index }) => {
     const salaryDisplay = getVacancyPayDisplay(item);
     const cultivos = (item.cultivos || []).slice(0, 2).map(c => c.cultivo || c);
     const labores = (item.labores || []).slice(0, 1).map(l => l.labor || l);
@@ -174,158 +214,220 @@ export default function TrabajadorVacantesScreen({ navigation }) {
     const inicioTexto = formatVacancyStartDate(item.fecha_inicio, { fallback: '' });
 
     return (
-      <TouchableOpacity
-        style={s.card}
-        onPress={() => navigation.navigate('DetalleVacante', { vacante: item })}
-        activeOpacity={0.92}
-      >
-        {/* Hero photo */}
-        <View style={s.cardHero}>
-          {item.foto_portada ? (
-            <Image source={{ uri: item.foto_portada }} style={s.cardImg} resizeMode="cover" />
-          ) : (
-            <View style={s.cardImgFallback}>
-              <Ionicons name="image-outline" size={40} color="#C8CFC8" />
-            </View>
-          )}
+      <StaggeredItem index={index}>
+        <AnimatedPressable
+          style={[
+            s.card,
+            {
+              backgroundColor: colors.card,
+              borderColor: isDark ? colors.border : COLORS.borderLight,
+              borderWidth: 1,
+            },
+          ]}
+          onPress={() => navigation.navigate('DetalleVacante', { vacante: item })}
+          scaleValue={ANIMATION.scale.pressedSubtle}
+          haptic={false}
+        >
+          {/* Hero photo */}
+          <View style={s.cardHero}>
+            {item.foto_portada ? (
+              <Image source={{ uri: item.foto_portada }} style={s.cardImg} resizeMode="cover" />
+            ) : (
+              <View style={s.cardImgFallback}>
+                <Ionicons name="image-outline" size={40} color="#C8CFC8" />
+              </View>
+            )}
 
-          {/* Gradient overlay at bottom of photo */}
-          <View style={s.cardHeroOverlay} />
+            <View style={s.cardHeroOverlay} />
 
-          {/* Rating badge top-right */}
-          {cal > 0 && (
-            <View style={s.ratingBadge}>
-              <Ionicons name="star" size={12} color="#FFB300" />
-              <Text style={s.ratingBadgeTxt}>{cal.toFixed(1)}</Text>
-            </View>
-          )}
+            {cal > 0 && (
+              <View style={s.ratingBadge}>
+                <Ionicons name="star" size={12} color="#FFB300" />
+                <Text style={s.ratingBadgeTxt}>{cal.toFixed(1)}</Text>
+              </View>
+            )}
 
-          {/* Urgente badge top-left */}
-          {item.urgente ? (
-            <View style={s.urgentOverlay}>
-              <Ionicons name="flash" size={11} color="#DC2626" />
-              <Text style={s.urgentOverlayTxt}>URGENTE</Text>
-            </View>
-          ) : null}
+            {item.urgente ? (
+              <View style={s.urgentOverlay}>
+                <Ionicons name="flash" size={11} color="#DC2626" />
+                <Text style={s.urgentOverlayTxt}>URGENTE</Text>
+              </View>
+            ) : null}
 
-          {/* Location overlay at bottom */}
-          <View style={s.locOverlay}>
-            <Ionicons name="location" size={14} color={COLORS.white} />
-            <Text style={s.locOverlayTxt} numberOfLines={1}>
-              {ubicacion || 'Sin ubicación'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Card body */}
-        <View style={s.cardBody}>
-          {/* Title row + timestamp */}
-          <View style={s.titleRow}>
-            <Text style={s.cardTitle} numberOfLines={1}>{item.titulo}</Text>
-            <Text style={s.cardTime}>{timeAgo(item.fecha_creacion)}</Text>
-          </View>
-
-          {/* Company name */}
-          {item.nombre_empresa_finca && (
-            <Text style={s.cardFarm} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
-          )}
-          {inicioTexto ? (
-            <View style={s.startDateBadge}>
-              <Ionicons name="calendar-outline" size={12} color={COLORS.primary} />
-              <Text style={s.startDateBadgeText}>Inicio: {inicioTexto}</Text>
-            </View>
-          ) : null}
-
-          {/* Tags row */}
-          <View style={s.tagsRow}>
-            {cultivos.map((c, i) => <CultivoChip key={`c${i}`} label={c} />)}
-            {labores.map((l, i) => <LaborChip key={`l${i}`} label={l} />)}
-            {beneficios.slice(0, 1).map((b, i) => <BenefitChip key={`b${i}`} label={b} />)}
-          </View>
-
-          {/* Divider */}
-          <View style={s.divider} />
-
-          {/* Salary + CTA */}
-          <View style={s.bottomRow}>
-            <View>
-              <Text style={s.salaryLabel}>{getSalaryLabel(item)}</Text>
-              {salaryDisplay.valor !== 'A convenir' ? (
-                <Text style={s.salaryValue}>{salaryDisplay.valor}</Text>
-              ) : (
-                <Text style={s.salaryNA}>A convenir</Text>
-              )}
-            </View>
-            <TouchableOpacity
-              style={[s.postBtn, yaPostulado && s.postBtnOff]}
-              onPress={(e) => { e?.stopPropagation?.(); if (!yaPostulado) manejarPostulacionRapida(item); }}
-              disabled={yaPostulado}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={yaPostulado ? 'checkmark-circle' : 'paper-plane'}
-                size={15}
-                color={yaPostulado ? '#888' : COLORS.white}
-              />
-              <Text style={[s.postBtnTxt, yaPostulado && s.postBtnTxtOff]}>
-                {yaPostulado ? 'Postulado' : 'Postularme'}
+            <View style={s.locOverlay}>
+              <Ionicons name="location" size={14} color={COLORS.white} />
+              <Text style={s.locOverlayTxt} numberOfLines={1}>
+                {ubicacion || 'Sin ubicación'}
               </Text>
-            </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
+
+          {/* Card body */}
+          <View style={s.cardBody}>
+            <View style={s.titleRow}>
+              <Text style={[s.cardTitle, { color: colors.textPrimary }]} numberOfLines={1}>{item.titulo}</Text>
+              <Text style={[s.cardTime, { color: colors.textMuted }]}>{timeAgo(item.fecha_creacion)}</Text>
+            </View>
+
+            {item.nombre_empresa_finca && (
+              <Text style={[s.cardFarm, { color: colors.textSecondary }]} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
+            )}
+            {inicioTexto ? (
+              <View style={s.startDateBadge}>
+                <Ionicons name="calendar-outline" size={12} color={COLORS.primary} />
+                <Text style={s.startDateBadgeText}>Inicio: {inicioTexto}</Text>
+              </View>
+            ) : null}
+
+            <View style={s.tagsRow}>
+              {cultivos.map((c, i) => <CultivoChip key={`c${i}`} label={c} />)}
+              {labores.map((l, i) => <LaborChip key={`l${i}`} label={l} />)}
+              {beneficios.slice(0, 1).map((b, i) => <BenefitChip key={`b${i}`} label={b} />)}
+            </View>
+
+            <View style={s.divider} />
+
+            <View style={s.bottomRow}>
+              <View>
+                <Text style={[s.salaryLabel, { color: colors.textMuted }]}>{getSalaryLabel(item)}</Text>
+                {salaryDisplay.valor !== 'A convenir' ? (
+                  <Text style={[s.salaryValue, { color: colors.textPrimary }]}>{salaryDisplay.valor}</Text>
+                ) : (
+                  <Text style={[s.salaryNA, { color: colors.textSecondary }]}>A convenir</Text>
+                )}
+              </View>
+              <AnimatedPressable
+                style={[
+                  s.postBtn,
+                  { backgroundColor: colors.primary },
+                  yaPostulado && s.postBtnOff,
+                  yaPostulado && { backgroundColor: isDark ? '#31423c' : '#E5E7EB' },
+                ]}
+                onPress={() => { if (!yaPostulado) manejarPostulacionRapida(item); }}
+                disabled={yaPostulado}
+                scaleValue={ANIMATION.scale.pressed}
+                haptic={!yaPostulado}
+              >
+                <Ionicons
+                  name={yaPostulado ? 'checkmark-circle' : 'paper-plane'}
+                  size={15}
+                  color={yaPostulado ? (isDark ? '#d7e7df' : '#6b7280') : COLORS.white}
+                />
+                <Text
+                  style={[
+                    s.postBtnTxt,
+                    yaPostulado && s.postBtnTxtOff,
+                    yaPostulado && { color: isDark ? '#d7e7df' : '#6b7280' },
+                  ]}
+                >
+                  {yaPostulado ? 'Postulado' : 'Postularme'}
+                </Text>
+              </AnimatedPressable>
+            </View>
+          </View>
+        </AnimatedPressable>
+      </StaggeredItem>
     );
   };
 
   /* ── List Header ── */
   const ListHeader = (
-    <View>
+    <View style={s.headerBlock}>
+      <View style={[s.heroBlobA, { backgroundColor: gradients.agroBlobA }]} />
+      <View style={[s.heroBlobB, { backgroundColor: gradients.agroBlobB }]} />
+      <View style={[s.heroBlobC, { backgroundColor: isDark ? 'rgba(61, 208, 143, 0.16)' : 'rgba(0, 141, 73, 0.10)' }]} />
+      <View style={[s.heroRing, { borderColor: isDark ? 'rgba(154, 226, 103, 0.25)' : 'rgba(0, 141, 73, 0.14)' }]} />
+      <View style={[s.heroLeaf, { backgroundColor: isDark ? 'rgba(154, 226, 103, 0.12)' : 'rgba(0, 141, 73, 0.08)' }]} />
+
       {/* Header greeting */}
-      <View style={s.header}>
-        <View style={s.headerLeft}>
-          <View style={s.avatarWrap}>
-            {user?.foto_selfie ? (
-              <Image source={{ uri: user.foto_selfie }} style={s.avatarImg} />
-            ) : (
-              <Ionicons name="person" size={20} color={COLORS.primary} />
-            )}
-          </View>
-          <View>
-            <Text style={s.greeting}>Hola, {firstName}</Text>
-            <Text style={s.greetingSub}>Encuentra tu próximo empleo</Text>
-          </View>
-        </View>
-        <TouchableOpacity style={s.bellBtn} onPress={() => navigation.navigate('Notificaciones')}>
-          <View style={s.bellCircle}>
-            <Ionicons name="notifications-outline" size={22} color={COLORS.textPrimary} />
-          </View>
-          {noLeidas > 0 && (
-            <View style={s.bellBadge}>
-              <Text style={s.bellBadgeTxt}>{noLeidas > 99 ? '99+' : noLeidas}</Text>
+      <MotiView
+        from={{ opacity: 0, translateY: -10 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 400 }}
+      >
+        <View style={[s.header, { backgroundColor: colors.surface }]}> 
+          <View style={s.headerLeft}>
+            <View style={s.avatarWrap}>
+              {user?.foto_selfie ? (
+                <Image source={{ uri: user.foto_selfie }} style={s.avatarImg} />
+              ) : (
+                <Ionicons name="person" size={20} color={COLORS.primary} />
+              )}
+              {identidadAprobada && (
+                <View style={s.verificadoBadge}>
+                  <Ionicons name="checkmark" size={11} color={COLORS.white} />
+                </View>
+              )}
             </View>
-          )}
-        </TouchableOpacity>
-      </View>
+            <View>
+              <Text style={[s.greeting, { color: colors.textPrimary }]}>Hola, {firstName}</Text>
+              <Text style={[s.greetingSub, { color: colors.textSecondary }]}>Encuentra tu próximo empleo</Text>
+            </View>
+          </View>
+          <AnimatedPressable
+            style={s.bellBtn}
+            onPress={() => navigation.navigate('Notificaciones')}
+            scaleValue={0.9}
+            haptic={true}
+          >
+            <View style={[s.bellCircle, { backgroundColor: isDark ? '#1f332b' : '#F3F4F6' }]}>
+              <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
+            </View>
+            <PulsingBadge count={noLeidas} />
+          </AnimatedPressable>
+        </View>
+      </MotiView>
+
+      {mostrarTarjetaVerificacion && (
+        <View style={[s.verificacionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={s.verificacionHeader}>
+            <Ionicons
+              name={estadoIdentidad === 'rechazada' ? 'alert-circle' : 'shield-outline'}
+              size={18}
+              color={estadoIdentidad === 'rechazada' ? COLORS.error : COLORS.primary}
+            />
+            <Text style={[s.verificacionTitle, { color: colors.textPrimary }]}>
+              {estadoIdentidad === 'rechazada' ? 'Verificación rechazada' : 'Verificación de identidad'}
+            </Text>
+          </View>
+          <Text style={[s.verificacionText, { color: colors.textSecondary }]}>
+            {estadoIdentidad === 'rechazada'
+              ? 'Tu verificación fue rechazada. ¿Quieres verificarte otra vez? Sube una nueva foto de cédula.'
+              : 'Tu cédula está en proceso de verificación. Te avisaremos cuando sea aprobada.'}
+          </Text>
+          {mostrarAccionSubirCedula && estadoIdentidad === 'rechazada' ? (
+            <Text style={s.verificacionAyuda}>
+              Para volver a verificarte, sube una nueva cédula desde tu perfil.
+            </Text>
+          ) : null}
+        </View>
+      )}
 
       {/* Search bar */}
-      <View style={s.searchBar}>
-        <Ionicons name="search" size={18} color={COLORS.textLight} />
-        <TextInput
-          style={s.searchInput}
-          placeholder="Buscar fincas, cultivos o labores..."
-          placeholderTextColor={COLORS.textLight}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={COLORS.textLight} />
-          </TouchableOpacity>
-        )}
-      </View>
+      <MotiView
+        from={{ opacity: 0, translateY: 10 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 400, delay: 100 }}
+      >
+        <View style={[s.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="search" size={18} color={colors.textMuted} />
+          <TextInput
+            style={[s.searchInput, { color: colors.textPrimary }]}
+            placeholder="Buscar fincas, cultivos o labores..."
+            placeholderTextColor={colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <AnimatedPressable onPress={() => setSearch('')} scaleValue={0.9} haptic={false}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </AnimatedPressable>
+          )}
+        </View>
+      </MotiView>
 
       {/* Filtros rápidos label */}
-      <Text style={s.filterLabel}>FILTROS RÁPIDOS</Text>
+      <Text style={[s.filterLabel, { color: colors.primary }]}>FILTROS RÁPIDOS</Text>
 
       {/* Filter chips */}
       <ScrollView
@@ -334,61 +436,125 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         style={s.filterScroll}
         contentContainerStyle={s.filterRow}
       >
-        <TouchableOpacity
-          style={[s.filterChip, filterDepto ? s.filterChipOn : null]}
+        <AnimatedPressable
+          style={[s.filterChip, { backgroundColor: colors.surface, borderColor: colors.border }, filterDepto ? s.filterChipOn : null]}
           onPress={() => setShowDeptoModal(true)}
+          scaleValue={0.95}
+          haptic={true}
         >
-          <Ionicons name="location-outline" size={14} color={filterDepto ? COLORS.primary : COLORS.textSecondary} />
-          <Text style={[s.filterChipTxt, filterDepto && s.filterChipTxtOn]}>
+          <Ionicons name="location-outline" size={14} color={filterDepto ? colors.primary : colors.textSecondary} />
+          <Text style={[s.filterChipTxt, { color: colors.textSecondary }, filterDepto && s.filterChipTxtOn]}>
             {filterDepto || 'Ubicación'}
           </Text>
           {filterDepto
-            ? <TouchableOpacity onPress={() => setFilterDepto('')}><Ionicons name="close-circle" size={14} color={COLORS.primary} /></TouchableOpacity>
-            : <Ionicons name="chevron-down" size={13} color={COLORS.textSecondary} />
+            ? <AnimatedPressable onPress={() => setFilterDepto('')} scaleValue={0.9} haptic={false}><Ionicons name="close-circle" size={14} color={COLORS.primary} /></AnimatedPressable>
+            : <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
           }
-        </TouchableOpacity>
+        </AnimatedPressable>
 
-        <TouchableOpacity
-          style={[s.filterChip, filterCultivo ? s.filterChipOn : null]}
+        <AnimatedPressable
+          style={[s.filterChip, { backgroundColor: colors.surface, borderColor: colors.border }, filterCultivo ? s.filterChipOn : null]}
           onPress={() => setShowCultivoModal(true)}
+          scaleValue={0.95}
+          haptic={true}
         >
-          <Ionicons name="leaf-outline" size={14} color={filterCultivo ? COLORS.primary : COLORS.textSecondary} />
-          <Text style={[s.filterChipTxt, filterCultivo && s.filterChipTxtOn]}>
+          <Ionicons name="leaf-outline" size={14} color={filterCultivo ? colors.primary : colors.textSecondary} />
+          <Text style={[s.filterChipTxt, { color: colors.textSecondary }, filterCultivo && s.filterChipTxtOn]}>
             {filterCultivo || 'Cultivo'}
           </Text>
           {filterCultivo
-            ? <TouchableOpacity onPress={() => setFilterCultivo('')}><Ionicons name="close-circle" size={14} color={COLORS.primary} /></TouchableOpacity>
-            : <Ionicons name="chevron-down" size={13} color={COLORS.textSecondary} />
+            ? <AnimatedPressable onPress={() => setFilterCultivo('')} scaleValue={0.9} haptic={false}><Ionicons name="close-circle" size={14} color={COLORS.primary} /></AnimatedPressable>
+            : <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
           }
-        </TouchableOpacity>
+        </AnimatedPressable>
 
-        <TouchableOpacity
-          style={[s.filterChip, filterUrgente ? s.filterChipOn : null]}
+        <AnimatedPressable
+          style={[s.filterChip, { backgroundColor: colors.surface, borderColor: colors.border }, filterUrgente ? s.filterChipOn : null]}
           onPress={() => setFilterUrgente(v => !v)}
+          scaleValue={0.95}
+          haptic={true}
         >
-          <Ionicons name="flash-outline" size={14} color={filterUrgente ? COLORS.primary : COLORS.textSecondary} />
-          <Text style={[s.filterChipTxt, filterUrgente && s.filterChipTxtOn]}>Urgente</Text>
+          <Ionicons name="flash-outline" size={14} color={filterUrgente ? colors.primary : colors.textSecondary} />
+          <Text style={[s.filterChipTxt, { color: colors.textSecondary }, filterUrgente && s.filterChipTxtOn]}>Urgente</Text>
           {filterUrgente && <Ionicons name="checkmark" size={14} color={COLORS.primary} />}
-        </TouchableOpacity>
+        </AnimatedPressable>
 
         {(filterCultivo || filterDepto || filterUrgente) && (
-          <TouchableOpacity
+          <AnimatedPressable
             style={s.filterClear}
             onPress={() => { setFilterCultivo(''); setFilterDepto(''); setFilterUrgente(false); }}
+            scaleValue={0.95}
+            haptic={true}
           >
             <Ionicons name="refresh" size={14} color={COLORS.error} />
             <Text style={s.filterClearTxt}>Limpiar</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         )}
       </ScrollView>
 
       {/* Section header */}
-      <View style={s.secHeader}>
-        <Text style={s.secTitle}>Vacantes Disponibles</Text>
-        <View style={s.secBadge}>
-          <Text style={s.secBadgeTxt}>{filtered.length} {filtered.length === 1 ? 'nueva' : 'nuevas'}</Text>
+      <MotiView
+        from={{ opacity: 0, translateX: -15 }}
+        animate={{ opacity: 1, translateX: 0 }}
+        transition={{ type: 'timing', duration: 400, delay: 200 }}
+      >
+        <View style={s.secHeader}>
+          <Text style={[s.secTitle, { color: colors.textPrimary }]}>Vacantes Disponibles</Text>
+          <MotiView
+            from={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 12, stiffness: 150, delay: 400 }}
+          >
+            <View style={s.secBadge}>
+              <Text style={s.secBadgeTxt}>{filtered.length} {filtered.length === 1 ? 'nueva' : 'nuevas'}</Text>
+            </View>
+          </MotiView>
         </View>
-      </View>
+      </MotiView>
+
+    </View>
+  );
+
+  return (
+    <LinearGradient colors={gradients.screen} style={{ flex: 1 }}>
+      <SafeAreaView style={[s.root, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+      <DecorativeBackground intensity="strong" />
+      <FlatList
+        data={filtered}
+        renderItem={renderVacante}
+        keyExtractor={(item) => item.id?.toString()}
+        ListHeaderComponent={ListHeader}
+        contentContainerStyle={s.list}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={6}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
+        }
+        ListEmptyComponent={
+          loading ? (
+            <View style={{ paddingHorizontal: SPACING.lg }}>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </View>
+          ) : (
+            <View style={s.empty}>
+              <MotiView
+                from={{ translateY: 0 }}
+                animate={{ translateY: -8 }}
+                transition={{ loop: true, type: 'timing', duration: 1500 }}
+              >
+                <View style={s.emptyIcon}>
+                  <Ionicons name="briefcase-outline" size={48} color={COLORS.primary} />
+                </View>
+              </MotiView>
+              <Text style={s.emptyTitle}>No hay vacantes disponibles</Text>
+              <Text style={[s.emptySub, { color: colors.textMuted }]}>Desliza hacia abajo para actualizar</Text>
+            </View>
+          )
+        }
+      />
 
       <PickerModal
         visible={showCultivoModal}
@@ -406,35 +572,8 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         selectedValue={filterDepto}
         onSelect={(v) => { setFilterDepto(v); setShowDeptoModal(false); }}
       />
-    </View>
-  );
-
-  return (
-    <SafeAreaView style={s.root} edges={['top', 'bottom']}>
-      <FlatList
-        data={filtered}
-        renderItem={renderVacante}
-        keyExtractor={(item) => item.id?.toString()}
-        ListHeaderComponent={ListHeader}
-        contentContainerStyle={s.list}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />
-        }
-        ListEmptyComponent={
-          !loading && (
-            <View style={s.empty}>
-              <View style={s.emptyIcon}>
-                <Ionicons name="briefcase-outline" size={48} color={COLORS.primary} />
-              </View>
-              <Text style={s.emptyTitle}>No hay vacantes disponibles</Text>
-              <Text style={s.emptySub}>Desliza hacia abajo para actualizar</Text>
-            </View>
-          )
-        }
-      />
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
@@ -442,6 +581,51 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F8FAF9' },
+  headerBlock: {
+    position: 'relative',
+  },
+  heroBlobA: {
+    position: 'absolute',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    left: -60,
+    top: -30,
+  },
+  heroBlobB: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    right: -70,
+    top: -70,
+  },
+  heroBlobC: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    right: 64,
+    top: 62,
+  },
+  heroRing: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 17,
+    left: -42,
+    top: 84,
+  },
+  heroLeaf: {
+    position: 'absolute',
+    width: 120,
+    height: 54,
+    borderRadius: 38,
+    right: 18,
+    top: 28,
+    transform: [{ rotate: '-18deg' }],
+  },
 
   /* Header */
   header: {
@@ -454,8 +638,22 @@ const s = StyleSheet.create({
     width: 48, height: 48, borderRadius: 24,
     backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center',
     borderWidth: 2.5, borderColor: COLORS.primary, overflow: 'hidden',
+    position: 'relative',
   },
   avatarImg: { width: 48, height: 48, borderRadius: 24 },
+  verificadoBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   greeting: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
   greetingSub: { fontSize: 13, color: COLORS.textSecondary, marginTop: 1 },
   bellBtn: { position: 'relative' },
@@ -470,6 +668,38 @@ const s = StyleSheet.create({
     borderWidth: 2, borderColor: COLORS.white, paddingHorizontal: 3,
   },
   bellBadgeTxt: { fontSize: 10, fontWeight: '700', color: COLORS.white },
+
+  verificacionCard: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    ...SHADOWS.small,
+  },
+  verificacionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  verificacionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  verificacionText: {
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+    lineHeight: 20,
+  },
+  verificacionAyuda: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
 
   /* Search */
   searchBar: {
