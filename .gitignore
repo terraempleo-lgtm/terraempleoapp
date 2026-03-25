@@ -11,3 +11,5 @@ node_modules/.bin/.env
 
 node_modules
 .env
+*.backup.jpg
+*_original_backup*

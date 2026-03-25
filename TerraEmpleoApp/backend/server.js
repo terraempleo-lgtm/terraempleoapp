@@ -28,9 +28,6 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Carpeta del frontend web
-const publicDir = path.join(__dirname, 'public');
-
 // Middlewares
 app.use(helmet({
   contentSecurityPolicy: false,
@@ -42,9 +39,6 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(uploadsDir));
-
-// Servir frontend web
-app.use(express.static(publicDir));
 
 // Rutas
 app.use('/api/auth', authRoutes);
