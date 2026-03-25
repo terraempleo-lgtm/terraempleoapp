@@ -23,8 +23,17 @@ jobs:
             set -e
             cd /home/ubuntu/terraempleoapp
 
+            echo "→ Preservando .env de producción..."
+            [ -f .env ] && cp .env /tmp/.env.prod.bak
+            [ -f TerraEmpleoApp/backend/.env ] && cp TerraEmpleoApp/backend/.env /tmp/backend.env.prod.bak
+
             echo "→ Actualizando código..."
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "→ Restaurando .env de producción..."
+            [ -f /tmp/.env.prod.bak ] && mv /tmp/.env.prod.bak .env
+            [ -f /tmp/backend.env.prod.bak ] && mv /tmp/backend.env.prod.bak TerraEmpleoApp/backend/.env
 
             echo "→ Instalando dependencias..."
             cd TerraEmpleoApp/backend
