@@ -7,10 +7,70 @@ Registro de sesiones de trabajo del equipo.
 
 ## Cómo usar este archivo
 
-- Agrega una entrada al inicio (más reciente primero)
-- Usa el formato de sección de abajo
+- Agrega una entrada de sesión debajo de los bloques de stack y checklist (más reciente primero)
+- Actualiza el **checklist de qué sigue** cada vez que completes o agregues tareas
 - Marca los pendientes con `- [ ]` y los completados con `- [x]`
 - Siempre termina con `git add DEVLOG.md && git commit -m "devlog: sesion YYYY-MM-DD" && git push`
+
+---
+
+## Stack actual
+
+| Capa | Tecnología | URL / Detalle |
+| ---- | ---------- | ------------- |
+| Frontend web | React Native + Expo SDK 54 → S3 + CloudFront | `https://app.terrampleo.com` |
+| App móvil | React Native + Expo (Android / iOS) | build local con `npx expo start` |
+| API | Express.js + Node.js + PM2 en Lightsail | `https://api.terrampleo.com/api` |
+| Base de datos | RDS MariaDB (SSL obligatorio) | `terraempleo-mariadb.cyjse0ie8mw6.us-east-1.rds.amazonaws.com` |
+| Secretos | AWS SSM Parameter Store | `/terraempleo/production/{DB_PASSWORD,JWT_SECRET,EMAIL_PASS}` |
+| Imágenes usuarios | S3 | `terraempleo-prod-images` |
+| CI/CD | GitHub Actions (deploy selectivo por carpeta) | push a `main` → deploy automático |
+| Monitoreo | CloudWatch CPU alarms + Budget $30/mes | alertas → `terraempleo@gmail.com` |
+| Backups | Snapshots Lightsail diarios + RDS diarios | retención 7 días |
+
+---
+
+## Stack técnico
+
+| Área | Tecnología |
+| ---- | ---------- |
+| Frontend | React Native 0.76, Expo SDK 54, React Navigation 7, Axios |
+| Navegación | Stack + Tab navigators, `React.lazy` + `Suspense` por rol (code splitting web) |
+| Estado auth | `AuthContext` (in-memory), token inyectado globalmente en Axios |
+| Tema | `ThemeContext` con modo oscuro, `COLORS` / `FONTS` / `SPACING` |
+| Backend | Express.js, JWT, bcryptjs, multer, nodemailer, express-rate-limit |
+| Base de datos | MariaDB (pool), schema auto-creado en startup, 12 tablas |
+| Auth externa | Amazon Cognito (SMS OTP — mock activo), JWT propio para sesión |
+| AWS SDK | `@aws-sdk/client-s3`, `@aws-sdk/client-ssm`, `@aws-sdk/client-cognito-identity-provider` |
+| Infraestructura | Lightsail (Ubuntu, PM2), RDS, S3, CloudFront, ACM, SSM, IAM |
+| CI/CD | GitHub Actions, `dorny/paths-filter`, `appleboy/ssh-action` |
+
+---
+
+## Qué sigue — checklist actualizado 2026-03-26
+
+### 🔴 Urgente
+
+- [ ] **Rotar AWS keys**: `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` quedaron expuestas. Crear nuevas en IAM → actualizar `.env` del servidor y secrets de GitHub → eliminar las viejas.
+- [ ] **IAM Role en la instancia**: adjuntar rol IAM al EC2 subyacente de Lightsail → eliminar AWS keys del `.env` completamente.
+
+### 🟡 Features pendientes
+
+- [ ] **SMS real**: reemplazar mock (`SMS_MOCK: true`) con proveedor real (Twilio o AWS SNS).
+- [ ] **expo-camera**: implementar captura real de fotos de identidad (actualmente `Alert` placeholder).
+- [ ] **UI edición de perfil**: pantalla de edición no implementada.
+- [ ] **Label formatting**: valores crudos de BD (ej. `"menos_1"`) sin mapeo legible en vista de perfil.
+
+### 🟢 Mejoras futuras
+
+- [ ] Load balancer + autoscaling (cuando el tráfico lo justifique).
+- [ ] Migrar de SSM a AWS Secrets Manager (rotación automática).
+- [ ] Suite de tests (ningún test configurado actualmente).
+- [ ] Linter / ESLint en frontend y backend.
+
+---
+
+## Sesiones
 
 ---
 
@@ -18,19 +78,13 @@ Registro de sesiones de trabajo del equipo.
 
 **Participantes:** Veronica
 
-### ✅ Hecho
-- **CORS restrictivo** en `server.js`: solo permite `app.terrampleo.com`, `api.terrampleo.com` y orígenes locales de desarrollo. Apps nativas (sin header `Origin`) siempre permitidas.
-- **Code splitting por rol** en `App.js`: todas las pantallas de trabajador, empleador y admin son `React.lazy`. Cada stack navigator envuelto en `<Suspense>`. En web genera chunks separados por rol (~1MB por usuario vs 3.45MB antes). En native Metro resuelve síncronamente sin cambio de comportamiento.
-- **SSM Parameter Store**: secretos `DB_PASSWORD`, `JWT_SECRET` y `EMAIL_PASS` migrados a `/terraempleo/production/*` como `SecureString`. El backend los carga al arrancar en producción con fallback a `.env` si SSM no responde. Ya no están en disco.
-- Instalado `@aws-sdk/client-ssm` en backend.
-- IAM policy `terraempleo-ssm-read` añadida a `terraempleo-s3-user`.
+### ✅ Hecho (2026-03-26)
 
-### ⚠️ Pendiente próxima sesión
-- [ ] **Rotar AWS keys**: `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` quedaron expuestas en conversación. Crear nuevas con `aws iam create-access-key`, actualizar `.env` del servidor, eliminar las viejas.
-- [ ] **IAM Role en la instancia**: adjuntar rol IAM al Lightsail/EC2 para eliminar las AWS keys del `.env` completamente (solución definitiva al chicken-and-egg de credenciales).
-- [ ] **SMS real**: reemplazar mock (`SMS_MOCK: true`) con proveedor real (Twilio o AWS SNS).
-- [ ] **Cámara**: implementar `expo-camera` para captura real de fotos de identidad (actualmente muestra `Alert` placeholder).
-- [ ] **Edición de perfil**: UI de edición de perfil no implementada.
+- **CORS restrictivo** en `server.js`: whitelist con `app.terrampleo.com`, `api.terrampleo.com` y orígenes locales. Apps nativas (sin header `Origin`) siempre permitidas.
+- **Code splitting por rol** en `App.js`: pantallas de trabajador, empleador y admin usan `React.lazy` + `<Suspense>`. En web genera chunks separados por rol (~1MB por usuario vs 3.45MB antes). En native Metro resuelve síncronamente.
+- **SSM Parameter Store**: `DB_PASSWORD`, `JWT_SECRET` y `EMAIL_PASS` migrados a `/terraempleo/production/*` (tipo `SecureString`). El backend los carga al arrancar con fallback a `.env`. Ya no están en disco.
+- `@aws-sdk/client-ssm` instalado. IAM policy `terraempleo-ssm-read` en `terraempleo-s3-user`.
+- **DEVLOG.md** creado. **CLAUDE.md** actualizado.
 
 ---
 
@@ -38,30 +92,28 @@ Registro de sesiones de trabajo del equipo.
 
 **Participantes:** Veronica
 
-### ✅ Hecho
-- **Migración frontend a S3 + CloudFront**: bucket `terraempleo-web-frontend`, distribución `E2VW0BWNEBE3B4`, dominio `app.terrampleo.com` con cert ACM validado por DNS en GoDaddy. SPA routing configurado (403/404 → `index.html`).
-- **GitHub Actions CI/CD** (`.github/workflows/deploy.yml`): deploy selectivo — solo despliega backend si cambia `backend/**`, solo frontend si cambia el resto. Backend: SSH → git reset + restaurar `.env` → npm install → pm2 restart → health check. Frontend: expo export → S3 sync → invalidación CloudFront.
-- **Compresión login.jpg**: de 21MB a 392KB (98% menos). Bundle web pasó de 29MB a 7.7MB.
-- **IP estática Lightsail**: confirmada `107.20.220.171`.
-- **CloudWatch alarms**: CPU < 1% (caída) y > 80% (sobrecarga) → `terraempleo@gmail.com`.
-- **Budget**: $30 USD/mes con alertas al 80% y 100%.
-- **Snapshots Lightsail**: diarios 3:00 AM GMT-5, retención 7 días.
-- **RDS backups**: automáticos diarios, retención 7 días, Deletion Protection activo.
-- **Postman collection**: 44 endpoints en 7 carpetas, auto-guarda token en Login.
-- **CLAUDE.md** actualizado con toda la infraestructura AWS.
+### ✅ Hecho (2026-03-25)
 
-### ✅ Hecho (sesiones anteriores)
-- Eliminado `express.static(publicDir)` de `server.js` que exponía 2,586 líneas de HTML en la raíz de la API.
-- SSH deploy key configurada en GitHub para el servidor Lightsail.
-- `git update-index --skip-worktree` en `.env` del servidor para protegerlo de `git reset --hard`.
+- **Migración frontend a S3 + CloudFront**: bucket `terraempleo-web-frontend`, distribución `E2VW0BWNEBE3B4`, dominio `app.terrampleo.com`, cert ACM + DNS GoDaddy. SPA routing (403/404 → `index.html`).
+- **GitHub Actions CI/CD**: deploy selectivo por carpeta. Backend: SSH → git reset + restaurar `.env` → npm install → pm2 restart → health check. Frontend: expo export → S3 sync → invalidación CloudFront.
+- **Compresión login.jpg**: 21MB → 392KB (98%). Bundle web: 29MB → 7.7MB.
+- **IP estática Lightsail**: confirmada `107.20.220.171`.
+- **CloudWatch alarms**: CPU < 1% y > 80% → email.
+- **Budget**: $30 USD/mes, alertas 80% y 100%.
+- **Snapshots Lightsail**: diarios 3:00 AM GMT-5, retención 7 días.
+- **RDS backups**: diarios, retención 7 días, Deletion Protection activo.
+- **Postman collection**: 44 endpoints, 7 carpetas, auto-guarda token.
+- Eliminado `express.static(publicDir)` que exponía 2,586 líneas de HTML en raíz de API.
+- SSH deploy key configurada en GitHub. `git update-index --skip-worktree` en `.env` del servidor.
 
 ---
 
 ## 2026-03-24 — Modo oscuro + fondos decorativos
 
-**Participantes:** Veronica
+**Participantes:** Fredy
 
-### ✅ Hecho
+### ✅ Hecho (2026-03-24)
+
 - Integración de modo oscuro con `ThemeContext`.
 - Fondos decorativos en pantallas principales.
 
@@ -69,9 +121,10 @@ Registro de sesiones de trabajo del equipo.
 
 ## 2026-03-23 — Rate limiting en autenticación
 
-**Participantes:** Veronica
+**Participantes:** Sebas
 
-### ✅ Hecho
+### ✅ Hecho (2026-03-23)
+
 - Rate limiting en rutas de auth para proteger contra fuerza bruta.
 - Middleware `rateLimit.js` en backend.
 
@@ -81,7 +134,8 @@ Registro de sesiones de trabajo del equipo.
 
 **Participantes:** Veronica
 
-### ✅ Hecho
+### ✅ Hecho (2026-03-21)
+
 - Pantalla `VacantesMapaScreen` con mapa interactivo.
 - Correcciones en coordenadas y nombre de ubicación en cards.
 
@@ -91,33 +145,7 @@ Registro de sesiones de trabajo del equipo.
 
 **Participantes:** Veronica
 
-### ✅ Hecho
+### ✅ Hecho (2026-03-19)
+
 - Configuración de dominio con HTTPS.
 - `.env` excluido del repositorio.
-
----
-
-## Stack actual
-
-| Capa | Tecnología | URL |
-|------|-----------|-----|
-| Frontend web | React Native + Expo → S3 + CloudFront | `https://app.terrampleo.com` |
-| API | Express.js + PM2 en Lightsail | `https://api.terrampleo.com/api` |
-| Base de datos | RDS MariaDB | `terraempleo-mariadb.cyjse0ie8mw6.us-east-1.rds.amazonaws.com` |
-| Secretos | AWS SSM Parameter Store | `/terraempleo/production/*` |
-| Imágenes usuarios | S3 | `terraempleo-prod-images` |
-| CI/CD | GitHub Actions | push a `main` → deploy automático |
-
----
-
-## Backlog técnico
-
-| Prioridad | Tarea |
-|-----------|-------|
-| 🔴 Alta | Rotar AWS keys expuestas |
-| 🔴 Alta | IAM Role en instancia (eliminar keys del .env) |
-| 🟡 Media | SMS real (Twilio / AWS SNS) |
-| 🟡 Media | expo-camera para fotos de identidad |
-| 🟡 Media | UI edición de perfil |
-| 🟢 Baja | Load balancer + autoscaling (cuando el tráfico lo justifique) |
-| 🟢 Baja | Migrar a AWS Secrets Manager (upgrade de SSM) |
