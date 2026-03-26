@@ -1,0 +1,523 @@
+{
+  "info": {
+    "name": "TerraEmpleo API",
+    "description": "Colección completa de endpoints — https://api.terrampleo.com\n\nVariables de entorno:\n- base_url: https://api.terrampleo.com/api\n- token: (se auto-llena al hacer login)\n- trabajador_token\n- empleador_token\n- admin_token",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://api.terrampleo.com/api" },
+    { "key": "token", "value": "" },
+    { "key": "vacante_id", "value": "1" },
+    { "key": "usuario_id", "value": "1" },
+    { "key": "chat_id", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "🟢 Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health",
+            "description": "Verifica que la API y la BD estén operativas"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status OK', () => pm.response.to.have.status(200));",
+              "pm.test('DB conectada', () => { const b = pm.response.json(); pm.expect(b.database).to.eql('connected'); });"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Registro trabajador",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"celular\": \"3001234567\",\n  \"password\": \"password123\",\n  \"nombre\": \"Juan\",\n  \"apellido\": \"Pérez\",\n  \"rol\": \"trabajador\"\n}" }
+          }
+        },
+        {
+          "name": "Registro empleador",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"celular\": \"3009876543\",\n  \"password\": \"password123\",\n  \"nombre\": \"Finca El Paraíso\",\n  \"apellido\": \"SAS\",\n  \"rol\": \"empleador\"\n}" }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"celular\": \"3001234567\",\n  \"password\": \"password123\"\n}" }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "if (pm.response.code === 200) {",
+              "  const b = pm.response.json();",
+              "  if (b.token) { pm.collectionVariables.set('token', b.token); }",
+              "  pm.test('Login exitoso', () => pm.expect(b.token).to.exist);",
+              "}"
+            ]}
+          }]
+        },
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"celular\": \"0000000000\",\n  \"password\": \"admin123\"\n}" }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "if (pm.response.code === 200) {",
+              "  pm.collectionVariables.set('token', pm.response.json().token);",
+              "}"
+            ]}
+          }]
+        },
+        {
+          "name": "Enviar código SMS",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/sms/enviar",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"celular\": \"3001234567\"\n}" }
+          }
+        },
+        {
+          "name": "Verificar código SMS",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/sms/verificar",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"celular\": \"3001234567\",\n  \"codigo\": \"123456\"\n}" }
+          }
+        },
+        {
+          "name": "Mi perfil",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/auth/perfil",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Actualizar perfil",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/auth/perfil",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Juan\",\n  \"apellido\": \"García\",\n  \"departamento\": \"Antioquia\",\n  \"municipio\": \"Medellín\"\n}" }
+          }
+        },
+        {
+          "name": "Recuperar password (SMS)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/recuperar/solicitar",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"celular\": \"3001234567\"\n}" }
+          }
+        },
+        {
+          "name": "Nueva password",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/recuperar/nueva-password",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"celular\": \"3001234567\",\n  \"codigo\": \"123456\",\n  \"nueva_password\": \"nuevaPass123\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💼 Vacantes",
+      "item": [
+        {
+          "name": "Listar vacantes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/vacantes?page=1&limit=10",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "departamento", "value": "", "disabled": true },
+                { "key": "cultivo", "value": "", "disabled": true }
+              ]
+            },
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Detalle vacante",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/vacantes/{{vacante_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Vacantes recomendadas (trabajador)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/vacantes/recomendadas",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Crear vacante (empleador)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/vacantes",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Recolector de café\",\n  \"descripcion\": \"Se busca recolector para temporada\",\n  \"departamento\": \"Caldas\",\n  \"municipio\": \"Chinchiná\",\n  \"tipo_pago\": \"destajo\",\n  \"salario\": 50000,\n  \"fecha_inicio\": \"2026-04-01\",\n  \"fecha_fin\": \"2026-06-30\",\n  \"cultivos\": [\"cafe\"],\n  \"labores\": [\"recoleccion\"]\n}" }
+          }
+        },
+        {
+          "name": "Mis vacantes (empleador)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/vacantes/mis-vacantes",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Actualizar vacante",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/vacantes/{{vacante_id}}",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Recolector de café - urgente\",\n  \"salario\": 55000\n}" }
+          }
+        },
+        {
+          "name": "Cerrar vacante",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/vacantes/{{vacante_id}}/cerrar",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Eliminar vacante",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/vacantes/{{vacante_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Postularse a vacante (trabajador)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/vacantes/postularse",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"vacante_id\": {{vacante_id}}\n}" }
+          }
+        },
+        {
+          "name": "Mis postulaciones (trabajador)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/vacantes/mis-postulaciones/lista",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Ver postulaciones de vacante (empleador)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/vacantes/postulaciones/{{vacante_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Actualizar estado postulación (empleador)",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/vacantes/postulaciones/1/estado",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"estado\": \"aceptada\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⭐ Calificaciones",
+      "item": [
+        {
+          "name": "Calificar usuario",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/calificaciones",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"calificado_id\": {{usuario_id}},\n  \"vacante_id\": {{vacante_id}},\n  \"puntaje\": 5,\n  \"comentario\": \"Excelente trabajador, muy responsable\"\n}" }
+          }
+        },
+        {
+          "name": "Ver calificaciones de usuario",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/calificaciones/{{usuario_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "👷 Trabajadores",
+      "item": [
+        {
+          "name": "Listar trabajadores (empleador)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/trabajadores?page=1&limit=10",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Perfil público trabajador",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/trabajadores/{{usuario_id}}/perfil",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔔 Notificaciones",
+      "item": [
+        {
+          "name": "Listar notificaciones",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/notificaciones",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Contar no leídas",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/notificaciones/no-leidas",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Marcar todas como leídas",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/notificaciones/leer-todas",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Marcar una como leída",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/notificaciones/1/leer",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "💬 Chats",
+      "item": [
+        {
+          "name": "Mis chats",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/chats",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Mensajes no leídos (contador)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/chats/no-leidos",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Chat por vacante+trabajador",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/chats/vacante/{{vacante_id}}/trabajador/{{usuario_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Mensajes de un chat",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/chats/{{chat_id}}/mensajes",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Enviar mensaje",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/chats/{{chat_id}}/mensajes",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"contenido\": \"Hola, estoy interesado en la vacante\"\n}" }
+          }
+        },
+        {
+          "name": "Marcar mensajes como leídos",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/chats/{{chat_id}}/mensajes/leer",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛡️ Admin",
+      "item": [
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/dashboard",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Listar usuarios",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/usuarios",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Detalle usuario",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/usuarios/{{usuario_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Activar/desactivar usuario",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/admin/usuarios/{{usuario_id}}/toggle",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Eliminar usuario",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/admin/usuarios/{{usuario_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Validaciones identidad pendientes",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/validaciones-identidad/pendientes",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Revisar validación identidad",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/admin/usuarios/{{usuario_id}}/validacion-identidad",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"estado\": \"aprobado\",\n  \"observacion\": \"Documentos verificados\"\n}" }
+          }
+        },
+        {
+          "name": "Listar todas las vacantes",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/vacantes",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Cambiar estado vacante",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/admin/vacantes/{{vacante_id}}/estado",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"estado\": \"cerrada\"\n}" }
+          }
+        },
+        {
+          "name": "Listar postulaciones",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/postulaciones",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Listar empleadores",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/empleadores",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    }
+  ]
+}
