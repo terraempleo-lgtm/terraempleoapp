@@ -44,7 +44,7 @@ No test suite or linter is configured in either frontend or backend.
 
 ### Frontend (`TerraEmpleoApp/`)
 
-- **Entry & Navigation**: [App.js](TerraEmpleoApp/App.js) — wraps app in `AuthProvider`, then `RootNavigator` reads `user.rol` from `AuthContext` to render one of three tab navigators: `TrabajadorTabs`, `EmpleadorTabs`, or `AdminTabs`. Unauthenticated users see `AuthStack`.
+- **Entry & Navigation**: [App.js](TerraEmpleoApp/App.js) — wraps app in `AuthProvider`, then `RootNavigator` reads `user.rol` from `AuthContext` to render one of three tab navigators: `TrabajadorTabs`, `EmpleadorTabs`, or `AdminTabs`. Unauthenticated users see `AuthStack`. Role-specific screens are loaded with `React.lazy` + `<Suspense>` — on web this produces separate JS chunks per role (~1MB vs 3.45MB monolítico); on native Metro bundles everything synchronously so behavior is identical.
 - **Auth state**: [src/context/AuthContext.js](TerraEmpleoApp/src/context/AuthContext.js) — in-memory only, no persistence. `signIn(userData, token)` / `signOut()` / `updateUser(data)`. Token is injected globally into Axios via `setAuthToken()`.
 - **API layer**: [src/services/api.js](TerraEmpleoApp/src/services/api.js) — Axios instance with `baseURL` from `src/config/index.js`. Organized into `authAPI`, `vacantesAPI`, `calificacionesAPI`, `adminAPI`.
 - **Theme**: [src/theme/index.js](TerraEmpleoApp/src/theme/index.js) exports `COLORS`, `FONTS`, `SPACING`, `RADIUS`, `SHADOWS`. All screens use these constants. Primary green: `#2E7D32`, accent orange: `#FF8F00`.
@@ -65,7 +65,7 @@ No test suite or linter is configured in either frontend or backend.
 - **API URL producción** ([TerraEmpleoApp/.env](TerraEmpleoApp/.env)): `EXPO_PUBLIC_API_URL=https://api.terrampleo.com/api`
 - **API URL local** ([src/config/index.js](TerraEmpleoApp/src/config/index.js)): `http://10.0.2.2:3000/api` (Android emulator). Change to LAN IP (e.g. `http://192.168.x.x:3000/api`) for physical devices.
 - **SMS mock** ([src/config/index.js](TerraEmpleoApp/src/config/index.js)): `SMS_MOCK: true` — backend returns `codigo_debug` in response instead of sending a real SMS.
-- **Backend env** ([backend/.env](TerraEmpleoApp/backend/.env)): DB apunta a RDS en producción. **NUNCA commitear este archivo.**
+- **Backend env** ([backend/.env](TerraEmpleoApp/backend/.env)): DB apunta a RDS en producción. **NUNCA commitear este archivo.** Los secretos `DB_PASSWORD`, `JWT_SECRET` y `EMAIL_PASS` ya NO están en este archivo — se cargan desde SSM al arrancar. Ver [backend/config/secrets.js](TerraEmpleoApp/backend/config/secrets.js).
 - **SMS verification screen** ([src/screens/auth/SmsVerificationScreen.js](TerraEmpleoApp/src/screens/auth/SmsVerificationScreen.js)): Uses backend endpoints `/api/auth/sms/enviar` and `/api/auth/sms/verificar` con OTP de 6 dígitos.
 
 ### Screen Organization
@@ -102,7 +102,8 @@ Usuario móvil  → api.terrampleo.com → Lightsail (107.20.220.171)  → RDS M
 | **S3 imágenes** | `terraempleo-prod-images` (uploads de usuarios) |
 | **CloudFront** | ID `E2VW0BWNEBE3B4`, dominio `d25u3yf9l5z6o2.cloudfront.net`, cert ACM para `app.terrampleo.com` |
 | **ACM** | Certificado `app.terrampleo.com` validado vía DNS (GoDaddy) |
-| **IAM deploy** | `terraempleo-s3-user` — permisos: S3 put/delete en ambos buckets + CloudFront invalidation |
+| **IAM deploy** | `terraempleo-s3-user` — permisos: S3 put/delete en ambos buckets + CloudFront invalidation + SSM read (`/terraempleo/production/*`) |
+| **SSM Parameter Store** | `/terraempleo/production/DB_PASSWORD`, `/terraempleo/production/JWT_SECRET`, `/terraempleo/production/EMAIL_PASS` (tipo `SecureString`) |
 
 ### CI/CD — GitHub Actions
 
@@ -110,8 +111,8 @@ Repositorio: `github.com/terraempleo-lgtm/terraempleoapp`
 
 Push a `main` dispara dos jobs paralelos en [.github/workflows/deploy.yml](.github/workflows/deploy.yml):
 
-1. **Deploy Backend**: SSH → Lightsail → `git reset --hard origin/main` (preservando `.env`) → `npm install --production` → `pm2 restart terraempleo-api` → health check
-2. **Deploy Frontend**: `npx expo export --platform web` → `aws s3 sync dist/ s3://terraempleo-web-frontend/` → invalidación CloudFront
+1. **Deploy Backend**: SSH → Lightsail → `git reset --hard origin/main` (preservando `.env`) → `npm install --production` → `pm2 restart terraempleo-api` → health check. Se activa solo si cambia `TerraEmpleoApp/backend/**`.
+2. **Deploy Frontend**: `npx expo export --platform web` → `aws s3 sync dist/ s3://terraempleo-web-frontend/` → invalidación CloudFront. Se activa solo si cambia `TerraEmpleoApp/**` (excepto backend).
 
 **Secrets requeridos en GitHub**: `LIGHTSAIL_HOST`, `LIGHTSAIL_USER`, `LIGHTSAIL_SSH_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `CLOUDFRONT_DISTRIBUTION_ID`
 
@@ -141,13 +142,25 @@ mysql -h terraempleo-mariadb.cyjse0ie8mw6.us-east-1.rds.amazonaws.com \
 Colección completa (44 endpoints) en [TerraEmpleo_API.postman_collection.json](TerraEmpleo_API.postman_collection.json).
 Variables: `{{base_url}}` = `https://api.terrampleo.com/api`. El request **Login** auto-guarda el token.
 
+### Secrets en producción
+
+El backend carga secretos desde SSM al arrancar ([backend/config/secrets.js](TerraEmpleoApp/backend/config/secrets.js)). En desarrollo usa `.env` directamente. Para ver o actualizar un secreto:
+
+```bash
+# Ver valor
+aws ssm get-parameter --name "/terraempleo/production/DB_PASSWORD" --with-decryption --query "Parameter.Value" --output text
+
+# Actualizar valor
+aws ssm put-parameter --name "/terraempleo/production/DB_PASSWORD" --value 'nuevo_valor' --type SecureString --overwrite
+```
+
 ## Known Issues / Pending Work
 
+- **AWS keys**: `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` aún están en `backend/.env`. Pendiente rotar y migrar a IAM Role en la instancia.
 - **SMS**: Backend mock (`SMS_MOCK: true`) is active; falta proveedor real de mensajería para producción.
 - **Camera**: `expo-camera` is installed but photo capture shows an `Alert` placeholder.
 - **Profile editing UI**: Not yet implemented.
 - **Label formatting**: Raw DB values (e.g. `"menos_1"`) render without human-readable mapping in profile view.
 - **SMS verification flag**: `verificado_sms = 0` for test/registered users.
-- **Static IP Lightsail**: Pendiente verificar si `107.20.220.171` es estática o dinámica (requiere credenciales admin AWS).
+- **Static IP Lightsail**: Confirmada `107.20.220.171` (aparece como estática en consola Lightsail).
 - **Load balancer + autoscaling**: Pendiente para cuando el tráfico lo justifique.
-- **Credenciales AWS**: Las keys del IAM user `terraempleo-s3-user` están en `backend/.env` — pendiente migrar a AWS Secrets Manager.
