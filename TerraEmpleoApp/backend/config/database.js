@@ -2,61 +2,70 @@ const mariadb = require('mariadb');
 const fs = require('fs');
 require('dotenv').config();
 
-const dbHost = process.env.DB_HOST || 'localhost';
-const dbUser = process.env.DB_USER || 'root';
-const dbPass = process.env.DB_PASSWORD;
-const dbName = process.env.DB_NAME || 'terraempleo';
-const dbPort = parseInt(process.env.DB_PORT) || 3306;
-const dbSSL = process.env.DB_SSL === 'true';
-const dbSSLCAPath = process.env.DB_SSL_CA_PATH || '';
-const isRDS = dbHost.includes('rds.amazonaws.com');
+// Pool se crea de forma lazy — la primera vez que se solicita una conexión.
+// Esto permite que loadSecretsFromSSM() inyecte DB_PASSWORD en process.env
+// antes de que se intente crear el pool.
+let _pool = null;
 
-if (!dbPass) {
-  console.error('[DB] ERROR: DB_PASSWORD no está configurado. Define esta variable en el entorno.');
-  process.exit(1);
-}
+function getPool() {
+  if (_pool) return _pool;
 
-console.log(`[DB] Configurado → ${dbHost}:${dbPort} | user: ${dbUser} | db: ${dbName} | RDS: ${isRDS} | SSL: ${dbSSL}`);
+  const dbHost = process.env.DB_HOST || 'localhost';
+  const dbUser = process.env.DB_USER || 'root';
+  const dbPass = process.env.DB_PASSWORD;
+  const dbName = process.env.DB_NAME || 'terraempleo';
+  const dbPort = parseInt(process.env.DB_PORT) || 3306;
+  const dbSSL = process.env.DB_SSL === 'true';
+  const dbSSLCAPath = process.env.DB_SSL_CA_PATH || '';
+  const isRDS = dbHost.includes('rds.amazonaws.com');
 
-const poolConfig = {
-  host: dbHost,
-  port: dbPort,
-  user: dbUser,
-  password: dbPass,
-  database: dbName,
-  connectionLimit: 10,
-  connectTimeout: isRDS ? 20000 : 10000,
-  acquireTimeout: 30000,
-  bigNumberStrings: true,
-  supportBigNumbers: true,
-  decimalNumbers: true,
-};
-
-// SSL configuration
-if (dbSSL) {
-  const sslConfig = {};
-  if (dbSSLCAPath) {
-    try {
-      sslConfig.ca = fs.readFileSync(dbSSLCAPath);
-      console.log(`[DB] Certificado CA cargado desde: ${dbSSLCAPath}`);
-    } catch (err) {
-      console.error(`[DB] ERROR: No se pudo leer el certificado CA en ${dbSSLCAPath}: ${err.message}`);
-      process.exit(1);
-    }
+  if (!dbPass) {
+    console.error('[DB] ERROR: DB_PASSWORD no está configurado. Define esta variable en el entorno.');
+    process.exit(1);
   }
-  sslConfig.rejectUnauthorized = !!dbSSLCAPath;
-  poolConfig.ssl = sslConfig;
-} else if (isRDS) {
-  // RDS sin DB_SSL explícito: usar SSL pero sin verificar CA (no recomendado en producción)
-  console.warn('[DB] ADVERTENCIA: Conectando a RDS sin SSL explícito. Establece DB_SSL=true y DB_SSL_CA_PATH para producción.');
-  poolConfig.ssl = { rejectUnauthorized: false };
-}
 
-const pool = mariadb.createPool(poolConfig);
+  console.log(`[DB] Configurado → ${dbHost}:${dbPort} | user: ${dbUser} | db: ${dbName} | RDS: ${isRDS} | SSL: ${dbSSL}`);
+
+  const poolConfig = {
+    host: dbHost,
+    port: dbPort,
+    user: dbUser,
+    password: dbPass,
+    database: dbName,
+    connectionLimit: 10,
+    connectTimeout: isRDS ? 20000 : 10000,
+    acquireTimeout: 30000,
+    bigNumberStrings: true,
+    supportBigNumbers: true,
+    decimalNumbers: true,
+  };
+
+  // SSL configuration
+  if (dbSSL) {
+    const sslConfig = {};
+    if (dbSSLCAPath) {
+      try {
+        sslConfig.ca = fs.readFileSync(dbSSLCAPath);
+        console.log(`[DB] Certificado CA cargado desde: ${dbSSLCAPath}`);
+      } catch (err) {
+        console.error(`[DB] ERROR: No se pudo leer el certificado CA en ${dbSSLCAPath}: ${err.message}`);
+        process.exit(1);
+      }
+    }
+    sslConfig.rejectUnauthorized = !!dbSSLCAPath;
+    poolConfig.ssl = sslConfig;
+  } else if (isRDS) {
+    console.warn('[DB] ADVERTENCIA: Conectando a RDS sin SSL explícito. Establece DB_SSL=true y DB_SSL_CA_PATH para producción.');
+    poolConfig.ssl = { rejectUnauthorized: false };
+  }
+
+  _pool = mariadb.createPool(poolConfig);
+  return _pool;
+}
 
 async function getConnection() {
   try {
-    const conn = await pool.getConnection();
+    const conn = await getPool().getConnection();
     return conn;
   } catch (err) {
     console.error(`[DB] Error al conectar: ${err.code || 'UNKNOWN'} - ${err.message}`);
@@ -86,7 +95,7 @@ async function query(sql, params) {
 async function testConnection() {
   let conn;
   try {
-    conn = await pool.getConnection();
+    conn = await getPool().getConnection();
     await conn.query('SELECT 1');
     return true;
   } catch {
@@ -96,4 +105,4 @@ async function testConnection() {
   }
 }
 
-module.exports = { pool, getConnection, query, testConnection };
+module.exports = { get pool() { return getPool(); }, getConnection, query, testConnection };
