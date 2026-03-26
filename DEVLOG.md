@@ -51,8 +51,8 @@ Registro de sesiones de trabajo del equipo.
 
 ### 🔴 Urgente
 
-- [ ] **Rotar AWS keys**: `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` quedaron expuestas. Crear nuevas en IAM → actualizar `.env` del servidor y secrets de GitHub → eliminar las viejas.
-- [ ] **IAM Role en la instancia**: adjuntar rol IAM al EC2 subyacente de Lightsail → eliminar AWS keys del `.env` completamente.
+- [x] **Rotar AWS keys**: keys rotadas para `terraempleo-s3-user`. Nuevas keys en `.env` del servidor. Viejas eliminadas.
+- [ ] **IAM Role en la instancia**: Lightsail no soporta EC2 instance profiles vía API estándar. Pendiente evaluar migración a EC2 o seguir con keys en `.env` (gitignoreado).
 
 ### 🟡 Features pendientes
 
@@ -71,6 +71,20 @@ Registro de sesiones de trabajo del equipo.
 ---
 
 ## Sesiones
+
+---
+
+## 2026-03-26 — Fixes producción: uploads, admin web, keys rotadas
+
+**Participantes:** Vero
+
+### ✅ Hecho (2026-03-26 — sesión 2)
+
+- **Nginx client_max_body_size**: aumentado a `50m` → solucionó error 413 al subir fotos de perfil.
+- **CORS en error handler**: `server.js` ahora incluye headers `Access-Control-Allow-Origin` en respuestas de error. Solucionó errores CORS desde `localhost:8081`.
+- **Admin delete en web**: `Alert.alert` con múltiples botones no dispara `onPress` en Expo web. Corregido usando `window.confirm()` en `AdminUsuariosScreen.js` y `AdminVacantesScreen.js`.
+- **AWS keys rotadas**: nuevas keys generadas para `terraempleo-s3-user` → actualizadas en `.env` del servidor → viejas eliminadas en IAM.
+- **IAM Role (descartado)**: Lightsail no expone el EC2 instance ID vía `ec2 describe-instances` → no se puede adjuntar instance profile. Role e instance profile creados en IAM fueron eliminados. Keys en `.env` siguen siendo la solución para Lightsail.
 
 ---
 
