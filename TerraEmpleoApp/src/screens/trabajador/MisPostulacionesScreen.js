@@ -55,6 +55,7 @@ export default function MisPostulacionesScreen({ navigation }) {
 
   useEffect(() => { cargar(); }, [cargar]);
   useEffect(() => {
+    if (!navigation?.addListener) return;
     const unsub = navigation.addListener('focus', cargar);
     return unsub;
   }, [navigation, cargar]);
@@ -212,7 +213,7 @@ export default function MisPostulacionesScreen({ navigation }) {
         <View style={styles.headerRow}>
           <AnimatedPressable
             style={[styles.backBtn, { backgroundColor: isDark ? '#1f332b' : '#EEF4EF', borderColor: colors.border }]}
-            onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Vacantes'))}
+            onPress={() => navigation?.canGoBack?.() ? navigation.goBack() : navigation?.navigate?.('Vacantes')}
             scaleValue={0.9}
             haptic
           >

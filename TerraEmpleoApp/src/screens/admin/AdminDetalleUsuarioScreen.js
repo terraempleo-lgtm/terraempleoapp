@@ -5,6 +5,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { adminAPI } from '../../services/api';
 
+const LABELS_ESTUDIOS = {
+  sin_estudios: 'Sin estudios', primaria_completa: 'Primaria completa', bachiller: 'Bachiller',
+  tecnico_tecnologo: 'Técnico / Tecnólogo', universitario: 'Universitario',
+};
+const LABELS_EXPERIENCIA = {
+  sin: 'Sin experiencia', sin_experiencia: 'Sin experiencia', menos_1: 'Menos de 1 año',
+  '1_3': '1 a 3 años', '3_5': '3 a 5 años', '5_10': '5 a 10 años', mas_10: 'Más de 10 años',
+};
+const LABELS_DISPONIBILIDAD = {
+  tiempo_completo: 'Tiempo completo', por_dias: 'Por días',
+  temporada_cosecha: 'Por temporada / cosecha', fines_semana: 'Fines de semana',
+  disponible_inmediatamente: 'Inmediata',
+};
+const LABELS_PAGO = {
+  jornal: 'Jornal (diario)', semanal: 'Semanal',
+  quincenal: 'Quincenal', mensual: 'Mensual', destajo: 'Por tarea / destajo',
+};
+
 function LabelValue({ label, value }) {
   return (
     <View style={styles.row}>
@@ -120,14 +138,14 @@ export default function AdminDetalleUsuarioScreen({ route }) {
             <Text style={styles.cardTitle}>Perfil</Text>
             {user.rol === 'trabajador' ? (
               <>
-                <LabelValue label="Nivel de estudios" value={perfil.nivel_estudios} />
-                <LabelValue label="Experiencia" value={perfil.anios_experiencia} />
-                <LabelValue label="Disponibilidad" value={perfil.disponibilidad} />
+                <LabelValue label="Nivel de estudios" value={LABELS_ESTUDIOS[perfil.nivel_estudios] || perfil.nivel_estudios} />
+                <LabelValue label="Experiencia" value={LABELS_EXPERIENCIA[perfil.anios_experiencia] || perfil.anios_experiencia} />
+                <LabelValue label="Disponibilidad" value={LABELS_DISPONIBILIDAD[perfil.disponibilidad] || perfil.disponibilidad} />
               </>
             ) : (
               <>
                 <LabelValue label="Empresa/Finca" value={perfil.nombre_empresa_finca} />
-                <LabelValue label="Tipo de pago" value={perfil.tipo_pago} />
+                <LabelValue label="Tipo de pago" value={LABELS_PAGO[perfil.tipo_pago] || perfil.tipo_pago} />
                 <LabelValue label="Ofrece alojamiento" value={Number(perfil.ofrece_alojamiento) === 1 ? 'Sí' : 'No'} />
                 <LabelValue label="Ofrece alimentación" value={Number(perfil.ofrece_alimentacion) === 1 ? 'Sí' : 'No'} />
               </>

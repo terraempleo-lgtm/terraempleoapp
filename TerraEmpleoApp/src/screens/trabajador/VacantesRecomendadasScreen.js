@@ -44,7 +44,7 @@ function timeAgo(dateStr) {
 
 export default function VacantesRecomendadasScreen({ navigation }) {
   const { user } = useAuth();
-  const { colors, isDark, gradients } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const [vacantes, setVacantes] = useState([]);
   const [vacantesPostuladas, setVacantesPostuladas] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -229,12 +229,6 @@ export default function VacantesRecomendadasScreen({ navigation }) {
 
   const ListHeader = (
     <View>
-      <View style={styles.headerDecorWrap}>
-        <View style={[styles.headerBlobA, { backgroundColor: gradients.agroBlobA }]} />
-        <View style={[styles.headerBlobB, { backgroundColor: gradients.agroBlobB }]} />
-        <View style={[styles.headerBlobC, { backgroundColor: isDark ? 'rgba(154, 226, 103, 0.18)' : 'rgba(0, 141, 73, 0.10)' }]} />
-        <View style={[styles.headerRing, { borderColor: isDark ? 'rgba(154, 226, 103, 0.24)' : 'rgba(0, 141, 73, 0.14)' }]} />
-      </View>
       <MotiView
         from={{ opacity: 0, translateY: -10 }}
         animate={{ opacity: 1, translateY: 0 }}
@@ -277,8 +271,8 @@ export default function VacantesRecomendadasScreen({ navigation }) {
   );
 
   return (
-    <LinearGradient colors={gradients.screen} style={{ flex: 1 }}>
-      <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]} edges={['top', 'bottom']}>
       <DecorativeBackground intensity="strong" />
       <FlatList
         data={vacantes}
@@ -303,11 +297,6 @@ export default function VacantesRecomendadasScreen({ navigation }) {
             </View>
           ) : (
             <View style={styles.empty}>
-              <View pointerEvents="none" style={styles.emptyGraphics}>
-                <View style={[styles.emptyBlobA, { backgroundColor: gradients.agroBlobA }]} />
-                <View style={[styles.emptyBlobB, { backgroundColor: gradients.agroBlobB }]} />
-                <View style={[styles.emptyBlobC, { backgroundColor: isDark ? 'rgba(154, 226, 103, 0.16)' : 'rgba(0, 141, 73, 0.08)' }]} />
-              </View>
               <MotiView
                 from={{ translateY: 0 }}
                 animate={{ translateY: -8 }}
@@ -331,7 +320,7 @@ export default function VacantesRecomendadasScreen({ navigation }) {
         }
       />
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 

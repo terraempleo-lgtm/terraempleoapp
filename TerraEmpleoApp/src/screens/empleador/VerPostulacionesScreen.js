@@ -23,16 +23,15 @@ function getMatchColor(pct) {
   return { bg: '#F3F4F6', text: COLORS.textSecondary, icon: 'flash-outline' };
 }
 
-function mapDisponibilidad(d) {
-  if (!d) return null;
-  const map = {
-    inmediata: 'Disponibilidad Inmediata',
-    dos_semanas: '2 semanas de aviso',
-    un_mes: '1 mes de aviso',
-    negociable: 'Negociable',
-  };
-  return map[d] || d;
-}
+const LABELS_DISPONIBILIDAD = {
+  tiempo_completo: 'Tiempo completo', por_dias: 'Por días',
+  temporada_cosecha: 'Por temporada / cosecha', fines_semana: 'Fines de semana',
+  disponible_inmediatamente: 'Inmediata', inmediata: 'Inmediata',
+};
+const LABELS_ESTUDIOS = {
+  sin_estudios: 'Sin estudios', primaria_completa: 'Primaria completa', bachiller: 'Bachiller',
+  tecnico_tecnologo: 'Técnico / Tecnólogo', universitario: 'Universitario',
+};
 
 const TABS = [
   { key: 'todos', label: 'Todos', icon: 'people' },
@@ -137,7 +136,7 @@ export default function VerPostulacionesScreen({ route, navigation }) {
   const renderPostulante = ({ item }) => {
     const matchPct = Math.round(item.puntaje_match || 0);
     const matchStyle = matchPct > 0 ? getMatchColor(matchPct) : null;
-    const disponibilidad = mapDisponibilidad(item.disponibilidad);
+    const disponibilidad = LABELS_DISPONIBILIDAD[item.disponibilidad] || item.disponibilidad || null;
     const isPendiente = item.estado === 'pendiente' || item.estado === 'match_auto';
     const isAceptada = item.estado === 'aceptada';
     const estadoBadge = getEstadoBadge(item.estado);
@@ -198,7 +197,7 @@ export default function VerPostulacionesScreen({ route, navigation }) {
             {item.nivel_estudios && (
               <View style={styles.infoChip}>
                 <Ionicons name="school-outline" size={12} color={COLORS.textSecondary} />
-                <Text style={styles.infoChipText}>{item.nivel_estudios}</Text>
+                <Text style={styles.infoChipText}>{LABELS_ESTUDIOS[item.nivel_estudios] || item.nivel_estudios}</Text>
               </View>
             )}
           </View>

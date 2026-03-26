@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../theme';
 import { Button, Input, AppHeader, TerraFooter } from '../../components/ui';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
@@ -24,7 +23,7 @@ function isEmail(value) {
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
-  const { colors, gradients } = useAppTheme();
+  const { colors } = useAppTheme();
   const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -85,11 +84,8 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <LinearGradient colors={gradients.screen} style={styles.gradientBg}>
-      <View style={[styles.blobA, { backgroundColor: gradients.agroBlobA }]} />
-      <View style={[styles.blobB, { backgroundColor: gradients.agroBlobB }]} />
-
-      <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
+    <View style={styles.gradientBg}>
+      <SafeAreaView style={styles.container}>
         <AppHeader title="Iniciar sesión" onBack={() => navigation.goBack()} />
 
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -187,17 +183,18 @@ export default function LoginScreen({ navigation }) {
           </View>
         </FadeInView>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#fff',
   },
   gradientBg: {
     flex: 1,
+    backgroundColor: '#fff',
   },
   scrollContent: {
     flexGrow: 1,
@@ -250,21 +247,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.primary,
-  },
-  blobA: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    top: -55,
-    right: -45,
-  },
-  blobB: {
-    position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    left: -40,
-    bottom: 130,
   },
 });

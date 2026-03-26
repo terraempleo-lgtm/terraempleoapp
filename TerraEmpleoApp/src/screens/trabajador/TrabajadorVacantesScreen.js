@@ -4,7 +4,6 @@ import {
   RefreshControl, Image, TextInput, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -114,7 +113,7 @@ function PulsingBadge({ count }) {
 
 export default function TrabajadorVacantesScreen({ navigation }) {
   const { user } = useAuth();
-  const { colors, gradients, isDark } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const [vacantes, setVacantes] = useState([]);
   const [vacantesPostuladas, setVacantesPostuladas] = useState(new Set());
   const [refreshing, setRefreshing] = useState(false);
@@ -333,12 +332,6 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   /* ── List Header ── */
   const ListHeader = (
     <View style={s.headerBlock}>
-      <View style={[s.heroBlobA, { backgroundColor: gradients.agroBlobA }]} />
-      <View style={[s.heroBlobB, { backgroundColor: gradients.agroBlobB }]} />
-      <View style={[s.heroBlobC, { backgroundColor: isDark ? 'rgba(61, 208, 143, 0.16)' : 'rgba(0, 141, 73, 0.10)' }]} />
-      <View style={[s.heroRing, { borderColor: isDark ? 'rgba(154, 226, 103, 0.25)' : 'rgba(0, 141, 73, 0.14)' }]} />
-      <View style={[s.heroLeaf, { backgroundColor: isDark ? 'rgba(154, 226, 103, 0.12)' : 'rgba(0, 141, 73, 0.08)' }]} />
-
       {/* Header greeting */}
       <MotiView
         from={{ opacity: 0, translateY: -10 }}
@@ -516,8 +509,8 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   );
 
   return (
-    <LinearGradient colors={gradients.screen} style={{ flex: 1 }}>
-      <SafeAreaView style={[s.root, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <SafeAreaView style={[s.root, { backgroundColor: '#fff' }]} edges={['top', 'bottom']}>
       <DecorativeBackground intensity="strong" />
       <FlatList
         data={filtered}
@@ -573,7 +566,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         onSelect={(v) => { setFilterDepto(v); setShowDeptoModal(false); }}
       />
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 

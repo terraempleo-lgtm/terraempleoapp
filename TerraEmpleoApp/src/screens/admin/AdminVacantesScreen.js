@@ -10,6 +10,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 
+const LABELS_PAGO = {
+  jornal: 'Jornal (diario)', semanal: 'Semanal',
+  quincenal: 'Quincenal', mensual: 'Mensual', destajo: 'Por tarea / destajo',
+};
+
 export default function AdminVacantesScreen({ navigation }) {
   const [vacantes, setVacantes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -115,7 +120,7 @@ export default function AdminVacantesScreen({ navigation }) {
           <View style={styles.infoRow}>
             <Ionicons name="cash-outline" size={14} color={COLORS.textLight} />
             <Text style={styles.infoText}>
-              ${item.salario_ofrecido ? Number(item.salario_ofrecido).toLocaleString() : 'N/A'} - {item.tipo_pago || 'N/A'}
+              ${item.salario_ofrecido ? Number(item.salario_ofrecido).toLocaleString() : 'N/A'} - {LABELS_PAGO[item.tipo_pago] || item.tipo_pago || 'N/A'}
             </Text>
           </View>
 
