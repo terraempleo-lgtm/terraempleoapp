@@ -107,7 +107,14 @@ app.get('/api/health', async (req, res) => {
 // Manejo de errores
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(500).json({ error: 'Error interno del servidor' });
+  // Garantizar headers CORS incluso en respuestas de error
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({ error: err.message || 'Error interno del servidor' });
 });
 
 // Auto-cierre de vacantes expiradas
