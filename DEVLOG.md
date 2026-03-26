@@ -10,7 +10,7 @@ Registro de sesiones de trabajo del equipo.
 - Agrega una entrada de sesión debajo de los bloques de stack y checklist (más reciente primero)
 - Actualiza el **checklist de qué sigue** cada vez que completes o agregues tareas
 - Marca los pendientes con `- [ ]` y los completados con `- [x]`
-- Siempre termina con `git add DEVLOG.md && git commit -m "devlog: sesion YYYY-MM-DD" && git push`
+- Siempre termina con `git add DEVLOG.md && git commit -m "devlog: sesion YYYY-MM-DD [Nombre]" && git push`
 
 ---
 
