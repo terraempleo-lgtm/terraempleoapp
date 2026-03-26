@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, ScrollView,
-  RefreshControl, Alert, TouchableOpacity,
+  RefreshControl, Alert, TouchableOpacity, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
@@ -59,28 +59,24 @@ export default function AdminVacantesScreen({ navigation }) {
     navigation.navigate('PerfilPublicoEmpleador', { vacante_id: item.id });
   };
 
-  const eliminar = (vacante) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      `¿Estás seguro de que deseas eliminar la vacante "${vacante.titulo}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await adminAPI.eliminarVacante(vacante.id);
-              await load();
-              Alert.alert('Listo', 'Vacante eliminada correctamente');
-            } catch (err) {
-              const msg = err.response?.data?.error || 'No se pudo eliminar la vacante';
-              Alert.alert('Error', msg);
-            }
-          },
-        },
-      ]
-    );
+  const eliminar = async (vacante) => {
+    const ok = Platform.OS === 'web'
+      ? window.confirm(`¿Eliminar la vacante "${vacante.titulo}"?`)
+      : await new Promise(resolve => Alert.alert(
+          'Confirmar eliminación',
+          `¿Estás seguro de que deseas eliminar la vacante "${vacante.titulo}"?`,
+          [{ text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+           { text: 'Eliminar', style: 'destructive', onPress: () => resolve(true) }]
+        ));
+    if (!ok) return;
+    try {
+      await adminAPI.eliminarVacante(vacante.id);
+      await load();
+      Alert.alert('Listo', 'Vacante eliminada correctamente');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudo eliminar la vacante';
+      Alert.alert('Error', msg);
+    }
   };
 
   const estadoColor = (e) => {

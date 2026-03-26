@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, ScrollView,
-  RefreshControl, Alert, Modal, Image,
+  RefreshControl, Alert, Modal, Image, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
@@ -54,52 +54,44 @@ export default function AdminUsuariosScreen({ navigation }) {
     }
   };
 
-  const eliminar = (id, nombre) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      `¿Estás seguro de que deseas eliminar al usuario "${nombre}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await adminAPI.eliminarUsuario(id);
-              await load();
-              Alert.alert('Listo', 'Usuario eliminado correctamente');
-            } catch (err) {
-              const msg = err.response?.data?.error || 'No se pudo eliminar el usuario';
-              Alert.alert('Error', msg);
-            }
-          },
-        },
-      ]
-    );
+  const eliminar = async (id, nombre) => {
+    const ok = Platform.OS === 'web'
+      ? window.confirm(`¿Eliminar al usuario "${nombre}"?`)
+      : await new Promise(resolve => Alert.alert(
+          'Confirmar eliminación',
+          `¿Estás seguro de que deseas eliminar al usuario "${nombre}"?`,
+          [{ text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+           { text: 'Eliminar', style: 'destructive', onPress: () => resolve(true) }]
+        ));
+    if (!ok) return;
+    try {
+      await adminAPI.eliminarUsuario(id);
+      await load();
+      Alert.alert('Listo', 'Usuario eliminado correctamente');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudo eliminar el usuario';
+      Alert.alert('Error', msg);
+    }
   };
 
-  const eliminarFinca = (item) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      `¿Estás seguro de que deseas eliminar al empleador "${item.nombre_completo}" y todos sus datos?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await adminAPI.eliminarEmpleador(item.id);
-              await load();
-              Alert.alert('Listo', 'Empleador y sus datos eliminados correctamente');
-            } catch (err) {
-              const msg = err.response?.data?.error || 'No se pudo eliminar el empleador';
-              Alert.alert('Error', msg);
-            }
-          },
-        },
-      ]
-    );
+  const eliminarFinca = async (item) => {
+    const ok = Platform.OS === 'web'
+      ? window.confirm(`¿Eliminar al empleador "${item.nombre_completo}" y todos sus datos?`)
+      : await new Promise(resolve => Alert.alert(
+          'Confirmar eliminación',
+          `¿Estás seguro de que deseas eliminar al empleador "${item.nombre_completo}" y todos sus datos?`,
+          [{ text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+           { text: 'Eliminar', style: 'destructive', onPress: () => resolve(true) }]
+        ));
+    if (!ok) return;
+    try {
+      await adminAPI.eliminarEmpleador(item.id);
+      await load();
+      Alert.alert('Listo', 'Empleador y sus datos eliminados correctamente');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudo eliminar el empleador';
+      Alert.alert('Error', msg);
+    }
   };
 
   const abrirRevisionDocumentos = async (item) => {

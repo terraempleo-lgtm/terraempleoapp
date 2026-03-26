@@ -157,10 +157,14 @@ aws ssm put-parameter --name "/terraempleo/production/DB_PASSWORD" --value 'nuev
 ## Known Issues / Pending Work
 
 - **AWS keys**: `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` aún están en `backend/.env`. Pendiente rotar y migrar a IAM Role en la instancia.
-- **SMS**: Backend mock (`SMS_MOCK: true`) is active; falta proveedor real de mensajería para producción.
-- **Camera**: `expo-camera` is installed but photo capture shows an `Alert` placeholder.
-- **Profile editing UI**: Not yet implemented.
-- **Label formatting**: Raw DB values (e.g. `"menos_1"`) render without human-readable mapping in profile view.
-- **SMS verification flag**: `verificado_sms = 0` for test/registered users.
-- **Static IP Lightsail**: Confirmada `107.20.220.171` (aparece como estática en consola Lightsail).
+- **SMS**: Paso de verificación SMS deshabilitado intencionalmente en registro (`setStep(8)` salta paso 7). Todos los usuarios quedan con `verificado_sms = 0`. Activar cuando se integre proveedor real (Twilio / AWS SNS).
+- **Camera**: `expo-camera` instalado pero la captura de identidad está implementada — toma fotos en native, usa galería en web. Las fotos de registro se guardan localmente pero no se persisten en servidor al crear cuenta.
+- **Profile editing UI**: Implementada y funcional (`EditarPerfilScreen.js`).
+- **Label formatting**: Raw DB values (e.g. `"menos_1"`) tienen mapeo en `PerfilScreen` y `EditarPerfilScreen`. Puede faltar en algunas vistas secundarias.
+- **SMS verification flag**: `verificado_sms = 0` para todos los usuarios (SMS deshabilitado intencionalmente).
+- **Static IP Lightsail**: Confirmada `107.20.220.171`.
 - **Load balancer + autoscaling**: Pendiente para cuando el tráfico lo justifique.
+- **Chat / Notificaciones**: Funcionales pero no en tiempo real — requieren refresh manual. Sin WebSocket ni polling.
+- **Foto de perfil pública**: El perfil público de trabajador solo muestra iniciales (no hay foto de perfil en la respuesta del endpoint).
+- **Matching score en recomendadas**: No se muestra en `VacantesRecomendadasScreen` (sí aparece en `BuscarTrabajadoresScreen`).
+- **Crear vacante como admin**: El endpoint `POST /api/admin/vacantes` existe pero no hay UI para accederlo desde el panel admin.
