@@ -3,11 +3,37 @@ name: Deploy TerraEmpleo
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'TerraEmpleo_API.postman_collection.json'
+      - '.gitignore'
+      - 'assets/login_original_backup.jpg'
 
 jobs:
+  # ─── Detectar qué cambió ──────────────────────────────────────────────────
+  changes:
+    name: Detectar cambios
+    runs-on: ubuntu-latest
+    outputs:
+      backend:  ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'TerraEmpleoApp/backend/**'
+            frontend:
+              - 'TerraEmpleoApp/**'
+              - '!TerraEmpleoApp/backend/**'
+
   # ─── Job 1: Backend → Lightsail ───────────────────────────────────────────
   deploy-backend:
     name: Deploy Backend (Lightsail)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout código
@@ -51,6 +77,8 @@ jobs:
   # ─── Job 2: Frontend → S3 + CloudFront ───────────────────────────────────
   deploy-frontend:
     name: Deploy Frontend (S3 + CloudFront)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout código
