@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
+const { loadSecretsFromSSM } = require('./config/secrets');
 const { initializeDatabase } = require('./models/schema');
 const authRoutes = require('./routes/auth');
 const vacantesRoutes = require('./routes/vacantes');
@@ -34,7 +35,27 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
-app.use(cors());
+const allowedOrigins = [
+  'https://app.terrampleo.com',
+  'https://api.terrampleo.com',
+  /^http:\/\/localhost(:\d+)?$/,
+  /^http:\/\/10\.0\.2\.2(:\d+)?$/,
+  /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
+];
+app.use(cors({
+  origin: (origin, callback) => {
+    // Sin origin = app móvil nativa, Postman, curl → permitir
+    if (!origin) return callback(null, true);
+    const allowed = allowedOrigins.some(o =>
+      typeof o === 'string' ? o === origin : o.test(origin)
+    );
+    if (allowed) return callback(null, true);
+    callback(new Error(`CORS: origen no permitido — ${origin}`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+}));
 app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -121,6 +142,8 @@ function validateEnv() {
 
 // Iniciar servidor
 async function startServer() {
+  // Cargar secretos desde SSM antes de validar variables de entorno
+  await loadSecretsFromSSM();
   validateEnv();
 
   try {

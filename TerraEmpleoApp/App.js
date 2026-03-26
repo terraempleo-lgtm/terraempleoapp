@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, Suspense } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, TouchableOpacity, Linking, Alert } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -14,7 +14,10 @@ import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS, FONTS } from './src/theme';
 import { AnimatedTabBar } from './src/components/animated';
 
-// Auth
+// ── Helper: lazy en todos los entornos (Metro no hace split → resuelve sync en native)
+const lazyWeb = (importFn) => React.lazy(importFn);
+
+// ── Auth — siempre necesario, estático ───────────────────────────────────
 import WelcomeScreen from './src/screens/auth/WelcomeScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import RoleSelectScreen from './src/screens/auth/RoleSelectScreen';
@@ -22,42 +25,54 @@ import RegisterTrabajadorScreen from './src/screens/auth/RegisterTrabajadorScree
 import RegisterEmpleadorScreen from './src/screens/auth/RegisterEmpleadorScreen';
 import RecuperarPasswordScreen from './src/screens/auth/RecuperarPasswordScreen';
 import DocumentoLegalScreen from './src/screens/auth/DocumentoLegalScreen';
+import VerificationNavigator from './src/modules/verification/navigation/VerificationNavigator';
 
-// Trabajador
-import TrabajadorVacantesScreen from './src/screens/trabajador/TrabajadorVacantesScreen';
-import DetalleVacanteScreen from './src/screens/trabajador/DetalleVacanteScreen';
-import MisPostulacionesScreen from './src/screens/trabajador/MisPostulacionesScreen';
-import VacantesRecomendadasScreen from './src/screens/trabajador/VacantesRecomendadasScreen';
-import VacantesMapaScreen from './src/screens/trabajador/VacantesMapaScreen';
-
-// Empleador
-import EmpleadorVacantesScreen from './src/screens/empleador/EmpleadorVacantesScreen';
-import CrearVacanteScreen from './src/screens/empleador/CrearVacanteScreen';
-import EditarVacanteScreen from './src/screens/empleador/EditarVacanteScreen';
-import VerPostulacionesScreen from './src/screens/empleador/VerPostulacionesScreen';
-import DetalleVacanteEmpleadorScreen from './src/screens/empleador/DetalleVacanteEmpleadorScreen';
-import ExplorarVacantesScreen from './src/screens/empleador/ExplorarVacantesScreen';
-import DetalleVacanteReferenciaScreen from './src/screens/empleador/DetalleVacanteReferenciaScreen';
-import MisPostulantesScreen from './src/screens/empleador/MisPostulantesScreen';
-import BuscarTrabajadoresScreen from './src/screens/empleador/BuscarTrabajadoresScreen';
-
-// Admin
-import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
-import AdminUsuariosScreen from './src/screens/admin/AdminUsuariosScreen';
-import AdminDetalleUsuarioScreen from './src/screens/admin/AdminDetalleUsuarioScreen';
-import AdminVerificacionCedulasScreen from './src/screens/admin/AdminVerificacionCedulasScreen';
-import AdminVacantesScreen from './src/screens/admin/AdminVacantesScreen';
-import AdminPostulantesVacanteScreen from './src/screens/admin/AdminPostulantesVacanteScreen';
-
-// Shared
+// ── Shared — necesario para todos los roles autenticados, estático ────────
 import PerfilScreen from './src/screens/shared/PerfilScreen';
 import EditarPerfilScreen from './src/screens/shared/EditarPerfilScreen';
-import PerfilPublicoTrabajadorScreen from './src/screens/shared/PerfilPublicoTrabajadorScreen';
-import PerfilPublicoEmpleadorScreen from './src/screens/shared/PerfilPublicoEmpleadorScreen';
 import NotificacionesScreen from './src/screens/shared/NotificacionesScreen';
 import ChatsScreen from './src/screens/shared/ChatsScreen';
 import ChatDetalleScreen from './src/screens/shared/ChatDetalleScreen';
-import VerificationNavigator from './src/modules/verification/navigation/VerificationNavigator';
+import PerfilPublicoTrabajadorScreen from './src/screens/shared/PerfilPublicoTrabajadorScreen';
+import PerfilPublicoEmpleadorScreen from './src/screens/shared/PerfilPublicoEmpleadorScreen';
+
+// ── Trabajador — lazy en web ──────────────────────────────────────────────
+const TrabajadorVacantesScreen    = lazyWeb(() => import('./src/screens/trabajador/TrabajadorVacantesScreen'));
+const DetalleVacanteScreen        = lazyWeb(() => import('./src/screens/trabajador/DetalleVacanteScreen'));
+const MisPostulacionesScreen      = lazyWeb(() => import('./src/screens/trabajador/MisPostulacionesScreen'));
+const VacantesRecomendadasScreen  = lazyWeb(() => import('./src/screens/trabajador/VacantesRecomendadasScreen'));
+const VacantesMapaScreen          = lazyWeb(() => import('./src/screens/trabajador/VacantesMapaScreen'));
+
+// ── Empleador — lazy en web ───────────────────────────────────────────────
+const EmpleadorVacantesScreen        = lazyWeb(() => import('./src/screens/empleador/EmpleadorVacantesScreen'));
+const CrearVacanteScreen             = lazyWeb(() => import('./src/screens/empleador/CrearVacanteScreen'));
+const EditarVacanteScreen            = lazyWeb(() => import('./src/screens/empleador/EditarVacanteScreen'));
+const VerPostulacionesScreen         = lazyWeb(() => import('./src/screens/empleador/VerPostulacionesScreen'));
+const DetalleVacanteEmpleadorScreen  = lazyWeb(() => import('./src/screens/empleador/DetalleVacanteEmpleadorScreen'));
+const ExplorarVacantesScreen         = lazyWeb(() => import('./src/screens/empleador/ExplorarVacantesScreen'));
+const DetalleVacanteReferenciaScreen = lazyWeb(() => import('./src/screens/empleador/DetalleVacanteReferenciaScreen'));
+const MisPostulantesScreen           = lazyWeb(() => import('./src/screens/empleador/MisPostulantesScreen'));
+const BuscarTrabajadoresScreen       = lazyWeb(() => import('./src/screens/empleador/BuscarTrabajadoresScreen'));
+
+// ── Admin — lazy en web ───────────────────────────────────────────────────
+const AdminDashboardScreen           = lazyWeb(() => import('./src/screens/admin/AdminDashboardScreen'));
+const AdminUsuariosScreen            = lazyWeb(() => import('./src/screens/admin/AdminUsuariosScreen'));
+const AdminDetalleUsuarioScreen      = lazyWeb(() => import('./src/screens/admin/AdminDetalleUsuarioScreen'));
+const AdminVerificacionCedulasScreen = lazyWeb(() => import('./src/screens/admin/AdminVerificacionCedulasScreen'));
+const AdminVacantesScreen            = lazyWeb(() => import('./src/screens/admin/AdminVacantesScreen'));
+const AdminPostulantesVacanteScreen  = lazyWeb(() => import('./src/screens/admin/AdminPostulantesVacanteScreen'));
+
+// Fallback mientras carga un chunk lazy
+const LazyFallback = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <Ionicons name="leaf" size={32} color={COLORS.primary} />
+  </View>
+);
+
+// Wrapper Suspense (necesario siempre que se use React.lazy)
+const S = ({ children }) => (
+  <Suspense fallback={<LazyFallback />}>{children}</Suspense>
+);
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -160,6 +175,10 @@ function PerfilStack() {
   );
 }
 
+// Wrappers para screens lazy usadas directamente en Tab.Screen (sin stack propio)
+const MisPostulacionesTab = () => <S><MisPostulacionesScreen /></S>;
+const AdminVerificacionTab = () => <S><AdminVerificacionCedulasScreen /></S>;
+
 // ── Trabajador Tabs ──
 function TrabajadorTabs() {
   return (
@@ -170,7 +189,7 @@ function TrabajadorTabs() {
         options={{ tabBarLabel: 'Mapa' }} />
       <Tab.Screen name="ParaTi" component={VacantesRecomendadasStack}
         options={{ tabBarLabel: 'Para ti' }} />
-      <Tab.Screen name="Postulaciones" component={MisPostulacionesScreen}
+      <Tab.Screen name="Postulaciones" component={MisPostulacionesTab}
         options={{ tabBarLabel: 'Mis Postulaciones', headerShown: true, ...headerOptions, title: 'Mis Postulaciones' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
         options={{ tabBarLabel: 'Mensajes' }} />
@@ -182,36 +201,42 @@ function TrabajadorTabs() {
 
 function VacantesRecomendadasStack() {
   return (
-    <Stack.Navigator screenOptions={stackScreenOptions}>
-      <Stack.Screen name="RecomendadasHome" component={VacantesRecomendadasScreen}
-        options={{ title: 'Recomendadas para ti' }} />
-      <Stack.Screen name="DetalleVacanteRecomendada" component={DetalleVacanteScreen}
-        options={{ title: 'Detalle de Vacante' }} />
-    </Stack.Navigator>
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="RecomendadasHome" component={VacantesRecomendadasScreen}
+          options={{ title: 'Recomendadas para ti' }} />
+        <Stack.Screen name="DetalleVacanteRecomendada" component={DetalleVacanteScreen}
+          options={{ title: 'Detalle de Vacante' }} />
+      </Stack.Navigator>
+    </S>
   );
 }
 
 function TrabajadorVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={stackScreenOptions}>
-      <Stack.Screen name="VacantesHome" component={TrabajadorVacantesScreen}
-        options={{ title: 'Vacantes Disponibles' }} />
-      <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
-        options={{ title: 'Detalle de Vacante' }} />
-      <Stack.Screen name="Notificaciones" component={NotificacionesScreen}
-        options={{ title: 'Notificaciones' }} />
-    </Stack.Navigator>
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="VacantesHome" component={TrabajadorVacantesScreen}
+          options={{ title: 'Vacantes Disponibles' }} />
+        <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
+          options={{ title: 'Detalle de Vacante' }} />
+        <Stack.Screen name="Notificaciones" component={NotificacionesScreen}
+          options={{ title: 'Notificaciones' }} />
+      </Stack.Navigator>
+    </S>
   );
 }
 
 function VacantesMapaStack() {
   return (
-    <Stack.Navigator screenOptions={stackScreenOptions}>
-      <Stack.Screen name="VacantesMapaHome" component={VacantesMapaScreen}
-        options={{ title: 'Mapa de Vacantes' }} />
-      <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
-        options={{ title: 'Detalle de Vacante' }} />
-    </Stack.Navigator>
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="VacantesMapaHome" component={VacantesMapaScreen}
+          options={{ title: 'Mapa de Vacantes' }} />
+        <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
+          options={{ title: 'Detalle de Vacante' }} />
+      </Stack.Navigator>
+    </S>
   );
 }
 
@@ -250,76 +275,84 @@ function EmpleadorTabs() {
 
 function BuscarTrabajadoresStack() {
   return (
-    <Stack.Navigator screenOptions={stackScreenOptions}>
-      <Stack.Screen
-        name="BuscarTrabajadoresHome"
-        component={BuscarTrabajadoresScreen}
-        options={{ title: 'Trabajadores disponibles' }}
-      />
-      <Stack.Screen
-        name="PerfilPublicoTrabajador"
-        component={PerfilPublicoTrabajadorScreen}
-        options={{ title: 'Perfil del Trabajador' }}
-      />
-    </Stack.Navigator>
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen
+          name="BuscarTrabajadoresHome"
+          component={BuscarTrabajadoresScreen}
+          options={{ title: 'Trabajadores disponibles' }}
+        />
+        <Stack.Screen
+          name="PerfilPublicoTrabajador"
+          component={PerfilPublicoTrabajadorScreen}
+          options={{ title: 'Perfil del Trabajador' }}
+        />
+      </Stack.Navigator>
+    </S>
   );
 }
 
 function ExplorarVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={stackScreenOptions}>
-      <Stack.Screen
-        name="ExplorarVacantesHome"
-        component={ExplorarVacantesScreen}
-        options={{ title: 'Explorar ofertas' }}
-      />
-      <Stack.Screen
-        name="DetalleVacanteReferencia"
-        component={DetalleVacanteReferenciaScreen}
-        options={{ title: 'Detalle de referencia' }}
-      />
-    </Stack.Navigator>
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen
+          name="ExplorarVacantesHome"
+          component={ExplorarVacantesScreen}
+          options={{ title: 'Explorar ofertas' }}
+        />
+        <Stack.Screen
+          name="DetalleVacanteReferencia"
+          component={DetalleVacanteReferenciaScreen}
+          options={{ title: 'Detalle de referencia' }}
+        />
+      </Stack.Navigator>
+    </S>
   );
 }
 
 function EmpleadorVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={stackScreenOptions}>
-      <Stack.Screen name="EmpleadorHome" component={EmpleadorVacantesScreen}
-        options={{ title: 'Mis Vacantes' }} />
-      <Stack.Screen name="CrearVacante" component={CrearVacanteScreen}
-        options={{ title: 'Nueva Vacante' }} />
-      <Stack.Screen name="EditarVacante" component={EditarVacanteScreen}
-        options={{ title: 'Editar Vacante' }} />
-      <Stack.Screen name="DetalleVacanteEmpleador" component={DetalleVacanteEmpleadorScreen}
-        options={{ title: 'Detalle de Vacante' }} />
-      <Stack.Screen name="VerPostulaciones" component={VerPostulacionesScreen}
-        options={{ title: 'Postulaciones' }} />
-      <Stack.Screen name="MisPostulantes" component={MisPostulantesScreen}
-        options={{ title: 'Mis Postulantes' }} />
-      <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
-        options={{ title: 'Perfil del Trabajador' }} />
-      <Stack.Screen name="Notificaciones" component={NotificacionesScreen}
-        options={{ title: 'Notificaciones' }} />
-    </Stack.Navigator>
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="EmpleadorHome" component={EmpleadorVacantesScreen}
+          options={{ title: 'Mis Vacantes' }} />
+        <Stack.Screen name="CrearVacante" component={CrearVacanteScreen}
+          options={{ title: 'Nueva Vacante' }} />
+        <Stack.Screen name="EditarVacante" component={EditarVacanteScreen}
+          options={{ title: 'Editar Vacante' }} />
+        <Stack.Screen name="DetalleVacanteEmpleador" component={DetalleVacanteEmpleadorScreen}
+          options={{ title: 'Detalle de Vacante' }} />
+        <Stack.Screen name="VerPostulaciones" component={VerPostulacionesScreen}
+          options={{ title: 'Postulaciones' }} />
+        <Stack.Screen name="MisPostulantes" component={MisPostulantesScreen}
+          options={{ title: 'Mis Postulantes' }} />
+        <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
+          options={{ title: 'Perfil del Trabajador' }} />
+        <Stack.Screen name="Notificaciones" component={NotificacionesScreen}
+          options={{ title: 'Notificaciones' }} />
+      </Stack.Navigator>
+    </S>
   );
 }
 
 // ── Admin Tabs ──
 function AdminUsuariosStack() {
   return (
-    <Stack.Navigator screenOptions={stackScreenOptions}>
-      <Stack.Screen
-        name="AdminUsuariosHome"
-        component={AdminUsuariosScreen}
-        options={{ title: 'Usuarios' }}
-      />
-      <Stack.Screen
-        name="AdminDetalleUsuario"
-        component={AdminDetalleUsuarioScreen}
-        options={{ title: 'Perfil de Usuario' }}
-      />
-    </Stack.Navigator>
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen
+          name="AdminUsuariosHome"
+          component={AdminUsuariosScreen}
+          options={{ title: 'Usuarios' }}
+        />
+        <Stack.Screen
+          name="AdminDetalleUsuario"
+          component={AdminDetalleUsuarioScreen}
+          options={{ title: 'Perfil de Usuario' }}
+        />
+      </Stack.Navigator>
+    </S>
   );
 }
 
@@ -330,7 +363,7 @@ function AdminTabs() {
         options={{ tabBarLabel: 'Dashboard' }} />
       <Tab.Screen name="Usuarios" component={AdminUsuariosStack}
         options={{ tabBarLabel: 'Usuarios' }} />
-      <Tab.Screen name="Verificacion" component={AdminVerificacionCedulasScreen}
+      <Tab.Screen name="Verificacion" component={AdminVerificacionTab}
         options={{ tabBarLabel: 'Verificación', headerShown: true, ...headerOptions, title: 'Cédulas Pendientes' }} />
       <Tab.Screen name="AdminVacantes" component={AdminVacantesStack}
         options={{ tabBarLabel: 'Vacantes' }} />
@@ -342,63 +375,67 @@ function AdminTabs() {
 
 function AdminVacantesStack() {
   return (
-    <Stack.Navigator screenOptions={stackScreenOptions}>
-      <Stack.Screen
-        name="AdminVacantesHome"
-        component={AdminVacantesScreen}
-        options={{ title: 'Vacantes' }}
-      />
-      <Stack.Screen
-        name="AdminVerPostulantes"
-        component={AdminPostulantesVacanteScreen}
-        options={{ title: 'Postulantes' }}
-      />
-      <Stack.Screen
-        name="AdminDetalleVacante"
-        component={DetalleVacanteEmpleadorScreen}
-        options={{ title: 'Detalle de Vacante' }}
-      />
-      <Stack.Screen
-        name="EditarVacante"
-        component={EditarVacanteScreen}
-        options={{ title: 'Editar Vacante' }}
-      />
-      <Stack.Screen
-        name="VerPostulaciones"
-        component={AdminPostulantesVacanteScreen}
-        options={{ title: 'Postulantes' }}
-      />
-      <Stack.Screen
-        name="PerfilPublicoTrabajador"
-        component={PerfilPublicoTrabajadorScreen}
-        options={{ title: 'Perfil del Trabajador' }}
-      />
-      <Stack.Screen
-        name="PerfilPublicoEmpleador"
-        component={PerfilPublicoEmpleadorScreen}
-        options={{ title: 'Perfil del Empleador' }}
-      />
-    </Stack.Navigator>
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen
+          name="AdminVacantesHome"
+          component={AdminVacantesScreen}
+          options={{ title: 'Vacantes' }}
+        />
+        <Stack.Screen
+          name="AdminVerPostulantes"
+          component={AdminPostulantesVacanteScreen}
+          options={{ title: 'Postulantes' }}
+        />
+        <Stack.Screen
+          name="AdminDetalleVacante"
+          component={DetalleVacanteEmpleadorScreen}
+          options={{ title: 'Detalle de Vacante' }}
+        />
+        <Stack.Screen
+          name="EditarVacante"
+          component={EditarVacanteScreen}
+          options={{ title: 'Editar Vacante' }}
+        />
+        <Stack.Screen
+          name="VerPostulaciones"
+          component={AdminPostulantesVacanteScreen}
+          options={{ title: 'Postulantes' }}
+        />
+        <Stack.Screen
+          name="PerfilPublicoTrabajador"
+          component={PerfilPublicoTrabajadorScreen}
+          options={{ title: 'Perfil del Trabajador' }}
+        />
+        <Stack.Screen
+          name="PerfilPublicoEmpleador"
+          component={PerfilPublicoEmpleadorScreen}
+          options={{ title: 'Perfil del Empleador' }}
+        />
+      </Stack.Navigator>
+    </S>
   );
 }
 
 function AdminDashboardStack() {
   return (
-    <Stack.Navigator screenOptions={stackScreenOptions}>
-      <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen}
-        options={{ title: 'Admin Dashboard' }} />
-      <Stack.Screen name="AdminUsuarios" component={AdminUsuariosStack}
-        options={{ headerShown: false }} />
-      <Stack.Screen
-        name="AdminVacantes"
-        component={AdminVacantesStack}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen name="AdminCrearVacante" component={CrearVacanteScreen}
-        options={{ title: 'Crear Vacante (Admin)' }} />
-      <Stack.Screen name="AdminVistas" component={AdminUsuariosScreen}
-        options={{ title: 'Vista Previa de Usuarios' }} />
-    </Stack.Navigator>
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen}
+          options={{ title: 'Admin Dashboard' }} />
+        <Stack.Screen name="AdminUsuarios" component={AdminUsuariosStack}
+          options={{ headerShown: false }} />
+        <Stack.Screen
+          name="AdminVacantes"
+          component={AdminVacantesStack}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen name="AdminCrearVacante" component={CrearVacanteScreen}
+          options={{ title: 'Crear Vacante (Admin)' }} />
+        <Stack.Screen name="AdminVistas" component={AdminUsuariosScreen}
+          options={{ title: 'Vista Previa de Usuarios' }} />
+      </Stack.Navigator>
+    </S>
   );
 }
 
