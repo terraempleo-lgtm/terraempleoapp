@@ -37,6 +37,7 @@ router.get('/:id/ejecutar-matching', authMiddleware, empleadorMiddleware, vacant
 
 // Rutas de trabajador
 router.get('/recomendadas', authMiddleware, trabajadorMiddleware, vacantesController.vacantesRecomendadas);
+router.put('/postulaciones/:id/responder-contacto', authMiddleware, trabajadorMiddleware, vacantesController.responderSolicitudContacto);
 router.get('/', authMiddleware, vacantesController.listarVacantes);
 router.get('/:id', authMiddleware, vacantesController.detalleVacante);
 router.post('/postularse', authMiddleware, trabajadorMiddleware, vacantesController.postularse);

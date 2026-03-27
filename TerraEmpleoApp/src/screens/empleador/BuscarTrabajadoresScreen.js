@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, TextInput, Image, ScrollView,
+  RefreshControl, TextInput, Image, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { trabajadoresAPI } from '../../services/api';
+import { trabajadoresAPI, vacantesAPI } from '../../services/api';
 
 const ORDEN_TABS = [
   { key: 'match', label: 'Mejor match', icon: 'flash' },
@@ -72,7 +72,7 @@ function MatchBadge({ puntaje }) {
   );
 }
 
-function TrabajadorCard({ item, onPress }) {
+function TrabajadorCard({ item, onPress, onContact, loadingContacto }) {
   const proxConfig = PROXIMIDAD_CONFIG[item.proximidad] || PROXIMIDAD_CONFIG.lejano;
   const dispLabel = DISPONIBILIDAD_LABELS[item.disponibilidad];
   const expLabel = EXPERIENCIA_LABELS[item.anios_experiencia];
@@ -163,6 +163,10 @@ function TrabajadorCard({ item, onPress }) {
 
       {/* CTA */}
       <View style={styles.cardFooter}>
+        <TouchableOpacity style={styles.btnContactar} onPress={() => onContact(item)} disabled={loadingContacto}>
+          <Ionicons name={loadingContacto ? 'hourglass-outline' : 'chatbubble-ellipses-outline'} size={14} color={COLORS.white} />
+          <Text style={styles.btnContactarText}>{loadingContacto ? 'Enviando...' : 'Contactar'}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.btnPerfil} onPress={() => onPress(item)}>
           <Ionicons name="person-outline" size={14} color={COLORS.primary} />
           <Text style={styles.btnPerfilText}>Ver perfil completo</Text>
@@ -176,6 +180,8 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
   const [trabajadores, setTrabajadores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [enviandoContactoId, setEnviandoContactoId] = useState(null);
+  const [vacanteContacto, setVacanteContacto] = useState(null);
   const [orden, setOrden] = useState('match');
   const [disponibilidad, setDisponibilidad] = useState('');
   const [search, setSearch] = useState('');
@@ -194,7 +200,21 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
     }
   }, [orden, disponibilidad]);
 
-  useEffect(() => { cargar(); }, []);
+  const cargarVacanteContacto = useCallback(async () => {
+    try {
+      const res = await vacantesAPI.misVacantes();
+      const vacantes = res.data?.vacantes || [];
+      const activa = vacantes.find((v) => v.estado === 'activa') || vacantes[0] || null;
+      setVacanteContacto(activa ? { id: Number(activa.id), titulo: activa.titulo } : null);
+    } catch (_) {
+      setVacanteContacto(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargar();
+    cargarVacanteContacto();
+  }, []);
 
   const onOrden = (key) => {
     setOrden(key);
@@ -219,7 +239,27 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
   }, [trabajadores, search]);
 
   const irPerfil = (item) => {
-    navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.id });
+    navigation.navigate('PerfilPublicoTrabajador', {
+      trabajador_id: item.id,
+      vacante_id: vacanteContacto?.id,
+    });
+  };
+
+  const solicitarContacto = async (item) => {
+    if (!vacanteContacto?.id) {
+      Alert.alert('Sin vacante', 'Primero crea o activa una vacante para poder contactar trabajadores.');
+      return;
+    }
+
+    try {
+      setEnviandoContactoId(Number(item.id));
+      await trabajadoresAPI.contactar(item.id, { vacante_id: vacanteContacto.id });
+      Alert.alert('Listo', `Se envió solicitud de contacto a ${item.nombre_completo}.`);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
+    } finally {
+      setEnviandoContactoId(null);
+    }
   };
 
   if (loading) {
@@ -242,6 +282,9 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
           <Text style={styles.headerSub}>
             {filtrados.length} disponible{filtrados.length !== 1 ? 's' : ''}
           </Text>
+          {vacanteContacto?.titulo ? (
+            <Text style={styles.headerVacante} numberOfLines={1}>Vacante para contactar: {vacanteContacto.titulo}</Text>
+          ) : null}
         </View>
         <View style={styles.headerIcon}>
           <Ionicons name="people" size={24} color={COLORS.primary} />
@@ -315,7 +358,12 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
         data={filtrados}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
-          <TrabajadorCard item={item} onPress={irPerfil} />
+          <TrabajadorCard
+            item={item}
+            onPress={irPerfil}
+            onContact={solicitarContacto}
+            loadingContacto={Number(enviandoContactoId) === Number(item.id)}
+          />
         )}
         contentContainerStyle={styles.list}
         refreshControl={
@@ -360,6 +408,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
   headerSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
+  headerVacante: { fontSize: 11, color: COLORS.primary, marginTop: 2, maxWidth: 220 },
   headerIcon: {
     width: 36,
     height: 36,
@@ -529,7 +578,19 @@ const styles = StyleSheet.create({
   },
   skillTextMore: { fontSize: 11, color: COLORS.textLight, fontWeight: '600' },
 
-  cardFooter: { marginTop: 6, alignItems: 'flex-start' },
+  cardFooter: { marginTop: 6, flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
+  btnContactar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: COLORS.primary,
+    borderWidth: 1.2,
+    borderColor: COLORS.primaryDark,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+  },
+  btnContactarText: { fontSize: 13, fontWeight: '700', color: COLORS.white },
   btnPerfil: {
     flexDirection: 'row',
     alignItems: 'center',

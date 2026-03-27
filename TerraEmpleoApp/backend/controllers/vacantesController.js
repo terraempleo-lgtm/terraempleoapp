@@ -422,6 +422,72 @@ async function actualizarPostulacion(req, res) {
   }
 }
 
+// Responder solicitud de contacto (trabajador)
+async function responderSolicitudContacto(req, res) {
+  try {
+    const { id } = req.params;
+    const { accion } = req.body;
+    const trabajadorId = req.user.id;
+
+    if (!['aceptar', 'rechazar'].includes(accion)) {
+      return res.status(400).json({ error: 'Acción inválida. Use: aceptar o rechazar' });
+    }
+
+    const posts = await query(`
+      SELECT p.id, p.vacante_id, p.estado, v.empleador_id, v.titulo
+      FROM postulaciones p
+      JOIN vacantes v ON v.id = p.vacante_id
+      WHERE p.id = ? AND p.trabajador_id = ?
+      LIMIT 1
+    `, [id, trabajadorId]);
+
+    if (!posts || posts.length === 0) {
+      return res.status(404).json({ error: 'Solicitud no encontrada' });
+    }
+
+    const post = posts[0];
+    if (post.estado !== 'contacto_solicitado') {
+      return res.status(400).json({ error: 'Esta solicitud ya fue procesada o no requiere respuesta' });
+    }
+
+    if (accion === 'aceptar') {
+      await query('UPDATE postulaciones SET estado = ? WHERE id = ?', ['aceptada', id]);
+      const chatId = await crearChat(Number(post.vacante_id), Number(post.empleador_id), trabajadorId);
+
+      await crearNotificacion(
+        Number(post.empleador_id),
+        'chat_habilitado',
+        'Solicitud aceptada',
+        `Tu solicitud de contacto para "${post.titulo}" fue aceptada. Ya puedes chatear con el trabajador.`,
+        { vacante_id: Number(post.vacante_id), conversacion_id: chatId }
+      );
+
+      return res.json({
+        message: 'Solicitud aceptada. Chat habilitado',
+        estado: 'aceptada',
+        chat_id: chatId,
+      });
+    }
+
+    await query('UPDATE postulaciones SET estado = ? WHERE id = ?', ['rechazada', id]);
+    await crearNotificacion(
+      Number(post.empleador_id),
+      'rechazado',
+      'Solicitud rechazada',
+      `Tu solicitud de contacto para "${post.titulo}" fue rechazada por el trabajador.`,
+      { vacante_id: Number(post.vacante_id) }
+    );
+
+    res.json({
+      message: 'Solicitud rechazada',
+      estado: 'rechazada',
+    });
+  } catch (err) {
+    console.error('Error respondiendo solicitud de contacto:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 // Mis postulaciones (para trabajador)
 async function misPostulaciones(req, res) {
   try {
@@ -954,7 +1020,7 @@ async function vacantesRecomendadas(req, res) {
 
 module.exports = {
   crearVacante, actualizarVacante, eliminarVacante, misVacantes, listarVacantes, detalleVacante,
-  postularse, verPostulaciones, actualizarPostulacion,
+  postularse, verPostulaciones, actualizarPostulacion, responderSolicitudContacto,
   misPostulaciones, cerrarVacante, subirFotosVacante, eliminarFotoVacante,
   ejecutarMatchingEndpoint, ejecutarMatchingParaTrabajador,
   perfilPublicoTrabajador, vacantesRecomendadas

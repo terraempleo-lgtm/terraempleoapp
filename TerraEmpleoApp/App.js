@@ -24,6 +24,7 @@ import RoleSelectScreen from './src/screens/auth/RoleSelectScreen';
 import RegisterTrabajadorScreen from './src/screens/auth/RegisterTrabajadorScreen';
 import RegisterEmpleadorScreen from './src/screens/auth/RegisterEmpleadorScreen';
 import RecuperarPasswordScreen from './src/screens/auth/RecuperarPasswordScreen';
+import PasskeyEnrollScreen from './src/screens/auth/PasskeyEnrollScreen';
 import DocumentoLegalScreen from './src/screens/auth/DocumentoLegalScreen';
 import VerificationNavigator from './src/modules/verification/navigation/VerificationNavigator';
 
@@ -52,7 +53,7 @@ const DetalleVacanteEmpleadorScreen  = lazyWeb(() => import('./src/screens/emple
 const ExplorarVacantesScreen         = lazyWeb(() => import('./src/screens/empleador/ExplorarVacantesScreen'));
 const DetalleVacanteReferenciaScreen = lazyWeb(() => import('./src/screens/empleador/DetalleVacanteReferenciaScreen'));
 const MisPostulantesScreen           = lazyWeb(() => import('./src/screens/empleador/MisPostulantesScreen'));
-const BuscarTrabajadoresScreen       = lazyWeb(() => import('./src/screens/empleador/BuscarTrabajadoresScreen'));
+const TrabajadoresRecomendadosScreen = lazyWeb(() => import('./src/screens/empleador/TrabajadoresRecomendadosScreen'));
 
 // ── Admin — lazy en web ───────────────────────────────────────────────────
 const AdminDashboardScreen           = lazyWeb(() => import('./src/screens/admin/AdminDashboardScreen'));
@@ -273,14 +274,33 @@ function EmpleadorTabs() {
   );
 }
 
+function ParaTiEmpleadorStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen
+          name="TrabajadoresRecomendadosHome"
+          component={TrabajadoresRecomendadosScreen}
+          options={{ title: 'Trabajadores recomendados' }}
+        />
+        <Stack.Screen
+          name="PerfilPublicoTrabajador"
+          component={PerfilPublicoTrabajadorScreen}
+          options={{ title: 'Perfil del Trabajador' }}
+        />
+      </Stack.Navigator>
+    </S>
+  );
+}
+
 function BuscarTrabajadoresStack() {
   return (
     <S>
       <Stack.Navigator screenOptions={stackScreenOptions}>
         <Stack.Screen
-          name="BuscarTrabajadoresHome"
-          component={BuscarTrabajadoresScreen}
-          options={{ title: 'Trabajadores disponibles' }}
+          name="TrabajadoresRecomendadosHome"
+          component={TrabajadoresRecomendadosScreen}
+          options={{ title: 'Trabajadores recomendados' }}
         />
         <Stack.Screen
           name="PerfilPublicoTrabajador"
@@ -454,6 +474,8 @@ function AuthStack() {
         options={{ headerShown: true, title: 'Registro Empleador' }} />
       <Stack.Screen name="RecuperarPassword" component={RecuperarPasswordScreen}
         options={{ headerShown: true, title: 'Recuperar contraseña' }} />
+      <Stack.Screen name="PasskeyEnroll" component={PasskeyEnrollScreen}
+        options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="DocumentoLegal" component={DocumentoLegalScreen}
         options={{ headerShown: true, title: 'Documento legal' }} />
       <Stack.Screen

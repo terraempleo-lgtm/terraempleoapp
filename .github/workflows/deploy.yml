@@ -114,11 +114,28 @@ jobs:
             --cache-control "no-cache, no-store, must-revalidate"
 
           # Resto de archivos con caché de 1 año (tienen hash en el nombre)
+          # --exclude ".well-known/*" evita que --delete borre los archivos de passkeys/domain verification
           aws s3 sync dist/ s3://terraempleo-web-frontend/ \
             --exclude "index.html" \
             --exclude "metadata.json" \
+            --exclude ".well-known/*" \
             --cache-control "public, max-age=31536000, immutable" \
             --delete
+
+          # Política de privacidad
+          aws s3 cp public/privacidad.html s3://terraempleo-web-frontend/privacidad.html \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "no-cache"
+
+          # .well-known — sin caché, content-type explícito (requerido por iOS y Android para passkeys)
+          aws s3 cp public/.well-known/apple-app-site-association \
+            s3://terraempleo-web-frontend/.well-known/apple-app-site-association \
+            --content-type "application/json" \
+            --cache-control "no-cache"
+          aws s3 cp public/.well-known/assetlinks.json \
+            s3://terraempleo-web-frontend/.well-known/assetlinks.json \
+            --content-type "application/json" \
+            --cache-control "no-cache"
 
       - name: Invalidar caché de CloudFront
         env:

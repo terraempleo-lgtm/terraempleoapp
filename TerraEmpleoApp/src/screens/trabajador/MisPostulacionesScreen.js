@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, RefreshControl,
-  Image, ScrollView,
+  Image, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,6 +77,16 @@ export default function MisPostulacionesScreen({ navigation }) {
     }
   };
 
+  const responderContacto = async (postulacionId, accion) => {
+    try {
+      await vacantesAPI.responderContacto(postulacionId, accion);
+      await cargar();
+      Alert.alert('Listo', accion === 'aceptar' ? 'Contacto aceptado. Ya puedes chatear.' : 'Solicitud rechazada.');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo responder la solicitud');
+    }
+  };
+
   const formatDateRelative = (dateStr) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -98,6 +108,9 @@ export default function MisPostulacionesScreen({ navigation }) {
     if (estado === 'aceptada') {
       return { label: 'ACEPTADA', bg: '#DCEFE4', color: COLORS.primary };
     }
+    if (estado === 'contacto_solicitado') {
+      return { label: 'SOLICITUD DE CONTACTO', bg: '#E8F0FF', color: '#1D4ED8' };
+    }
     if (estado === 'rechazada') {
       return { label: 'RECHAZADA', bg: COLORS.errorSoft, color: COLORS.error };
     }
@@ -106,7 +119,7 @@ export default function MisPostulacionesScreen({ navigation }) {
 
   const counts = useMemo(() => ({
     todas: postulaciones.length,
-    pendiente: postulaciones.filter((p) => p.estado === 'pendiente' || p.estado === 'match_auto').length,
+    pendiente: postulaciones.filter((p) => p.estado === 'pendiente' || p.estado === 'match_auto' || p.estado === 'contacto_solicitado').length,
     aceptada: postulaciones.filter((p) => p.estado === 'aceptada').length,
     rechazada: postulaciones.filter((p) => p.estado === 'rechazada').length,
   }), [postulaciones]);
@@ -120,7 +133,7 @@ export default function MisPostulacionesScreen({ navigation }) {
 
   const dataFiltrada = postulaciones.filter((p) => {
     if (filtro === 'todas') return true;
-    if (filtro === 'pendiente') return p.estado === 'pendiente' || p.estado === 'match_auto';
+    if (filtro === 'pendiente') return p.estado === 'pendiente' || p.estado === 'match_auto' || p.estado === 'contacto_solicitado';
     if (filtro === 'aceptada') return p.estado === 'aceptada';
     if (filtro === 'rechazada') return p.estado === 'rechazada';
     return true;
@@ -131,6 +144,7 @@ export default function MisPostulacionesScreen({ navigation }) {
     const vacanteId = Number(item.vacante_id || item.id);
     const foto = fotosVacante[vacanteId] || null;
     const esAceptada = item.estado === 'aceptada';
+    const esContactoPendiente = item.estado === 'contacto_solicitado';
 
     return (
       <StaggeredItem index={index}>
@@ -191,6 +205,39 @@ export default function MisPostulacionesScreen({ navigation }) {
                 <Text style={[styles.okBoxText, { color: colors.textSecondary }]}>
                   ¡Felicidades! Tu postulación fue aceptada. Espera que el empleador se comunique contigo pronto.
                 </Text>
+              </View>
+            </MotiView>
+          ) : null}
+
+          {esContactoPendiente ? (
+            <MotiView
+              from={{ opacity: 0, translateY: -5 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 300 }}
+            >
+              <View style={[styles.okBox, { borderColor: isDark ? '#2b4b86' : '#BBD3FF', backgroundColor: isDark ? '#1A2A44' : '#ECF3FF' }]}> 
+                <Ionicons name="chatbubble-ellipses" size={16} color={isDark ? '#9CC3FF' : '#1D4ED8'} style={{ marginTop: 1 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.okBoxText, { color: colors.textSecondary }]}>Un empleador quiere contactarte para esta vacante.</Text>
+                  <View style={styles.contactActions}>
+                    <AnimatedPressable
+                      style={[styles.contactBtn, styles.contactBtnGhost]}
+                      onPress={() => responderContacto(item.id, 'rechazar')}
+                      scaleValue={0.96}
+                      haptic
+                    >
+                      <Text style={styles.contactBtnGhostText}>Rechazar</Text>
+                    </AnimatedPressable>
+                    <AnimatedPressable
+                      style={[styles.contactBtn, styles.contactBtnPrimary]}
+                      onPress={() => responderContacto(item.id, 'aceptar')}
+                      scaleValue={0.96}
+                      haptic
+                    >
+                      <Text style={styles.contactBtnPrimaryText}>Aceptar y habilitar chat</Text>
+                    </AnimatedPressable>
+                  </View>
+                </View>
               </View>
             </MotiView>
           ) : null}
@@ -476,6 +523,34 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     lineHeight: 16,
     fontWeight: '500',
+  },
+  contactActions: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  contactBtn: {
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  contactBtnGhost: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
+  contactBtnGhostText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  contactBtnPrimary: {
+    backgroundColor: COLORS.primary,
+  },
+  contactBtnPrimaryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.white,
   },
 
   cardFooter: {

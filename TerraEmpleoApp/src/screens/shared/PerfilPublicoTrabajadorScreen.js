@@ -26,6 +26,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const { trabajador_id, vacante_id, postulacion_estado } = route.params;
   const [perfil, setPerfil] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [enviandoSolicitud, setEnviandoSolicitud] = useState(false);
   const insets = useSafeAreaInsets();
 
   useEffect(() => { cargarPerfil(); }, []);
@@ -58,6 +59,19 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     } catch (err) { Alert.alert('Error', err.response?.data?.error || 'Error al actualizar'); }
   };
 
+  const solicitarContacto = async () => {
+    if (!vacante_id || enviandoSolicitud) return;
+    try {
+      setEnviandoSolicitud(true);
+      await trabajadoresAPI.contactar(trabajador_id, { vacante_id });
+      Alert.alert('Listo', 'Solicitud de contacto enviada. Si el trabajador acepta, se habilitará el chat.');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
+    } finally {
+      setEnviandoSolicitud(false);
+    }
+  };
+
   if (cargando) return <View style={s.centered}><ActivityIndicator size="large" color={COLORS.primary} /></View>;
   if (!perfil) return <View style={s.centered}><Text style={s.emptyTitle}>Perfil no disponible</Text></View>;
 
@@ -69,6 +83,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const especialidades = [...(perfil.habilidades || []).map(h => h.habilidad), ...(perfil.cultivos || []).map(c => c.cultivo)];
   const ubicacion = [perfil.municipio, perfil.departamento].filter(Boolean).join(', ');
   const isPendiente = postulacion_estado === 'pendiente' || postulacion_estado === 'match_auto';
+  const isSolicitudContacto = postulacion_estado === 'contacto_solicitado';
   const acercaDe = perfil.acerca_de?.trim();
 
   const abrirHojaVida = async () => {
@@ -217,6 +232,21 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
         <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
           <TouchableOpacity style={s.chatBtn} onPress={irAlChat} activeOpacity={0.88}>
             <Ionicons name="chatbubble-ellipses" size={20} color={COLORS.white} /><Text style={s.chatBtnTxt}>Ir al chat</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {!postulacion_estado && !!vacante_id && (
+        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm }]}> 
+          <TouchableOpacity style={s.chatBtn} onPress={solicitarContacto} activeOpacity={0.88} disabled={enviandoSolicitud}>
+            <Ionicons name={enviandoSolicitud ? 'hourglass-outline' : 'chatbubble-ellipses'} size={20} color={COLORS.white} />
+            <Text style={s.chatBtnTxt}>{enviandoSolicitud ? 'Enviando...' : 'Solicitar contacto'}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {isSolicitudContacto && (
+        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm }]}> 
+          <TouchableOpacity style={[s.rejectBtn, { flex: 1 }]} activeOpacity={1}>
+            <Text style={s.rejectBtnTxt}>Solicitud enviada. Esperando respuesta del trabajador.</Text>
           </TouchableOpacity>
         </View>
       )}

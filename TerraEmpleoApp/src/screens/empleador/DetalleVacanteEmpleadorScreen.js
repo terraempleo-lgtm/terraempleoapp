@@ -121,6 +121,7 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar(); }}
             colors={[COLORS.primary]} tintColor={COLORS.primary} />
@@ -217,6 +218,13 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
 
         {/* Panel postulaciones */}
         <View style={styles.postulacionesPanel}>
+          <View style={styles.panelHeader}>
+            <View style={styles.panelHeaderIcon}>
+              <Ionicons name="people-outline" size={16} color={COLORS.primary} />
+            </View>
+            <Text style={styles.panelHeaderTitle}>Resumen de postulaciones</Text>
+          </View>
+
           <View style={styles.statsRow}>
             <TouchableOpacity
               style={styles.statCard}
@@ -238,20 +246,23 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.ctaBtn}
-            onPress={() => navigation.navigate('VerPostulaciones', { vacante })}
-            activeOpacity={0.88}
-          >
-            <Ionicons name="people" size={20} color={COLORS.white} />
-            <Text style={styles.ctaBtnText}>Ver postulaciones</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.ctaEditBtn}
-            onPress={() => navigation.navigate('EditarVacante', { vacante })}
-          >
-            <Ionicons name="pencil-outline" size={20} color={COLORS.primary} />
-          </TouchableOpacity>
+          <View style={styles.ctaWrap}>
+            <TouchableOpacity
+              style={styles.ctaBtn}
+              onPress={() => navigation.navigate('VerPostulaciones', { vacante })}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="people" size={18} color={COLORS.white} />
+              <Text style={styles.ctaBtnText}>Ver postulaciones</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.ctaEditBtn}
+              onPress={() => navigation.navigate('EditarVacante', { vacante })}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="pencil-outline" size={18} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Details */}
@@ -355,9 +366,10 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  scrollContent: { paddingBottom: SPACING.lg },
 
   /* Hero */
-  hero: { height: 260, position: 'relative' },
+  hero: { height: 230, position: 'relative' },
   heroImg: { width: '100%', height: '100%' },
   heroPlaceholder: {
     width: '100%', height: '100%',
@@ -375,7 +387,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   heroDotsWrap: {
-    position: 'absolute', bottom: 54, left: 0, right: 0,
+    position: 'absolute', bottom: 50, left: 0, right: 0,
     alignItems: 'center',
   },
   heroDotsInner: {
@@ -421,9 +433,7 @@ const styles = StyleSheet.create({
   heroContent: {
     position: 'absolute', bottom: SPACING.md, left: SPACING.md, right: SPACING.md,
   },
-  heroTitle: {
-    fontSize: 24, fontWeight: '800', color: COLORS.white, marginBottom: 6,
-  },
+  heroTitle: { fontSize: 22, fontWeight: '800', color: COLORS.white, marginBottom: 4 },
   heroMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
   heroMetaText: { fontSize: 13, color: 'rgba(255,255,255,0.82)' },
   heroMetaDot: { fontSize: 13, color: 'rgba(255,255,255,0.5)', marginHorizontal: 2 },
@@ -431,91 +441,112 @@ const styles = StyleSheet.create({
   descripcionCard: {
     backgroundColor: COLORS.white,
     marginHorizontal: SPACING.md,
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
     borderRadius: RADIUS.lg,
-    padding: SPACING.md,
+    padding: SPACING.sm,
     ...SHADOWS.card,
   },
-  descripcionHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginBottom: SPACING.sm },
-  descripcionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  descTextStrong: { fontSize: 15, color: COLORS.textPrimary, lineHeight: 23 },
+  descripcionHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginBottom: 6 },
+  descripcionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  descTextStrong: { fontSize: 14, color: COLORS.textPrimary, lineHeight: 21 },
 
   /* Stats */
   postulacionesPanel: {
     marginHorizontal: SPACING.md,
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     ...SHADOWS.card,
-    paddingBottom: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
+  panelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: SPACING.sm,
+    paddingTop: SPACING.sm,
+  },
+  panelHeaderIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: COLORS.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  panelHeaderTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
   statsRow: {
     flexDirection: 'row',
     backgroundColor: 'transparent',
     marginHorizontal: SPACING.sm,
-    marginTop: SPACING.sm,
+    marginTop: 6,
     borderRadius: RADIUS.md,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
   statCard: {
     flex: 1, alignItems: 'center',
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
-  statDivider: { width: 1, backgroundColor: COLORS.borderLight, marginVertical: SPACING.md },
-  statNum: { fontSize: 28, fontWeight: '800', color: COLORS.primary },
+  statDivider: { width: 1, backgroundColor: COLORS.borderLight, marginVertical: SPACING.sm },
+  statNum: { fontSize: 23, fontWeight: '800', color: COLORS.primary },
   statLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textSecondary, letterSpacing: 0.5, marginTop: 2 },
 
   /* CTA */
   ctaWrap: {
     flexDirection: 'row', gap: SPACING.sm,
-    marginHorizontal: SPACING.md, marginTop: SPACING.md,
+    marginHorizontal: SPACING.sm,
+    marginTop: SPACING.sm,
   },
   ctaBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: SPACING.sm, backgroundColor: COLORS.primary,
-    paddingVertical: 14, borderRadius: RADIUS.lg,
+    gap: 7,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
     ...SHADOWS.button,
   },
-  ctaBtnText: { fontSize: 16, fontWeight: '700', color: COLORS.white },
+  ctaBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
   ctaEditBtn: {
-    width: 50, height: 50, borderRadius: RADIUS.lg,
+    width: 46, height: 46, borderRadius: RADIUS.md,
     backgroundColor: COLORS.primarySoft,
     borderWidth: 1.5, borderColor: COLORS.primary,
     justifyContent: 'center', alignItems: 'center',
   },
 
   /* Details */
-  details: { padding: SPACING.md, gap: SPACING.md },
+  details: { padding: SPACING.md, gap: SPACING.sm },
   sectionCard: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
-    padding: SPACING.md,
+    padding: SPACING.sm,
     ...SHADOWS.small,
   },
   sectionHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.md,
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm,
   },
   sectionIconWrap: {
     width: 34, height: 34, borderRadius: 10,
     backgroundColor: COLORS.primarySoft,
     justifyContent: 'center', alignItems: 'center',
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
 
   /* Chips */
-  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
     backgroundColor: COLORS.primarySoft,
     borderRadius: RADIUS.full,
-    paddingHorizontal: 14, paddingVertical: 6,
+    paddingHorizontal: 12, paddingVertical: 5,
     borderWidth: 1, borderColor: COLORS.primary + '33',
   },
-  chipText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
+  chipText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
 
   /* Beneficios */
-  beneficiosList: { gap: 10 },
+  beneficiosList: { gap: 8 },
   beneficioRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  beneficioText: { fontSize: 14, color: COLORS.textPrimary },
+  beneficioText: { fontSize: 13, color: COLORS.textPrimary },
   textMuted: { color: COLORS.textSecondary },
 
   /* Descripción */

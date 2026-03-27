@@ -70,6 +70,7 @@ export const vacantesAPI = {
   detalle: (id) => api.get(`/vacantes/${id}`),
   postularse: (data) => api.post('/vacantes/postularse', data),
   misPostulaciones: () => api.get('/vacantes/mis-postulaciones/lista'),
+  responderContacto: (id, accion) => api.put(`/vacantes/postulaciones/${id}/responder-contacto`, { accion }),
   verPostulaciones: (vacanteId) => api.get(`/vacantes/postulaciones/${vacanteId}`),
   actualizarPostulacion: (id, estado) => api.put(`/vacantes/postulaciones/${id}/estado`, { estado }),
   actualizar: (id, data) => api.put(`/vacantes/${id}`, data),
@@ -91,7 +92,9 @@ export const calificacionesAPI = {
 // Trabajadores
 export const trabajadoresAPI = {
   listar: (params) => api.get('/trabajadores', { params }),
+  recomendados: (params) => api.get('/trabajadores/recomendados', { params }),
   perfilPublico: (id) => api.get(`/trabajadores/${id}/perfil`),
+  contactar: (id, data) => api.post(`/trabajadores/${id}/contactar`, data),
 };
 
 // Notificaciones
@@ -128,6 +131,24 @@ export const chatsAPI = {
 
     return null;
   },
+};
+
+// Passkey / WebAuthn
+export const passkeyAPI = {
+  // Registro — cognitoToken es el AccessToken de Cognito (no el JWT de la app)
+  registerStart: (cognitoToken) =>
+    api.post('/auth/cognito/passkey/register/start', {}, {
+      headers: { 'x-cognito-token': cognitoToken },
+    }),
+  registerFinish: (cognitoToken, credential) =>
+    api.post('/auth/cognito/passkey/register/finish', { credential }, {
+      headers: { 'x-cognito-token': cognitoToken },
+    }),
+  // Autenticación — no requiere token previo
+  authStart: (phoneNumber) =>
+    api.post('/auth/cognito/passkey/auth/start', { phoneNumber }),
+  authFinish: (session, credential, phoneNumber) =>
+    api.post('/auth/cognito/passkey/auth/finish', { session, credential, phoneNumber }),
 };
 
 // Admin

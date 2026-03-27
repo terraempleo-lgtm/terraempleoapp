@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const cognitoAuthController = require('../controllers/cognitoAuthController');
+const passkeyController = require('../controllers/passkeyController');
 const { authLoginLimiter, authSmsLimiter, authRecoveryLimiter } = require('../middleware/rateLimit');
 
 // POST /api/auth/cognito/register
@@ -21,5 +22,13 @@ router.post('/forgot-password', authRecoveryLimiter, cognitoAuthController.forgo
 // POST /api/auth/cognito/confirm-forgot-password
 router.post('/confirm-forgot-password', authRecoveryLimiter, cognitoAuthController.confirmForgotPassword);
 
+
+// ── Passkey / WebAuthn ────────────────────────────────────────────────────────
+// Registro (requiere estar ya autenticado con Cognito — header x-cognito-token)
+router.post('/passkey/register/start',  authLoginLimiter, passkeyController.startRegistration);
+router.post('/passkey/register/finish', authLoginLimiter, passkeyController.finishRegistration);
+// Autenticación (flujo independiente, sin JWT previo)
+router.post('/passkey/auth/start',  authLoginLimiter, passkeyController.startAuthentication);
+router.post('/passkey/auth/finish', authLoginLimiter, passkeyController.finishAuthentication);
 
 module.exports = router;

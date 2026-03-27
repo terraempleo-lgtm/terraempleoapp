@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { COLORS, SPACING } from '../../theme';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SPACING, RADIUS } from '../../theme';
 import { Button, Input, AppHeader, TerraFooter } from '../../components/ui';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
-import { authAPI, cognitoAPI } from '../../services/api';
+import { authAPI, cognitoAPI, passkeyAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
+import {
+  isPasskeySupported,
+  getPasskey,
+  getPasskeyCelular,
+  wasPasskeyPrompted,
+} from '../../services/passkeyService';
 
 function isEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -26,9 +33,21 @@ export default function LoginScreen({ navigation }) {
   const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [loginFailed, setLoginFailed] = useState(false);
   const [errorLogin, setErrorLogin] = useState('');
+  const [showPasskeyBtn, setShowPasskeyBtn] = useState(false);
+
+  // Mostrar botón de passkey si el dispositivo lo soporta y el usuario ya enroló
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    (async () => {
+      if (!isPasskeySupported()) return;
+      const celular = await getPasskeyCelular();
+      if (celular) setShowPasskeyBtn(true);
+    })();
+  }, []);
 
   const validate = () => {
     const errs = {};
@@ -49,7 +68,7 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       const val = identificador.trim();
-      let token, user;
+      let token, user, cognitoAccessToken;
 
       if (isEmail(val)) {
         const response = await authAPI.login({ correo: val, password: password.trim() });
@@ -60,6 +79,7 @@ export default function LoginScreen({ navigation }) {
           const response = await cognitoAPI.login(val, password.trim());
           token = response.data.token;
           user = response.data.user;
+          cognitoAccessToken = response.data.cognito?.accessToken;
         } catch (cognitoErr) {
           const response = await authAPI.login({ celular: val, password: password.trim() });
           token = response.data.token;
@@ -69,6 +89,17 @@ export default function LoginScreen({ navigation }) {
 
       if (!token || !user) {
         setErrorLogin('Respuesta del servidor incompleta');
+        return;
+      }
+
+      // Ofrecer enrollment de passkey solo en native, si no se ha hecho antes
+      if (
+        Platform.OS !== 'web' &&
+        cognitoAccessToken &&
+        isPasskeySupported() &&
+        !(await wasPasskeyPrompted())
+      ) {
+        navigation.navigate('PasskeyEnroll', { user, token, cognitoAccessToken });
         return;
       }
 
@@ -84,6 +115,42 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  const handlePasskeyLogin = async () => {
+    setErrorLogin('');
+    setPasskeyLoading(true);
+    try {
+      const celular = await getPasskeyCelular();
+      if (!celular) {
+        setShowPasskeyBtn(false);
+        return;
+      }
+
+      // 1. Obtener challenge de Cognito
+      const startRes = await passkeyAPI.authStart(celular);
+      const { session, credentialRequestOptions } = startRes.data;
+
+      // 2. Invocar Face ID / huella
+      const credential = await getPasskey(credentialRequestOptions);
+
+      // 3. Verificar en backend
+      const finishRes = await passkeyAPI.authFinish(session, credential, celular);
+      const { token, user } = finishRes.data;
+
+      await signIn(user, token);
+    } catch (err) {
+      if (err.message?.includes('cancel') || err.message?.includes('Cancel')) return;
+      const msg = err.response?.data?.error || 'No se pudo iniciar sesión con passkey.';
+      const hasFallback = err.response?.data?.fallback === 'password';
+      setErrorLogin(hasFallback ? 'Passkey no reconocida. Usa tu contraseña.' : msg);
+      if (hasFallback) setShowPasskeyBtn(false);
+    } finally {
+      setPasskeyLoading(false);
+    }
+  };
+
+  const biometricLabel = Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'Huella / Face ID';
+  const biometricIcon = Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline';
+
   return (
     <View style={styles.gradientBg}>
       <SafeAreaView style={styles.container}>
@@ -95,7 +162,6 @@ export default function LoginScreen({ navigation }) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          {/* Título de bienvenida con animación */}
           <View style={styles.headerSection}>
             <FadeInView delay={100} translateY={-10}>
               <Text style={[styles.title, { color: colors.textPrimary }]}>Bienvenido de nuevo</Text>
@@ -107,7 +173,6 @@ export default function LoginScreen({ navigation }) {
             </FadeInView>
           </View>
 
-          {/* Formulario con stagger */}
           <View style={styles.form}>
             <StaggeredItem index={0}>
               <Input
@@ -133,7 +198,6 @@ export default function LoginScreen({ navigation }) {
               />
             </StaggeredItem>
 
-            {/* ¿Olvidaste tu contraseña? — animación de entrada */}
             <AnimatePresence>
               {loginFailed && (
                 <MotiView
@@ -159,7 +223,6 @@ export default function LoginScreen({ navigation }) {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {/* Footer fijo */}
         <FadeInView delay={400} translateY={10}>
           <View style={[styles.footer, { backgroundColor: 'transparent' }]}>
             {!!errorLogin && (
@@ -167,12 +230,36 @@ export default function LoginScreen({ navigation }) {
                 <Text style={styles.errorBoxText}>{errorLogin}</Text>
               </View>
             )}
+
             <Button
               title="Entrar"
               onPress={handleLogin}
               loading={loading}
               size="large"
             />
+
+            {showPasskeyBtn && (
+              <>
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>o</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <AnimatedPressable
+                  style={styles.passkeyBtn}
+                  onPress={handlePasskeyLogin}
+                  disabled={passkeyLoading}
+                  scaleValue={0.97}
+                  haptic
+                >
+                  <Ionicons name={biometricIcon} size={22} color={COLORS.primary} />
+                  <Text style={styles.passkeyBtnText}>
+                    {passkeyLoading ? 'Verificando...' : `Iniciar con ${biometricLabel}`}
+                  </Text>
+                </AnimatedPressable>
+              </>
+            )}
 
             <View style={styles.registerRow}>
               <Text style={[styles.registerText, { color: colors.textSecondary }]}>¿No tienes una cuenta?  </Text>
@@ -239,6 +326,39 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.sm,
     paddingTop: SPACING.md,
     backgroundColor: COLORS.white,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.md,
+    gap: SPACING.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  dividerText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  passkeyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    paddingVertical: 14,
+    backgroundColor: '#F0FAF4',
+    marginBottom: SPACING.sm,
+  },
+  passkeyBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   registerRow: {
     flexDirection: 'row',

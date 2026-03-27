@@ -14,7 +14,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.terraempleo.app"
+      "bundleIdentifier": "com.terraempleo.app",
+      "associatedDomains": ["webcredentials:app.terrampleo.com"]
     },
     "android": {
       "adaptiveIcon": {

@@ -1,16 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator,
+  View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { vacantesAPI } from '../../services/api';
+import { vacantesAPI, calificacionesAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { Input, StarRating } from '../../components/ui';
 
 export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
   const { vacante_id, chat_data } = route.params || {};
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [vacante, setVacante] = useState(null);
+  const [estrellas, setEstrellas] = useState(0);
+  const [comentario, setComentario] = useState('');
+  const [enviandoCalificacion, setEnviandoCalificacion] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -38,6 +44,7 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
 
   const nombreFinca = vacante?.nombre_empresa_finca || chat_data?.otro_nombre || 'Finca';
   const nombrePropietario = vacante?.nombre_empleador || chat_data?.otro_nombre || 'Empleador';
+  const empleadorId = Number(route?.params?.empleador_id || chat_data?.otro_usuario_id || vacante?.empleador_id);
   const ubicacion = [vacante?.municipio, vacante?.departamento].filter(Boolean).join(', ');
   const fotoFinca = vacante?.foto_portada || null;
 
@@ -46,6 +53,34 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
     vacante?.ofrece_alimentacion && 'Alimentacion incluida',
     vacante?.beneficios_extra,
   ].filter(Boolean);
+
+  const enviarCalificacion = async () => {
+    if (!vacante_id || !empleadorId) {
+      Alert.alert('No disponible', 'No hay contexto suficiente para calificar a este empleador.');
+      return;
+    }
+    if (estrellas < 1 || estrellas > 5) {
+      Alert.alert('Calificación', 'Selecciona de 1 a 5 estrellas.');
+      return;
+    }
+
+    try {
+      setEnviandoCalificacion(true);
+      await calificacionesAPI.calificar({
+        calificado_id: empleadorId,
+        vacante_id,
+        estrellas,
+        comentario,
+      });
+      Alert.alert('Gracias', 'Calificación enviada correctamente.');
+      setEstrellas(0);
+      setComentario('');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la calificación.');
+    } finally {
+      setEnviandoCalificacion(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -98,6 +133,29 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
             </View>
           ) : null}
 
+          {user?.rol === 'trabajador' ? (
+            <View style={styles.seccion}>
+              <Text style={styles.seccionTitulo}>Calificar empleador</Text>
+              <StarRating rating={estrellas} onRate={setEstrellas} size={30} />
+              <Input
+                label="Comentario (opcional)"
+                value={comentario}
+                onChangeText={setComentario}
+                placeholder="¿Cómo fue tu experiencia con esta finca?"
+                multiline
+                numberOfLines={2}
+              />
+              <TouchableOpacity
+                style={[styles.btnCalificar, enviandoCalificacion && { opacity: 0.7 }]}
+                onPress={enviarCalificacion}
+                disabled={enviandoCalificacion}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.btnCalificarText}>{enviandoCalificacion ? 'Enviando...' : 'Enviar calificación'}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
           <TouchableOpacity style={styles.btnVolver} onPress={() => navigation.goBack()} activeOpacity={0.85}>
             <Text style={styles.btnVolverText}>Volver al chat</Text>
           </TouchableOpacity>
@@ -140,6 +198,14 @@ const styles = StyleSheet.create({
   seccionTexto: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22 },
   itemBeneficio: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   beneficioText: { fontSize: 13, color: COLORS.textSecondary, flex: 1 },
+  btnCalificar: {
+    marginTop: SPACING.sm,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  btnCalificarText: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
   btnVolver: {
     marginTop: SPACING.xl,
     backgroundColor: COLORS.primary,

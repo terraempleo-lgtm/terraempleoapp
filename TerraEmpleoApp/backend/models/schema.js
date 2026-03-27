@@ -174,7 +174,7 @@ async function initializeDatabase() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       vacante_id INT NOT NULL,
       trabajador_id INT NOT NULL,
-      estado ENUM('pendiente','aceptada','rechazada','match_auto') DEFAULT 'pendiente',
+      estado ENUM('pendiente','contacto_solicitado','aceptada','rechazada','match_auto') DEFAULT 'pendiente',
       es_match_automatico TINYINT(1) DEFAULT 0,
       puntaje_match DECIMAL(5,2) DEFAULT 0.00,
       mensaje TEXT DEFAULT NULL,
@@ -270,6 +270,11 @@ async function initializeDatabase() {
   try { await query('ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS acerca_de TEXT DEFAULT NULL'); } catch (_) {}
   try { await query('ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS foto_finca_fachada VARCHAR(500) DEFAULT NULL'); } catch (_) {}
   try { await query("ALTER TABLE perfil_trabajador MODIFY COLUMN nivel_estudios ENUM('sin_estudios','primaria_completa','bachiller','tecnico_tecnologo','universitario') DEFAULT NULL"); } catch (_) {}
+
+  // Migración: nuevos estados de postulación
+  try {
+    await query("ALTER TABLE postulaciones MODIFY COLUMN estado ENUM('pendiente','contacto_solicitado','aceptada','rechazada','match_auto') DEFAULT 'pendiente'");
+  } catch (_) {}
 
   // Migración: estado de validación interna de identidad
   try { await query("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS validacion_identidad_estado ENUM('pendiente','aprobada','rechazada') NOT NULL DEFAULT 'pendiente'"); } catch (_) {}
