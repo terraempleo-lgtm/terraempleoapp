@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -29,6 +28,7 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [loginFailed, setLoginFailed] = useState(false);
+  const [errorLogin, setErrorLogin] = useState('');
 
   const validate = () => {
     const errs = {};
@@ -45,6 +45,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     if (!validate()) return;
+    setErrorLogin('');
     setLoading(true);
     try {
       const val = identificador.trim();
@@ -67,16 +68,16 @@ export default function LoginScreen({ navigation }) {
       }
 
       if (!token || !user) {
-        Alert.alert('Error', 'Respuesta del servidor incompleta');
+        setErrorLogin('Respuesta del servidor incompleta');
         return;
       }
 
       await signIn(user, token);
     } catch (err) {
       const msg = err.code === 'ECONNABORTED'
-        ? 'El servidor tardó demasiado en responder. Verifica que el backend y la base de datos estén activos.'
-        : err.response?.data?.error || 'Error al iniciar sesión. Verifica tus datos.';
-      Alert.alert('Error', msg);
+        ? 'El servidor tardó demasiado. Intenta de nuevo.'
+        : err.response?.data?.error || 'Correo/teléfono o contraseña incorrectos';
+      setErrorLogin(msg);
       setLoginFailed(true);
     } finally {
       setLoading(false);
@@ -161,6 +162,11 @@ export default function LoginScreen({ navigation }) {
         {/* Footer fijo */}
         <FadeInView delay={400} translateY={10}>
           <View style={[styles.footer, { backgroundColor: 'transparent' }]}>
+            {!!errorLogin && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorBoxText}>{errorLogin}</Text>
+              </View>
+            )}
             <Button
               title="Entrar"
               onPress={handleLogin}
@@ -247,5 +253,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.primary,
+  },
+  errorBox: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: SPACING.sm,
+  },
+  errorBoxText: {
+    color: '#B91C1C',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
