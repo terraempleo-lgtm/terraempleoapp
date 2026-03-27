@@ -40,6 +40,7 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
   const [nuevaPassword, setNuevaPassword] = useState('');
   const [confirmarPassword, setConfirmarPassword] = useState('');
   const [errores, setErrores] = useState({});
+  const [mensajeInfo, setMensajeInfo] = useState('');
 
   const CODIGO_MOCK = '123456';
 
@@ -121,19 +122,15 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
         setCelular(data.celular);
       }
 
-      setOtp(['', '', '', '', '', '']);
       setOtpCodigo('');
       setCountdown(60);
+      setMensajeInfo(data?.codigo_debug
+        ? `Código de prueba: ${data.codigo_debug}`
+        : 'Revisa tu bandeja de entrada y escribe el código que te enviamos.');
       setPaso(2);
-
-      if (data?.codigo_debug) {
-        Alert.alert('Código de prueba', `Tu código OTP es: ${data.codigo_debug}`);
-      } else {
-        Alert.alert('Correo enviado', 'Te enviamos un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.');
-      }
     } catch (err) {
       const msg = err.response?.data?.error || 'No se pudo enviar el correo de recuperación';
-      Alert.alert('Error', msg);
+      setErrores({ correo: msg });
     } finally {
       setLoading(false);
     }
@@ -187,14 +184,13 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
         const resp = await cognitoAPI.forgotPassword(celular);
         data = resp.data;
       }
-      setOtp(['', '', '', '', '', '']);
       setOtpCodigo('');
       setCountdown(60);
       if (data?.codigo_debug) {
-        Alert.alert('Nuevo código', `Tu nuevo OTP es: ${data.codigo_debug}`);
+        setMensajeInfo(`Código de prueba: ${data.codigo_debug}`);
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'No se pudo reenviar el código');
+      setMensajeInfo('');
     } finally {
       setLoading(false);
     }
@@ -338,6 +334,12 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
                     ? `Enviamos un código de 6 dígitos a ${correo}`
                     : `Enviamos un código de 6 dígitos al ${celular}`}
                 </Text>
+
+                {!!mensajeInfo && (
+                  <View style={styles.infoBox}>
+                    <Text style={styles.infoBoxText}>{mensajeInfo}</Text>
+                  </View>
+                )}
 
                 <View style={styles.otpContainer}>
                   <TouchableOpacity
@@ -576,6 +578,19 @@ const styles = StyleSheet.create({
   strengthText: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  infoBox: {
+    backgroundColor: '#DCFCE7',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: SPACING.md,
+  },
+  infoBoxText: {
+    color: '#166534',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 
 });
