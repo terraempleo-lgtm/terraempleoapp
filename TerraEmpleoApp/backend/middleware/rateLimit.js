@@ -21,7 +21,8 @@ const authSmsLimiter = rateLimit({
 // Limita recuperacion de contrasena para evitar enumeracion y abuso.
 const authRecoveryLimiter = rateLimit({
   windowMs: 30 * 60 * 1000,
-  max: 8,
+  max: 10,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Demasiadas solicitudes de recuperacion. Intenta de nuevo en 30 minutos.' },
