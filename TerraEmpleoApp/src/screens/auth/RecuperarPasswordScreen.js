@@ -339,13 +339,6 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
                     : `Enviamos un código de 6 dígitos al ${celular}`}
                 </Text>
 
-                <View style={styles.mockNotice}>
-                  <Ionicons name="information-circle-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.mockNoticeText}>
-                    Modo temporal de pruebas: usa el código 123456 para recuperar tu contraseña.
-                  </Text>
-                </View>
-
                 <View style={styles.otpContainer}>
                   <TouchableOpacity
                     activeOpacity={1}

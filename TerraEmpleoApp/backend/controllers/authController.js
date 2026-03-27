@@ -609,8 +609,8 @@ async function verificarCodigoRecuperacion(req, res) {
     const crypto = require('crypto');
     const resetToken = crypto.randomBytes(32).toString('hex');
 
-    // Código temporal de desarrollo para permitir pruebas sin depender de correo/SMS
-    if (codigo.trim() === RECUPERACION_CODIGO_MOCK) {
+    // Código de desarrollo: solo activo fuera de producción
+    if (process.env.NODE_ENV !== 'production' && codigo.trim() === RECUPERACION_CODIGO_MOCK) {
       const resetTokenMock = `mock-reset-${Date.now()}`;
       return res.json({
         message: 'Código mock verificado',

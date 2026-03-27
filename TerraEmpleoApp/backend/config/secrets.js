@@ -5,6 +5,7 @@
  *   /terraempleo/production/DB_PASSWORD
  *   /terraempleo/production/JWT_SECRET
  *   /terraempleo/production/EMAIL_PASS
+ *   /terraempleo/production/EMAIL_USER
  *
  * En desarrollo (NODE_ENV != production) se usan directamente las variables de .env.
  * Si SSM falla en producción, se hace fallback a las variables de .env con una advertencia.
@@ -13,7 +14,7 @@
 const { SSMClient, GetParametersCommand } = require('@aws-sdk/client-ssm');
 
 const PREFIX = '/terraempleo/production';
-const SECRET_KEYS = ['DB_PASSWORD', 'JWT_SECRET', 'EMAIL_PASS'];
+const SECRET_KEYS = ['DB_PASSWORD', 'JWT_SECRET', 'EMAIL_PASS', 'EMAIL_USER'];
 
 async function loadSecretsFromSSM() {
   if (process.env.NODE_ENV !== 'production') {
