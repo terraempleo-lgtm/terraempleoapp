@@ -24,12 +24,13 @@ const PROXIMIDAD_CONFIG = {
 
 function MatchBadge({ puntaje }) {
   if (!puntaje) return null;
-  const color = puntaje >= 70 ? COLORS.primary : puntaje >= 40 ? COLORS.warning : COLORS.textLight;
-  const bg = puntaje >= 70 ? COLORS.primarySoft : puntaje >= 40 ? COLORS.warningSoft : '#F3F4F6';
+  const high = puntaje >= 70;
+  const mid = puntaje >= 40;
+  const bg = high ? COLORS.primary : mid ? COLORS.warning : '#6B7280';
   return (
     <View style={[styles.matchBadge, { backgroundColor: bg }]}>
-      <Ionicons name="flash" size={12} color={color} />
-      <Text style={[styles.matchText, { color }]}>{puntaje}% match</Text>
+      <Text style={styles.matchEmoji}>⚡</Text>
+      <Text style={styles.matchText}>{puntaje}% match</Text>
     </View>
   );
 }
@@ -149,11 +150,22 @@ export default function VacantesRecomendadasScreen({ navigation }) {
 
           {/* Body */}
           <View style={styles.cardBody}>
-            <Text style={[styles.cardTitle, { color: colors.textPrimary }]} numberOfLines={1}>{item.titulo}</Text>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]} numberOfLines={2}>{item.titulo}</Text>
 
-            {item.nombre_empresa_finca ? (
-              <Text style={[styles.cardFarm, { color: colors.textSecondary }]} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
-            ) : null}
+            <View style={styles.farmLocRow}>
+              {item.nombre_empresa_finca ? (
+                <View style={styles.farmInline}>
+                  <Ionicons name="business-outline" size={14} color={colors.textSecondary} />
+                  <Text style={[styles.cardFarm, { color: colors.textSecondary, marginBottom: 0 }]} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
+                </View>
+              ) : null}
+              {ubicacion ? (
+                <View style={styles.locInline}>
+                  <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+                  <Text style={[styles.cardFarm, { color: colors.textSecondary, marginBottom: 0 }]} numberOfLines={1}>{ubicacion}</Text>
+                </View>
+              ) : null}
+            </View>
 
             {/* Proximidad + time */}
             <View style={styles.metaRow}>
@@ -184,44 +196,50 @@ export default function VacantesRecomendadasScreen({ navigation }) {
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-            {/* Bottom: pago + postular */}
+            {/* Bottom: pago */}
             <View style={styles.bottomRow}>
-              <View>
+              <View style={styles.salaryBlock}>
                 <Text style={[styles.salaryLabel, { color: colors.textMuted }]}>
                   {pago.tipoLabel ? pago.tipoLabel.toUpperCase() : 'SALARIO'}
                 </Text>
-                <Text style={[styles.salaryValue, { color: colors.textPrimary }]}>
-                  {pago.valor !== 'A convenir' ? pago.valor : 'A convenir'}
-                </Text>
+                {pago.valor !== 'A convenir' ? (
+                  <View style={styles.salaryInlineRow}>
+                    <Ionicons name="cash-outline" size={15} color={COLORS.primary} />
+                    <Text style={[styles.salaryValue, { color: colors.textPrimary }]}>{pago.valor}</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.salaryValue, { color: colors.textSecondary, fontStyle: 'italic' }]}>A convenir</Text>
+                )}
               </View>
-              <AnimatedPressable
-                style={[
-                  styles.postBtn,
-                  { backgroundColor: colors.primary },
-                  yaPostulado && styles.postBtnOff,
-                  yaPostulado && { backgroundColor: isDark ? '#31423c' : '#E5E7EB' },
-                ]}
-                onPress={() => { if (!yaPostulado) postularse(item); }}
-                disabled={yaPostulado}
-                scaleValue={ANIMATION.scale.pressed}
-                haptic={!yaPostulado}
-              >
-                <Ionicons
-                  name={yaPostulado ? 'checkmark-circle' : 'paper-plane'}
-                  size={14}
-                  color={yaPostulado ? (isDark ? '#d7e7df' : '#6b7280') : COLORS.white}
-                />
-                <Text
-                  style={[
-                    styles.postBtnTxt,
-                    yaPostulado && styles.postBtnTxtOff,
-                    yaPostulado && { color: isDark ? '#d7e7df' : '#6b7280' },
-                  ]}
-                >
-                  {yaPostulado ? 'Postulado' : 'Postularme'}
-                </Text>
-              </AnimatedPressable>
             </View>
+            {/* Full-width apply button */}
+            <AnimatedPressable
+              style={[
+                styles.postBtn,
+                { backgroundColor: colors.primary },
+                yaPostulado && styles.postBtnOff,
+                yaPostulado && { backgroundColor: isDark ? '#31423c' : '#E5E7EB' },
+              ]}
+              onPress={() => { if (!yaPostulado) postularse(item); }}
+              disabled={yaPostulado}
+              scaleValue={ANIMATION.scale.pressed}
+              haptic={!yaPostulado}
+            >
+              <Ionicons
+                name={yaPostulado ? 'checkmark-circle' : 'paper-plane'}
+                size={16}
+                color={yaPostulado ? (isDark ? '#d7e7df' : '#6b7280') : COLORS.white}
+              />
+              <Text
+                style={[
+                  styles.postBtnTxt,
+                  yaPostulado && styles.postBtnTxtOff,
+                  yaPostulado && { color: isDark ? '#d7e7df' : '#6b7280' },
+                ]}
+              >
+                {yaPostulado ? 'Ya postulado' : 'Postularme'}
+              </Text>
+            </AnimatedPressable>
           </View>
         </AnimatedPressable>
       </StaggeredItem>
@@ -326,7 +344,7 @@ export default function VacantesRecomendadasScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAF9' },
+  container: { flex: 1 },
 
   headerDecorWrap: { position: 'absolute', top: -20, left: 0, right: 0, height: 170 },
   headerBlobA: {
@@ -370,7 +388,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.md,
-    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     marginBottom: SPACING.xs,
   },
@@ -391,12 +408,11 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     paddingVertical: SPACING.sm,
     alignItems: 'center',
     borderWidth: 1,
-    ...SHADOWS.small,
+    ...SHADOWS.card,
   },
   statNum: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
   statLabel: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
@@ -428,10 +444,12 @@ const styles = StyleSheet.create({
   },
   matchBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 5,
+    paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: RADIUS.full,
+    ...SHADOWS.small,
   },
-  matchText: { fontSize: 12, fontWeight: '700' },
+  matchEmoji: { fontSize: 12 },
+  matchText: { fontSize: 13, fontWeight: '800', color: COLORS.white },
 
   urgentBadge: {
     position: 'absolute', top: 10, right: 10,
@@ -449,8 +467,12 @@ const styles = StyleSheet.create({
   locText: { fontSize: 13, fontWeight: '600', color: COLORS.white },
 
   cardBody: { padding: SPACING.md },
-  cardTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 2 },
-  cardFarm: { fontSize: 13, color: COLORS.textSecondary, marginBottom: SPACING.xs },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 6 },
+  cardFarm: { fontSize: 13, fontWeight: '500', color: COLORS.textSecondary },
+  
+  farmLocRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACING.sm, flexWrap: 'wrap' },
+  farmInline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  locInline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 
   metaRow: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
@@ -468,36 +490,39 @@ const styles = StyleSheet.create({
   tagGreen: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: COLORS.primarySoft,
-    paddingHorizontal: 9, paddingVertical: 4,
+    paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: RADIUS.full,
   },
-  tagGreenTxt: { fontSize: 11, fontWeight: '600', color: COLORS.primary },
+  tagGreenTxt: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
   tagGray: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 9, paddingVertical: 4,
+    paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: RADIUS.full,
   },
-  tagGrayTxt: { fontSize: 11, fontWeight: '500', color: COLORS.textSecondary },
+  tagGrayTxt: { fontSize: 12, fontWeight: '500', color: COLORS.textSecondary },
 
-  divider: { height: 1, backgroundColor: COLORS.borderLight, marginBottom: SPACING.sm },
+  divider: { height: 1, backgroundColor: COLORS.borderLight, marginVertical: SPACING.sm },
 
-  bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  bottomRow: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', marginBottom: SPACING.sm },
+  salaryBlock: {},
+  salaryInlineRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
   salaryLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.5, marginBottom: 2 },
-  salaryValue: { fontSize: 17, fontWeight: '800', color: COLORS.textPrimary },
+  salaryValue: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
 
   postBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 16, paddingVertical: 10,
+    paddingHorizontal: 16, paddingVertical: 13,
     borderRadius: RADIUS.full,
-    ...SHADOWS.button,
+    width: '100%',
+    ...SHADOWS.small,
   },
   postBtnOff: { backgroundColor: '#E5E7EB', ...SHADOWS.none },
-  postBtnTxt: { fontSize: 13, fontWeight: '700', color: COLORS.white },
+  postBtnTxt: { fontSize: 15, fontWeight: '700', color: COLORS.white },
   postBtnTxtOff: { color: '#888' },
 
-  empty: { alignItems: 'center', paddingTop: 60, gap: SPACING.sm, paddingHorizontal: SPACING.xl, overflow: 'hidden', minHeight: 420 },
+  empty: { alignItems: 'center', paddingTop: 60, gap: SPACING.md, paddingHorizontal: SPACING.xl, overflow: 'hidden', minHeight: 420 },
   emptyGraphics: {
     ...StyleSheet.absoluteFillObject,
   },

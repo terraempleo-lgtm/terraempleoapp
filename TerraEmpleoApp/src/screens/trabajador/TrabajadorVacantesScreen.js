@@ -274,7 +274,10 @@ export default function TrabajadorVacantesScreen({ navigation }) {
             </View>
 
             {item.nombre_empresa_finca && (
-              <Text style={[s.cardFarm, { color: colors.textSecondary }]} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
+              <View style={s.cardFarmRow}>
+                <Ionicons name="business-outline" size={14} color={colors.textSecondary} />
+                <Text style={[s.cardFarm, { color: colors.textSecondary }]} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
+              </View>
             )}
             {inicioTexto ? (
               <View style={s.startDateBadge}>
@@ -292,42 +295,45 @@ export default function TrabajadorVacantesScreen({ navigation }) {
             <View style={s.divider} />
 
             <View style={s.bottomRow}>
-              <View>
+              <View style={s.salaryBlock}>
                 <Text style={[s.salaryLabel, { color: colors.textMuted }]}>{getSalaryLabel(item)}</Text>
                 {salaryDisplay.valor !== 'A convenir' ? (
-                  <Text style={[s.salaryValue, { color: colors.textPrimary }]}>{salaryDisplay.valor}</Text>
+                  <View style={s.salaryInlineRow}>
+                    <Ionicons name="cash-outline" size={16} color={COLORS.primary} />
+                    <Text style={[s.salaryValue, { color: colors.textPrimary }]}>{salaryDisplay.valor}</Text>
+                  </View>
                 ) : (
                   <Text style={[s.salaryNA, { color: colors.textSecondary }]}>A convenir</Text>
                 )}
               </View>
-              <AnimatedPressable
-                style={[
-                  s.postBtn,
-                  { backgroundColor: colors.primary },
-                  yaPostulado && s.postBtnOff,
-                  yaPostulado && { backgroundColor: isDark ? '#31423c' : '#E5E7EB' },
-                ]}
-                onPress={() => { if (!yaPostulado) manejarPostulacionRapida(item); }}
-                disabled={yaPostulado}
-                scaleValue={ANIMATION.scale.pressed}
-                haptic={!yaPostulado}
-              >
-                <Ionicons
-                  name={yaPostulado ? 'checkmark-circle' : 'paper-plane'}
-                  size={15}
-                  color={yaPostulado ? (isDark ? '#d7e7df' : '#6b7280') : COLORS.white}
-                />
-                <Text
-                  style={[
-                    s.postBtnTxt,
-                    yaPostulado && s.postBtnTxtOff,
-                    yaPostulado && { color: isDark ? '#d7e7df' : '#6b7280' },
-                  ]}
-                >
-                  {yaPostulado ? 'Postulado' : 'Postularme'}
-                </Text>
-              </AnimatedPressable>
             </View>
+            <AnimatedPressable
+              style={[
+                s.postBtn,
+                { backgroundColor: colors.primary },
+                yaPostulado && s.postBtnOff,
+                yaPostulado && { backgroundColor: isDark ? '#31423c' : '#E5E7EB' },
+              ]}
+              onPress={() => { if (!yaPostulado) manejarPostulacionRapida(item); }}
+              disabled={yaPostulado}
+              scaleValue={ANIMATION.scale.pressed}
+              haptic={!yaPostulado}
+            >
+              <Ionicons
+                name={yaPostulado ? 'checkmark-circle' : 'paper-plane'}
+                size={16}
+                color={yaPostulado ? (isDark ? '#d7e7df' : '#6b7280') : COLORS.white}
+              />
+              <Text
+                style={[
+                  s.postBtnTxt,
+                  yaPostulado && s.postBtnTxtOff,
+                  yaPostulado && { color: isDark ? '#d7e7df' : '#6b7280' },
+                ]}
+              >
+                {yaPostulado ? 'Ya postulado' : 'Postularme'}
+              </Text>
+            </AnimatedPressable>
           </View>
         </AnimatedPressable>
       </StaggeredItem>
@@ -440,12 +446,12 @@ export default function TrabajadorVacantesScreen({ navigation }) {
           scaleValue={0.95}
           haptic={true}
         >
-          <Ionicons name="location-outline" size={14} color={filterDepto ? colors.primary : colors.textSecondary} />
+          <Ionicons name="location-outline" size={14} color={filterDepto ? COLORS.white : colors.textSecondary} />
           <Text style={[s.filterChipTxt, { color: colors.textSecondary }, filterDepto && s.filterChipTxtOn]}>
             {filterDepto || 'Ubicación'}
           </Text>
           {filterDepto
-            ? <AnimatedPressable onPress={() => setFilterDepto('')} scaleValue={0.9} haptic={false}><Ionicons name="close-circle" size={14} color={COLORS.primary} /></AnimatedPressable>
+            ? <AnimatedPressable onPress={() => setFilterDepto('')} scaleValue={0.9} haptic={false}><Ionicons name="close-circle" size={14} color={COLORS.white} /></AnimatedPressable>
             : <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
           }
         </AnimatedPressable>
@@ -456,12 +462,12 @@ export default function TrabajadorVacantesScreen({ navigation }) {
           scaleValue={0.95}
           haptic={true}
         >
-          <Ionicons name="leaf-outline" size={14} color={filterCultivo ? colors.primary : colors.textSecondary} />
+          <Ionicons name="leaf-outline" size={14} color={filterCultivo ? COLORS.white : colors.textSecondary} />
           <Text style={[s.filterChipTxt, { color: colors.textSecondary }, filterCultivo && s.filterChipTxtOn]}>
             {filterCultivo || 'Cultivo'}
           </Text>
           {filterCultivo
-            ? <AnimatedPressable onPress={() => setFilterCultivo('')} scaleValue={0.9} haptic={false}><Ionicons name="close-circle" size={14} color={COLORS.primary} /></AnimatedPressable>
+            ? <AnimatedPressable onPress={() => setFilterCultivo('')} scaleValue={0.9} haptic={false}><Ionicons name="close-circle" size={14} color={COLORS.white} /></AnimatedPressable>
             : <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
           }
         </AnimatedPressable>
@@ -472,9 +478,9 @@ export default function TrabajadorVacantesScreen({ navigation }) {
           scaleValue={0.95}
           haptic={true}
         >
-          <Ionicons name="flash-outline" size={14} color={filterUrgente ? colors.primary : colors.textSecondary} />
+          <Ionicons name="flash-outline" size={14} color={filterUrgente ? COLORS.white : colors.textSecondary} />
           <Text style={[s.filterChipTxt, { color: colors.textSecondary }, filterUrgente && s.filterChipTxtOn]}>Urgente</Text>
-          {filterUrgente && <Ionicons name="checkmark" size={14} color={COLORS.primary} />}
+          {filterUrgente && <Ionicons name="checkmark" size={14} color={COLORS.white} />}
         </AnimatedPressable>
 
         {(filterCultivo || filterDepto || filterUrgente) && (
@@ -547,11 +553,25 @@ export default function TrabajadorVacantesScreen({ navigation }) {
                 transition={{ loop: true, type: 'timing', duration: 1500 }}
               >
                 <View style={s.emptyIcon}>
-                  <Ionicons name="briefcase-outline" size={48} color={COLORS.primary} />
+                  <Ionicons name="search-outline" size={48} color={COLORS.primary} />
                 </View>
               </MotiView>
               <Text style={[s.emptyTitle, { color: colors.textPrimary }]}>No hay vacantes disponibles</Text>
-              <Text style={[s.emptySub, { color: colors.textMuted }]}>Desliza hacia abajo para actualizar</Text>
+              <Text style={[s.emptySub, { color: colors.textMuted }]}>Desliza hacia abajo o limpia los filtros</Text>
+              {(filterCultivo || filterDepto || filterUrgente || search) ? (
+                <AnimatedPressable
+                  style={s.emptyBtn}
+                  onPress={() => {
+                    setFilterCultivo('');
+                    setFilterDepto('');
+                    setFilterUrgente(false);
+                    setSearch('');
+                  }}
+                  scaleValue={0.95}
+                >
+                  <Text style={s.emptyBtnTxt}>Limpiar filtros</Text>
+                </AnimatedPressable>
+              ) : null}
             </View>
           )
         }
@@ -632,7 +652,6 @@ const s = StyleSheet.create({
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: SPACING.md,
-    backgroundColor: COLORS.white,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   avatarWrap: {
@@ -655,8 +674,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  greeting: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
-  greetingSub: { fontSize: 13, color: COLORS.textSecondary, marginTop: 1 },
+  greeting: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.3 },
+  greetingSub: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
   bellBtn: { position: 'relative' },
   bellCircle: {
     width: 44, height: 44, borderRadius: 22,
@@ -673,12 +692,10 @@ const s = StyleSheet.create({
   verificacionCard: {
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.md,
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    ...SHADOWS.small,
+    ...SHADOWS.card,
   },
   verificacionHeader: {
     flexDirection: 'row',
@@ -725,16 +742,16 @@ const s = StyleSheet.create({
   filterRow: { paddingHorizontal: SPACING.lg, gap: SPACING.sm, flexDirection: 'row' },
   filterChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.border,
+    backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border,
     paddingHorizontal: 14, paddingVertical: 9, borderRadius: RADIUS.full,
   },
-  filterChipOn: { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primary },
+  filterChipOn: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   filterChipTxt: { fontSize: 13, fontWeight: '500', color: COLORS.textSecondary },
-  filterChipTxtOn: { color: COLORS.primary, fontWeight: '600' },
+  filterChipTxtOn: { color: COLORS.white, fontWeight: '600' },
   filterClear: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 12, paddingVertical: 9, borderRadius: RADIUS.full,
-    borderWidth: 1.5, borderColor: COLORS.error, borderStyle: 'dashed',
+    borderWidth: 1, borderColor: COLORS.error, borderStyle: 'dashed',
   },
   filterClearTxt: { fontSize: 13, fontWeight: '600', color: COLORS.error },
 
@@ -743,7 +760,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
     paddingHorizontal: SPACING.lg, marginBottom: SPACING.md,
   },
-  secTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+  secTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.3 },
   secBadge: {
     backgroundColor: COLORS.primarySoft, paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: RADIUS.full,
@@ -751,7 +768,7 @@ const s = StyleSheet.create({
   secBadgeTxt: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
 
   /* List */
-  list: { paddingBottom: 24 },
+  list: { paddingBottom: 24, paddingTop: 4 },
 
   /* Card */
   card: {
@@ -762,7 +779,7 @@ const s = StyleSheet.create({
   },
 
   /* Card hero */
-  cardHero: { width: '100%', height: 190, position: 'relative' },
+  cardHero: { width: '100%', height: 200, position: 'relative' },
   cardImg: { width: '100%', height: '100%' },
   cardImgFallback: {
     flex: 1, backgroundColor: '#EDF2EE', justifyContent: 'center', alignItems: 'center',
@@ -801,10 +818,11 @@ const s = StyleSheet.create({
   /* Card body */
   cardBody: { padding: SPACING.md },
 
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
-  cardTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: COLORS.textPrimary, marginRight: 8 },
-  cardTime: { fontSize: 11, color: COLORS.textLight, flexShrink: 0 },
-  cardFarm: { fontSize: 13, color: COLORS.textSecondary, marginBottom: SPACING.sm },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 },
+  cardTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginRight: 8, letterSpacing: -0.2 },
+  cardTime: { fontSize: 11, color: COLORS.textLight, flexShrink: 0, marginTop: 3 },
+  cardFarmRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: SPACING.sm },
+  cardFarm: { fontSize: 14, fontWeight: '500', color: COLORS.textSecondary, flexShrink: 1 },
   startDateBadge: {
     marginBottom: SPACING.sm,
     alignSelf: 'flex-start',
@@ -818,7 +836,7 @@ const s = StyleSheet.create({
   },
   startDateBadgeText: {
     fontSize: 12,
-    color: '#000000',
+    color: COLORS.primaryDark,
     fontWeight: '700',
   },
 
@@ -844,30 +862,34 @@ const s = StyleSheet.create({
   tagBlueTxt: { fontSize: 12, fontWeight: '600', color: '#3B82F6' },
 
   /* Divider */
-  divider: { height: 1, backgroundColor: COLORS.borderLight, marginBottom: SPACING.sm },
+  divider: { height: 1, backgroundColor: COLORS.borderLight, marginVertical: SPACING.sm },
 
   /* Bottom row */
-  bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  salaryLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.5, marginBottom: 2 },
+  bottomRow: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', marginBottom: SPACING.sm },
+  salaryBlock: {},
+  salaryInlineRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
+  salaryLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.5 },
   salaryValue: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
-  salaryNA: { fontSize: 14, color: COLORS.textSecondary, fontStyle: 'italic' },
+  salaryNA: { fontSize: 14, color: COLORS.textSecondary, fontStyle: 'italic', marginTop: 2 },
   postBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: COLORS.primary, paddingHorizontal: 18, paddingVertical: 11,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: COLORS.primary, paddingVertical: 13,
     borderRadius: RADIUS.full,
-    ...SHADOWS.button,
+    width: '100%',
+    ...SHADOWS.small,
   },
   postBtnOff: { backgroundColor: '#E5E7EB', ...SHADOWS.none },
-  postBtnTxt: { fontSize: 14, fontWeight: '700', color: COLORS.white },
+  postBtnTxt: { fontSize: 15, fontWeight: '700', color: COLORS.white },
   postBtnTxtOff: { color: '#888' },
 
   /* Empty state */
-  empty: { alignItems: 'center', paddingTop: 60, gap: SPACING.sm },
+  empty: { alignItems: 'center', paddingTop: 60, gap: SPACING.md },
   emptyIcon: {
     width: 80, height: 80, borderRadius: 40,
     backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center',
-    marginBottom: SPACING.sm,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  emptySub: { fontSize: 13, color: COLORS.textLight },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
+  emptySub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', paddingHorizontal: 40 },
+  emptyBtn: { marginTop: SPACING.sm, backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.full },
+  emptyBtnTxt: { color: COLORS.white, fontWeight: '600', fontSize: 14 },
 });
