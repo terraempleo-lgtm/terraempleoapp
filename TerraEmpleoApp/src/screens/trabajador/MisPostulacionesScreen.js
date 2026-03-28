@@ -13,6 +13,77 @@ import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/a
 import DecorativeBackground from '../../components/ui/DecorativeBackground';
 import { showAlert } from '../../utils/alertService';
 
+const TIMELINE_STEPS = ['Postulado', 'En revisión', 'Resultado'];
+
+const tlStyles = StyleSheet.create({
+  wrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    paddingTop: 2,
+  },
+  step: { flex: 1, alignItems: 'center', gap: 4 },
+  dot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inner: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' },
+  label: { fontSize: 9.5, fontWeight: '600', textAlign: 'center', lineHeight: 12 },
+  line: { flex: 0.7, height: 2, marginTop: 10, borderRadius: 1, alignSelf: 'flex-start' },
+});
+
+function PostulacionTimeline({ estado, colors }) {
+  let step = 0;
+  let rejected = false;
+  if (estado === 'rechazada') { step = 1; rejected = true; }
+  else if (estado === 'aceptada') { step = 2; }
+  else if (estado === 'contacto_solicitado') { step = 1; }
+
+  return (
+    <View style={tlStyles.wrap}>
+      {TIMELINE_STEPS.map((label, i) => {
+        const isPast = i < step;
+        const isCurrentDone = i === step && step === 2 && !rejected;
+        const isActive = i === step && !rejected && step < 2;
+        const isRejectedHere = i === step && rejected;
+
+        let dotBg = '#D1D5DB';
+        let iconName = null;
+        if (isPast || isCurrentDone) { dotBg = COLORS.primary; iconName = 'checkmark'; }
+        if (isCurrentDone) dotBg = '#16a34a';
+        if (isRejectedHere) { dotBg = COLORS.error; iconName = 'close'; }
+
+        const lineColor = i < step && !rejected ? COLORS.primary : '#D1D5DB';
+        const labelColor = isRejectedHere ? COLORS.error
+          : (isPast || isActive || isCurrentDone) ? colors.textPrimary
+          : colors.textMuted;
+
+        return (
+          <React.Fragment key={label}>
+            <View style={tlStyles.step}>
+              <View style={[tlStyles.dot, { backgroundColor: dotBg }]}>
+                {iconName ? (
+                  <Ionicons name={iconName} size={11} color="#fff" />
+                ) : isActive ? (
+                  <View style={tlStyles.inner} />
+                ) : null}
+              </View>
+              <Text style={[tlStyles.label, { color: labelColor }]}>{label}</Text>
+            </View>
+            {i < TIMELINE_STEPS.length - 1 && (
+              <View style={[tlStyles.line, { backgroundColor: lineColor }]} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function MisPostulacionesScreen({ navigation }) {
   const { colors, isDark } = useAppTheme();
   const [postulaciones, setPostulaciones] = useState([]);
@@ -194,6 +265,8 @@ export default function MisPostulacionesScreen({ navigation }) {
               </View>
             </View>
           </View>
+
+          <PostulacionTimeline estado={item.estado} colors={colors} />
 
           {esAceptada ? (
             <MotiView

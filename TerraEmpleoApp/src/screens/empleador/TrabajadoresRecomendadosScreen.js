@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { AnimatedPressable } from '../../components/animated';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { trabajadoresAPI, vacantesAPI } from '../../services/api';
 import { showAlert } from '../../utils/alertService';
@@ -59,27 +60,53 @@ function StarRating({ value }) {
 
 function TrabajadorCard({ item, onVerPerfil, onContactar, enviando, colors, isDark }) {
   const prox = PROXIMIDAD_CONFIG[item.proximidad] || PROXIMIDAD_CONFIG.lejano;
+  const matchNum = Number(item.puntaje_match || 0);
+  const matchNivel = matchNum >= 70 ? 'alto' : matchNum >= 40 ? 'medio' : 'base';
+  const matchColor = matchNivel === 'alto' ? COLORS.primary : matchNivel === 'medio' ? COLORS.warning : COLORS.textLight;
+  const matchBg = matchNivel === 'alto' ? COLORS.primarySoft : matchNivel === 'medio' ? COLORS.warningSoft : (isDark ? colors.surface : '#F3F4F6');
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface }]}>
+    <AnimatedPressable
+      style={[styles.card, { backgroundColor: colors.surface }]}
+      onPress={() => onVerPerfil(item)}
+      scaleValue={0.98}
+      haptic={false}
+    >
       <View style={styles.cardTop}>
         <View style={styles.avatarWrap}>
-          {item.foto_selfie ? (
-            <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarFallback, { backgroundColor: isDark ? colors.surface : '#78909C' }]}>
-              <Ionicons name="person" size={22} color={COLORS.white} />
+          <View style={styles.avatarCircle}>
+            {item.foto_selfie ? (
+              <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatarFallback, { backgroundColor: isDark ? '#2E4A3E' : COLORS.primarySoft }]}>
+                <Ionicons name="person" size={26} color={COLORS.primary} />
+              </View>
+            )}
+          </View>
+          {matchNum > 0 && (
+            <View style={[styles.matchPill, { backgroundColor: matchBg }]}>
+              <Ionicons name="flash" size={9} color={matchColor} />
+              <Text style={[styles.matchPillText, { color: matchColor }]}>{matchNum}%</Text>
             </View>
           )}
         </View>
 
         <View style={styles.cardInfo}>
-          <Text style={[styles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>{item.nombre_completo}</Text>
+          <Text style={[styles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>
+            {item.nombre_completo}
+          </Text>
+          {(item.municipio || item.departamento) ? (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={11} color={colors.textMuted} />
+              <Text style={[styles.locationText, { color: colors.textMuted }]} numberOfLines={1}>
+                {[item.municipio, item.departamento].filter(Boolean).join(', ')}
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.badgesRow}>
-            <MatchBadge puntaje={item.puntaje_match} colors={colors} isDark={isDark} />
             {prox.label ? (
-              <View style={[styles.proxBadge, { backgroundColor: `${prox.color}18` }]}>
-                <Ionicons name={prox.icon} size={11} color={prox.color} />
+              <View style={[styles.proxBadge, { backgroundColor: `${prox.color}15` }]}>
+                <Ionicons name={prox.icon} size={10} color={prox.color} />
                 <Text style={[styles.proxText, { color: prox.color }]}>{prox.label}</Text>
               </View>
             ) : null}
@@ -88,30 +115,49 @@ function TrabajadorCard({ item, onVerPerfil, onContactar, enviando, colors, isDa
 
         <View style={styles.ratingCol}>
           <StarRating value={item.calificacion_promedio} />
-          <Text style={[styles.ratingNum, { color: colors.textPrimary }]}>{item.calificacion_promedio > 0 ? item.calificacion_promedio.toFixed(1) : '—'}</Text>
+          <Text style={[styles.ratingNum, { color: colors.textPrimary }]}>
+            {item.calificacion_promedio > 0 ? item.calificacion_promedio.toFixed(1) : '—'}
+          </Text>
         </View>
       </View>
 
-      <View style={styles.skillRow}>
-        {(item.cultivos || []).slice(0, 2).map((c, i) => (
-          <View key={`c-${i}`} style={[styles.skillChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderColor: colors.border, borderWidth: 1 }]}><Text style={[styles.skillText, { color: colors.textSecondary }]}>{c}</Text></View>
-        ))}
-        {(item.habilidades || []).slice(0, 2).map((h, i) => (
-          <View key={`h-${i}`} style={[styles.skillChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderColor: colors.border, borderWidth: 1 }]}><Text style={[styles.skillText, { color: colors.textSecondary }]}>{h}</Text></View>
-        ))}
-      </View>
+      {((item.cultivos?.length || 0) + (item.habilidades?.length || 0)) > 0 && (
+        <View style={styles.skillRow}>
+          {(item.cultivos || []).slice(0, 2).map((c, i) => (
+            <View key={`c-${i}`} style={[styles.skillChip, styles.cultivoChip, { borderColor: `${COLORS.primary}35` }]}>
+              <Text style={[styles.skillText, { color: COLORS.primary }]}>{c}</Text>
+            </View>
+          ))}
+          {(item.habilidades || []).slice(0, 2).map((h, i) => (
+            <View key={`h-${i}`} style={[styles.skillChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderColor: colors.border, borderWidth: 1 }]}>
+              <Text style={[styles.skillText, { color: colors.textSecondary }]}>{h}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.btnContactar} onPress={() => onContactar(item)} disabled={enviando}>
+        <AnimatedPressable
+          style={[styles.btnContactar, enviando && { opacity: 0.7 }]}
+          onPress={() => onContactar(item)}
+          disabled={enviando}
+          scaleValue={0.96}
+          haptic
+        >
           <Ionicons name={enviando ? 'hourglass-outline' : 'chatbubble-ellipses-outline'} size={14} color={COLORS.white} />
           <Text style={styles.btnContactarText}>{enviando ? 'Enviando...' : 'Contactar'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.btnPerfil} onPress={() => onVerPerfil(item)}>
+        </AnimatedPressable>
+        <AnimatedPressable
+          style={styles.btnPerfil}
+          onPress={() => onVerPerfil(item)}
+          scaleValue={0.96}
+          haptic
+        >
           <Ionicons name="person-outline" size={14} color={COLORS.primary} />
           <Text style={styles.btnPerfilText}>Ver perfil</Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
-    </View>
+    </AnimatedPressable>
   );
 }
 
@@ -477,15 +523,28 @@ const styles = StyleSheet.create({
     ...SHADOWS.card,
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.xs },
-  avatarWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: RADIUS.md,
+  avatarWrap: { alignItems: 'center', gap: 4 },
+  avatarCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     overflow: 'hidden',
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.primarySoft,
   },
-  avatar: { width: 46, height: 46 },
+  avatar: { width: 58, height: 58, borderRadius: 29 },
   avatarFallback: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  matchPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+  },
+  matchPillText: { fontSize: 10, fontWeight: '800' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  locationText: { fontSize: 11, fontWeight: '500', flex: 1 },
+  cultivoChip: { backgroundColor: COLORS.primarySoft, borderWidth: 1 },
 
   cardInfo: { flex: 1, gap: 3 },
   nombre: { fontSize: 16, fontWeight: '700' },

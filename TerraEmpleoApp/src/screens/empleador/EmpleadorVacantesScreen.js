@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { MotiView } from 'moti';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue, useAnimatedStyle,
   withRepeat, withSequence, withTiming, Easing,
@@ -83,6 +84,45 @@ function PulsingBadge({ count }) {
     <Animated.View style={[styles.notifBadge, animStyle]}>
       <Text style={styles.notifBadgeText}>{count > 99 ? '99+' : count}</Text>
     </Animated.View>
+  );
+}
+
+function ResumenSemanaCard({ postulantesTotal, activasCount, isDark }) {
+  const mensaje = postulantesTotal > 0
+    ? `${postulantesTotal} postulante${postulantesTotal !== 1 ? 's' : ''} en total`
+    : activasCount > 0
+    ? 'Tu vacante está activa y visible para trabajadores'
+    : 'Crea una vacante para comenzar a recibir postulantes';
+
+  return (
+    <LinearGradient
+      colors={isDark ? ['#0f2d1a', '#0a1f12'] : ['#1b5e20', '#2e7d32']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.resumenCard}
+    >
+      <View style={styles.resumenTop}>
+        <Text style={styles.resumenTitle}>Resumen</Text>
+        <View style={styles.resumenDot} />
+      </View>
+
+      <View style={styles.resumenStats}>
+        <View style={styles.resumenStat}>
+          <Text style={styles.resumenNum}>{postulantesTotal}</Text>
+          <Text style={styles.resumenLabel}>Postulantes</Text>
+        </View>
+        <View style={styles.resumenDiv} />
+        <View style={styles.resumenStat}>
+          <Text style={styles.resumenNum}>{activasCount}</Text>
+          <Text style={styles.resumenLabel}>Activas</Text>
+        </View>
+      </View>
+
+      <View style={styles.resumenMensaje}>
+        <Ionicons name="flash" size={12} color={COLORS.accent} />
+        <Text style={styles.resumenMensajeText} numberOfLines={2}>{mensaje}</Text>
+      </View>
+    </LinearGradient>
   );
 }
 
@@ -313,6 +353,14 @@ export default function EmpleadorVacantesScreen({ navigation }) {
             </AnimatedPressable>
           </View>
         </View>
+      </FadeInView>
+
+      <FadeInView delay={60}>
+        <ResumenSemanaCard
+          postulantesTotal={postulantesCount}
+          activasCount={activas.length}
+          isDark={isDark}
+        />
       </FadeInView>
 
       {mostrarTarjetaVerificacion && (
@@ -939,5 +987,74 @@ const styles = StyleSheet.create({
   },
   modalBtnDisabled: {
     opacity: 0.75,
+  },
+
+  /* Resumen card */
+  resumenCard: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.md,
+  },
+  resumenTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  resumenTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.65)',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  resumenDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#c1ff72',
+  },
+  resumenStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  resumenStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  resumenNum: {
+    fontSize: 38,
+    fontWeight: '900',
+    color: '#fff',
+    lineHeight: 44,
+  },
+  resumenLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  resumenDiv: {
+    width: 1,
+    height: 44,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  resumenMensaje: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 8,
+  },
+  resumenMensajeText: {
+    flex: 1,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+    lineHeight: 16,
   },
 });
