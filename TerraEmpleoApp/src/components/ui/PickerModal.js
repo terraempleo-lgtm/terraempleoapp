@@ -20,7 +20,7 @@ export default function PickerModal({
 }) {
   const [search, setSearch] = React.useState('');
   const bottomSheetRef = useRef(null);
-  const snapPoints = useMemo(() => ['50%', '95%'], []);
+  const snapPoints = useMemo(() => ['50%', '100%'], []);
 
   useEffect(() => {
     if (visible) {
@@ -165,6 +165,7 @@ export default function PickerModal({
             <Text style={styles.empty}>No se encontraron resultados</Text>
           </View>
         }
+        ListFooterComponent={<View style={{ height: SPACING.xxxl * 3 }} />}
         maxToRenderPerBatch={20}
         windowSize={10}
         initialNumToRender={20}
@@ -271,6 +272,6 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
   },
   listContent: {
-    paddingBottom: SPACING.xxxl * 2,
+    paddingBottom: SPACING.lg,
   },
 });
