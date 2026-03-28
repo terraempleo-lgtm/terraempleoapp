@@ -9,6 +9,7 @@ import { vacantesAPI } from '../../services/api';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { Ionicons } from '@expo/vector-icons';
+import { showAlert } from '../../utils/alertService';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -48,7 +49,7 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
   const [fotoActiva, setFotoActiva] = useState(0);
 
   const confirmarArchivar = () => {
-    Alert.alert(
+    showAlert(
       'Archivar vacante',
       `¿Cerrar "${vacante.titulo}"? La vacante dejará de ser visible para los trabajadores pero quedará en tus registros.`,
       [
@@ -58,10 +59,10 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
           onPress: async () => {
             try {
               await vacantesAPI.cerrar(vacanteParam.id);
-              Alert.alert('Listo', 'Vacante archivada correctamente');
+              showAlert('Listo', 'Vacante archivada correctamente');
               navigation.goBack();
             } catch (err) {
-              Alert.alert('Error', err.response?.data?.error || 'No se pudo archivar la vacante');
+              showAlert('Error', err.response?.data?.error || 'No se pudo archivar la vacante');
             }
           },
         },

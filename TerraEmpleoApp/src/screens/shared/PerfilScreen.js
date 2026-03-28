@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 import DecorativeBackground from '../../components/ui/DecorativeBackground';
+import { showAlert } from '../../utils/alertService';
 
 const HERO_H = 260;
 
@@ -149,12 +150,12 @@ export default function PerfilScreen({ navigation }) {
     try {
       const canOpen = await Linking.canOpenURL(url);
       if (!canOpen) {
-        Alert.alert('No disponible', 'No se pudo abrir el documento.');
+        showAlert('No disponible', 'No se pudo abrir el documento.');
         return;
       }
       await Linking.openURL(url);
     } catch (_) {
-      Alert.alert('Error', 'No se pudo abrir el documento.');
+      showAlert('Error', 'No se pudo abrir el documento.');
     }
   };
 

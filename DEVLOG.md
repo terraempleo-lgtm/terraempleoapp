@@ -47,19 +47,24 @@ Registro de sesiones de trabajo del equipo.
 
 ---
 
-## Qué sigue — checklist actualizado 2026-03-26
+## Qué sigue — checklist actualizado 2026-03-27
 
-### 🔴 Urgente
+### 🔴 Urgente — Play Store
 
-- [x] **Rotar AWS keys**: keys rotadas para `terraempleo-s3-user`. Nuevas keys en `.env` del servidor. Viejas eliminadas.
-- [ ] **IAM Role en la instancia**: Lightsail no soporta EC2 instance profiles vía API estándar. Pendiente evaluar migración a EC2 o seguir con keys en `.env` (gitignoreado).
+- [x] **Política de privacidad pública**: `https://app.terrampleo.com/privacidad.html` (17 secciones, Ley 1581/2012)
+- [ ] **SHA-256 keystore Android**: correr `eas credentials --platform android --profile production` y actualizar `public/.well-known/assetlinks.json`
+- [ ] **Apple Team ID**: reemplazar `XXXXXXXXXX` en `public/.well-known/apple-app-site-association`
+- [ ] **Build EAS**: `eas build --platform android --profile production` → genera AAB para Play Store
+- [ ] **Subir a Google Play Console**: crear app, subir AAB, apuntar política a `https://app.terrampleo.com/privacidad.html`
+- [ ] **Assets Play Store**: screenshots (mín. 2), ícono 512×512, descripción corta/larga
 
 ### 🟡 Features pendientes
 
+- [x] **Rotar AWS keys**: keys rotadas para `terraempleo-s3-user`. Nuevas keys en `.env` del servidor. Viejas eliminadas.
+- [ ] **IAM Role en la instancia**: Lightsail no soporta EC2 instance profiles vía API estándar. Pendiente evaluar migración a EC2 o seguir con keys en `.env` (gitignoreado).
 - [ ] **SMS real**: reemplazar mock (`SMS_MOCK: true`) con proveedor real (Twilio o AWS SNS).
-- [ ] **expo-camera**: implementar captura real de fotos de identidad (actualmente `Alert` placeholder).
-- [ ] **UI edición de perfil**: pantalla de edición no implementada.
-- [ ] **Label formatting**: valores crudos de BD (ej. `"menos_1"`) sin mapeo legible en vista de perfil.
+- [ ] **Passkeys activos**: falta SHA-256 keystore (Android) y Apple Team ID (iOS) para que los `.well-known/` funcionen.
+- [ ] **Label formatting**: valores crudos de BD (ej. `"menos_1"`) sin mapeo legible en algunas vistas secundarias.
 
 ### 🟢 Mejoras futuras
 
@@ -71,6 +76,26 @@ Registro de sesiones de trabajo del equipo.
 ---
 
 ## Sesiones
+
+---
+
+## 2026-03-27 — AppAlert branded + preparación Play Store
+
+**Participantes:** Vero
+
+### ✅ Hecho (2026-03-27)
+
+- **AppAlert componente global**: modal animado con spring (`react-native-reanimated`), icono de color según tipo (success/error/warning/info/destructive), tarjeta blanca con sombra, botones con paleta de marca. Misma arquitectura que el sistema Toast (ref global en `AppShell`).
+- **Detección automática de tipo**: el componente lee palabras clave del título ("Listo", "Error", "Guardado"…) para elegir el icono sin cambiar las llamadas existentes.
+- **Reemplazo masivo**: `Alert.alert` → `showAlert` en los 30 archivos que lo usaban. Cada archivo recibió el import de `alertService.js` con la ruta relativa correcta.
+- **Política de privacidad**: `public/privacidad.html` (17 secciones, Ley 1581/2012) publicada en `https://app.terrampleo.com/privacidad.html` vía CI/CD → requerimiento Google Play.
+- **Infraestructura passkeys Cognito**: `passkeyController.js` (4 endpoints), `passkeyService.js` (lazy require de `react-native-passkey`), `PasskeyEnrollScreen`, `.well-known/assetlinks.json` y `apple-app-site-association` placeholders. Falta SHA-256 y Apple Team ID para activar.
+- **Fix web**: `MisPostulacionesScreen` — `navigation?.addListener` y `navigation?.canGoBack?.()` para evitar crash en web.
+- **Fix recuperación contraseña**: `RecuperarPasswordScreen` — removida llamada a `setOtp` inexistente, Alert reemplazado por estado inline. Rate limiter ajustado.
+- **Fonts nativas**: SF Pro (iOS) / Roboto (Android) en todo el sistema de tema.
+- **Fondo blanco**: `DecorativeBackground` → `return null` en todas las pantallas.
+- **CI/CD**: `--exclude ".well-known/*"` en s3 sync para preservar archivos de dominio en cada deploy.
+- Eliminadas imágenes obsoletas del repo (`login.jpg`, `Terrampleo (2).png`).
 
 ---
 

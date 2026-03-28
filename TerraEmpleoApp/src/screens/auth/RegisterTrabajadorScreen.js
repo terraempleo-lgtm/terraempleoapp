@@ -14,6 +14,7 @@ import { authAPI, cognitoAPI, setAuthToken } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import CamaraFoto from '../../components/CamaraFoto';
+import { showAlert } from '../../utils/alertService';
 
 const TOTAL_STEPS = 9;
 const STEP_LABELS = [
@@ -124,7 +125,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
       return true;
     } catch (err) {
       const msg = err.response?.data?.error || 'Código incorrecto';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
       return false;
     }
   };
@@ -175,10 +176,10 @@ export default function RegisterTrabajadorScreen({ navigation }) {
         await cognitoAPI.resendCode(celular);
       }
       setCodigoEnviado(true);
-      Alert.alert('Código enviado', `Se envió un código de verificación por SMS al ${celular}`);
+      showAlert('Código enviado', `Se envió un código de verificación por SMS al ${celular}`);
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'No se pudo enviar el código';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally {
       setLoading(false);
     }
@@ -271,7 +272,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
       } else if (err.message) {
         msg = err.message;
       }
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally {
       setLoading(false);
     }
@@ -343,7 +344,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               style={styles.mapImageWrap}
               activeOpacity={0.8}
               onPress={() => {
-                const q = encodeURIComponent(`${municipio || ''}, ${departamento || ''}, Colombia`);
+                const q = encodeURIComponent(`${municipio || ''}, ${departamento || ''}`);
                 Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
               }}
             >
@@ -778,7 +779,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} labels={STEP_LABELS} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}

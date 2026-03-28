@@ -6,6 +6,7 @@ import BottomSheet, {
   BottomSheetFlatList,
   BottomSheetTextInput,
 } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from '../../theme';
 import { AnimatedPressable } from '../animated';
 
@@ -18,13 +19,14 @@ export default function PickerModal({
   onSelect,
   searchable = true,
 }) {
+  const insets = useSafeAreaInsets();
   const [search, setSearch] = React.useState('');
   const bottomSheetRef = useRef(null);
-  const snapPoints = useMemo(() => ['50%', '100%'], []);
+  const snapPoints = useMemo(() => ['65%', '96%'], []);
 
   useEffect(() => {
     if (visible) {
-      bottomSheetRef.current?.snapToIndex(0);
+      bottomSheetRef.current?.snapToIndex(1);
       setSearch('');
     } else {
       bottomSheetRef.current?.close();
@@ -109,6 +111,9 @@ export default function PickerModal({
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize"
+      enableOverDrag
+      topInset={insets.top}
+      bottomInset={insets.bottom}
     >
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
@@ -165,7 +170,7 @@ export default function PickerModal({
             <Text style={styles.empty}>No se encontraron resultados</Text>
           </View>
         }
-        ListFooterComponent={<View style={{ height: SPACING.xxxl * 3 }} />}
+        ListFooterComponent={<View style={{ height: Math.max(SPACING.xxxl * 3, insets.bottom + 56) }} />}
         maxToRenderPerBatch={20}
         windowSize={10}
         initialNumToRender={20}

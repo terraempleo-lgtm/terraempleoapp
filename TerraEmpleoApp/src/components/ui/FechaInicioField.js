@@ -3,6 +3,7 @@ import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, FONTS } from '../../theme';
 import { formatVacancyStartDate, getFechaInicioInputValue } from '../../utils/vacantesFecha';
+import { showAlert } from '../../utils/alertService';
 
 function abrirSelectorFechaWeb(valorActual, onSelect) {
   if (typeof document === 'undefined') return;
@@ -50,7 +51,7 @@ export default function FechaInicioField({
       return;
     }
 
-    Alert.alert('Fecha de inicio', 'Seleccion de fecha disponible en web por ahora.');
+    showAlert('Fecha de inicio', 'Seleccion de fecha disponible en web por ahora.');
   };
 
   return (

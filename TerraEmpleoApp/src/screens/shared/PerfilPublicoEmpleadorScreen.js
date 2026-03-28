@@ -8,6 +8,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { vacantesAPI, calificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Input, StarRating } from '../../components/ui';
+import { showAlert } from '../../utils/alertService';
 
 export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
   const { vacante_id, chat_data } = route.params || {};
@@ -56,11 +57,11 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
 
   const enviarCalificacion = async () => {
     if (!vacante_id || !empleadorId) {
-      Alert.alert('No disponible', 'No hay contexto suficiente para calificar a este empleador.');
+      showAlert('No disponible', 'No hay contexto suficiente para calificar a este empleador.');
       return;
     }
     if (estrellas < 1 || estrellas > 5) {
-      Alert.alert('Calificación', 'Selecciona de 1 a 5 estrellas.');
+      showAlert('Calificación', 'Selecciona de 1 a 5 estrellas.');
       return;
     }
 
@@ -72,11 +73,11 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
         estrellas,
         comentario,
       });
-      Alert.alert('Gracias', 'Calificación enviada correctamente.');
+      showAlert('Gracias', 'Calificación enviada correctamente.');
       setEstrellas(0);
       setComentario('');
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la calificación.');
+      showAlert('Error', err.response?.data?.error || 'No se pudo enviar la calificación.');
     } finally {
       setEnviandoCalificacion(false);
     }

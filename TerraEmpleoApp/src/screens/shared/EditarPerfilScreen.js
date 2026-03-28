@@ -14,6 +14,7 @@ import {
 import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { showAlert } from '../../utils/alertService';
 
 export default function EditarPerfilScreen({ navigation, route }) {
   const { updateUser, user } = useAuth();
@@ -90,7 +91,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
       if (!file) return;
 
       if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name || '')) {
-        Alert.alert('Archivo inválido', 'Solo se permiten archivos PDF.');
+        showAlert('Archivo inválido', 'Solo se permiten archivos PDF.');
         return;
       }
 
@@ -102,9 +103,9 @@ export default function EditarPerfilScreen({ navigation, route }) {
         const res = await authAPI.subirHojaVida(formData);
         setHojaVidaUrl(res.data?.hoja_vida_url || '');
         setHojaVidaNombre(res.data?.hoja_vida_nombre || file.name || 'hoja_vida.pdf');
-        Alert.alert('Éxito', 'Hoja de vida cargada correctamente.');
+        showAlert('Éxito', 'Hoja de vida cargada correctamente.');
       } catch (err) {
-        Alert.alert('Error', err.response?.data?.error || 'No se pudo subir la hoja de vida');
+        showAlert('Error', err.response?.data?.error || 'No se pudo subir la hoja de vida');
       } finally {
         setSubiendoHojaVida(false);
       }
@@ -116,7 +117,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
 
   const manejarSubidaHojaVida = () => {
     if (Platform.OS !== 'web') {
-      Alert.alert('Función disponible en web', 'La carga de hoja de vida en PDF está habilitada en web.');
+      showAlert('Función disponible en web', 'La carga de hoja de vida en PDF está habilitada en web.');
       return;
     }
     abrirSelectorPdfWeb();
@@ -129,10 +130,10 @@ export default function EditarPerfilScreen({ navigation, route }) {
       if (canOpen) {
         await Linking.openURL(hojaVidaUrl);
       } else {
-        Alert.alert('No disponible', 'No se pudo abrir la hoja de vida en este dispositivo.');
+        showAlert('No disponible', 'No se pudo abrir la hoja de vida en este dispositivo.');
       }
     } catch (_) {
-      Alert.alert('Error', 'No se pudo abrir la hoja de vida.');
+      showAlert('Error', 'No se pudo abrir la hoja de vida.');
     }
   };
 
@@ -142,7 +143,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
     if (rol === 'empleador' && !nombreEmpresa.trim()) errs.empresa = 'El nombre de la finca/empresa es obligatorio';
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      Alert.alert('Campos requeridos', Object.values(errs).join('\n'));
+      showAlert('Campos requeridos', Object.values(errs).join('\n'));
       return false;
     }
     return true;
@@ -192,7 +193,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
       }, 1200);
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'Error al actualizar el perfil';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally {
       setLoading(false);
     }

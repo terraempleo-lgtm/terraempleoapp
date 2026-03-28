@@ -6,6 +6,7 @@ import {
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { authAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
+import { showAlert } from '../../utils/alertService';
 
 export default function SmsVerificationScreen({ route, navigation }) {
   const { celular, onVerificado, siguienteRuta, siguienteParams } = route.params || {};
@@ -20,7 +21,7 @@ export default function SmsVerificationScreen({ route, navigation }) {
     if (celular) {
       enviarCodigo();
     } else {
-      Alert.alert('Error', 'No se recibió el número de celular');
+      showAlert('Error', 'No se recibió el número de celular');
     }
   }, []);
 
@@ -37,10 +38,10 @@ export default function SmsVerificationScreen({ route, navigation }) {
       setEnviando(true);
       await authAPI.enviarSMS(celular);
       setCountdown(60);
-      Alert.alert('Código enviado', `Se envió un SMS al ${celular}`);
+      showAlert('Código enviado', `Se envió un SMS al ${celular}`);
     } catch (error) {
       const mensaje = error.response?.data?.error || 'No se pudo enviar el código. Verifica el número e intenta de nuevo.';
-      Alert.alert('Error', mensaje);
+      showAlert('Error', mensaje);
     } finally {
       setEnviando(false);
     }
@@ -68,11 +69,11 @@ export default function SmsVerificationScreen({ route, navigation }) {
   const verificarCodigo = async (codigoCompleto) => {
     const codigoFinal = codigoCompleto || codigo.join('');
     if (codigoFinal.length !== 6) {
-      Alert.alert('Error', 'Ingresa los 6 dígitos del código');
+      showAlert('Error', 'Ingresa los 6 dígitos del código');
       return;
     }
     if (!celular) {
-      Alert.alert('Error', 'Celular inválido para verificación');
+      showAlert('Error', 'Celular inválido para verificación');
       return;
     }
     try {
@@ -83,7 +84,7 @@ export default function SmsVerificationScreen({ route, navigation }) {
       navigation.goBack();
     } catch (error) {
       const mensaje = error.response?.data?.error || 'Código incorrecto. Intenta de nuevo.';
-      Alert.alert('Error', mensaje);
+      showAlert('Error', mensaje);
       setCodigo(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {

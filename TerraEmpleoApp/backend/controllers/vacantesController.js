@@ -737,7 +737,12 @@ async function cerrarVacante(req, res) {
     const { id } = req.params;
     const empleadorId = req.user.id;
 
-    await query('UPDATE vacantes SET estado = ? WHERE id = ? AND empleador_id = ?', ['cerrada', id, empleadorId]);
+    const result = await query('UPDATE vacantes SET estado = ? WHERE id = ? AND empleador_id = ? AND eliminado = 0', ['cerrada', id, empleadorId]);
+
+    if (!result || Number(result.affectedRows || 0) === 0) {
+      return res.status(404).json({ error: 'Vacante no encontrada para archivar' });
+    }
+
     res.json({ message: 'Vacante cerrada' });
   } catch (err) {
     console.error('Error cerrando vacante:', err);

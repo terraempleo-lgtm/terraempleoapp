@@ -11,6 +11,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, SHADOWS } from '../../theme';
 import { AnimatedPressable } from '../animated';
+import { showAlert } from '../../utils/alertService';
 
 const WHATSAPP_NUMBER = '573108870800';
 const WHATSAPP_MESSAGE = 'Hola, necesito ayuda con TerraEmpleo.';
@@ -51,13 +52,13 @@ export default function WhatsAppFAB() {
       if (supported) {
         await Linking.openURL(url);
       } else {
-        Alert.alert(
+        showAlert(
           'WhatsApp no disponible',
           'No se pudo abrir WhatsApp. Verifica que esté instalado en tu dispositivo.',
         );
       }
     } catch {
-      Alert.alert('Error', 'No se pudo abrir el enlace de soporte.');
+      showAlert('Error', 'No se pudo abrir el enlace de soporte.');
     }
   };
 

@@ -81,7 +81,7 @@ export default function DocumentoLegalScreen({ route }) {
   }, [tipo]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerCard}>
           <Text style={styles.titulo}>{contenido.titulo}</Text>

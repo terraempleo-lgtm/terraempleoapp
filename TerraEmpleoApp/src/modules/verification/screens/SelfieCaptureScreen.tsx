@@ -7,6 +7,7 @@ import { COLORS, RADIUS, SHADOWS, SPACING } from '../../../theme';
 import { CameraOverlay, CaptureInstructions } from '../components';
 import { useVerificationFlowContext } from '../hooks';
 import type { VerificationStackParamList } from '../types';
+import { showAlert } from '../../../utils/alertService';
 
 type Props = StackScreenProps<VerificationStackParamList, 'SelfieCapture'>;
 
@@ -17,7 +18,7 @@ export default function SelfieCaptureScreen({ navigation }: Props) {
     const resultado = await validarPasoActual();
     if (!resultado?.aprobado) {
       const mensaje = resultado?.errores?.[0]?.mensajeUsuario || 'No encontramos un rostro claro. Intenta de nuevo.';
-      Alert.alert('Repite la selfie', mensaje);
+      showAlert('Repite la selfie', mensaje);
       return;
     }
 

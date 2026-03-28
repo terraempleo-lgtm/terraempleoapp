@@ -13,6 +13,7 @@ import { getFechaInicioPayload } from '../../utils/vacantesFecha';
 import { formatearMontoInput, normalizarMontoPayload } from '../../utils/vacantesPago';
 import { vacantesAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
+import { showAlert } from '../../utils/alertService';
 
 export default function CrearVacanteScreen({ navigation }) {
   const [titulo, setTitulo] = useState('');
@@ -52,7 +53,7 @@ export default function CrearVacanteScreen({ navigation }) {
     try {
       const disponibles = Math.max(0, 5 - fotosVacante.length);
       if (disponibles === 0) {
-        Alert.alert('Límite alcanzado', 'Puedes subir máximo 5 fotos por vacante.');
+        showAlert('Límite alcanzado', 'Puedes subir máximo 5 fotos por vacante.');
         return;
       }
 
@@ -75,7 +76,7 @@ export default function CrearVacanteScreen({ navigation }) {
         return merged.slice(0, 5);
       });
     } catch (_) {
-      Alert.alert('Error', 'No se pudieron seleccionar las fotos. Intenta de nuevo.');
+      showAlert('Error', 'No se pudieron seleccionar las fotos. Intenta de nuevo.');
     }
   };
 
@@ -138,7 +139,7 @@ export default function CrearVacanteScreen({ navigation }) {
         navigation.navigate('EmpleadorHome');
       }, 1800);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'Error al crear la vacante');
+      showAlert('Error', err.response?.data?.error || 'Error al crear la vacante');
     } finally {
       setLoading(false);
     }

@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { trabajadoresAPI, vacantesAPI } from '../../services/api';
+import { showAlert } from '../../utils/alertService';
 
 const PROXIMIDAD_CONFIG = {
   mismo_municipio: { label: 'Mismo municipio', color: COLORS.primary, icon: 'location' },
@@ -224,16 +225,16 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
 
   const contactar = async (item) => {
     if (!vacanteSeleccionadaId) {
-      Alert.alert('Sin vacante', 'Selecciona una vacante para contactar a este trabajador.');
+      showAlert('Sin vacante', 'Selecciona una vacante para contactar a este trabajador.');
       return;
     }
 
     try {
       setEnviandoContactoId(Number(item.id));
       await trabajadoresAPI.contactar(item.id, { vacante_id: vacanteSeleccionadaId });
-      Alert.alert('Listo', `Solicitud de contacto enviada a ${item.nombre_completo}.`);
+      showAlert('Listo', `Solicitud de contacto enviada a ${item.nombre_completo}.`);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud');
+      showAlert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud');
     } finally {
       setEnviandoContactoId(null);
     }
@@ -241,7 +242,7 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.centerWrap}>
           <Ionicons name="sparkles-outline" size={40} color={COLORS.primaryLight} />
           <Text style={styles.loadingText}>Buscando trabajadores para ti...</Text>
@@ -251,7 +252,7 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Para ti</Text>

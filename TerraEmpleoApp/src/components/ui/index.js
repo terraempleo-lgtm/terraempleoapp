@@ -14,3 +14,4 @@ export { default as WhatsAppFAB } from './WhatsAppFAB';
 export { Toast } from './Toast';
 export { CachedImage } from './CachedImage';
 export { EmptyState } from './EmptyState';
+export { default as AppAlert } from './AppAlert';

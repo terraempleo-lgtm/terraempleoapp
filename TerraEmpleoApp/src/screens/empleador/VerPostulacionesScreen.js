@@ -8,6 +8,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { vacantesAPI, calificacionesAPI, chatsAPI } from '../../services/api';
 import { StarRating, Input } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
+import { showAlert } from '../../utils/alertService';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -70,7 +71,7 @@ export default function VerPostulacionesScreen({ route, navigation }) {
         prev.map(p => p.id === postId ? { ...p, estado } : p)
       );
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'Error al actualizar');
+      showAlert('Error', err.response?.data?.error || 'Error al actualizar');
     }
   };
 
@@ -90,12 +91,12 @@ export default function VerPostulacionesScreen({ route, navigation }) {
         },
       });
     } catch {
-      Alert.alert('Error', 'No se encontró el chat para este trabajador');
+      showAlert('Error', 'No se encontró el chat para este trabajador');
     }
   };
 
   const enviarCalificacion = async (trabajadorId) => {
-    if (estrellas === 0) return Alert.alert('Error', 'Selecciona las estrellas');
+    if (estrellas === 0) return showAlert('Error', 'Selecciona las estrellas');
     try {
       await calificacionesAPI.calificar({
         calificado_id: trabajadorId,
@@ -103,12 +104,12 @@ export default function VerPostulacionesScreen({ route, navigation }) {
         estrellas,
         comentario,
       });
-      Alert.alert('¡Listo!', 'Calificación enviada');
+      showAlert('¡Listo!', 'Calificación enviada');
       setCalificandoId(null);
       setEstrellas(0);
       setComentario('');
     } catch {
-      Alert.alert('Error', 'No se pudo calificar');
+      showAlert('Error', 'No se pudo calificar');
     }
   };
 

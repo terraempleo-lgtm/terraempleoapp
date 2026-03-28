@@ -9,6 +9,7 @@ import { adminAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
+import { showAlert } from '../../utils/alertService';
 
 export default function AdminUsuariosScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -46,18 +47,18 @@ export default function AdminUsuariosScreen({ navigation }) {
   const toggleActivo = async (id, activo) => {
     try {
       await adminAPI.updateUsuario(id, { activo: !activo });
-      Alert.alert('Listo', !activo ? 'Usuario activado correctamente' : 'Usuario desactivado correctamente');
+      showAlert('Listo', !activo ? 'Usuario activado correctamente' : 'Usuario desactivado correctamente');
       load();
     } catch (err) {
       const msg = err.response?.data?.error || 'No se pudo actualizar el estado del usuario';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     }
   };
 
   const eliminar = async (id, nombre) => {
     const ok = Platform.OS === 'web'
       ? window.confirm(`¿Eliminar al usuario "${nombre}"?`)
-      : await new Promise(resolve => Alert.alert(
+      : await new Promise(resolve => showAlert(
           'Confirmar eliminación',
           `¿Estás seguro de que deseas eliminar al usuario "${nombre}"?`,
           [{ text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
@@ -67,17 +68,17 @@ export default function AdminUsuariosScreen({ navigation }) {
     try {
       await adminAPI.eliminarUsuario(id);
       await load();
-      Alert.alert('Listo', 'Usuario eliminado correctamente');
+      showAlert('Listo', 'Usuario eliminado correctamente');
     } catch (err) {
       const msg = err.response?.data?.error || 'No se pudo eliminar el usuario';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     }
   };
 
   const eliminarFinca = async (item) => {
     const ok = Platform.OS === 'web'
       ? window.confirm(`¿Eliminar al empleador "${item.nombre_completo}" y todos sus datos?`)
-      : await new Promise(resolve => Alert.alert(
+      : await new Promise(resolve => showAlert(
           'Confirmar eliminación',
           `¿Estás seguro de que deseas eliminar al empleador "${item.nombre_completo}" y todos sus datos?`,
           [{ text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
@@ -87,10 +88,10 @@ export default function AdminUsuariosScreen({ navigation }) {
     try {
       await adminAPI.eliminarEmpleador(item.id);
       await load();
-      Alert.alert('Listo', 'Empleador y sus datos eliminados correctamente');
+      showAlert('Listo', 'Empleador y sus datos eliminados correctamente');
     } catch (err) {
       const msg = err.response?.data?.error || 'No se pudo eliminar el empleador';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     }
   };
 
@@ -103,7 +104,7 @@ export default function AdminUsuariosScreen({ navigation }) {
       const { data } = await adminAPI.getUsuarioDocumentosIdentidad(item.id);
       if (!data?.tiene_documentos) {
         setDocumentosRevision(null);
-        Alert.alert('Sin documentos', 'Este usuario aún no ha subido fotos para validación interna de identidad.');
+        showAlert('Sin documentos', 'Este usuario aún no ha subido fotos para validación interna de identidad.');
         return;
       }
 
@@ -113,7 +114,7 @@ export default function AdminUsuariosScreen({ navigation }) {
     } catch (err) {
       const msg = err.response?.data?.error || 'No se pudieron cargar los documentos.';
       setDocumentosRevision(null);
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally {
       setCargandoDocumentos(false);
     }
@@ -135,13 +136,13 @@ export default function AdminUsuariosScreen({ navigation }) {
       await adminAPI.revisarValidacionIdentidad(usuarioRevision.id, nuevoEstado, comentarioRevision);
       setEstadoRevision(nuevoEstado);
       cerrarRevisionDocumentos();
-      Alert.alert('Listo', nuevoEstado === 'aprobada'
+      showAlert('Listo', nuevoEstado === 'aprobada'
         ? 'Validación interna aprobada.'
         : 'Validación interna rechazada.');
       await load();
     } catch (err) {
       const msg = err.response?.data?.error || 'No se pudo guardar la revisión.';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally {
       setGuardandoRevision(false);
     }

@@ -7,6 +7,7 @@ import { COLORS, RADIUS, SHADOWS, SPACING } from '../../../theme';
 import { CameraOverlay, CaptureInstructions } from '../components';
 import { useVerificationFlowContext } from '../hooks';
 import type { VerificationStackParamList } from '../types';
+import { showAlert } from '../../../utils/alertService';
 
 type Props = StackScreenProps<VerificationStackParamList, 'IdFrontCapture'>;
 
@@ -17,7 +18,7 @@ export default function IdFrontCaptureScreen({ navigation }: Props) {
     const resultado = await validarPasoActual();
     if (!resultado?.aprobado) {
       const mensaje = resultado?.errores?.[0]?.mensajeUsuario || 'No parece una cédula. Intenta de nuevo.';
-      Alert.alert('Repite la foto', mensaje);
+      showAlert('Repite la foto', mensaje);
       return;
     }
 

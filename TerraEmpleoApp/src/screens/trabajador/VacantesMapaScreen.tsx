@@ -20,6 +20,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { vacantesAPI } from '../../services/api';
 import { useAppTheme } from '../../context/ThemeContext';
 import DecorativeBackground from '../../components/ui/DecorativeBackground';
+import { showAlert } from '../../utils/alertService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -665,7 +666,7 @@ export default function VacantesMapaScreen() {
         { ...userLocation, latitudeDelta: 1.5, longitudeDelta: 1.5 }, 400,
       );
     } else {
-      Alert.alert('Ubicación no disponible', 'Activa el permiso de ubicación para centrar el mapa.');
+      showAlert('Ubicación no disponible', 'Activa el permiso de ubicación para centrar el mapa.');
     }
   }, [userLocation]);
 

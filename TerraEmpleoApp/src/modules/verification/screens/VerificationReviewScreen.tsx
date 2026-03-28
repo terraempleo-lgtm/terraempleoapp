@@ -6,6 +6,7 @@ import { COLORS, RADIUS, SHADOWS, SPACING } from '../../../theme';
 import { VerificationStatusCard } from '../components';
 import { useVerificationFlowContext } from '../hooks';
 import type { VerificationStackParamList } from '../types';
+import { showAlert } from '../../../utils/alertService';
 
 type Props = StackScreenProps<VerificationStackParamList, 'VerificationReview'>;
 
@@ -21,11 +22,11 @@ export default function VerificationReviewScreen({ navigation }: Props) {
   const onEnviar = async () => {
     const response = await enviarParaRevision();
     if (!response.ok) {
-      Alert.alert('No se pudo enviar', response.mensaje);
+      showAlert('No se pudo enviar', response.mensaje);
       return;
     }
 
-    Alert.alert('Listo', 'Documentos enviados para revision');
+    showAlert('Listo', 'Documentos enviados para revision');
     navigation.popToTop();
   };
 

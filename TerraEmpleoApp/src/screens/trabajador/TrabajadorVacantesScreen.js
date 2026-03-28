@@ -25,6 +25,7 @@ import { CULTIVOS } from '../../data/options';
 import { DEPARTAMENTOS } from '../../data/colombia';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
+import { showAlert } from '../../utils/alertService';
 
 /* ── Helpers ── */
 
@@ -178,15 +179,15 @@ export default function TrabajadorVacantesScreen({ navigation }) {
     try {
       await vacantesAPI.postularse({ vacante_id: item.id });
       setVacantesPostuladas((prev) => { const n = new Set(prev); n.add(Number(item.id)); return n; });
-      Alert.alert('Listo', 'Te has postulado exitosamente a esta vacante.');
+      showAlert('Listo', 'Te has postulado exitosamente a esta vacante.');
     } catch (err) {
       const status = err.response?.status;
       if (status === 409) {
         setVacantesPostuladas((prev) => { const n = new Set(prev); n.add(Number(item.id)); return n; });
-        Alert.alert('Aviso', 'Ya estás postulado a esta vacante');
+        showAlert('Aviso', 'Ya estás postulado a esta vacante');
         return;
       }
-      Alert.alert('Error', err.response?.data?.error || 'Error al postularse');
+      showAlert('Error', err.response?.data?.error || 'Error al postularse');
     }
   };
 

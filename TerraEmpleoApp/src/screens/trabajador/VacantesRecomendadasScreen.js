@@ -14,6 +14,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { AnimatedPressable, StaggeredItem, SkeletonCard } from '../../components/animated';
 import DecorativeBackground from '../../components/ui/DecorativeBackground';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
+import { showAlert } from '../../utils/alertService';
 
 const PROXIMIDAD_CONFIG = {
   mismo_municipio: { label: 'Mismo municipio', color: COLORS.primary, icon: 'location' },
@@ -81,14 +82,14 @@ export default function VacantesRecomendadasScreen({ navigation }) {
     try {
       await vacantesAPI.postularse({ vacante_id: item.id });
       setVacantesPostuladas((prev) => { const n = new Set(prev); n.add(Number(item.id)); return n; });
-      Alert.alert('Listo', 'Te has postulado exitosamente.');
+      showAlert('Listo', 'Te has postulado exitosamente.');
     } catch (err) {
       if (err.response?.status === 409) {
         setVacantesPostuladas((prev) => { const n = new Set(prev); n.add(Number(item.id)); return n; });
-        Alert.alert('Aviso', 'Ya estás postulado a esta vacante.');
+        showAlert('Aviso', 'Ya estás postulado a esta vacante.');
         return;
       }
-      Alert.alert('Error', err.response?.data?.error || 'Error al postularse');
+      showAlert('Error', err.response?.data?.error || 'Error al postularse');
     }
   };
 

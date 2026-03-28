@@ -13,8 +13,9 @@ import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS, FONTS } from './src/theme';
 import { AnimatedTabBar } from './src/components/animated';
-import { Toast } from './src/components/ui';
+import { Toast, AppAlert } from './src/components/ui';
 import { setGlobalToastRef } from './src/utils/toastService';
+import { setGlobalAlertRef } from './src/utils/alertService';
 
 // ── Helper: lazy en todos los entornos (Metro no hace split → resuelve sync en native)
 const lazyWeb = (importFn) => React.lazy(importFn);
@@ -56,6 +57,7 @@ const ExplorarVacantesScreen         = lazyWeb(() => import('./src/screens/emple
 const DetalleVacanteReferenciaScreen = lazyWeb(() => import('./src/screens/empleador/DetalleVacanteReferenciaScreen'));
 const MisPostulantesScreen           = lazyWeb(() => import('./src/screens/empleador/MisPostulantesScreen'));
 const TrabajadoresRecomendadosScreen = lazyWeb(() => import('./src/screens/empleador/TrabajadoresRecomendadosScreen'));
+const BuscarTrabajadoresScreen       = lazyWeb(() => import('./src/screens/empleador/BuscarTrabajadoresScreen'));
 
 // ── Admin — lazy en web ───────────────────────────────────────────────────
 const AdminDashboardScreen           = lazyWeb(() => import('./src/screens/admin/AdminDashboardScreen'));
@@ -134,6 +136,8 @@ const headerOptions = {
   headerTintColor: COLORS.white,
   headerTitleStyle: { ...FONTS.subtitle, color: COLORS.white, fontWeight: FONTS.weight.bold },
   headerBackTitleVisible: false,
+  headerBackTitle: '',
+  headerTruncatedBackTitle: '',
   headerRight: () => <SoporteHeaderButton />,
 };
 
@@ -300,9 +304,14 @@ function BuscarTrabajadoresStack() {
     <S>
       <Stack.Navigator screenOptions={stackScreenOptions}>
         <Stack.Screen
-          name="TrabajadoresRecomendadosHome"
+          name="BuscarTrabajadoresHome"
+          component={BuscarTrabajadoresScreen}
+          options={{ title: 'Buscar trabajadores', headerShown: false }}
+        />
+        <Stack.Screen
+          name="TrabajadoresRecomendados"
           component={TrabajadoresRecomendadosScreen}
-          options={{ title: 'Trabajadores recomendados' }}
+          options={{ title: 'Trabajadores recomendados', headerShown: false }}
         />
         <Stack.Screen
           name="PerfilPublicoTrabajador"
@@ -469,7 +478,7 @@ function AuthStack() {
       <Stack.Screen name="Login" component={LoginScreen}
         options={{ headerShown: false }} />
       <Stack.Screen name="RoleSelect" component={RoleSelectScreen}
-        options={{ headerShown: true, title: 'Tipo de cuenta' }} />
+        options={{ headerShown: false }} />
       <Stack.Screen name="RegisterTrabajador" component={RegisterTrabajadorScreen}
         options={{ headerShown: true, title: 'Registro Trabajador' }} />
       <Stack.Screen name="RegisterEmpleador" component={RegisterEmpleadorScreen}
@@ -548,9 +557,11 @@ function RootNavigator() {
 function AppShell() {
   const { navigationTheme, colors, isDark } = useAppTheme();
   const toastRef = useRef(null);
+  const alertRef = useRef(null);
 
   React.useEffect(() => {
     setGlobalToastRef(toastRef.current);
+    setGlobalAlertRef(alertRef.current);
   }, []);
 
   return (
@@ -560,6 +571,7 @@ function AppShell() {
           <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.primaryDark} />
           <RootNavigator />
           <Toast ref={toastRef} />
+          <AppAlert ref={alertRef} />
         </NavigationContainer>
       </AuthProvider>
     </GestureHandlerRootView>

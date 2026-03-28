@@ -11,6 +11,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 import DecorativeBackground from '../../components/ui/DecorativeBackground';
+import { showAlert } from '../../utils/alertService';
 
 export default function MisPostulacionesScreen({ navigation }) {
   const { colors, isDark } = useAppTheme();
@@ -81,9 +82,9 @@ export default function MisPostulacionesScreen({ navigation }) {
     try {
       await vacantesAPI.responderContacto(postulacionId, accion);
       await cargar();
-      Alert.alert('Listo', accion === 'aceptar' ? 'Contacto aceptado. Ya puedes chatear.' : 'Solicitud rechazada.');
+      showAlert('Listo', accion === 'aceptar' ? 'Contacto aceptado. Ya puedes chatear.' : 'Solicitud rechazada.');
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'No se pudo responder la solicitud');
+      showAlert('Error', err.response?.data?.error || 'No se pudo responder la solicitud');
     }
   };
 

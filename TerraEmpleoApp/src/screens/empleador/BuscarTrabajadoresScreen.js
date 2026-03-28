@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { trabajadoresAPI, vacantesAPI } from '../../services/api';
+import { showAlert } from '../../utils/alertService';
 
 const ORDEN_TABS = [
   { key: 'match', label: 'Mejor match', icon: 'flash' },
@@ -247,16 +248,16 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
 
   const solicitarContacto = async (item) => {
     if (!vacanteContacto?.id) {
-      Alert.alert('Sin vacante', 'Primero crea o activa una vacante para poder contactar trabajadores.');
+      showAlert('Sin vacante', 'Primero crea o activa una vacante para poder contactar trabajadores.');
       return;
     }
 
     try {
       setEnviandoContactoId(Number(item.id));
       await trabajadoresAPI.contactar(item.id, { vacante_id: vacanteContacto.id });
-      Alert.alert('Listo', `Se envió solicitud de contacto a ${item.nombre_completo}.`);
+      showAlert('Listo', `Se envió solicitud de contacto a ${item.nombre_completo}.`);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
+      showAlert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
     } finally {
       setEnviandoContactoId(null);
     }
@@ -264,7 +265,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.centerWrap}>
           <Ionicons name="people-outline" size={40} color={COLORS.primaryLight} />
           <Text style={styles.loadingText}>Buscando trabajadores...</Text>
@@ -274,7 +275,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
         <View>

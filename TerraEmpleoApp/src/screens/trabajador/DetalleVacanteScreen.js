@@ -23,6 +23,7 @@ import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable, StaggeredItem } from '../../components/animated';
+import { showAlert } from '../../utils/alertService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 320;
@@ -90,10 +91,10 @@ export default function DetalleVacanteScreen({ route, navigation }) {
       if (err.response?.status === 409) {
         setPostulado(true);
         setShowPostModal(false);
-        Alert.alert('Aviso', 'Ya estás postulado a esta vacante');
+        showAlert('Aviso', 'Ya estás postulado a esta vacante');
         return;
       }
-      Alert.alert('Error', err.response?.data?.error || 'Error al postularse');
+      showAlert('Error', err.response?.data?.error || 'Error al postularse');
     } finally {
       setLoading(false);
     }

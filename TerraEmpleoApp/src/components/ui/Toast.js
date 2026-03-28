@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, { FadeInUp, FadeOutUp, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONTS, RADIUS, SHADOWS } from '../../theme';
 
@@ -8,21 +8,25 @@ const TOAST_DURATION = 3500; // ms
 
 export const Toast = React.forwardRef((props, ref) => {
   const [config, setConfig] = useState({ type: 'info', title: '', message: '' });
+  const [visible, setVisible] = useState(false);
   const opacity = useSharedValue(0);
   const timeoutRef = useRef(null);
 
   const show = React.useCallback(() => {
+    setVisible(true);
     opacity.value = withTiming(1, { duration: 300 });
 
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       opacity.value = withTiming(0, { duration: 300 });
+      setTimeout(() => setVisible(false), 300);
     }, TOAST_DURATION);
   }, []);
 
   const hide = React.useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     opacity.value = withTiming(0, { duration: 200 });
+    setTimeout(() => setVisible(false), 200);
   }, []);
 
   React.useImperativeHandle(ref, () => ({
@@ -52,10 +56,13 @@ export const Toast = React.forwardRef((props, ref) => {
     opacity: opacity.value,
   }));
 
+  const hasContent = Boolean(title || message);
+  if (!visible || !hasContent) {
+    return null;
+  }
+
   return (
     <Animated.View
-      entering={FadeInUp.springify().damping(0.8)}
-      exiting={FadeOutUp.springify()}
       style={[styles.container, animatedStyle]}
       pointerEvents="none"
     >

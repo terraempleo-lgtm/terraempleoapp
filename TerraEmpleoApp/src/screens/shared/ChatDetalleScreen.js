@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { chatsAPI } from '../../services/api';
 import { COLORS } from '../../theme';
+import { showAlert } from '../../utils/alertService';
 
 function formatHoraMensaje(dateStr) {
   if (!dateStr) return '';
@@ -90,7 +91,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
 
   const llamar = () => {
     if (!chat.otro_celular) {
-      Alert.alert('Sin número', 'No hay número disponible para este contacto.');
+      showAlert('Sin número', 'No hay número disponible para este contacto.');
       return;
     }
     const numero = String(chat.otro_celular).replace(/\D/g, '');
@@ -100,10 +101,10 @@ export default function ChatDetalleScreen({ route, navigation }) {
         if (supported) {
           Linking.openURL(url);
         } else {
-          Alert.alert('Error', 'No se puede abrir el marcador en este dispositivo.');
+          showAlert('Error', 'No se puede abrir el marcador en este dispositivo.');
         }
       })
-      .catch(() => Alert.alert('Error', 'No se pudo abrir el marcador.'));
+      .catch(() => showAlert('Error', 'No se pudo abrir el marcador.'));
   };
 
   const cargarMensajes = useCallback(async () => {
@@ -157,7 +158,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
     } catch (err) {
       console.error('Error enviando:', err);
       setTexto(msg);
-      Alert.alert('Error', 'No se pudo enviar el mensaje. Intenta de nuevo.');
+      showAlert('Error', 'No se pudo enviar el mensaje. Intenta de nuevo.');
     } finally {
       setEnviando(false);
     }

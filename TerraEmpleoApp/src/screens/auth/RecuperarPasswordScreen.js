@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input } from '../../components/ui';
 import { authAPI, cognitoAPI } from '../../services/api';
+import { showAlert } from '../../utils/alertService';
 
 export default function RecuperarPasswordScreen({ navigation, route }) {
   const celularInicial = route?.params?.celularInicial || '';
@@ -101,10 +102,10 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
       setCountdown(60);
       setPaso(2);
       if (data?.codigo_debug) {
-        Alert.alert('Código de prueba', `Tu código OTP es: ${data.codigo_debug}`);
+        showAlert('Código de prueba', `Tu código OTP es: ${data.codigo_debug}`);
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar el código');
+      showAlert('Error', err.response?.data?.error || 'No se pudo enviar el código');
     } finally {
       setLoading(false);
     }
@@ -145,7 +146,7 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
   const verificarCodigo = async () => {
     const codigo = otpCodigo;
     if (codigo.length !== 6) {
-      Alert.alert('Código incompleto', 'Ingresa los 6 dígitos del código');
+      showAlert('Código incompleto', 'Ingresa los 6 dígitos del código');
       return;
     }
 
@@ -166,7 +167,7 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
       setResetToken(data.reset_token);
       setPaso(3);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'Código inválido o expirado');
+      showAlert('Error', err.response?.data?.error || 'Código inválido o expirado');
     } finally {
       setLoading(false);
     }
@@ -222,11 +223,11 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
       } else {
         await authAPI.actualizarPasswordRecuperacion(celularFinal, resetToken, nuevaPassword);
       }
-      Alert.alert('Éxito', 'Contraseña actualizada correctamente', [
+      showAlert('Éxito', 'Contraseña actualizada correctamente', [
         { text: 'Ir a iniciar sesión', onPress: () => navigation.navigate('Login') },
       ]);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'No se pudo actualizar la contraseña');
+      showAlert('Error', err.response?.data?.error || 'No se pudo actualizar la contraseña');
     } finally {
       setLoading(false);
     }
@@ -240,7 +241,7 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
   const strength = fuerzaPassword();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
           <View style={styles.recuperarContainer}>

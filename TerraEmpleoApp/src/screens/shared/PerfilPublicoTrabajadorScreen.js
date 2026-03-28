@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { trabajadoresAPI, chatsAPI, vacantesAPI } from '../../services/api';
+import { showAlert } from '../../utils/alertService';
 
 const LABELS_EXPERIENCIA = {
   sin: 'Sin experiencia', sin_experiencia: 'Sin experiencia', menos_1: 'Menos de 1 año',
@@ -35,7 +36,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     try {
       const res = await trabajadoresAPI.perfilPublico(trabajador_id);
       setPerfil(res.data.trabajador);
-    } catch { Alert.alert('Error', 'No se pudo cargar el perfil'); }
+    } catch { showAlert('Error', 'No se pudo cargar el perfil'); }
     finally { setCargando(false); }
   };
 
@@ -44,7 +45,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     try {
       const res = await chatsAPI.chatPorVacanteTrabajador(vacante_id, trabajador_id);
       navigation.navigate('Mensajes', { screen: 'ChatDetalle', params: { chat: { id: res.data.chat_id, otro_nombre: perfil?.nombre_completo, otro_foto: perfil?.foto_selfie } } });
-    } catch { Alert.alert('Error', 'No se encontró el chat'); }
+    } catch { showAlert('Error', 'No se encontró el chat'); }
   };
 
   const cambiarEstado = async (estado) => {
@@ -53,10 +54,10 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
       const post = (res.data.postulaciones || []).find(p => Number(p.trabajador_id) === Number(trabajador_id));
       if (post) {
         await vacantesAPI.actualizarPostulacion(post.id, estado);
-        Alert.alert('Listo', estado === 'aceptada' ? 'Candidato aceptado' : 'Candidato rechazado');
+        showAlert('Listo', estado === 'aceptada' ? 'Candidato aceptado' : 'Candidato rechazado');
         navigation.goBack();
       }
-    } catch (err) { Alert.alert('Error', err.response?.data?.error || 'Error al actualizar'); }
+    } catch (err) { showAlert('Error', err.response?.data?.error || 'Error al actualizar'); }
   };
 
   const solicitarContacto = async () => {
@@ -64,9 +65,9 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     try {
       setEnviandoSolicitud(true);
       await trabajadoresAPI.contactar(trabajador_id, { vacante_id });
-      Alert.alert('Listo', 'Solicitud de contacto enviada. Si el trabajador acepta, se habilitará el chat.');
+      showAlert('Listo', 'Solicitud de contacto enviada. Si el trabajador acepta, se habilitará el chat.');
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
+      showAlert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
     } finally {
       setEnviandoSolicitud(false);
     }
@@ -91,12 +92,12 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     try {
       const canOpen = await Linking.canOpenURL(perfil.hoja_vida_url);
       if (!canOpen) {
-        Alert.alert('No disponible', 'No se pudo abrir la hoja de vida.');
+        showAlert('No disponible', 'No se pudo abrir la hoja de vida.');
         return;
       }
       await Linking.openURL(perfil.hoja_vida_url);
     } catch (_) {
-      Alert.alert('Error', 'No se pudo abrir la hoja de vida.');
+      showAlert('Error', 'No se pudo abrir la hoja de vida.');
     }
   };
 

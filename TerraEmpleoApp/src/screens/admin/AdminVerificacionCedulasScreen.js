@@ -5,6 +5,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { AnimatedPressable } from '../../components/animated';
 import { adminAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
+import { showAlert } from '../../utils/alertService';
 
 function formatearFecha(fecha) {
   if (!fecha) return 'Sin fecha';
@@ -31,7 +32,7 @@ export default function AdminVerificacionCedulasScreen() {
       setPendientes(data?.pendientes || []);
     } catch (err) {
       const msg = err.response?.data?.error || 'No se pudieron cargar las cédulas pendientes';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -49,7 +50,7 @@ export default function AdminVerificacionCedulasScreen() {
 
   const revisarPendiente = (item, estado) => {
     const accionLabel = estado === 'aprobada' ? 'aprobar' : 'rechazar';
-    Alert.alert(
+    showAlert(
       estado === 'aprobada' ? 'Aprobar identidad' : 'Rechazar identidad',
       `¿Deseas ${accionLabel} la cédula de ${item.nombre_completo}?`,
       [
@@ -64,7 +65,7 @@ export default function AdminVerificacionCedulasScreen() {
               setPendientes((prev) => prev.filter((p) => p.id !== item.id));
             } catch (err) {
               const msg = err.response?.data?.error || 'No se pudo guardar la revisión';
-              Alert.alert('Error', msg);
+              showAlert('Error', msg);
             } finally {
               setProcesandoId(null);
             }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  RefreshControl, Image, Alert,
+  RefreshControl, Image, Modal, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
@@ -92,6 +92,8 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [tabActiva, setTabActiva] = useState('activa');
   const [noLeidas, setNoLeidas] = useState(0);
+  const [vacanteAArchivar, setVacanteAArchivar] = useState(null);
+  const [archivandoId, setArchivandoId] = useState(null);
 
   const firstName = (user?.nombre_completo || user?.nombre || 'Empleador').split(' ')[0];
   const nombreCompleto = user?.nombre_completo || user?.nombre || firstName;
@@ -109,25 +111,30 @@ export default function EmpleadorVacantesScreen({ navigation }) {
     } catch (_) {}
   }, []);
 
-  const confirmarArchivar = (item) => {
-    Alert.alert(
-      'Archivar vacante',
-      `¿Cerrar "${item.titulo}"? La vacante dejará de ser visible para los trabajadores pero quedará en tus registros.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Archivar',
-          onPress: async () => {
-            try {
-              await vacantesAPI.cerrar(item.id);
-              cargar();
-            } catch (err) {
-              Alert.alert('Error', err.response?.data?.error || 'No se pudo archivar la vacante');
-            }
-          },
-        },
-      ]
-    );
+  const abrirConfirmacionArchivar = (item) => {
+    setVacanteAArchivar(item);
+  };
+
+  const cerrarConfirmacionArchivar = () => {
+    if (archivandoId) return;
+    setVacanteAArchivar(null);
+  };
+
+  const confirmarArchivar = async () => {
+    if (!vacanteAArchivar?.id) return;
+    try {
+      setArchivandoId(Number(vacanteAArchivar.id));
+      await vacantesAPI.cerrar(vacanteAArchivar.id);
+      setVacanteAArchivar(null);
+      await cargar();
+    } catch (err) {
+      setVacanteAArchivar({
+        ...vacanteAArchivar,
+        __error: err.response?.data?.error || 'No se pudo archivar la vacante',
+      });
+    } finally {
+      setArchivandoId(null);
+    }
   };
 
   const cargar = useCallback(async () => {
@@ -178,7 +185,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
             </AnimatedPressable>
             {isActiva && (
               <AnimatedPressable
-                onPress={() => confirmarArchivar(item)}
+                onPress={() => abrirConfirmacionArchivar(item)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 style={styles.actionBtn}
                 scaleValue={0.85}
@@ -473,6 +480,64 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           </View>
         }
       />
+
+      <Modal
+        visible={Boolean(vacanteAArchivar)}
+        transparent
+        animationType="fade"
+        onRequestClose={cerrarConfirmacionArchivar}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="archive-outline" size={22} color={COLORS.accent} />
+            </View>
+
+            <Text style={styles.modalTitle}>Archivar vacante</Text>
+            <Text style={styles.modalText}>
+              {`¿Deseas archivar "${vacanteAArchivar?.titulo || 'esta vacante'}"?`}
+            </Text>
+            <Text style={styles.modalSubtext}>
+              Ya no aparecerá a trabajadores, pero seguirá en tu historial.
+            </Text>
+
+            {vacanteAArchivar?.__error ? (
+              <View style={styles.modalErrorWrap}>
+                <Ionicons name="alert-circle-outline" size={14} color={COLORS.error} />
+                <Text style={styles.modalErrorText}>{vacanteAArchivar.__error}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.modalActions}>
+              <AnimatedPressable
+                style={[styles.modalBtn, styles.modalBtnGhost]}
+                onPress={cerrarConfirmacionArchivar}
+                disabled={Boolean(archivandoId)}
+                scaleValue={0.97}
+              >
+                <Text style={styles.modalBtnGhostText}>Cancelar</Text>
+              </AnimatedPressable>
+
+              <AnimatedPressable
+                style={[styles.modalBtn, styles.modalBtnDanger, archivandoId && styles.modalBtnDisabled]}
+                onPress={confirmarArchivar}
+                disabled={Boolean(archivandoId)}
+                scaleValue={0.97}
+                haptic
+              >
+                {archivandoId ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <>
+                    <Ionicons name="archive" size={14} color={COLORS.white} />
+                    <Text style={styles.modalBtnDangerText}>Sí, archivar</Text>
+                  </>
+                )}
+              </AnimatedPressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -776,4 +841,101 @@ const styles = StyleSheet.create({
     ...SHADOWS.button,
   },
   emptyBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 15 },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.white,
+    padding: SPACING.lg,
+    ...SHADOWS.large,
+  },
+  modalIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.warningSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
+  },
+  modalText: {
+    fontSize: 15,
+    color: COLORS.textPrimary,
+    lineHeight: 22,
+  },
+  modalSubtext: {
+    marginTop: 6,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 19,
+  },
+  modalErrorWrap: {
+    marginTop: SPACING.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: RADIUS.md,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modalErrorText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#B91C1C',
+    fontWeight: '600',
+  },
+  modalActions: {
+    marginTop: SPACING.lg,
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  modalBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  modalBtnGhost: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  modalBtnGhostText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  modalBtnDanger: {
+    backgroundColor: COLORS.accent,
+    borderWidth: 1,
+    borderColor: '#E26F00',
+  },
+  modalBtnDangerText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.white,
+  },
+  modalBtnDisabled: {
+    opacity: 0.75,
+  },
 });
