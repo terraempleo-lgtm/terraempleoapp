@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { setAuthToken, authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
-const TOKEN_KEY = '@terraempleo_token';
-const USER_KEY = '@terraempleo_user';
+const TOKEN_KEY = 'terraempleo_token';
+const USER_KEY = 'terraempleo_user';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -19,9 +19,10 @@ export function AuthProvider({ children }) {
 
   const restoreSession = async () => {
     try {
-      const savedToken = await AsyncStorage.getItem(TOKEN_KEY);
-      const savedUser = await AsyncStorage.getItem(USER_KEY);
-      if (savedToken && savedUser) {
+      const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      const savedUserStr = await SecureStore.getItemAsync(USER_KEY);
+
+      if (savedToken && savedUserStr) {
         setAuthToken(savedToken);
         // Validar que el token sigue siendo válido
         try {
@@ -33,7 +34,8 @@ export function AuthProvider({ children }) {
         } catch (err) {
           // Token expirado o inválido
           console.log('SESSION EXPIRED, clearing');
-          await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+          await SecureStore.deleteItemAsync(TOKEN_KEY);
+          await SecureStore.deleteItemAsync(USER_KEY);
           setAuthToken(null);
         }
       }
@@ -50,8 +52,8 @@ export function AuthProvider({ children }) {
     setToken(authToken);
     setUser(userData);
     try {
-      await AsyncStorage.setItem(TOKEN_KEY, authToken);
-      await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+      await SecureStore.setItemAsync(TOKEN_KEY, authToken);
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
     } catch (err) {
       console.error('Error saving session:', err);
     }
@@ -63,7 +65,8 @@ export function AuthProvider({ children }) {
     setToken(null);
     setUser(null);
     try {
-      await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_KEY);
     } catch (err) {
       console.error('Error clearing session:', err);
     }
@@ -72,7 +75,7 @@ export function AuthProvider({ children }) {
   const updateUser = useCallback((userData) => {
     setUser(prev => {
       const updated = { ...prev, ...userData };
-      AsyncStorage.setItem(USER_KEY, JSON.stringify(updated)).catch(() => {});
+      SecureStore.setItemAsync(USER_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);
