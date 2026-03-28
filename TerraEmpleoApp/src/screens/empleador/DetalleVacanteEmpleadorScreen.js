@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, RefreshControl, FlatList, Alert,
+  View, Text, StyleSheet, ScrollView,
+  Image, RefreshControl, FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -11,6 +11,7 @@ import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../utils/alertService';
+import AnimatedPressable from '../../components/animated/AnimatedPressable';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -20,10 +21,19 @@ function timeAgo(dateStr) {
   return `Publicado hace ${diff} días`;
 }
 
-function Chip({ label, colors }) {
+function CultivoChip({ label, colors }) {
   return (
-    <View style={[styles.chip, { backgroundColor: colors.surface, borderColor: COLORS.primary + '33' }]}>
-      <Text style={styles.chipText}>{label}</Text>
+    <View style={[styles.chip, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '40' }]}>
+      <Ionicons name="leaf" size={11} color={colors.primary} />
+      <Text style={[styles.chipText, { color: colors.primary }]}>{label}</Text>
+    </View>
+  );
+}
+
+function LaborChip({ label, colors }) {
+  return (
+    <View style={[styles.chip, { backgroundColor: COLORS.infoSoft, borderColor: COLORS.info + '40' }]}>
+      <Text style={[styles.chipText, { color: COLORS.info }]}>{label}</Text>
     </View>
   );
 }
@@ -32,12 +42,23 @@ function SectionCard({ icon, title, children, colors }) {
   return (
     <View style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
       <View style={styles.sectionHeader}>
-        <View style={styles.sectionIconWrap}>
-          <Ionicons name={icon} size={18} color={COLORS.primary} />
+        <View style={[styles.sectionIconWrap, { backgroundColor: colors.primary + '18' }]}>
+          <Ionicons name={icon} size={18} color={colors.primary} />
         </View>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{title}</Text>
       </View>
       {children}
+    </View>
+  );
+}
+
+function BeneficioRow({ icon, iconColor, text, colors, muted }) {
+  return (
+    <View style={styles.beneficioRow}>
+      <View style={[styles.beneficioIconWrap, { backgroundColor: (iconColor || colors.primary) + '15' }]}>
+        <Ionicons name={icon} size={15} color={iconColor || colors.primary} />
+      </View>
+      <Text style={[styles.beneficioText, { color: muted ? colors.textMuted : colors.textPrimary }]}>{text}</Text>
     </View>
   );
 }
@@ -74,7 +95,6 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
 
   const cargar = useCallback(async () => {
     try {
-      // Cargar vacante completa con fotos firmadas
       const vacanteRes = await vacantesAPI.detalle(vacanteParam.id);
       if (vacanteRes.data?.vacante) {
         setVacante(vacanteRes.data.vacante);
@@ -115,9 +135,7 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
   const onScrollFotos = (e) => {
     const x = e.nativeEvent.contentOffset.x;
     const index = Math.round(x / e.nativeEvent.layoutMeasurement.width);
-    if (!Number.isNaN(index)) {
-      setFotoActiva(index);
-    }
+    if (!Number.isNaN(index)) setFotoActiva(index);
   };
 
   return (
@@ -126,11 +144,15 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar(); }}
-            colors={[COLORS.primary]} tintColor={COLORS.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); cargar(); }}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
         }
       >
-        {/* Hero fotos */}
+        {/* ── Hero fotos ────────────────────────────────────── */}
         <View style={styles.hero}>
           {heroFotos.length > 1 ? (
             <>
@@ -156,125 +178,163 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
           ) : heroFotos.length === 1 ? (
             <Image source={{ uri: heroFotos[0] }} style={styles.heroImg} resizeMode="cover" />
           ) : (
-            <View style={styles.heroPlaceholder}>
+            <View style={[styles.heroPlaceholder, { backgroundColor: colors.primary + 'cc' }]}>
               <View style={styles.heroPlaceholderIcon}>
-                <Ionicons name="image-outline" size={48} color={COLORS.primaryLight} />
+                <Ionicons name="leaf" size={48} color="rgba(255,255,255,0.85)" />
               </View>
               <Text style={styles.heroPlaceholderText}>Sin fotos cargadas</Text>
             </View>
           )}
+
+          {/* Gradient overlay */}
           <View style={styles.heroGradient} />
-          {/* Badge */}
-          <View style={[styles.heroBadge, !isActiva && styles.heroBadgeInactiva]}>
-            <View style={[styles.heroBadgeDot, !isActiva && styles.heroBadgeDotInactiva]} />
-            <Text style={[styles.heroBadgeText, !isActiva && styles.heroBadgeTextInactiva]}>
+
+          {/* Status badge */}
+          <View style={[
+            styles.heroBadge,
+            isActiva
+              ? { backgroundColor: COLORS.badgeActive }
+              : { backgroundColor: COLORS.badgeInactive },
+          ]}>
+            <View style={[
+              styles.heroBadgeDot,
+              { backgroundColor: isActiva ? COLORS.badgeActiveText : COLORS.badgeInactiveText },
+            ]} />
+            <Text style={[
+              styles.heroBadgeText,
+              { color: isActiva ? COLORS.badgeActiveText : COLORS.badgeInactiveText },
+            ]}>
               {isActiva ? 'Activa' : 'Inactiva'}
             </Text>
           </View>
+
           {/* Action buttons */}
           <View style={styles.heroActionBtns}>
-            <TouchableOpacity
-              style={styles.heroEditBtn}
+            <AnimatedPressable
+              style={styles.heroActionBtn}
               onPress={() => navigation.navigate('EditarVacante', { vacante })}
+              hapticStyle="Light"
             >
               <Ionicons name="pencil" size={16} color={COLORS.white} />
-            </TouchableOpacity>
+            </AnimatedPressable>
             {isActiva && (
-              <TouchableOpacity
-                style={[styles.heroEditBtn, { backgroundColor: 'rgba(255,143,0,0.7)' }]}
+              <AnimatedPressable
+                style={[styles.heroActionBtn, { backgroundColor: 'rgba(245,158,11,0.8)' }]}
                 onPress={confirmarArchivar}
+                hapticStyle="Light"
               >
                 <Ionicons name="archive" size={16} color={COLORS.white} />
-              </TouchableOpacity>
+              </AnimatedPressable>
             )}
           </View>
-          {heroFotos.length > 0 ? (
+
+          {/* Photo counter */}
+          {heroFotos.length > 0 && (
             <View style={styles.heroCounter}>
-              <Ionicons name="images-outline" size={13} color={COLORS.white} />
+              <Ionicons name="images-outline" size={12} color={COLORS.white} />
               <Text style={styles.heroCounterText}>{fotoActiva + 1}/{heroFotos.length}</Text>
             </View>
-          ) : null}
+          )}
+
           {/* Title block */}
           <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>{vacante.titulo}</Text>
+            <Text style={styles.heroTitle} numberOfLines={2}>{vacante.titulo}</Text>
             <View style={styles.heroMeta}>
-              <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.heroMetaText}>
-                {[vacante.municipio, vacante.departamento].filter(Boolean).join(', ')}, Colombia
+              <Ionicons name="business-outline" size={13} color="rgba(255,255,255,0.75)" />
+              <Text style={styles.heroMetaText} numberOfLines={1}>
+                {vacante.nombre_empresa_finca || 'Mi finca'}
               </Text>
-              <Text style={styles.heroMetaDot}>·</Text>
-              <Text style={styles.heroMetaText}>{timeAgo(vacante.created_at)}</Text>
+              {!!(vacante.municipio || vacante.departamento) && (
+                <>
+                  <Text style={styles.heroMetaDot}>·</Text>
+                  <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.75)" />
+                  <Text style={styles.heroMetaText}>
+                    {[vacante.municipio, vacante.departamento].filter(Boolean).join(', ')}
+                  </Text>
+                </>
+              )}
             </View>
+            <Text style={styles.heroTime}>{timeAgo(vacante.created_at)}</Text>
           </View>
         </View>
 
-        {/* Descripción debajo de fotos */}
-        {vacante.descripcion ? (
-          <View style={[styles.descripcionCard, { backgroundColor: colors.surface }]}>
-            <View style={styles.descripcionHeader}>
-              <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
-              <Text style={[styles.descripcionTitle, { color: colors.textPrimary }]}>Descripción</Text>
-            </View>
-            <Text style={[styles.descTextStrong, { color: colors.textPrimary }]}>{vacante.descripcion}</Text>
-          </View>
-        ) : null}
-
-        {/* Panel postulaciones */}
-        <View style={[styles.postulacionesPanel, { backgroundColor: colors.surface }]}>
+        {/* ── Stats de postulaciones ────────────────────────── */}
+        <View style={[styles.statsPanel, { backgroundColor: colors.surface }]}>
           <View style={styles.panelHeader}>
-            <View style={styles.panelHeaderIcon}>
-              <Ionicons name="people-outline" size={16} color={COLORS.primary} />
+            <View style={[styles.panelHeaderIcon, { backgroundColor: colors.primary + '18' }]}>
+              <Ionicons name="people-outline" size={17} color={colors.primary} />
             </View>
-            <Text style={[styles.panelHeaderTitle, { color: colors.textPrimary }]}>Resumen de postulaciones</Text>
+            <Text style={[styles.panelHeaderTitle, { color: colors.textPrimary }]}>
+              Resumen de postulaciones
+            </Text>
           </View>
 
-          <View style={[styles.statsRow, { borderColor: colors.border }]}>
-            <TouchableOpacity
-              style={styles.statCard}
+          <View style={styles.statsGrid}>
+            {/* Total */}
+            <AnimatedPressable
+              style={[styles.statCard, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '25' }]}
               onPress={() => navigation.navigate('VerPostulaciones', { vacante })}
-              activeOpacity={0.75}
+              scaleValue={0.97}
             >
-              <Text style={styles.statNum}>{stats.total}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>POSTULANTES</Text>
-            </TouchableOpacity>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.statCard}>
-              <Text style={styles.statNum}>{stats.pendientes}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>NUEVOS</Text>
+              <Text style={[styles.statNum, { color: colors.primary }]}>{stats.total}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>POSTULANTES</Text>
+            </AnimatedPressable>
+
+            {/* Nuevos */}
+            <View style={[styles.statCard, { backgroundColor: COLORS.warningSoft, borderColor: COLORS.warning + '35' }]}>
+              <Text style={[styles.statNum, { color: COLORS.warning }]}>{stats.pendientes}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>NUEVOS</Text>
             </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.statCard}>
-              <Text style={styles.statNum}>{stats.aceptadas}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>ACEPTADOS</Text>
+
+            {/* Aceptados */}
+            <View style={[styles.statCard, { backgroundColor: COLORS.badgeActive, borderColor: COLORS.badgeActiveText + '35' }]}>
+              <Text style={[styles.statNum, { color: COLORS.badgeActiveText }]}>{stats.aceptadas}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>ACEPTADOS</Text>
             </View>
           </View>
 
-          <View style={styles.ctaWrap}>
-            <TouchableOpacity
-              style={styles.ctaBtn}
+          {/* CTA row */}
+          <View style={styles.ctaRow}>
+            <AnimatedPressable
+              style={[styles.ctaBtn, { backgroundColor: colors.primary }]}
               onPress={() => navigation.navigate('VerPostulaciones', { vacante })}
-              activeOpacity={0.88}
             >
               <Ionicons name="people" size={18} color={COLORS.white} />
               <Text style={styles.ctaBtnText}>Ver postulaciones</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.ctaEditBtn}
+            </AnimatedPressable>
+            <AnimatedPressable
+              style={[styles.ctaEditBtn, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '40' }]}
               onPress={() => navigation.navigate('EditarVacante', { vacante })}
-              activeOpacity={0.88}
+              scaleValue={0.95}
             >
-              <Ionicons name="pencil-outline" size={18} color={COLORS.primary} />
-            </TouchableOpacity>
+              <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+            </AnimatedPressable>
           </View>
         </View>
 
-        {/* Details */}
-        <View style={styles.details}>
+        {/* ── Descripción ───────────────────────────────────── */}
+        {!!vacante.descripcion && (
+          <SectionCard icon="document-text-outline" title="Descripción" colors={colors}>
+            <Text style={[styles.descText, { color: colors.textSecondary }]}>
+              {vacante.descripcion}
+            </Text>
+          </SectionCard>
+        )}
+
+        {/* ── Sections ──────────────────────────────────────── */}
+        <View style={styles.sections}>
+
           {/* Cultivos */}
           {vacante.cultivos?.length > 0 && (
             <SectionCard icon="leaf-outline" title="Cultivos" colors={colors}>
               <View style={styles.chipsWrap}>
-                {vacante.cultivos.map((c, i) => <Chip key={i} label={c.cultivo || c.nombre || String(c)} colors={colors} />)}
+                {vacante.cultivos.map((c, i) => (
+                  <CultivoChip
+                    key={i}
+                    label={c.cultivo || c.nombre || String(c)}
+                    colors={colors}
+                  />
+                ))}
               </View>
             </SectionCard>
           )}
@@ -283,7 +343,13 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
           {vacante.labores?.length > 0 && (
             <SectionCard icon="construct-outline" title="Labores requeridas" colors={colors}>
               <View style={styles.chipsWrap}>
-                {vacante.labores.map((l, i) => <Chip key={i} label={l.labor || l.nombre || String(l)} colors={colors} />)}
+                {vacante.labores.map((l, i) => (
+                  <LaborChip
+                    key={i}
+                    label={l.labor || l.nombre || String(l)}
+                    colors={colors}
+                  />
+                ))}
               </View>
             </SectionCard>
           )}
@@ -291,76 +357,80 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
           {/* Pago y beneficios */}
           <SectionCard icon="cash-outline" title="Pago y beneficios" colors={colors}>
             <View style={styles.beneficiosList}>
-              {vacante.tipo_pago && (
-                <View style={styles.beneficioRow}>
-                  <Ionicons name="card-outline" size={16} color={COLORS.primary} />
-                  <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>
-                    Tipo de pago: {pago.tipoLabel || vacante.tipo_pago}
-                  </Text>
-                </View>
+              {!!vacante.tipo_pago && (
+                <BeneficioRow
+                  icon="card-outline"
+                  text={`Tipo de pago: ${pago.tipoLabel || vacante.tipo_pago}`}
+                  colors={colors}
+                />
               )}
-              <View style={styles.beneficioRow}>
-                <Ionicons name="cash" size={16} color={COLORS.primary} />
-                <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>Salario: {pago.valor}</Text>
-              </View>
-              {vacante.duracion ? (
-                <View style={styles.beneficioRow}>
-                  <Ionicons name="time-outline" size={16} color={COLORS.primary} />
-                  <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>Duración: {vacante.duracion}</Text>
-                </View>
-              ) : null}
-              <View style={styles.beneficioRow}>
-                <Ionicons
-                  name={vacante.ofrece_alojamiento ? 'checkmark-circle' : 'close-circle'}
-                  size={16}
-                  color={vacante.ofrece_alojamiento ? COLORS.primary : COLORS.textLight}
+              <BeneficioRow
+                icon="cash"
+                text={`Salario: ${pago.valor}`}
+                colors={colors}
+              />
+              {!!vacante.duracion && (
+                <BeneficioRow
+                  icon="time-outline"
+                  text={`Duración: ${vacante.duracion}`}
+                  colors={colors}
                 />
-                <Text style={[styles.beneficioText, { color: colors.textPrimary }, !vacante.ofrece_alojamiento && { color: colors.textMuted }]}>
-                  Alojamiento {vacante.ofrece_alojamiento ? 'incluido' : 'no incluido'}
-                </Text>
-              </View>
-              <View style={styles.beneficioRow}>
-                <Ionicons
-                  name={vacante.ofrece_alimentacion ? 'checkmark-circle' : 'close-circle'}
-                  size={16}
-                  color={vacante.ofrece_alimentacion ? COLORS.primary : COLORS.textLight}
+              )}
+              <BeneficioRow
+                icon={vacante.ofrece_alojamiento ? 'checkmark-circle' : 'close-circle-outline'}
+                iconColor={vacante.ofrece_alojamiento ? COLORS.success : COLORS.textLight}
+                text={`Alojamiento ${vacante.ofrece_alojamiento ? 'incluido' : 'no incluido'}`}
+                colors={colors}
+                muted={!vacante.ofrece_alojamiento}
+              />
+              <BeneficioRow
+                icon={vacante.ofrece_alimentacion ? 'checkmark-circle' : 'close-circle-outline'}
+                iconColor={vacante.ofrece_alimentacion ? COLORS.success : COLORS.textLight}
+                text={`Alimentación ${vacante.ofrece_alimentacion ? 'incluida' : 'no incluida'}`}
+                colors={colors}
+                muted={!vacante.ofrece_alimentacion}
+              />
+              {!!vacante.otros_beneficios && (
+                <BeneficioRow
+                  icon="gift-outline"
+                  iconColor={COLORS.accent}
+                  text={vacante.otros_beneficios}
+                  colors={colors}
                 />
-                <Text style={[styles.beneficioText, { color: colors.textPrimary }, !vacante.ofrece_alimentacion && { color: colors.textMuted }]}>
-                  Alimentación {vacante.ofrece_alimentacion ? 'incluida' : 'no incluida'}
-                </Text>
-              </View>
-              {vacante.otros_beneficios ? (
-                <View style={styles.beneficioRow}>
-                  <Ionicons name="gift-outline" size={16} color={COLORS.accent} />
-                  <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>{vacante.otros_beneficios}</Text>
-                </View>
-              ) : null}
+              )}
             </View>
           </SectionCard>
 
+          {/* Fechas */}
           <SectionCard icon="calendar-clear-outline" title="Fechas" colors={colors}>
             <View style={styles.beneficiosList}>
-              <View style={styles.beneficioRow}>
-                <Ionicons name="play-circle-outline" size={16} color={COLORS.primary} />
-                <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>Inicio: {fechaInicioTexto}</Text>
-              </View>
-              <View style={styles.beneficioRow}>
-                <Ionicons name="stop-circle-outline" size={16} color={vacante.fecha_fin ? COLORS.accent : COLORS.textLight} />
-                <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>
-                  Finalización: {vacante.fecha_fin
+              <BeneficioRow
+                icon="play-circle-outline"
+                text={`Inicio: ${fechaInicioTexto}`}
+                colors={colors}
+              />
+              <BeneficioRow
+                icon="stop-circle-outline"
+                iconColor={vacante.fecha_fin ? COLORS.warning : COLORS.textLight}
+                text={`Finalización: ${
+                  vacante.fecha_fin
                     ? formatVacancyStartDate(vacante.fecha_fin, { long: true, fallback: 'Por definir' })
-                    : 'Sin fecha límite'}
-                </Text>
-              </View>
+                    : 'Sin fecha límite'
+                }`}
+                colors={colors}
+                muted={!vacante.fecha_fin}
+              />
             </View>
           </SectionCard>
 
-          {vacante.requisitos ? (
+          {/* Requisitos */}
+          {!!vacante.requisitos && (
             <SectionCard icon="checkmark-done-outline" title="Requisitos" colors={colors}>
-              <Text style={[styles.descText, { color: colors.textSecondary }]}>{vacante.requisitos}</Text>
+              <Text style={[styles.descText, { color: colors.textSecondary }]}>
+                {vacante.requisitos}
+              </Text>
             </SectionCard>
-          ) : null}
-
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -369,29 +439,27 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { paddingBottom: SPACING.lg },
+  scrollContent: { paddingBottom: SPACING.xl },
 
-  /* Hero */
-  hero: { height: 230, position: 'relative' },
+  /* ── Hero ─────────────────────────────────────────────── */
+  hero: { height: 260, position: 'relative' },
   heroImg: { width: '100%', height: '100%' },
   heroPlaceholder: {
     width: '100%', height: '100%',
-    backgroundColor: COLORS.primaryDark,
     justifyContent: 'center', alignItems: 'center', gap: SPACING.sm,
   },
   heroPlaceholderIcon: {
     width: 90, height: 90, borderRadius: 45,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center', alignItems: 'center',
   },
   heroPlaceholderText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.9)' },
   heroGradient: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 160,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 180,
+    backgroundColor: 'rgba(0,0,0,0.52)',
   },
   heroDotsWrap: {
-    position: 'absolute', bottom: 50, left: 0, right: 0,
-    alignItems: 'center',
+    position: 'absolute', bottom: 58, left: 0, right: 0, alignItems: 'center',
   },
   heroDotsInner: {
     flexDirection: 'row', gap: 6,
@@ -404,31 +472,24 @@ const styles = StyleSheet.create({
   heroBadge: {
     position: 'absolute', top: SPACING.md, left: SPACING.md,
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.92)',
     paddingHorizontal: 12, paddingVertical: 5,
     borderRadius: RADIUS.full,
   },
-  heroBadgeInactiva: { backgroundColor: 'rgba(240,240,240,0.9)' },
-  heroBadgeDot: {
-    width: 7, height: 7, borderRadius: 4,
-    backgroundColor: COLORS.primary,
-  },
-  heroBadgeDotInactiva: { backgroundColor: COLORS.textLight },
-  heroBadgeText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
-  heroBadgeTextInactiva: { color: COLORS.textSecondary },
+  heroBadgeDot: { width: 7, height: 7, borderRadius: 4 },
+  heroBadgeText: { fontSize: 12, fontWeight: '700' },
   heroActionBtns: {
     position: 'absolute', top: SPACING.md, right: SPACING.md,
     flexDirection: 'row', gap: 8,
   },
-  heroEditBtn: {
-    width: 36, height: 36, borderRadius: 18,
+  heroActionBtn: {
+    width: 38, height: 38, borderRadius: 19,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center', alignItems: 'center',
   },
   heroCounter: {
     position: 'absolute', bottom: 14, right: SPACING.md,
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     paddingHorizontal: 9, paddingVertical: 4,
     borderRadius: RADIUS.full,
   },
@@ -436,123 +497,92 @@ const styles = StyleSheet.create({
   heroContent: {
     position: 'absolute', bottom: SPACING.md, left: SPACING.md, right: SPACING.md,
   },
-  heroTitle: { fontSize: 22, fontWeight: '800', color: COLORS.white, marginBottom: 4 },
-  heroMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
-  heroMetaText: { fontSize: 13, color: 'rgba(255,255,255,0.82)' },
-  heroMetaDot: { fontSize: 13, color: 'rgba(255,255,255,0.5)', marginHorizontal: 2 },
-
-  descripcionCard: {
-    marginHorizontal: SPACING.md,
-    marginTop: SPACING.sm,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.sm,
-    ...SHADOWS.card,
+  heroTitle: {
+    fontSize: 22, fontWeight: '800', color: COLORS.white,
+    marginBottom: 5, letterSpacing: -0.2,
   },
-  descripcionHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginBottom: 6 },
-  descripcionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  descTextStrong: { fontSize: 14, color: COLORS.textPrimary, lineHeight: 21 },
+  heroMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 3 },
+  heroMetaText: { fontSize: 13, color: 'rgba(255,255,255,0.82)' },
+  heroMetaDot: { fontSize: 13, color: 'rgba(255,255,255,0.45)', marginHorizontal: 1 },
+  heroTime: { fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 1 },
 
-  /* Stats */
-  postulacionesPanel: {
+  /* ── Stats panel ─────────────────────────────────────── */
+  statsPanel: {
     marginHorizontal: SPACING.md,
     marginTop: SPACING.sm,
-    borderRadius: RADIUS.lg,
-    ...SHADOWS.card,
-    paddingBottom: SPACING.sm,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.md,
+    ...SHADOWS.small,
   },
   panelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: SPACING.sm,
-    paddingTop: SPACING.sm,
+    flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: SPACING.md,
   },
   panelHeaderIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    backgroundColor: COLORS.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 36, height: 36, borderRadius: RADIUS.md,
+    alignItems: 'center', justifyContent: 'center',
   },
-  panelHeaderTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
-  statsRow: {
-    flexDirection: 'row',
-    backgroundColor: 'transparent',
-    marginHorizontal: SPACING.sm,
-    marginTop: 6,
-    borderRadius: RADIUS.md,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
+  panelHeaderTitle: { fontSize: 15, fontWeight: '700' },
+  statsGrid: {
+    flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md,
   },
   statCard: {
-    flex: 1, alignItems: 'center',
-    paddingVertical: SPACING.sm,
+    flex: 1, alignItems: 'center', paddingVertical: SPACING.md,
+    borderRadius: RADIUS.lg, borderWidth: 1.5,
   },
-  statDivider: { width: 1, backgroundColor: COLORS.borderLight, marginVertical: SPACING.sm },
-  statNum: { fontSize: 23, fontWeight: '800', color: COLORS.primary },
-  statLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textSecondary, letterSpacing: 0.5, marginTop: 2 },
+  statNum: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  statLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.6, marginTop: 3 },
 
   /* CTA */
-  ctaWrap: {
-    flexDirection: 'row', gap: SPACING.sm,
-    marginHorizontal: SPACING.sm,
-    marginTop: SPACING.sm,
-  },
+  ctaRow: { flexDirection: 'row', gap: SPACING.sm },
   ctaBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 7,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    borderRadius: RADIUS.md,
+    gap: 8, paddingVertical: 13, borderRadius: RADIUS.full,
     ...SHADOWS.button,
   },
   ctaBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
   ctaEditBtn: {
-    width: 46, height: 46, borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primarySoft,
-    borderWidth: 1.5, borderColor: COLORS.primary,
+    width: 48, height: 48, borderRadius: RADIUS.full,
+    borderWidth: 1.5,
     justifyContent: 'center', alignItems: 'center',
   },
 
-  /* Details */
-  details: { padding: SPACING.md, gap: SPACING.sm },
+  /* ── Description ─────────────────────────────────────── */
+  descText: { fontSize: 14, lineHeight: 22, color: COLORS.textSecondary },
+
+  /* ── Sections ────────────────────────────────────────── */
+  sections: { padding: SPACING.md, paddingTop: SPACING.sm, gap: SPACING.sm },
   sectionCard: {
-    borderRadius: RADIUS.lg,
-    padding: SPACING.sm,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.md,
     ...SHADOWS.small,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.sm,
   },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm,
   },
   sectionIconWrap: {
-    width: 34, height: 34, borderRadius: 10,
-    backgroundColor: COLORS.primarySoft,
+    width: 36, height: 36, borderRadius: RADIUS.md,
     justifyContent: 'center', alignItems: 'center',
   },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  sectionTitle: { fontSize: 15, fontWeight: '700' },
 
   /* Chips */
-  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     borderRadius: RADIUS.full,
-    paddingHorizontal: 12, paddingVertical: 5,
+    paddingHorizontal: 12, paddingVertical: 6,
     borderWidth: 1,
   },
-  chipText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
+  chipText: { fontSize: 12, fontWeight: '600' },
 
   /* Beneficios */
-  beneficiosList: { gap: 8 },
+  beneficiosList: { gap: 10 },
   beneficioRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  beneficioText: { fontSize: 13, color: COLORS.textPrimary },
-  textMuted: { color: COLORS.textSecondary },
-
-  /* Descripción */
-  fechaInicioValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.primary,
+  beneficioIconWrap: {
+    width: 28, height: 28, borderRadius: RADIUS.sm,
+    alignItems: 'center', justifyContent: 'center',
   },
-  descText: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22 },
+  beneficioText: { flex: 1, fontSize: 13, lineHeight: 20 },
 });
