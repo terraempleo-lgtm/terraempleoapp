@@ -1,10 +1,13 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetFlatList,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
 import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from '../../theme';
 import { AnimatedPressable } from '../animated';
-import Input from './Input';
 
 export default function PickerModal({
   visible,
@@ -17,29 +20,32 @@ export default function PickerModal({
 }) {
   const [search, setSearch] = React.useState('');
   const bottomSheetRef = useRef(null);
+  const snapPoints = useMemo(() => ['50%', '95%'], []);
 
   useEffect(() => {
     if (visible) {
       bottomSheetRef.current?.snapToIndex(0);
+      setSearch('');
     } else {
       bottomSheetRef.current?.close();
     }
   }, [visible]);
 
-  const filtered = search
-    ? options.filter(opt =>
-        (typeof opt === 'string' ? opt : opt.label)
-          .toLowerCase()
-          .includes(search.toLowerCase())
-      )
-    : options;
+  const filtered = useMemo(() => {
+    if (!search.trim()) return options;
+    return options.filter(opt =>
+      (typeof opt === 'string' ? opt : opt.label)
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    );
+  }, [search, options]);
 
-  const handleSelect = (item) => {
+  const handleSelect = useCallback((item) => {
     Keyboard.dismiss();
     onSelect(typeof item === 'string' ? item : item.value);
     onClose();
     setSearch('');
-  };
+  }, [onSelect, onClose]);
 
   const handleClose = useCallback(() => {
     Keyboard.dismiss();
@@ -80,7 +86,12 @@ export default function PickerModal({
         )}
       </AnimatedPressable>
     );
-  }, [selectedValue]);
+  }, [selectedValue, handleSelect]);
+
+  const keyExtractor = useCallback((item, index) => {
+    const key = typeof item === 'string' ? item : item.value;
+    return `${key}-${index}`;
+  }, []);
 
   if (!visible) return null;
 
@@ -88,13 +99,16 @@ export default function PickerModal({
     <BottomSheet
       ref={bottomSheetRef}
       index={0}
-      snapPoints={['60%', '85%']}
+      snapPoints={snapPoints}
       onClose={handleClose}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={styles.handleIndicator}
       backgroundStyle={styles.background}
       style={styles.sheet}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
     >
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
@@ -105,36 +119,56 @@ export default function PickerModal({
 
       {searchable && (
         <View style={styles.searchContainer}>
-          <Input
-            placeholder="Buscar..."
-            value={search}
-            onChangeText={setSearch}
-            icon="search"
-            style={{ marginBottom: 0 }}
-            containerStyle={{ marginBottom: SPACING.sm }}
-          />
+          <View style={styles.searchInputWrap}>
+            <Ionicons name="search" size={18} color={COLORS.textLight} style={styles.searchIcon} />
+            <BottomSheetTextInput
+              style={styles.searchInput}
+              placeholder="Buscar..."
+              placeholderTextColor={COLORS.textLight}
+              value={search}
+              onChangeText={setSearch}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+            />
+            {search.length > 0 && (
+              <AnimatedPressable
+                onPress={() => setSearch('')}
+                scaleValue={0.85}
+                haptic={false}
+                style={styles.clearBtn}
+              >
+                <Ionicons name="close-circle" size={18} color={COLORS.textLight} />
+              </AnimatedPressable>
+            )}
+          </View>
+          {filtered.length > 0 && search.length > 0 && (
+            <Text style={styles.resultCount}>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</Text>
+          )}
         </View>
       )}
 
-      <BottomSheetScrollView
+      <BottomSheetFlatList
+        data={filtered}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {filtered.length === 0 ? (
-          <Text style={styles.empty}>No se encontraron resultados</Text>
-        ) : (
-          filtered.map((item, idx) => {
-            const keyBase = typeof item === 'string' ? item : item.value;
-            return (
-              <View key={`${keyBase}-${idx}`}>
-                {renderItem({ item })}
-                {idx < filtered.length - 1 ? <View style={styles.separator} /> : null}
-              </View>
-            );
-          })
-        )}
-      </BottomSheetScrollView>
+        showsVerticalScrollIndicator={true}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Ionicons name="search-outline" size={32} color={COLORS.border} />
+            <Text style={styles.empty}>No se encontraron resultados</Text>
+          </View>
+        }
+        maxToRenderPerBatch={20}
+        windowSize={10}
+        initialNumToRender={20}
+      />
     </BottomSheet>
   );
 }
@@ -168,6 +202,37 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.sm,
+  },
+  searchInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.borderLight,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.md,
+    height: 46,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+  },
+  searchIcon: {
+    marginRight: SPACING.sm,
+  },
+  searchInput: {
+    flex: 1,
+    ...FONTS.input,
+    color: COLORS.textPrimary,
+    paddingVertical: 0,
+    height: '100%',
+  },
+  clearBtn: {
+    padding: 2,
+    marginLeft: SPACING.xs,
+  },
+  resultCount: {
+    ...FONTS.caption,
+    color: COLORS.textLight,
+    marginTop: SPACING.xs,
+    marginLeft: SPACING.xs,
   },
   option: {
     flexDirection: 'row',
@@ -184,6 +249,7 @@ const styles = StyleSheet.create({
   },
   optionText: {
     ...FONTS.regular,
+    flex: 1,
   },
   optionTextSelected: {
     color: COLORS.primary,
@@ -194,13 +260,17 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.borderLight,
     marginHorizontal: SPACING.lg,
   },
+  emptyWrap: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xxl,
+    gap: SPACING.sm,
+  },
   empty: {
     textAlign: 'center',
-    padding: SPACING.lg,
     ...FONTS.bodySmall,
     color: COLORS.textLight,
   },
   listContent: {
-    paddingBottom: SPACING.xxl,
+    paddingBottom: SPACING.xxxl * 2,
   },
 });
