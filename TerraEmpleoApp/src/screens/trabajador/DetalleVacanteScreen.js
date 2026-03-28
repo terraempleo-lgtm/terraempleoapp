@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { vacantesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +34,7 @@ const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 export default function DetalleVacanteScreen({ route, navigation }) {
   const { vacante } = route.params;
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [postulado, setPostulado] = useState(false);
@@ -156,7 +158,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
   });
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <AnimatedScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 130 }}
@@ -243,7 +245,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 18, stiffness: 150, delay: 200 }}
         >
-          <View style={styles.contentCard}>
+          <View style={[styles.contentCard, { backgroundColor: colors.background }]}>
             <View style={styles.badgeRow}>
               {vacante.urgente && (
                 <View style={styles.urgentBadge}>
@@ -251,7 +253,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                 </View>
               )}
               {vacante.created_at && (
-                <Text style={styles.timeText}>
+                <Text style={[styles.timeText, { color: colors.textMuted }]}>
                   Publicado {(() => {
                     const d = Math.floor((Date.now() - new Date(vacante.created_at)) / 86400000);
                     if (d === 0) return 'hoy';
@@ -262,15 +264,15 @@ export default function DetalleVacanteScreen({ route, navigation }) {
               )}
             </View>
 
-            <Text style={styles.title}>{vacante.titulo}</Text>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>{vacante.titulo}</Text>
 
             {vacante.descripcion && (
               <StaggeredItem index={0}>
                 <View style={styles.barSection}>
                   <View style={styles.barGreen} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.barTitle}>Descripción</Text>
-                    <Text style={styles.description}>{vacante.descripcion}</Text>
+                    <Text style={[styles.barTitle, { color: colors.textPrimary }]}>Descripción</Text>
+                    <Text style={[styles.description, { color: colors.textSecondary }]}>{vacante.descripcion}</Text>
                   </View>
                 </View>
               </StaggeredItem>
@@ -278,34 +280,34 @@ export default function DetalleVacanteScreen({ route, navigation }) {
 
             {/* Info principal */}
             <StaggeredItem index={1}>
-              <View style={styles.infoBlock}>
-                <View style={styles.infoRow}>
+              <View style={[styles.infoBlock, { backgroundColor: isDark ? colors.surface : '#FAFAF9', borderColor: colors.border }]}>
+                <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
                   <View style={styles.infoCircle}><Ionicons name="location-outline" size={16} color={COLORS.primary} /></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.infoLabel}>Ubicación</Text>
-                    <Text style={styles.infoValue}>{[vacante.municipio, vacante.departamento].filter(Boolean).join(', ') || 'Colombia'}</Text>
+                    <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Ubicación</Text>
+                    <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{[vacante.municipio, vacante.departamento].filter(Boolean).join(', ') || 'Colombia'}</Text>
                   </View>
                 </View>
-                <View style={styles.infoRow}>
+                <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
                   <View style={styles.infoCircle}><Ionicons name="cash-outline" size={16} color={COLORS.primary} /></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.infoLabel}>Salario</Text>
-                    <Text style={styles.infoValue}>{pago.valor}</Text>
+                    <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Salario</Text>
+                    <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{pago.valor}</Text>
                   </View>
                 </View>
-                <View style={styles.infoRow}>
+                <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
                   <View style={styles.infoCircle}><Ionicons name="calendar-clear-outline" size={16} color={COLORS.primary} /></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.infoLabel}>Fecha de inicio</Text>
-                    <Text style={styles.infoValue}>{fechaInicioTexto}</Text>
+                    <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Fecha de inicio</Text>
+                    <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{fechaInicioTexto}</Text>
                   </View>
                 </View>
                 {vacante.duracion ? (
                   <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
                     <View style={styles.infoCircle}><Ionicons name="calendar-outline" size={16} color={COLORS.primary} /></View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.infoLabel}>Duración</Text>
-                      <Text style={styles.infoValue}>{vacante.duracion}</Text>
+                      <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Duración</Text>
+                      <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{vacante.duracion}</Text>
                     </View>
                   </View>
                 ) : null}
@@ -317,8 +319,8 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                 <View style={styles.barSection}>
                   <View style={styles.barGreen} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.barTitle}>Requisitos</Text>
-                    <Text style={styles.description}>{requisitosTexto}</Text>
+                    <Text style={[styles.barTitle, { color: colors.textPrimary }]}>Requisitos</Text>
+                    <Text style={[styles.description, { color: colors.textSecondary }]}>{requisitosTexto}</Text>
                   </View>
                 </View>
               </StaggeredItem>
@@ -329,12 +331,12 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                 <View style={styles.barSection}>
                   <View style={styles.barGreen} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.barTitle}>Labores solicitadas</Text>
+                    <Text style={[styles.barTitle, { color: colors.textPrimary }]}>Labores solicitadas</Text>
                     <View style={styles.chipsRow}>
                       {labores.map((r, i) => (
-                        <View key={i} style={styles.reqChip}>
-                          <Ionicons name="checkmark-circle-outline" size={14} color={COLORS.textSecondary} />
-                          <Text style={styles.reqChipText}>{r}</Text>
+                        <View key={i} style={[styles.reqChip, { borderColor: colors.border }]}>
+                          <Ionicons name="checkmark-circle-outline" size={14} color={colors.textSecondary} />
+                          <Text style={[styles.reqChipText, { color: colors.textSecondary }]}>{r}</Text>
                         </View>
                       ))}
                       {(vacante.cultivos || []).map((c, i) => (
@@ -373,10 +375,10 @@ export default function DetalleVacanteScreen({ route, navigation }) {
       </AnimatedScrollView>
 
       {/* Footer sticky CTA */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.background, borderColor: colors.border }]}>
         <View style={styles.footerLeft}>
-          <Text style={styles.footerLabel}>Salario</Text>
-          <Text style={styles.footerSalary}>{pago.valor}</Text>
+          <Text style={[styles.footerLabel, { color: colors.textMuted }]}>Salario</Text>
+          <Text style={[styles.footerSalary, { color: colors.textPrimary }]}>{pago.valor}</Text>
         </View>
         {user?.rol === 'trabajador' && (
           <AnimatedPressable
@@ -411,7 +413,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
             from={{ translateY: 100, opacity: 0 }}
             animate={{ translateY: 0, opacity: 1 }}
             transition={{ type: 'spring', damping: 20, stiffness: 200 }}
-            style={styles.modalContent}
+            style={[styles.modalContent, { backgroundColor: colors.surface }]}
           >
             {!postExitosa ? (
               <>
@@ -421,16 +423,16 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                 <View style={styles.modalIconWrap}>
                   <Ionicons name="paper-plane-outline" size={36} color={COLORS.primary} />
                 </View>
-                <Text style={styles.modalTitle}>Postularte a esta vacante</Text>
-                <Text style={styles.modalSubtitle}>
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Postularte a esta vacante</Text>
+                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
                   {vacante.titulo} en {vacante.nombre_empresa_finca || 'la empresa'}
                 </Text>
 
-                <Text style={styles.modalFieldLabel}>Mensaje al empleador (opcional)</Text>
+                <Text style={[styles.modalFieldLabel, { color: colors.textPrimary }]}>Mensaje al empleador (opcional)</Text>
                 <TextInput
-                  style={styles.modalInput}
+                  style={[styles.modalInput, { backgroundColor: isDark ? colors.surface : '#F9FAFB', borderColor: colors.border, color: colors.textPrimary }]}
                   placeholder="Cuéntale por qué eres ideal para este cargo..."
-                  placeholderTextColor={COLORS.textLight}
+                  placeholderTextColor={colors.textMuted}
                   multiline
                   numberOfLines={4}
                   value={mensajePost}
@@ -460,7 +462,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                   scaleValue={0.97}
                   haptic={false}
                 >
-                  <Text style={styles.modalCancelText}>Cancelar</Text>
+                  <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancelar</Text>
                 </AnimatedPressable>
               </>
             ) : (
@@ -476,8 +478,8 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                 >
                   <Ionicons name="checkmark-circle" size={64} color={COLORS.primary} />
                 </MotiView>
-                <Text style={styles.successTitle}>¡Postulación enviada!</Text>
-                <Text style={styles.successSubtitle}>
+                <Text style={[styles.successTitle, { color: colors.textPrimary }]}>¡Postulación enviada!</Text>
+                <Text style={[styles.successSubtitle, { color: colors.textSecondary }]}>
                   Tu perfil fue enviado a {vacante.nombre_empresa_finca || 'la empresa'}.
                   Te notificaremos cuando respondan.
                 </Text>
@@ -486,13 +488,13 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                     <View style={styles.successInfoIcon}>
                       <Ionicons name="briefcase-outline" size={18} color={COLORS.primary} />
                     </View>
-                    <Text style={styles.successInfoText}>{vacante.titulo}</Text>
+                    <Text style={[styles.successInfoText, { color: colors.textPrimary }]}>{vacante.titulo}</Text>
                   </View>
                   <View style={styles.successInfoItem}>
                     <View style={styles.successInfoIcon}>
                       <Ionicons name="location-outline" size={18} color={COLORS.primary} />
                     </View>
-                    <Text style={styles.successInfoText}>
+                    <Text style={[styles.successInfoText, { color: colors.textPrimary }]}>
                       {[vacante.municipio, vacante.departamento].filter(Boolean).join(', ')}
                     </Text>
                   </View>
@@ -511,7 +513,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                   scaleValue={0.97}
                   haptic={false}
                 >
-                  <Text style={styles.modalCancelText}>Volver a vacantes</Text>
+                  <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Volver a vacantes</Text>
                 </AnimatedPressable>
               </>
             )}
@@ -523,7 +525,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.white },
+  root: { flex: 1 },
 
   /* Hero */
   heroWrap: { width: '100%', height: HERO_HEIGHT, backgroundColor: COLORS.primarySoft, overflow: 'hidden' },
@@ -575,7 +577,6 @@ const styles = StyleSheet.create({
 
   /* Content card */
   contentCard: {
-    backgroundColor: COLORS.white,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     marginTop: -28,
@@ -594,24 +595,24 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: COLORS.primary,
   },
   urgentText: { fontSize: 11, fontWeight: '700', color: COLORS.primary, letterSpacing: 0.3 },
-  timeText: { fontSize: 13, color: COLORS.textLight },
+  timeText: { fontSize: 13 },
 
-  title: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary, marginBottom: SPACING.lg, lineHeight: 32 },
+  title: { fontSize: 24, fontWeight: '800', marginBottom: SPACING.lg, lineHeight: 32 },
 
-  infoBlock: { borderWidth: 1, borderColor: COLORS.borderLight, borderRadius: RADIUS.lg, overflow: 'hidden', marginBottom: SPACING.lg, backgroundColor: '#FAFAF9' },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm + 4, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight },
+  infoBlock: { borderWidth: 1, borderRadius: RADIUS.lg, overflow: 'hidden', marginBottom: SPACING.lg },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm + 4, borderBottomWidth: 1 },
   infoCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  infoLabel: { fontSize: 11, color: COLORS.textLight, fontWeight: '600', letterSpacing: 0.4 },
-  infoValue: { fontSize: 15, color: COLORS.textPrimary, fontWeight: '700', marginTop: 1 },
+  infoLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.4 },
+  infoValue: { fontSize: 15, fontWeight: '700', marginTop: 1 },
 
   barSection: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg },
   barGreen: { width: 4, borderRadius: 4, backgroundColor: COLORS.primary, minHeight: 24 },
-  barTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.sm },
-  description: { fontSize: 15, color: COLORS.textSecondary, lineHeight: 24 },
+  barTitle: { fontSize: 16, fontWeight: '700', marginBottom: SPACING.sm },
+  description: { fontSize: 15, lineHeight: 24 },
 
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  reqChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderColor: '#D1D5DB', borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 7 },
-  reqChipText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
+  reqChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 7 },
+  reqChipText: { fontSize: 13, fontWeight: '600' },
   chipGreen: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: COLORS.primarySoft, paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.full },
   chipGreenText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
 
@@ -622,17 +623,16 @@ const styles = StyleSheet.create({
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: COLORS.white,
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
-    borderTopWidth: 1, borderColor: COLORS.borderLight,
+    borderTopWidth: 1,
     ...SHADOWS.large,
     gap: SPACING.md,
   },
   footerLeft: { flex: 1 },
-  footerLabel: { fontSize: 11, color: COLORS.textLight, fontWeight: '600', letterSpacing: 0.3, marginBottom: 2 },
-  footerSalary: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+  footerLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3, marginBottom: 2 },
+  footerSalary: { fontSize: 20, fontWeight: '800' },
   postBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: COLORS.primary,
@@ -649,7 +649,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: COLORS.white,
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl,
     maxHeight: '85%',
@@ -666,21 +665,21 @@ const styles = StyleSheet.create({
     alignSelf: 'center', marginBottom: SPACING.md,
   },
   modalTitle: {
-    fontSize: 22, fontWeight: '800', color: COLORS.textPrimary,
+    fontSize: 22, fontWeight: '800',
     textAlign: 'center', marginBottom: SPACING.xs,
   },
   modalSubtitle: {
-    fontSize: 14, color: COLORS.textSecondary, textAlign: 'center',
+    fontSize: 14, textAlign: 'center',
     marginBottom: SPACING.lg, lineHeight: 20,
   },
   modalFieldLabel: {
-    fontSize: 13, fontWeight: '700', color: COLORS.textPrimary,
+    fontSize: 13, fontWeight: '700',
     marginBottom: SPACING.xs,
   },
   modalInput: {
-    backgroundColor: '#F9FAFB', borderRadius: RADIUS.lg,
-    borderWidth: 1.5, borderColor: COLORS.border,
-    padding: SPACING.md, fontSize: 15, color: COLORS.textPrimary,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    padding: SPACING.md, fontSize: 15,
     minHeight: 100, marginBottom: SPACING.lg,
     lineHeight: 22,
   },
@@ -694,15 +693,15 @@ const styles = StyleSheet.create({
   modalCancelBtn: {
     alignItems: 'center', paddingVertical: 14,
   },
-  modalCancelText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: '600' },
+  modalCancelText: { fontSize: 15, fontWeight: '600' },
 
   successIconWrap: { alignItems: 'center', marginBottom: SPACING.md },
   successTitle: {
-    fontSize: 24, fontWeight: '800', color: COLORS.textPrimary,
+    fontSize: 24, fontWeight: '800',
     textAlign: 'center', marginBottom: SPACING.xs,
   },
   successSubtitle: {
-    fontSize: 14, color: COLORS.textSecondary, textAlign: 'center',
+    fontSize: 14, textAlign: 'center',
     lineHeight: 22, marginBottom: SPACING.lg,
   },
   successInfoRow: { gap: SPACING.sm, marginBottom: SPACING.lg },
@@ -716,5 +715,5 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primarySoft,
     justifyContent: 'center', alignItems: 'center',
   },
-  successInfoText: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary, flex: 1 },
+  successInfoText: { fontSize: 14, fontWeight: '600', flex: 1 },
 });

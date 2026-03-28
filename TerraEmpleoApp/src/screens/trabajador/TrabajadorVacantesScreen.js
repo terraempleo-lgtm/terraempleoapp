@@ -63,17 +63,19 @@ function CultivoChip({ label }) {
 }
 
 function LaborChip({ label }) {
+  const { colors, isDark } = useAppTheme();
   return (
-    <View style={s.tagGray}>
-      <Ionicons name="construct-outline" size={11} color={COLORS.textSecondary} />
-      <Text style={s.tagGrayTxt}>{label}</Text>
+    <View style={[s.tagGray, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]}>
+      <Ionicons name="construct-outline" size={11} color={colors.textSecondary} />
+      <Text style={[s.tagGrayTxt, { color: colors.textSecondary }]}>{label}</Text>
     </View>
   );
 }
 
 function BenefitChip({ label }) {
+  const { colors, isDark } = useAppTheme();
   return (
-    <View style={s.tagBlue}>
+    <View style={[s.tagBlue, { backgroundColor: isDark ? colors.surface : '#EFF6FF' }]}>
       <Ionicons name="checkmark-circle" size={11} color="#3B82F6" />
       <Text style={s.tagBlueTxt}>{label}</Text>
     </View>
@@ -233,8 +235,8 @@ export default function TrabajadorVacantesScreen({ navigation }) {
             {item.foto_portada ? (
               <Image source={{ uri: item.foto_portada }} style={s.cardImg} resizeMode="cover" />
             ) : (
-              <View style={s.cardImgFallback}>
-                <Ionicons name="image-outline" size={40} color="#C8CFC8" />
+              <View style={[s.cardImgFallback, { backgroundColor: isDark ? colors.surface : '#EDF2EE' }]}>
+                <Ionicons name="image-outline" size={40} color={isDark ? colors.border : '#C8CFC8'} />
               </View>
             )}
 
@@ -510,8 +512,8 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <SafeAreaView style={[s.root, { backgroundColor: '#fff' }]} edges={['top', 'bottom']}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView style={[s.root, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <DecorativeBackground intensity="strong" />
       <FlatList
         data={filtered}
@@ -543,7 +545,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
                   <Ionicons name="briefcase-outline" size={48} color={COLORS.primary} />
                 </View>
               </MotiView>
-              <Text style={s.emptyTitle}>No hay vacantes disponibles</Text>
+              <Text style={[s.emptyTitle, { color: colors.textPrimary }]}>No hay vacantes disponibles</Text>
               <Text style={[s.emptySub, { color: colors.textMuted }]}>Desliza hacia abajo para actualizar</Text>
             </View>
           )
@@ -574,7 +576,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 /* ── Styles ── */
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8FAF9' },
+  root: { flex: 1 },
   headerBlock: {
     position: 'relative',
   },

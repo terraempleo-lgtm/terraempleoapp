@@ -121,7 +121,7 @@ export default function VacantesRecomendadasScreen({ navigation }) {
             {item.foto_portada ? (
               <Image source={{ uri: item.foto_portada }} style={styles.heroImg} resizeMode="cover" />
             ) : (
-              <View style={styles.heroFallback}>
+              <View style={[styles.heroFallback, { backgroundColor: isDark ? colors.surface : '#EDF2EE' }]}>
                 <Ionicons name="image-outline" size={36} color="#C8CFC8" />
               </View>
             )}
@@ -272,8 +272,8 @@ export default function VacantesRecomendadasScreen({ navigation }) {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]} edges={['top', 'bottom']}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <DecorativeBackground intensity="strong" />
       <FlatList
         data={vacantes}
