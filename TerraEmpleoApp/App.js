@@ -27,7 +27,6 @@ import RoleSelectScreen from './src/screens/auth/RoleSelectScreen';
 import RegisterTrabajadorScreen from './src/screens/auth/RegisterTrabajadorScreen';
 import RegisterEmpleadorScreen from './src/screens/auth/RegisterEmpleadorScreen';
 import RecuperarPasswordScreen from './src/screens/auth/RecuperarPasswordScreen';
-import PasskeyEnrollScreen from './src/screens/auth/PasskeyEnrollScreen';
 import DocumentoLegalScreen from './src/screens/auth/DocumentoLegalScreen';
 import VerificationNavigator from './src/modules/verification/navigation/VerificationNavigator';
 
@@ -178,8 +177,6 @@ function PerfilStack() {
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="PerfilHome" component={PerfilScreen} options={{ title: 'Mi Perfil' }} />
       <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ title: 'Editar Perfil' }} />
-      <Stack.Screen name="PasskeyEnrollPerfil" component={PasskeyEnrollScreen}
-        options={{ headerShown: false, gestureEnabled: false }} />
     </Stack.Navigator>
   );
 }
@@ -487,8 +484,6 @@ function AuthStack() {
         options={{ headerShown: true, title: 'Registro Empleador' }} />
       <Stack.Screen name="RecuperarPassword" component={RecuperarPasswordScreen}
         options={{ headerShown: true, title: 'Recuperar contraseña' }} />
-      <Stack.Screen name="PasskeyEnroll" component={PasskeyEnrollScreen}
-        options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="DocumentoLegal" component={DocumentoLegalScreen}
         options={{ headerShown: true, title: 'Documento legal' }} />
       <Stack.Screen

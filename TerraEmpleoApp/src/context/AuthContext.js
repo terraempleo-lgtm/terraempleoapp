@@ -5,36 +5,27 @@ import { setAuthToken, authAPI } from '../services/api';
 const AuthContext = createContext(null);
 
 const TOKEN_KEY = 'terraempleo_token';
-const USER_KEY = 'terraempleo_user';
-const COGNITO_TOKEN_KEY = 'terraempleo_cognito_token';
+const USER_KEY  = 'terraempleo_user';
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [cognitoAccessToken, setCognitoAccessToken] = useState(null);
+  const [user, setUser]     = useState(null);
+  const [token, setToken]   = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Restaurar sesión al iniciar
-  useEffect(() => {
-    restoreSession();
-  }, []);
+  useEffect(() => { restoreSession(); }, []);
 
   const restoreSession = async () => {
     try {
-      const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      const savedToken   = await SecureStore.getItemAsync(TOKEN_KEY);
       const savedUserStr = await SecureStore.getItemAsync(USER_KEY);
-
       if (savedToken && savedUserStr) {
         setAuthToken(savedToken);
-        // Validar que el token sigue siendo válido
         try {
           const res = await authAPI.getPerfil();
-          const freshUser = res.data.user;
           setToken(savedToken);
-          setUser(freshUser);
-          console.log('SESSION RESTORED', freshUser.nombre_completo);
-        } catch (err) {
-          // Token expirado o inválido
+          setUser(res.data.user);
+          console.log('SESSION RESTORED', res.data.user?.nombre_completo);
+        } catch {
           console.log('SESSION EXPIRED, clearing');
           await SecureStore.deleteItemAsync(TOKEN_KEY);
           await SecureStore.deleteItemAsync(USER_KEY);
@@ -48,16 +39,14 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signIn = useCallback(async (userData, authToken, cognitoToken) => {
+  const signIn = useCallback(async (userData, authToken) => {
     console.log('SIGN_IN', userData?.nombre_completo);
     setAuthToken(authToken);
     setToken(authToken);
     setUser(userData);
-    if (cognitoToken) setCognitoAccessToken(cognitoToken);
     try {
       await SecureStore.setItemAsync(TOKEN_KEY, authToken);
       await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
-      if (cognitoToken) await SecureStore.setItemAsync(COGNITO_TOKEN_KEY, cognitoToken);
     } catch (err) {
       console.error('Error saving session:', err);
     }
@@ -68,13 +57,33 @@ export function AuthProvider({ children }) {
     setAuthToken(null);
     setToken(null);
     setUser(null);
-    setCognitoAccessToken(null);
     try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
       await SecureStore.deleteItemAsync(USER_KEY);
-      await SecureStore.deleteItemAsync(COGNITO_TOKEN_KEY);
     } catch (err) {
       console.error('Error clearing session:', err);
+    }
+  }, []);
+
+  /**
+   * Intenta restaurar la sesión guardada (sin pedir contraseña).
+   * El llamador debe haber verificado la biometría antes.
+   * Retorna { ok: true } | { ok: false, reason: 'no_session' | 'expired' }
+   */
+  const tryBiometricLogin = useCallback(async () => {
+    try {
+      const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (!savedToken) return { ok: false, reason: 'no_session' };
+      setAuthToken(savedToken);
+      const res = await authAPI.getPerfil();
+      const freshUser = res.data.user;
+      setToken(savedToken);
+      setUser(freshUser);
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(freshUser)).catch(() => {});
+      return { ok: true };
+    } catch {
+      setAuthToken(null);
+      return { ok: false, reason: 'expired' };
     }
   }, []);
 
@@ -87,7 +96,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, cognitoAccessToken, loading, signIn, signOut, updateUser, setLoading }}>
+    <AuthContext.Provider value={{ user, token, loading, signIn, signOut, updateUser, tryBiometricLogin, setLoading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -13,15 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from '../../theme';
 import { Button, Input, TerraFooter } from '../../components/ui';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
-import { authAPI, cognitoAPI, passkeyAPI } from '../../services/api';
+import { authAPI, cognitoAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
-import {
-  isPasskeySupported,
-  getPasskey,
-  getPasskeyCelular,
-  wasPasskeyPrompted,
-} from '../../services/passkeyService';
+import { isLocalAuthAvailable, authenticateLocally } from '../../services/localAuthService';
 
 function isEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -33,20 +28,14 @@ export default function LoginScreen({ navigation }) {
   const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [loginFailed, setLoginFailed] = useState(false);
   const [errorLogin, setErrorLogin] = useState('');
-  const [showPasskeyBtn, setShowPasskeyBtn] = useState(false);
+  const [showBiometricBtn, setShowBiometricBtn] = useState(false);
 
-  // Mostrar botón de passkey si el dispositivo lo soporta y el usuario ya enroló
   useEffect(() => {
-    if (Platform.OS === 'web') return;
-    (async () => {
-      if (!isPasskeySupported()) return;
-      const celular = await getPasskeyCelular();
-      if (celular) setShowPasskeyBtn(true);
-    })();
+    isLocalAuthAvailable().then(setShowBiometricBtn);
   }, []);
 
   const validate = () => {
@@ -68,7 +57,7 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       const val = identificador.trim();
-      let token, user, cognitoAccessToken;
+      let token, user;
 
       if (isEmail(val)) {
         const response = await authAPI.login({ correo: val, password: password.trim() });
@@ -79,8 +68,7 @@ export default function LoginScreen({ navigation }) {
           const response = await cognitoAPI.login(val, password.trim());
           token = response.data.token;
           user = response.data.user;
-          cognitoAccessToken = response.data.cognito?.accessToken;
-        } catch (cognitoErr) {
+        } catch {
           const response = await authAPI.login({ celular: val, password: password.trim() });
           token = response.data.token;
           user = response.data.user;
@@ -92,18 +80,7 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
-      // Ofrecer enrollment de passkey solo en native, si no se ha hecho antes
-      if (
-        Platform.OS !== 'web' &&
-        cognitoAccessToken &&
-        isPasskeySupported() &&
-        !(await wasPasskeyPrompted())
-      ) {
-        navigation.navigate('PasskeyEnroll', { user, token, cognitoAccessToken });
-        return;
-      }
-
-      await signIn(user, token, cognitoAccessToken);
+      await signIn(user, token);
     } catch (err) {
       const msg = err.code === 'ECONNABORTED'
         ? 'El servidor tardó demasiado. Intenta de nuevo.'
@@ -115,36 +92,21 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const handlePasskeyLogin = async () => {
+  const handleBiometricLogin = async () => {
     setErrorLogin('');
-    setPasskeyLoading(true);
+    setBiometricLoading(true);
     try {
-      const celular = await getPasskeyCelular();
-      if (!celular) {
-        setShowPasskeyBtn(false);
-        return;
-      }
-
-      // 1. Obtener challenge de Cognito
-      const startRes = await passkeyAPI.authStart(celular);
-      const { session, credentialRequestOptions } = startRes.data;
-
-      // 2. Invocar Face ID / huella
-      const credential = await getPasskey(credentialRequestOptions);
-
-      // 3. Verificar en backend
-      const finishRes = await passkeyAPI.authFinish(session, credential, celular);
-      const { token, user } = finishRes.data;
-
-      await signIn(user, token);
-    } catch (err) {
-      if (err.message?.includes('cancel') || err.message?.includes('Cancel')) return;
-      const msg = err.response?.data?.error || 'No se pudo iniciar sesión con passkey.';
-      const hasFallback = err.response?.data?.fallback === 'password';
-      setErrorLogin(hasFallback ? 'Passkey no reconocida. Usa tu contraseña.' : msg);
-      if (hasFallback) setShowPasskeyBtn(false);
+      const result = await authenticateLocally('Verifica tu identidad para ingresar');
+      if (!result.success) return;
+      const login = await tryBiometricLogin();
+      if (login.ok) return;
+      setErrorLogin(login.reason === 'no_session'
+        ? 'No hay sesión guardada. Inicia sesión con tu contraseña.'
+        : 'Sesión expirada. Inicia sesión con tu contraseña.');
+    } catch {
+      setErrorLogin('No se pudo verificar tu identidad.');
     } finally {
-      setPasskeyLoading(false);
+      setBiometricLoading(false);
     }
   };
 
@@ -237,7 +199,7 @@ export default function LoginScreen({ navigation }) {
               size="large"
             />
 
-            {showPasskeyBtn && (
+            {showBiometricBtn && (
               <>
                 <View style={styles.dividerRow}>
                   <View style={styles.dividerLine} />
@@ -247,14 +209,14 @@ export default function LoginScreen({ navigation }) {
 
                 <AnimatedPressable
                   style={styles.passkeyBtn}
-                  onPress={handlePasskeyLogin}
-                  disabled={passkeyLoading}
+                  onPress={handleBiometricLogin}
+                  disabled={biometricLoading}
                   scaleValue={0.97}
                   haptic
                 >
                   <Ionicons name={biometricIcon} size={22} color={COLORS.primary} />
                   <Text style={styles.passkeyBtnText}>
-                    {passkeyLoading ? 'Verificando...' : `Iniciar con ${biometricLabel}`}
+                    {biometricLoading ? 'Verificando...' : `Iniciar con ${biometricLabel}`}
                   </Text>
                 </AnimatedPressable>
               </>
