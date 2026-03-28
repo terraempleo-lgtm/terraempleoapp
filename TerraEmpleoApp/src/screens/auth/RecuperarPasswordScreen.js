@@ -8,7 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
+
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,17 +16,12 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input } from '../../components/ui';
 import { authAPI, cognitoAPI } from '../../services/api';
 import { showAlert } from '../../utils/alertService';
-import { useAuth } from '../../context/AuthContext';
-import { isLocalAuthAvailable, authenticateLocally } from '../../services/localAuthService';
+
 
 export default function RecuperarPasswordScreen({ navigation, route }) {
   const celularInicial = route?.params?.celularInicial || '';
-  const { tryBiometricLogin } = useAuth();
-
-  // Método de recuperación: 'sms' | 'email' | 'biometrico'
+  // Método de recuperación: 'sms' | 'email'
   const [metodo, setMetodo] = useState('sms');
-  const [localAuthAvailable, setLocalAuthAvailable] = useState(false);
-  const [biometricLoading, setBiometricLoading] = useState(false);
   const [paso, setPaso] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -55,30 +50,6 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
     const timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [paso, countdown]);
-
-  // Mostrar tab biométrico si el dispositivo lo soporta
-  useEffect(() => {
-    isLocalAuthAvailable().then(setLocalAuthAvailable);
-  }, []);
-
-  const handleBiometricLogin = async () => {
-    setBiometricLoading(true);
-    try {
-      const result = await authenticateLocally('Verifica tu identidad para ingresar');
-      if (!result.success) return; // cancelado por el usuario
-      const login = await tryBiometricLogin();
-      if (login.ok) return; // AuthContext ya actualizó el estado → navega automático
-      if (login.reason === 'no_session') {
-        showAlert('Sin sesión guardada', 'No hay una sesión guardada en este dispositivo. Usa SMS o correo para recuperar tu contraseña.');
-      } else {
-        showAlert('Sesión expirada', 'Tu sesión expiró. Usa SMS o correo para recuperar tu contraseña.');
-      }
-    } catch (err) {
-      showAlert('Error', 'No se pudo verificar tu identidad.');
-    } finally {
-      setBiometricLoading(false);
-    }
-  };
 
   const fuerzaPassword = () => {
     const p = nuevaPassword.trim();
@@ -298,17 +269,6 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
                     <Ionicons name="mail-outline" size={18} color={metodo === 'email' ? COLORS.white : COLORS.primary} />
                     <Text style={[styles.tabText, metodo === 'email' && styles.tabTextActive]}>Correo</Text>
                   </TouchableOpacity>
-                  {localAuthAvailable && (
-                    <TouchableOpacity
-                      style={[styles.tab, metodo === 'biometrico' && styles.tabActive]}
-                      onPress={() => cambiarMetodo('biometrico')}
-                    >
-                      <Ionicons name={Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline'} size={18} color={metodo === 'biometrico' ? COLORS.white : COLORS.primary} />
-                      <Text style={[styles.tabText, metodo === 'biometrico' && styles.tabTextActive]}>
-                        {Platform.OS === 'ios' ? 'Face ID' : 'Huella'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
 
                 {metodo === 'sms' ? (
@@ -350,41 +310,6 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
                       style={styles.actionBtn}
                     />
                   </>
-                )}
-
-                {metodo === 'biometrico' && (
-                  <View style={styles.passkeyBox}>
-                    <View style={styles.passkeyIconWrap}>
-                      <Ionicons
-                        name={Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline'}
-                        size={48}
-                        color={COLORS.primary}
-                      />
-                    </View>
-                    <Text style={styles.passkeyTitle}>
-                      {Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'Huella / Face ID'}
-                    </Text>
-                    <Text style={styles.passkeySubtitle}>
-                      Si iniciaste sesión antes en este dispositivo, puedes entrar directamente con tu biométrico.
-                    </Text>
-                    <TouchableOpacity
-                      style={[styles.passkeyBtn, biometricLoading && { opacity: 0.7 }]}
-                      onPress={handleBiometricLogin}
-                      disabled={biometricLoading}
-                    >
-                      {biometricLoading
-                        ? <ActivityIndicator color={COLORS.white} />
-                        : (
-                          <>
-                            <Ionicons name={Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline'} size={20} color={COLORS.white} />
-                            <Text style={styles.passkeyBtnText}>
-                              Entrar con {Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'huella / Face ID'}
-                            </Text>
-                          </>
-                        )
-                      }
-                    </TouchableOpacity>
-                  </View>
                 )}
 
                 <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('Login')}>

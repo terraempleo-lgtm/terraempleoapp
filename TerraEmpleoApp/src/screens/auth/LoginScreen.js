@@ -9,34 +9,26 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from '../../theme';
 import { Button, Input, TerraFooter } from '../../components/ui';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 import { authAPI, cognitoAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
-import { isLocalAuthAvailable, authenticateLocally } from '../../services/localAuthService';
 
 function isEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 export default function LoginScreen({ navigation }) {
-  const { signIn, tryBiometricLogin } = useAuth();
+  const { signIn } = useAuth();
   const { colors } = useAppTheme();
   const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [biometricLoading, setBiometricLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [loginFailed, setLoginFailed] = useState(false);
   const [errorLogin, setErrorLogin] = useState('');
-  const [showBiometricBtn, setShowBiometricBtn] = useState(false);
-
-  useEffect(() => {
-    isLocalAuthAvailable().then(setShowBiometricBtn);
-  }, []);
 
   const validate = () => {
     const errs = {};
@@ -91,27 +83,6 @@ export default function LoginScreen({ navigation }) {
       setLoading(false);
     }
   };
-
-  const handleBiometricLogin = async () => {
-    setErrorLogin('');
-    setBiometricLoading(true);
-    try {
-      const result = await authenticateLocally('Verifica tu identidad para ingresar');
-      if (!result.success) return;
-      const login = await tryBiometricLogin();
-      if (login.ok) return;
-      setErrorLogin(login.reason === 'no_session'
-        ? 'No hay sesión guardada. Inicia sesión con tu contraseña.'
-        : 'Sesión expirada. Inicia sesión con tu contraseña.');
-    } catch {
-      setErrorLogin('No se pudo verificar tu identidad.');
-    } finally {
-      setBiometricLoading(false);
-    }
-  };
-
-  const biometricLabel = Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'Huella / Face ID';
-  const biometricIcon = Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline';
 
   return (
     <View style={styles.gradientBg}>
@@ -198,29 +169,6 @@ export default function LoginScreen({ navigation }) {
               loading={loading}
               size="large"
             />
-
-            {showBiometricBtn && (
-              <>
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>o</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                <AnimatedPressable
-                  style={styles.passkeyBtn}
-                  onPress={handleBiometricLogin}
-                  disabled={biometricLoading}
-                  scaleValue={0.97}
-                  haptic
-                >
-                  <Ionicons name={biometricIcon} size={22} color={COLORS.primary} />
-                  <Text style={styles.passkeyBtnText}>
-                    {biometricLoading ? 'Verificando...' : `Iniciar con ${biometricLabel}`}
-                  </Text>
-                </AnimatedPressable>
-              </>
-            )}
 
             <View style={styles.registerRow}>
               <Text style={[styles.registerText, { color: colors.textSecondary }]}>¿No tienes una cuenta?  </Text>
