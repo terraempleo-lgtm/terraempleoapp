@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-  Alert, ActivityIndicator, Linking,
+  ActivityIndicator, Linking, Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import { trabajadoresAPI, chatsAPI, vacantesAPI } from '../../services/api';
 import { showAlert } from '../../utils/alertService';
 
@@ -23,12 +24,42 @@ const LABELS_ESTUDIOS = {
   tecnico_tecnologo: 'Técnico / Tecnólogo', universitario: 'Universitario',
 };
 
+function AnimatedPressable({ style, onPress, disabled, children, activeOpacity = 0.85 }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [style, pressed && { opacity: activeOpacity }]}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
+function SectionHeader({ icon, title, colors }) {
+  return (
+    <View style={sh.headerRow}>
+      <View style={[sh.iconBox, { backgroundColor: colors.primary + '1A' }]}>
+        <Ionicons name={icon} size={18} color={colors.primary} />
+      </View>
+      <Text style={[sh.headerTitle, { color: colors.textPrimary }]}>{title}</Text>
+    </View>
+  );
+}
+
+const sh = StyleSheet.create({
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.md },
+  iconBox: { width: 36, height: 36, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { fontSize: 15, fontWeight: '700' },
+});
+
 export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const { trabajador_id, vacante_id, postulacion_estado } = route.params;
   const [perfil, setPerfil] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [enviandoSolicitud, setEnviandoSolicitud] = useState(false);
   const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
 
   useEffect(() => { cargarPerfil(); }, []);
 
@@ -73,182 +104,339 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     }
   };
 
-  if (cargando) return <View style={s.centered}><ActivityIndicator size="large" color={COLORS.primary} /></View>;
-  if (!perfil) return <View style={s.centered}><Text style={s.emptyTitle}>Perfil no disponible</Text></View>;
-
-  const cal = parseFloat(perfil.calificacion_promedio || 0);
-  const totalCal = Number(perfil.total_calificaciones || 0);
-  const disponibilidad = LABELS_DISPONIBILIDAD[perfil.disponibilidad] || perfil.disponibilidad;
-  const experiencia = LABELS_EXPERIENCIA[perfil.anios_experiencia] || perfil.anios_experiencia;
-  const estudios = LABELS_ESTUDIOS[perfil.nivel_estudios] || perfil.nivel_estudios;
-  const especialidades = [...(perfil.habilidades || []).map(h => h.habilidad), ...(perfil.cultivos || []).map(c => c.cultivo)];
-  const ubicacion = [perfil.municipio, perfil.departamento].filter(Boolean).join(', ');
-  const isPendiente = postulacion_estado === 'pendiente' || postulacion_estado === 'match_auto';
-  const isSolicitudContacto = postulacion_estado === 'contacto_solicitado';
-  const acercaDe = perfil.acerca_de?.trim();
-
   const abrirHojaVida = async () => {
     if (!perfil?.hoja_vida_url) return;
     try {
       const canOpen = await Linking.canOpenURL(perfil.hoja_vida_url);
-      if (!canOpen) {
-        showAlert('No disponible', 'No se pudo abrir la hoja de vida.');
-        return;
-      }
+      if (!canOpen) { showAlert('No disponible', 'No se pudo abrir la hoja de vida.'); return; }
       await Linking.openURL(perfil.hoja_vida_url);
     } catch (_) {
       showAlert('Error', 'No se pudo abrir la hoja de vida.');
     }
   };
 
+  if (cargando) return (
+    <View style={[s.centered, { backgroundColor: colors.background }]}>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
+  );
+  if (!perfil) return (
+    <View style={[s.centered, { backgroundColor: colors.background }]}>
+      <Ionicons name="person-outline" size={48} color={colors.textMuted} />
+      <Text style={[s.emptyTitle, { color: colors.textMuted }]}>Perfil no disponible</Text>
+    </View>
+  );
+
+  const cal = parseFloat(perfil.calificacion_promedio || 0);
+  const totalCal = Number(perfil.total_calificaciones || 0);
+  const disponibilidad = LABELS_DISPONIBILIDAD[perfil.disponibilidad] || perfil.disponibilidad;
+  const experiencia = LABELS_EXPERIENCIA[perfil.anios_experiencia] || perfil.anios_experiencia;
+  const estudios = LABELS_ESTUDIOS[perfil.nivel_estudios] || perfil.nivel_estudios;
+  const cultivos = (perfil.cultivos || []).map(c => c.cultivo);
+  const habilidades = (perfil.habilidades || []).map(h => h.habilidad);
+  const ubicacion = [perfil.municipio, perfil.departamento].filter(Boolean).join(', ');
+  const isPendiente = postulacion_estado === 'pendiente' || postulacion_estado === 'match_auto';
+  const isSolicitudContacto = postulacion_estado === 'contacto_solicitado';
+  const acercaDe = perfil.acerca_de?.trim();
+  const initials = (perfil.nombre_completo || 'T')
+    .split(' ')
+    .map(w => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  const hasFooter = isPendiente || postulacion_estado === 'aceptada' || (!postulacion_estado && !!vacante_id) || isSolicitudContacto;
+
   return (
-    <View style={s.root}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+    <View style={[s.root, { backgroundColor: colors.background }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: hasFooter ? 110 : 32 }}
+      >
         {/* Top bar */}
-        <View style={[s.topBar, { paddingTop: insets.top + 8 }]}>
-          <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={20} color={COLORS.textPrimary} />
-          </TouchableOpacity>
-          <Text style={s.topBarTitle}>Perfil del Candidato</Text>
-          <TouchableOpacity style={s.shareBtn}><Ionicons name="share-social-outline" size={20} color={COLORS.textPrimary} /></TouchableOpacity>
+        <View style={[s.topBar, { paddingTop: insets.top + 8, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+          <AnimatedPressable style={[s.iconBtn, { backgroundColor: colors.surface }]} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
+          </AnimatedPressable>
+          <Text style={[s.topBarTitle, { color: colors.textPrimary }]}>Perfil del Candidato</Text>
+          <AnimatedPressable style={s.iconBtn} onPress={() => {}}>
+            <Ionicons name="share-social-outline" size={20} color={colors.textPrimary} />
+          </AnimatedPressable>
         </View>
 
-        {/* Avatar + identity */}
-        <View style={s.profileCenter}>
+        {/* HERO — avatar + identidad */}
+        <View style={[s.hero, { backgroundColor: colors.surface }]}>
+          {/* Avatar */}
           <View style={s.avatarWrap}>
             {perfil.foto_selfie && perfil.foto_selfie.startsWith('http') ? (
-              <Image source={{ uri: perfil.foto_selfie }} style={s.avatar} />
+              <Image source={{ uri: perfil.foto_selfie }} style={[s.avatar, { borderColor: colors.primary }]} />
             ) : (
-              <View style={s.avatarFallback}><Ionicons name="person" size={52} color={COLORS.textLight} /></View>
-            )}
-            <View style={s.verifiedBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>
-          </View>
-          <Text style={s.fullName}>{perfil.nombre_completo}</Text>
-          {cal > 0 && (
-            <View style={s.ratingRow}><Ionicons name="star" size={16} color="#FFB300" /><Text style={s.ratingVal}>{cal.toFixed(1)}</Text><Text style={s.ratingCnt}>({totalCal} reseñas)</Text></View>
-          )}
-          {perfil.verificado_sms && (
-            <View style={s.verPill}><Ionicons name="shield-checkmark" size={14} color={COLORS.primary} /><Text style={s.verPillTxt}>VERIFICADO</Text></View>
-          )}
-        </View>
-
-        {/* ACERCA DE */}
-        <View style={s.secWrap}>
-          <Text style={s.secLabel}>ACERCA DE</Text>
-          {acercaDe ? (
-            <Text style={s.secText}>{acercaDe}</Text>
-          ) : (
-            <Text style={s.secTextMuted}>Este trabajador aún no ha agregado una descripción personal.</Text>
-          )}
-        </View>
-
-        {perfil.hoja_vida_url ? (
-          <View style={s.secWrap}>
-            <Text style={s.secLabel}>HOJA DE VIDA</Text>
-            <TouchableOpacity style={s.cvBtn} onPress={abrirHojaVida} activeOpacity={0.85}>
-              <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.cvTitle}>Ver hoja de vida</Text>
-                <Text style={s.cvName} numberOfLines={1}>{perfil.hoja_vida_nombre || 'Hoja de vida.pdf'}</Text>
+              <View style={[s.avatarFallback, { borderColor: colors.primary, backgroundColor: colors.primary + '1A' }]}>
+                <Text style={[s.initials, { color: colors.primary }]}>{initials}</Text>
               </View>
-              <Ionicons name="open-outline" size={18} color={COLORS.primary} />
-            </TouchableOpacity>
+            )}
+            <View style={[s.verifiedBadge, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
+              <Ionicons name="checkmark" size={12} color="#fff" />
+            </View>
+          </View>
+
+          {/* Nombre */}
+          <Text style={[s.fullName, { color: colors.textPrimary }]}>{perfil.nombre_completo}</Text>
+
+          {/* Subtítulo: disponibilidad */}
+          {disponibilidad ? (
+            <Text style={[s.heroSubtitle, { color: colors.textSecondary }]}>{disponibilidad}</Text>
+          ) : null}
+
+          {/* Ubicación */}
+          {ubicacion ? (
+            <View style={s.metaRow}>
+              <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+              <Text style={[s.metaText, { color: colors.textMuted }]}>{ubicacion}</Text>
+            </View>
+          ) : null}
+
+          {/* Disponibilidad chip verde */}
+          <View style={s.pillRow}>
+            <View style={[s.disponPill, { backgroundColor: COLORS.badgeActive }]}>
+              <View style={[s.disponDot, { backgroundColor: COLORS.badgeActiveText }]} />
+              <Text style={[s.disponPillTxt, { color: COLORS.badgeActiveText }]}>Disponible</Text>
+            </View>
+            {perfil.verificado_sms ? (
+              <View style={[s.verPill, { borderColor: colors.primary }]}>
+                <Ionicons name="shield-checkmark" size={13} color={colors.primary} />
+                <Text style={[s.verPillTxt, { color: colors.primary }]}>VERIFICADO</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Stats row */}
+          <View style={[s.statsRow, { borderTopColor: colors.border }]}>
+            <View style={s.statItem}>
+              <Text style={[s.statNum, { color: colors.primary }]}>
+                {cal > 0 ? cal.toFixed(1) : '—'}
+              </Text>
+              <Text style={[s.statLabel, { color: colors.textMuted }]}>Calificación</Text>
+            </View>
+            <View style={[s.statDivider, { backgroundColor: colors.border }]} />
+            <View style={s.statItem}>
+              <Text style={[s.statNum, { color: colors.primary }]}>{totalCal}</Text>
+              <Text style={[s.statLabel, { color: colors.textMuted }]}>Reseñas</Text>
+            </View>
+            <View style={[s.statDivider, { backgroundColor: colors.border }]} />
+            <View style={s.statItem}>
+              <Text style={[s.statNum, { color: colors.primary }]}>
+                {experiencia ? experiencia.split(' ')[0] : '—'}
+              </Text>
+              <Text style={[s.statLabel, { color: colors.textMuted }]}>Exp.</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Estrellas de calificación */}
+        {cal > 0 && (
+          <View style={[s.card, { backgroundColor: colors.surface }]}>
+            <SectionHeader icon="star-outline" title="Calificación" colors={colors} />
+            <View style={s.ratingWrap}>
+              <Text style={[s.ratingBig, { color: colors.primary }]}>{cal.toFixed(1)}</Text>
+              <View style={s.starsRow}>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <Ionicons
+                    key={i}
+                    name={i <= Math.round(cal) ? 'star' : 'star-outline'}
+                    size={22}
+                    color={i <= Math.round(cal) ? COLORS.star : COLORS.starEmpty}
+                  />
+                ))}
+              </View>
+              <Text style={[s.ratingCnt, { color: colors.textMuted }]}>{totalCal} reseña{totalCal !== 1 ? 's' : ''}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Acerca de */}
+        <View style={[s.card, { backgroundColor: colors.surface }]}>
+          <SectionHeader icon="person-circle-outline" title="Acerca de" colors={colors} />
+          {acercaDe ? (
+            <Text style={[s.bodyText, { color: colors.textSecondary }]}>{acercaDe}</Text>
+          ) : (
+            <Text style={[s.bodyText, { color: colors.textMuted }]}>Este trabajador aún no ha agregado una descripción personal.</Text>
+          )}
+        </View>
+
+        {/* Hoja de vida */}
+        {perfil.hoja_vida_url ? (
+          <View style={[s.card, { backgroundColor: colors.surface }]}>
+            <SectionHeader icon="document-text-outline" title="Hoja de vida" colors={colors} />
+            <AnimatedPressable
+              style={[s.cvBtn, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}
+              onPress={abrirHojaVida}
+            >
+              <View style={[s.cvIconBox, { backgroundColor: colors.primary + '20' }]}>
+                <Ionicons name="document-text" size={20} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.cvTitle, { color: colors.textPrimary }]}>Ver hoja de vida</Text>
+                <Text style={[s.cvName, { color: colors.textMuted }]} numberOfLines={1}>
+                  {perfil.hoja_vida_nombre || 'Hoja de vida.pdf'}
+                </Text>
+              </View>
+              <Ionicons name="open-outline" size={18} color={colors.primary} />
+            </AnimatedPressable>
           </View>
         ) : null}
 
-        {/* HABILIDADES */}
-        {especialidades.length > 0 && (
-          <View style={s.secWrap}>
-            <Text style={s.secLabel}>HABILIDADES Y ESPECIALIDADES</Text>
+        {/* Cultivos */}
+        {cultivos.length > 0 && (
+          <View style={[s.card, { backgroundColor: colors.surface }]}>
+            <SectionHeader icon="leaf-outline" title="Cultivos" colors={colors} />
             <View style={s.chipWrap}>
-              {especialidades.map((e, i) => (
-                <View key={i} style={s.chipOutline}><Text style={s.chipOutlineTxt}>{e}</Text></View>
+              {cultivos.map((c, i) => (
+                <View key={i} style={[s.chipGreen, { backgroundColor: colors.primary + '15' }]}>
+                  <Text style={[s.chipGreenTxt, { color: colors.primary }]}>{c}</Text>
+                </View>
               ))}
             </View>
           </View>
         )}
 
-        {/* EXPERIENCIA */}
-        {experiencia && (
-          <View style={s.secWrap}>
-            <Text style={s.secLabel}>EXPERIENCIA LABORAL</Text>
-            <View style={s.timeline}>
-              <View style={s.tlItem}>
-                <View style={s.tlDot} /><View style={s.tlLine} />
-                <View style={s.tlContent}>
-                  <Text style={s.tlTitle}>Experiencia Agrícola</Text>
-                  <Text style={s.tlSub}>{experiencia}</Text>
-                  <Text style={s.tlDesc}>Trabajo en campo, cultivos y cosecha</Text>
+        {/* Habilidades */}
+        {habilidades.length > 0 && (
+          <View style={[s.card, { backgroundColor: colors.surface }]}>
+            <SectionHeader icon="construct-outline" title="Habilidades" colors={colors} />
+            <View style={s.chipWrap}>
+              {habilidades.map((h, i) => (
+                <View key={i} style={[s.chipNeutral, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Text style={[s.chipNeutralTxt, { color: colors.textSecondary }]}>{h}</Text>
                 </View>
-              </View>
-              {estudios && (
-                <View style={s.tlItem}>
-                  <View style={[s.tlDot, { backgroundColor: COLORS.primaryLight }]} />
-                  <View style={s.tlContent}>
-                    <Text style={s.tlTitle}>Formación</Text>
-                    <Text style={s.tlSub}>{estudios}</Text>
-                  </View>
-                </View>
-              )}
+              ))}
             </View>
           </View>
         )}
 
-        {/* Stats */}
-        <View style={s.statRow}>
-          <View style={s.statCard}>
-            <Ionicons name="location" size={20} color={COLORS.primary} />
-            <Text style={s.statLabel}>UBICACIÓN</Text>
-            <Text style={s.statVal}>{ubicacion || 'Colombia'}</Text>
+        {/* Experiencia y formación */}
+        {(experiencia || estudios) && (
+          <View style={[s.card, { backgroundColor: colors.surface }]}>
+            <SectionHeader icon="briefcase-outline" title="Experiencia y Formación" colors={colors} />
+            {experiencia ? (
+              <View style={[s.infoRow, { borderBottomColor: colors.border }]}>
+                <View style={[s.infoIconBox, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="time-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={s.infoContent}>
+                  <Text style={[s.infoLabel, { color: colors.textMuted }]}>Experiencia agrícola</Text>
+                  <Text style={[s.infoValue, { color: colors.textPrimary }]}>{experiencia}</Text>
+                </View>
+              </View>
+            ) : null}
+            {estudios ? (
+              <View style={[s.infoRow, { borderBottomColor: 'transparent' }]}>
+                <View style={[s.infoIconBox, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="school-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={s.infoContent}>
+                  <Text style={[s.infoLabel, { color: colors.textMuted }]}>Nivel de estudios</Text>
+                  <Text style={[s.infoValue, { color: colors.textPrimary }]}>{estudios}</Text>
+                </View>
+              </View>
+            ) : null}
           </View>
-          <View style={s.statCard}>
-            <Ionicons name="calendar" size={20} color={COLORS.primary} />
-            <Text style={s.statLabel}>DISPONIBILIDAD</Text>
-            <Text style={s.statVal}>{disponibilidad || 'No indicada'}</Text>
-          </View>
+        )}
+
+        {/* Info extra: ubicación y disponibilidad */}
+        <View style={[s.card, { backgroundColor: colors.surface }]}>
+          <SectionHeader icon="information-circle-outline" title="Información" colors={colors} />
+          {ubicacion ? (
+            <View style={[s.infoRow, { borderBottomColor: colors.border }]}>
+              <View style={[s.infoIconBox, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="location-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={s.infoContent}>
+                <Text style={[s.infoLabel, { color: colors.textMuted }]}>Ubicación</Text>
+                <Text style={[s.infoValue, { color: colors.textPrimary }]}>{ubicacion}</Text>
+              </View>
+            </View>
+          ) : null}
+          {disponibilidad ? (
+            <View style={[s.infoRow, { borderBottomColor: 'transparent' }]}>
+              <View style={[s.infoIconBox, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={s.infoContent}>
+                <Text style={[s.infoLabel, { color: colors.textMuted }]}>Disponibilidad</Text>
+                <Text style={[s.infoValue, { color: colors.textPrimary }]}>{disponibilidad}</Text>
+              </View>
+            </View>
+          ) : null}
         </View>
 
-        {/* DOCUMENTACIÓN */}
-        <View style={s.secWrap}>
-          <Text style={s.secLabel}>DOCUMENTACIÓN VERIFICADA</Text>
-          <View style={s.verList}>
-            <View style={s.verItem}><View style={s.verIcon}><Ionicons name="card-outline" size={18} color={COLORS.primary} /></View><Text style={s.verText}>Cédula de Ciudadanía</Text><Ionicons name="checkmark-circle" size={20} color={COLORS.primary} /></View>
-            <View style={s.verItem}><View style={s.verIcon}><Ionicons name="ribbon-outline" size={18} color={COLORS.primary} /></View><Text style={s.verText}>Certificados de Competencia</Text><Ionicons name="checkmark-circle" size={20} color={COLORS.primary} /></View>
+        {/* Documentación verificada */}
+        <View style={[s.card, { backgroundColor: colors.surface }]}>
+          <SectionHeader icon="shield-checkmark-outline" title="Documentación Verificada" colors={colors} />
+          <View style={[s.docItem, { borderColor: colors.border }]}>
+            <View style={[s.docIconBox, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="card-outline" size={18} color={colors.primary} />
+            </View>
+            <Text style={[s.docText, { color: colors.textPrimary }]}>Cédula de Ciudadanía</Text>
+            <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+          </View>
+          <View style={[s.docItem, { borderColor: colors.border }]}>
+            <View style={[s.docIconBox, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="ribbon-outline" size={18} color={colors.primary} />
+            </View>
+            <Text style={[s.docText, { color: colors.textPrimary }]}>Certificados de Competencia</Text>
+            <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
           </View>
         </View>
       </ScrollView>
 
       {/* Footer actions */}
       {isPendiente && (
-        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
-          <TouchableOpacity style={s.rejectBtn} onPress={() => cambiarEstado('rechazada')} activeOpacity={0.88}>
-            <Text style={s.rejectBtnTxt}>Rechazar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.acceptBtn} onPress={() => cambiarEstado('aceptada')} activeOpacity={0.88}>
+        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <AnimatedPressable
+            style={[s.rejectBtn, { borderColor: colors.border }]}
+            onPress={() => cambiarEstado('rechazada')}
+          >
+            <Text style={[s.rejectBtnTxt, { color: colors.textSecondary }]}>Rechazar</Text>
+          </AnimatedPressable>
+          <AnimatedPressable
+            style={[s.acceptBtn, { backgroundColor: colors.primary }]}
+            onPress={() => cambiarEstado('aceptada')}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#fff" />
             <Text style={s.acceptBtnTxt}>Aceptar Candidato</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       )}
       {postulacion_estado === 'aceptada' && (
-        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
-          <TouchableOpacity style={s.chatBtn} onPress={irAlChat} activeOpacity={0.88}>
-            <Ionicons name="chatbubble-ellipses" size={20} color={COLORS.white} /><Text style={s.chatBtnTxt}>Ir al chat</Text>
-          </TouchableOpacity>
+        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <AnimatedPressable
+            style={[s.primaryBtn, { backgroundColor: colors.primary }]}
+            onPress={irAlChat}
+          >
+            <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
+            <Text style={s.primaryBtnTxt}>Ir al chat</Text>
+          </AnimatedPressable>
         </View>
       )}
       {!postulacion_estado && !!vacante_id && (
-        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm }]}> 
-          <TouchableOpacity style={s.chatBtn} onPress={solicitarContacto} activeOpacity={0.88} disabled={enviandoSolicitud}>
-            <Ionicons name={enviandoSolicitud ? 'hourglass-outline' : 'chatbubble-ellipses'} size={20} color={COLORS.white} />
-            <Text style={s.chatBtnTxt}>{enviandoSolicitud ? 'Enviando...' : 'Solicitar contacto'}</Text>
-          </TouchableOpacity>
+        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <AnimatedPressable
+            style={[s.primaryBtn, { backgroundColor: colors.primary }]}
+            onPress={solicitarContacto}
+            disabled={enviandoSolicitud}
+          >
+            <Ionicons name={enviandoSolicitud ? 'hourglass-outline' : 'chatbubble-ellipses-outline'} size={20} color="#fff" />
+            <Text style={s.primaryBtnTxt}>{enviandoSolicitud ? 'Enviando...' : 'Solicitar contacto'}</Text>
+          </AnimatedPressable>
         </View>
       )}
       {isSolicitudContacto && (
-        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm }]}> 
-          <TouchableOpacity style={[s.rejectBtn, { flex: 1 }]} activeOpacity={1}>
-            <Text style={s.rejectBtnTxt}>Solicitud enviada. Esperando respuesta del trabajador.</Text>
-          </TouchableOpacity>
+        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <View style={[s.infoPill, { backgroundColor: COLORS.warningSoft, borderColor: COLORS.warning + '40' }]}>
+            <Ionicons name="hourglass-outline" size={16} color={COLORS.warning} />
+            <Text style={[s.infoPillTxt, { color: COLORS.warning }]}>Solicitud enviada. Esperando respuesta del trabajador.</Text>
+          </View>
         </View>
       )}
     </View>
@@ -256,67 +444,129 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.white },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.white },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: COLORS.textSecondary },
+  root: { flex: 1 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.sm },
+  emptyTitle: { fontSize: 16, fontWeight: '600', marginTop: SPACING.sm },
 
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.md, paddingBottom: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight },
-  topBarTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
-  shareBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md, paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+  },
+  topBarTitle: { fontSize: 17, fontWeight: '700' },
+  iconBtn: { width: 40, height: 40, borderRadius: RADIUS.full, justifyContent: 'center', alignItems: 'center' },
 
-  profileCenter: { alignItems: 'center', paddingTop: SPACING.lg, paddingBottom: SPACING.md },
+  /* HERO */
+  hero: { alignItems: 'center', paddingTop: SPACING.xl, paddingBottom: 0, marginBottom: SPACING.sm, ...SHADOWS.card },
   avatarWrap: { position: 'relative', marginBottom: SPACING.md },
-  avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 4, borderColor: COLORS.primarySoft },
-  avatarFallback: { width: 120, height: 120, borderRadius: 60, borderWidth: 4, borderColor: COLORS.primarySoft, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
-  verifiedBadge: { position: 'absolute', bottom: 4, right: 4, width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: COLORS.white },
-  fullName: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary, textAlign: 'center', marginBottom: 6 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
-  ratingVal: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },
-  ratingCnt: { fontSize: 14, color: COLORS.textSecondary },
-  verPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 5 },
-  verPillTxt: { fontSize: 12, fontWeight: '700', color: COLORS.primary, letterSpacing: 0.5 },
+  avatar: { width: 88, height: 88, borderRadius: 44, borderWidth: 2.5 },
+  avatarFallback: {
+    width: 88, height: 88, borderRadius: 44, borderWidth: 2.5,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  initials: { fontSize: 28, fontWeight: '800' },
+  verifiedBadge: {
+    position: 'absolute', bottom: 2, right: 2,
+    width: 26, height: 26, borderRadius: 13,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 2,
+  },
+  fullName: { fontSize: 22, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
+  heroSubtitle: { fontSize: 14, textAlign: 'center', marginBottom: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: SPACING.sm },
+  metaText: { fontSize: 13 },
+  pillRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md, flexWrap: 'wrap', justifyContent: 'center' },
+  disponPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 5,
+  },
+  disponDot: { width: 7, height: 7, borderRadius: 4 },
+  disponPillTxt: { fontSize: 12, fontWeight: '700' },
+  verPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderWidth: 1.5, borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 5,
+  },
+  verPillTxt: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
 
-  secWrap: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg },
-  secLabel: { fontSize: 12, fontWeight: '700', color: COLORS.primary, letterSpacing: 1, marginBottom: SPACING.sm },
-  secText: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22 },
-  secTextMuted: { fontSize: 14, color: COLORS.textLight, lineHeight: 22 },
+  /* Stats row */
+  statsRow: {
+    flexDirection: 'row', width: '100%',
+    borderTopWidth: 1, marginTop: 4, paddingVertical: SPACING.md,
+  },
+  statItem: { flex: 1, alignItems: 'center', gap: 2 },
+  statNum: { fontSize: 22, fontWeight: '800' },
+  statLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
+  statDivider: { width: 1, marginVertical: 4 },
+
+  /* Cards */
+  card: {
+    marginHorizontal: SPACING.md, marginBottom: SPACING.sm,
+    borderRadius: RADIUS.xl, padding: SPACING.md,
+    ...SHADOWS.small,
+  },
+
+  /* Rating */
+  ratingWrap: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  ratingBig: { fontSize: 42, fontWeight: '800', lineHeight: 48 },
+  starsRow: { flexDirection: 'row', gap: 3, flex: 1 },
+  ratingCnt: { fontSize: 13 },
+
+  bodyText: { fontSize: 14, lineHeight: 22 },
+
+  /* CV */
   cvBtn: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    backgroundColor: COLORS.primarySoft, borderRadius: RADIUS.lg,
-    padding: SPACING.md,
+    borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1,
   },
-  cvTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
-  cvName: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  cvIconBox: { width: 40, height: 40, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  cvTitle: { fontSize: 14, fontWeight: '700' },
+  cvName: { fontSize: 12, marginTop: 2 },
 
+  /* Chips */
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chipOutline: { borderWidth: 1.5, borderColor: '#D1D5DB', borderRadius: RADIUS.full, paddingHorizontal: 16, paddingVertical: 8 },
-  chipOutlineTxt: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
+  chipGreen: { borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 7 },
+  chipGreenTxt: { fontSize: 13, fontWeight: '600' },
+  chipNeutral: { borderWidth: 1.5, borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 7 },
+  chipNeutralTxt: { fontSize: 13, fontWeight: '600' },
 
-  timeline: { paddingLeft: 4 },
-  tlItem: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.lg },
-  tlDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: COLORS.primary, marginTop: 4, flexShrink: 0 },
-  tlLine: { position: 'absolute', left: 6, top: 20, width: 2, height: 50, backgroundColor: COLORS.primarySoft },
-  tlContent: { flex: 1 },
-  tlTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  tlSub: { fontSize: 13, fontWeight: '600', color: COLORS.primary, marginTop: 2 },
-  tlDesc: { fontSize: 13, color: COLORS.textSecondary, marginTop: 4, lineHeight: 20 },
+  /* Info rows */
+  infoRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+    paddingVertical: SPACING.sm, borderBottomWidth: 1,
+  },
+  infoIconBox: { width: 38, height: 38, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  infoContent: { flex: 1 },
+  infoLabel: { fontSize: 12, fontWeight: '500', marginBottom: 2 },
+  infoValue: { fontSize: 14, fontWeight: '700' },
 
-  statRow: { flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg },
-  statCard: { flex: 1, backgroundColor: '#F8FAF9', borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: COLORS.borderLight },
-  statLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.8 },
-  statVal: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary, textAlign: 'center' },
+  /* Doc items */
+  docItem: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+    borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING.sm, marginBottom: SPACING.sm,
+  },
+  docIconBox: { width: 36, height: 36, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  docText: { flex: 1, fontSize: 14, fontWeight: '600' },
 
-  verList: { gap: SPACING.sm },
-  verItem: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, backgroundColor: '#F8FAF9', borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1, borderColor: COLORS.borderLight },
-  verIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center' },
-  verText: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
-
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: COLORS.white, paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, borderTopWidth: 1, borderColor: COLORS.borderLight, ...SHADOWS.large, flexDirection: 'row', gap: SPACING.sm },
-  rejectBtn: { flex: 1, alignItems: 'center', paddingVertical: 15, borderRadius: RADIUS.full, borderWidth: 1.5, borderColor: COLORS.border },
-  rejectBtnTxt: { fontSize: 16, fontWeight: '700', color: COLORS.textSecondary },
-  acceptBtn: { flex: 2, alignItems: 'center', paddingVertical: 15, borderRadius: RADIUS.full, backgroundColor: COLORS.primary, ...SHADOWS.button },
-  acceptBtnTxt: { fontSize: 16, fontWeight: '700', color: COLORS.white },
-  chatBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, paddingVertical: 15, borderRadius: RADIUS.full, backgroundColor: COLORS.primary, ...SHADOWS.button },
-  chatBtnTxt: { fontSize: 17, fontWeight: '700', color: COLORS.white },
+  /* Footer */
+  footer: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: SPACING.md, paddingTop: SPACING.sm,
+    borderTopWidth: 1, flexDirection: 'row', gap: SPACING.sm, ...SHADOWS.large,
+  },
+  rejectBtn: { flex: 1, alignItems: 'center', paddingVertical: 15, borderRadius: RADIUS.full, borderWidth: 1.5 },
+  rejectBtnTxt: { fontSize: 15, fontWeight: '700' },
+  acceptBtn: {
+    flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: SPACING.sm, paddingVertical: 15, borderRadius: RADIUS.full, ...SHADOWS.button,
+  },
+  acceptBtnTxt: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  primaryBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: SPACING.sm, paddingVertical: 15, borderRadius: RADIUS.full, ...SHADOWS.button,
+  },
+  primaryBtnTxt: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  infoPill: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    borderRadius: RADIUS.lg, paddingHorizontal: SPACING.md, paddingVertical: 12, borderWidth: 1,
+  },
+  infoPillTxt: { flex: 1, fontSize: 13, fontWeight: '600' },
 });
