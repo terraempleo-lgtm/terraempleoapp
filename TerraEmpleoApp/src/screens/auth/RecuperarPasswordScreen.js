@@ -8,20 +8,29 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input } from '../../components/ui';
-import { authAPI, cognitoAPI } from '../../services/api';
+import { authAPI, cognitoAPI, passkeyAPI } from '../../services/api';
 import { showAlert } from '../../utils/alertService';
+import { useAuth } from '../../context/AuthContext';
+import {
+  isPasskeySupported,
+  getPasskey,
+  getPasskeyCelular,
+} from '../../services/passkeyService';
 
 export default function RecuperarPasswordScreen({ navigation, route }) {
   const celularInicial = route?.params?.celularInicial || '';
+  const { signIn } = useAuth();
 
-  // Método de recuperación: 'sms' | 'email'
+  // Método de recuperación: 'sms' | 'email' | 'passkey'
   const [metodo, setMetodo] = useState('sms');
+  const [showPasskeyTab, setShowPasskeyTab] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [paso, setPaso] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -50,6 +59,34 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
     const timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [paso, countdown]);
+
+  // Mostrar tab passkey solo si el dispositivo lo soporta y hay un celular registrado
+  useEffect(() => {
+    (async () => {
+      if (!isPasskeySupported()) return;
+      const cel = await getPasskeyCelular();
+      if (cel) setShowPasskeyTab(true);
+    })();
+  }, []);
+
+  const handlePasskeyLogin = async () => {
+    setPasskeyLoading(true);
+    try {
+      const celular = await getPasskeyCelular();
+      if (!celular) { setShowPasskeyTab(false); return; }
+      const startRes = await passkeyAPI.authStart(celular);
+      const { session, credentialRequestOptions } = startRes.data;
+      const credential = await getPasskey(credentialRequestOptions);
+      const finishRes = await passkeyAPI.authFinish(session, credential, celular);
+      const { token, user } = finishRes.data;
+      await signIn(user, token);
+    } catch (err) {
+      if (err.message?.includes('cancel') || err.message?.includes('Cancel')) return;
+      showAlert('Error', err.response?.data?.error || 'No se pudo autenticar con passkey');
+    } finally {
+      setPasskeyLoading(false);
+    }
+  };
 
   const fuerzaPassword = () => {
     const p = nuevaPassword.trim();
@@ -253,30 +290,33 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
                   Elige cómo quieres recibir tu código de recuperación
                 </Text>
 
-                {/* Tabs SMS / Email */}
+                {/* Tabs SMS / Email / Passkey */}
                 <View style={styles.tabsRow}>
                   <TouchableOpacity
                     style={[styles.tab, metodo === 'sms' && styles.tabActive]}
                     onPress={() => cambiarMetodo('sms')}
                   >
-                    <Ionicons
-                      name="chatbubble-outline"
-                      size={18}
-                      color={metodo === 'sms' ? COLORS.white : COLORS.primary}
-                    />
+                    <Ionicons name="chatbubble-outline" size={18} color={metodo === 'sms' ? COLORS.white : COLORS.primary} />
                     <Text style={[styles.tabText, metodo === 'sms' && styles.tabTextActive]}>SMS</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.tab, metodo === 'email' && styles.tabActive]}
                     onPress={() => cambiarMetodo('email')}
                   >
-                    <Ionicons
-                      name="mail-outline"
-                      size={18}
-                      color={metodo === 'email' ? COLORS.white : COLORS.primary}
-                    />
+                    <Ionicons name="mail-outline" size={18} color={metodo === 'email' ? COLORS.white : COLORS.primary} />
                     <Text style={[styles.tabText, metodo === 'email' && styles.tabTextActive]}>Correo</Text>
                   </TouchableOpacity>
+                  {showPasskeyTab && (
+                    <TouchableOpacity
+                      style={[styles.tab, metodo === 'passkey' && styles.tabActive]}
+                      onPress={() => cambiarMetodo('passkey')}
+                    >
+                      <Ionicons name="finger-print-outline" size={18} color={metodo === 'passkey' ? COLORS.white : COLORS.primary} />
+                      <Text style={[styles.tabText, metodo === 'passkey' && styles.tabTextActive]}>
+                        {Platform.OS === 'ios' ? 'Face ID' : 'Huella'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {metodo === 'sms' ? (
@@ -318,6 +358,41 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
                       style={styles.actionBtn}
                     />
                   </>
+                )}
+
+                {metodo === 'passkey' && (
+                  <View style={styles.passkeyBox}>
+                    <View style={styles.passkeyIconWrap}>
+                      <Ionicons
+                        name={Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline'}
+                        size={48}
+                        color={COLORS.primary}
+                      />
+                    </View>
+                    <Text style={styles.passkeyTitle}>
+                      {Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'Huella / Face ID'}
+                    </Text>
+                    <Text style={styles.passkeySubtitle}>
+                      Usa tu biométrico para entrar a tu cuenta directamente, sin necesidad de contraseña.
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.passkeyBtn, passkeyLoading && { opacity: 0.7 }]}
+                      onPress={handlePasskeyLogin}
+                      disabled={passkeyLoading}
+                    >
+                      {passkeyLoading
+                        ? <ActivityIndicator color={COLORS.white} />
+                        : (
+                          <>
+                            <Ionicons name={Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline'} size={20} color={COLORS.white} />
+                            <Text style={styles.passkeyBtnText}>
+                              Entrar con {Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'huella / Face ID'}
+                            </Text>
+                          </>
+                        )
+                      }
+                    </TouchableOpacity>
+                  </View>
                 )}
 
                 <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('Login')}>
@@ -580,6 +655,51 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  passkeyBox: {
+    alignItems: 'center',
+    paddingVertical: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  passkeyIconWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  passkeyTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+  },
+  passkeySubtitle: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: SPACING.md,
+  },
+  passkeyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    width: '100%',
+    ...SHADOWS.small,
+  },
+  passkeyBtnText: {
+    color: COLORS.white,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
   infoBox: {
     backgroundColor: '#DCFCE7',
     borderRadius: 8,
