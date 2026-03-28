@@ -12,3 +12,4 @@ export { default as Card } from './Card';
 export { default as TerraFooter } from './TerraFooter';
 export { default as WhatsAppFAB } from './WhatsAppFAB';
 export { Toast } from './Toast';
+export { CachedImage } from './CachedImage';
