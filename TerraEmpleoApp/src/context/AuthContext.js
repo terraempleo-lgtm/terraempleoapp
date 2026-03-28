@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { setAuthToken, authAPI } from '../services/api';
+import { setAuthToken, setGlobalSignOutHandler, authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -19,18 +19,25 @@ export function AuthProvider({ children }) {
       const savedToken   = await SecureStore.getItemAsync(TOKEN_KEY);
       const savedUserStr = await SecureStore.getItemAsync(USER_KEY);
       if (savedToken && savedUserStr) {
+        // Restaurar inmediatamente desde datos locales — el usuario no espera ni se desloguea por mala red
+        const savedUser = JSON.parse(savedUserStr);
         setAuthToken(savedToken);
-        try {
-          const res = await authAPI.getPerfil();
-          setToken(savedToken);
-          setUser(res.data.user);
-          console.log('SESSION RESTORED', res.data.user?.nombre_completo);
-        } catch {
-          console.log('SESSION EXPIRED, clearing');
-          await SecureStore.deleteItemAsync(TOKEN_KEY);
-          await SecureStore.deleteItemAsync(USER_KEY);
-          setAuthToken(null);
-        }
+        setToken(savedToken);
+        setUser(savedUser);
+        // Validar en background: solo cerrar sesión si el servidor dice 401 (token inválido)
+        authAPI.getPerfil()
+          .then(res => setUser(res.data.user))
+          .catch(async err => {
+            if (err.response?.status === 401) {
+              // Token rechazado por el servidor — cerrar sesión
+              setAuthToken(null);
+              setToken(null);
+              setUser(null);
+              await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
+              await SecureStore.deleteItemAsync(USER_KEY).catch(() => {});
+            }
+            // Errores de red, timeout, 5xx → mantener sesión local
+          });
       }
     } catch (err) {
       console.error('Error restoring session:', err);
@@ -64,6 +71,8 @@ export function AuthProvider({ children }) {
       console.error('Error clearing session:', err);
     }
   }, []);
+
+  useEffect(() => { setGlobalSignOutHandler(signOut); }, [signOut]);
 
   /**
    * Intenta restaurar la sesión guardada (sin pedir contraseña).

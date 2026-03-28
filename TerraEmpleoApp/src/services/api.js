@@ -7,6 +7,7 @@ const api = axios.create({
 });
 
 let authToken = null;
+let _signOutHandler = null;
 
 export function setAuthToken(token) {
   authToken = token;
@@ -20,6 +21,25 @@ export function setAuthToken(token) {
 export function getAuthToken() {
   return authToken;
 }
+
+export function setGlobalSignOutHandler(fn) {
+  _signOutHandler = fn;
+}
+
+// Cierra sesión automáticamente si el servidor rechaza el token (401)
+// Excluye endpoints de auth para no interferir con login/recuperar contraseña
+api.interceptors.response.use(
+  res => res,
+  err => {
+    const status = err.response?.status;
+    const url = err.config?.url || '';
+    const isAuthEndpoint = /\/(login|register|recuperar|cognito|sms)/.test(url);
+    if (status === 401 && !isAuthEndpoint && _signOutHandler) {
+      _signOutHandler();
+    }
+    return Promise.reject(err);
+  }
+);
 
 // Auth
 export const authAPI = {

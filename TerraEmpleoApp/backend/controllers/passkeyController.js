@@ -205,7 +205,7 @@ async function finishAuthentication(req, res) {
     const token = jwt.sign(
       { id: user.id, rol: user.rol, celular: user.celular, nombre_completo: user.nombre_completo },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '90d' }
     );
 
     const fotoSelfie = user.foto_selfie ? await signUrl(user.foto_selfie) : null;
