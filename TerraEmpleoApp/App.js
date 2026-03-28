@@ -62,7 +62,8 @@ const BuscarTrabajadoresScreen       = lazyWeb(() => import('./src/screens/emple
 const AdminDashboardScreen           = lazyWeb(() => import('./src/screens/admin/AdminDashboardScreen'));
 const AdminUsuariosScreen            = lazyWeb(() => import('./src/screens/admin/AdminUsuariosScreen'));
 const AdminDetalleUsuarioScreen      = lazyWeb(() => import('./src/screens/admin/AdminDetalleUsuarioScreen'));
-const AdminVerificacionCedulasScreen = lazyWeb(() => import('./src/screens/admin/AdminVerificacionCedulasScreen'));
+const AdminVerificacionCedulasScreen  = lazyWeb(() => import('./src/screens/admin/AdminVerificacionCedulasScreen'));
+const AdminVerificacionDetalleScreen  = lazyWeb(() => import('./src/screens/admin/AdminVerificacionDetalleScreen'));
 const AdminVacantesScreen            = lazyWeb(() => import('./src/screens/admin/AdminVacantesScreen'));
 const AdminPostulantesVacanteScreen  = lazyWeb(() => import('./src/screens/admin/AdminPostulantesVacanteScreen'));
 
@@ -183,7 +184,19 @@ function PerfilStack() {
 
 // Wrappers para screens lazy usadas directamente en Tab.Screen (sin stack propio)
 const MisPostulacionesTab = () => <S><MisPostulacionesScreen /></S>;
-const AdminVerificacionTab = () => <S><AdminVerificacionCedulasScreen /></S>;
+
+function AdminVerificacionStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="AdminVerificacionHome" component={AdminVerificacionCedulasScreen}
+          options={{ title: 'Cédulas Pendientes' }} />
+        <Stack.Screen name="AdminVerificacionDetalle" component={AdminVerificacionDetalleScreen}
+          options={{ title: 'Verificar identidad' }} />
+      </Stack.Navigator>
+    </S>
+  );
+}
 
 // ── Trabajador Tabs ──
 function TrabajadorTabs() {
@@ -393,8 +406,8 @@ function AdminTabs() {
         options={{ tabBarLabel: 'Dashboard' }} />
       <Tab.Screen name="Usuarios" component={AdminUsuariosStack}
         options={{ tabBarLabel: 'Usuarios' }} />
-      <Tab.Screen name="Verificacion" component={AdminVerificacionTab}
-        options={{ tabBarLabel: 'Verificación', headerShown: true, ...headerOptions, title: 'Cédulas Pendientes' }} />
+      <Tab.Screen name="Verificacion" component={AdminVerificacionStack}
+        options={{ tabBarLabel: 'Verificación' }} />
       <Tab.Screen name="AdminVacantes" component={AdminVacantesStack}
         options={{ tabBarLabel: 'Vacantes' }} />
       <Tab.Screen name="Perfil" component={PerfilStack}

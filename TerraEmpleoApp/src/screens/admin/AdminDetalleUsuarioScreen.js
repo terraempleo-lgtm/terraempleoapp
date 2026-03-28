@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { adminAPI } from '../../services/api';
+import { useAppTheme } from '../../context/ThemeContext';
 
 const LABELS_ESTUDIOS = {
   sin_estudios: 'Sin estudios', primaria_completa: 'Primaria completa', bachiller: 'Bachiller',
@@ -23,16 +24,17 @@ const LABELS_PAGO = {
   quincenal: 'Quincenal', mensual: 'Mensual', destajo: 'Por tarea / destajo',
 };
 
-function LabelValue({ label, value }) {
+function LabelValue({ label, value, colors }) {
   return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value || 'No registrado'}</Text>
+    <View style={[styles.row, { borderBottomColor: colors.border }]}>
+      <Text style={[styles.label, { color: colors.textMuted }]}>{label}</Text>
+      <Text style={[styles.value, { color: colors.textPrimary }]}>{value || 'No registrado'}</Text>
     </View>
   );
 }
 
 export default function AdminDetalleUsuarioScreen({ route }) {
+  const { colors, isDark } = useAppTheme();
   const usuarioId = route?.params?.usuarioId;
   const [detalle, setDetalle] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -61,7 +63,7 @@ export default function AdminDetalleUsuarioScreen({ route }) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
@@ -69,9 +71,9 @@ export default function AdminDetalleUsuarioScreen({ route }) {
 
   if (!detalle?.user) {
     return (
-      <View style={styles.centered}>
-        <Ionicons name="alert-circle-outline" size={44} color={COLORS.textLight} />
-        <Text style={styles.emptyText}>No se pudo cargar el perfil del usuario.</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Ionicons name="alert-circle-outline" size={44} color={colors.textMuted} />
+        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No se pudo cargar el perfil del usuario.</Text>
       </View>
     );
   }
@@ -79,7 +81,7 @@ export default function AdminDetalleUsuarioScreen({ route }) {
   const { user, perfil, vacantes, postulaciones } = detalle;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -93,7 +95,7 @@ export default function AdminDetalleUsuarioScreen({ route }) {
           />
         }
       >
-        <View style={styles.headerCard}>
+        <View style={[styles.headerCard, { backgroundColor: colors.surface }]}>
           <View style={styles.headerTop}>
             <View style={styles.profilePhotoWrap}>
               {user.foto_selfie ? (
@@ -105,16 +107,16 @@ export default function AdminDetalleUsuarioScreen({ route }) {
               )}
             </View>
             <View style={styles.headerInfo}>
-              <Text style={styles.nombre}>{user.nombre_completo}</Text>
-              <Text style={styles.rol}>{(user.rol || 'usuario').toUpperCase()}</Text>
+              <Text style={[styles.nombre, { color: colors.textPrimary }]}>{user.nombre_completo}</Text>
+              <Text style={[styles.rol, { color: colors.textSecondary }]}>{(user.rol || 'usuario').toUpperCase()}</Text>
               <View style={styles.badgesRow}>
                 <View style={[styles.badge, { backgroundColor: Number(user.activo) === 1 ? '#DCFCE7' : '#FEE2E2' }]}>
                   <Text style={[styles.badgeText, { color: Number(user.activo) === 1 ? '#166534' : '#B91C1C' }]}>
                     {Number(user.activo) === 1 ? 'Activo' : 'Inactivo'}
                   </Text>
                 </View>
-                <View style={[styles.badge, { backgroundColor: '#F3F4F6' }]}>
-                  <Text style={[styles.badgeText, { color: '#4B5563' }]}>
+                <View style={[styles.badge, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]}>
+                  <Text style={[styles.badgeText, { color: colors.textSecondary }]}>
                     ID: {user.validacion_identidad_estado || 'pendiente'}
                   </Text>
                 </View>
@@ -123,44 +125,44 @@ export default function AdminDetalleUsuarioScreen({ route }) {
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Datos personales</Text>
-          <LabelValue label="Celular" value={user.celular} />
-          <LabelValue label="Correo" value={user.correo} />
-          <LabelValue label="Cédula" value={user.cedula} />
-          <LabelValue label="Departamento" value={user.departamento} />
-          <LabelValue label="Municipio" value={user.municipio} />
-          <LabelValue label="Vereda" value={user.vereda} />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Datos personales</Text>
+          <LabelValue label="Celular" value={user.celular} colors={colors} />
+          <LabelValue label="Correo" value={user.correo} colors={colors} />
+          <LabelValue label="Cédula" value={user.cedula} colors={colors} />
+          <LabelValue label="Departamento" value={user.departamento} colors={colors} />
+          <LabelValue label="Municipio" value={user.municipio} colors={colors} />
+          <LabelValue label="Vereda" value={user.vereda} colors={colors} />
         </View>
 
         {perfil ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Perfil</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Perfil</Text>
             {user.rol === 'trabajador' ? (
               <>
-                <LabelValue label="Nivel de estudios" value={LABELS_ESTUDIOS[perfil.nivel_estudios] || perfil.nivel_estudios} />
-                <LabelValue label="Experiencia" value={LABELS_EXPERIENCIA[perfil.anios_experiencia] || perfil.anios_experiencia} />
-                <LabelValue label="Disponibilidad" value={LABELS_DISPONIBILIDAD[perfil.disponibilidad] || perfil.disponibilidad} />
+                <LabelValue label="Nivel de estudios" value={LABELS_ESTUDIOS[perfil.nivel_estudios] || perfil.nivel_estudios} colors={colors} />
+                <LabelValue label="Experiencia" value={LABELS_EXPERIENCIA[perfil.anios_experiencia] || perfil.anios_experiencia} colors={colors} />
+                <LabelValue label="Disponibilidad" value={LABELS_DISPONIBILIDAD[perfil.disponibilidad] || perfil.disponibilidad} colors={colors} />
               </>
             ) : (
               <>
-                <LabelValue label="Empresa/Finca" value={perfil.nombre_empresa_finca} />
-                <LabelValue label="Tipo de pago" value={LABELS_PAGO[perfil.tipo_pago] || perfil.tipo_pago} />
-                <LabelValue label="Ofrece alojamiento" value={Number(perfil.ofrece_alojamiento) === 1 ? 'Sí' : 'No'} />
-                <LabelValue label="Ofrece alimentación" value={Number(perfil.ofrece_alimentacion) === 1 ? 'Sí' : 'No'} />
+                <LabelValue label="Empresa/Finca" value={perfil.nombre_empresa_finca} colors={colors} />
+                <LabelValue label="Tipo de pago" value={LABELS_PAGO[perfil.tipo_pago] || perfil.tipo_pago} colors={colors} />
+                <LabelValue label="Ofrece alojamiento" value={Number(perfil.ofrece_alojamiento) === 1 ? 'Sí' : 'No'} colors={colors} />
+                <LabelValue label="Ofrece alimentación" value={Number(perfil.ofrece_alimentacion) === 1 ? 'Sí' : 'No'} colors={colors} />
               </>
             )}
           </View>
         ) : null}
 
         {user.rol === 'empleador' ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Vacantes creadas</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Vacantes creadas</Text>
             <Text style={styles.counter}>{(vacantes || []).length}</Text>
           </View>
         ) : (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Postulaciones realizadas</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Postulaciones realizadas</Text>
             <Text style={styles.counter}>{(postulaciones || []).length}</Text>
           </View>
         )}

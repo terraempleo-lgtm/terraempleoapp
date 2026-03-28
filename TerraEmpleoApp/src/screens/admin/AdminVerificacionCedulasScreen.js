@@ -6,6 +6,7 @@ import { AnimatedPressable } from '../../components/animated';
 import { adminAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../utils/alertService';
+import { useAppTheme } from '../../context/ThemeContext';
 
 function formatearFecha(fecha) {
   if (!fecha) return 'Sin fecha';
@@ -20,11 +21,12 @@ function formatearFecha(fecha) {
   });
 }
 
-export default function AdminVerificacionCedulasScreen() {
+export default function AdminVerificacionCedulasScreen({ navigation }) {
   const [pendientes, setPendientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [procesandoId, setProcesandoId] = useState(null);
+  const { colors, isDark } = useAppTheme();
 
   const cargarPendientes = useCallback(async () => {
     try {
@@ -78,15 +80,19 @@ export default function AdminVerificacionCedulasScreen() {
   const renderItem = ({ item }) => {
     const enProceso = procesandoId === item.id;
     return (
-      <View style={styles.card}>
+      <AnimatedPressable
+        style={[styles.card, { backgroundColor: colors.surface }]}
+        onPress={() => navigation.navigate('AdminVerificacionDetalle', { item })}
+        scaleValue={0.98}
+      >
         <View style={styles.cardHeader}>
           <View style={styles.headerInfo}>
-            <Text style={styles.nombre}>{item.nombre_completo}</Text>
-            <Text style={styles.cedula}>Cédula: {item.cedula || 'Sin dato'}</Text>
-            <Text style={styles.fecha}>Enviado: {formatearFecha(item.enviado_at)}</Text>
+            <Text style={[styles.nombre, { color: colors.textPrimary }]}>{item.nombre_completo}</Text>
+            <Text style={[styles.cedula, { color: colors.textSecondary }]}>Cédula: {item.cedula || 'Sin dato'}</Text>
+            <Text style={[styles.fecha, { color: colors.textMuted }]}>Enviado: {formatearFecha(item.enviado_at)}</Text>
           </View>
-          <View style={styles.estadoChip}>
-            <Text style={styles.estadoText}>Pendiente</Text>
+          <View style={[styles.estadoChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderWidth: 1, borderColor: colors.border }]}>
+            <Text style={[styles.estadoText, { color: colors.textSecondary }]}>Pendiente</Text>
           </View>
         </View>
 
@@ -120,12 +126,12 @@ export default function AdminVerificacionCedulasScreen() {
             <Text style={styles.actionText}>{enProceso ? 'Guardando...' : 'Aprobar'}</Text>
           </AnimatedPressable>
         </View>
-      </View>
+      </AnimatedPressable>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={pendientes}
         keyExtractor={(item) => String(item.id)}
@@ -143,8 +149,8 @@ export default function AdminVerificacionCedulasScreen() {
           !loading ? (
             <View style={styles.emptyState}>
               <Ionicons name="checkmark-done-circle-outline" size={48} color={COLORS.primary} />
-              <Text style={styles.emptyTitle}>No hay cédulas pendientes</Text>
-              <Text style={styles.emptySub}>Todas las verificaciones fueron atendidas</Text>
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No hay cédulas pendientes</Text>
+              <Text style={[styles.emptySub, { color: colors.textSecondary }]}>Todas las verificaciones fueron atendidas</Text>
             </View>
           ) : null
         }

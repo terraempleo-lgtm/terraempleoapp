@@ -9,8 +9,10 @@ import { adminAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
+import { useAppTheme } from '../../context/ThemeContext';
 
 export default function AdminDashboardScreen({ navigation }) {
+  const { colors, isDark } = useAppTheme();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,7 +41,7 @@ export default function AdminDashboardScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
         <MotiView
           from={{ scale: 0.8, opacity: 0.4 }}
           animate={{ scale: 1.1, opacity: 1 }}
@@ -53,7 +55,7 @@ export default function AdminDashboardScreen({ navigation }) {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView
           contentContainerStyle={[styles.content, { justifyContent: 'center', alignItems: 'center', flex: 1 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
@@ -63,10 +65,10 @@ export default function AdminDashboardScreen({ navigation }) {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', ...ANIMATION.spring.gentle }}
           >
-            <Ionicons name="cloud-offline-outline" size={48} color={COLORS.textLight} />
+            <Ionicons name="cloud-offline-outline" size={48} color={colors.textMuted} />
           </MotiView>
           <FadeInView delay={100}>
-            <Text style={{ fontSize: 16, color: COLORS.textLight, marginTop: SPACING.md, textAlign: 'center' }}>{error}</Text>
+            <Text style={{ fontSize: 16, color: colors.textMuted, marginTop: SPACING.md, textAlign: 'center' }}>{error}</Text>
           </FadeInView>
           <FadeInView delay={200}>
             <AnimatedPressable onPress={() => { setLoading(true); load(); }} style={{ marginTop: SPACING.lg, backgroundColor: COLORS.primary, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.sm, borderRadius: RADIUS.md }} scaleValue={0.95} haptic>
@@ -88,14 +90,14 @@ export default function AdminDashboardScreen({ navigation }) {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
       >
         <FadeInView delay={0}>
-          <Text style={styles.header}>Panel de Administración</Text>
-          <Text style={styles.subtitle}>Resumen general de TerraEmpleo</Text>
+          <Text style={[styles.header, { color: colors.textPrimary }]}>Panel de Administración</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>Resumen general de TerraEmpleo</Text>
         </FadeInView>
 
         <View style={styles.grid}>
@@ -107,7 +109,7 @@ export default function AdminDashboardScreen({ navigation }) {
               transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 80 }}
               style={styles.cardWrap}
             >
-              <View style={styles.card}>
+              <View style={[styles.card, { backgroundColor: colors.surface }]}>
                 <View style={[styles.iconWrap, { backgroundColor: c.color + '18' }]}>
                   <Ionicons name={c.icon} size={28} color={c.color} />
                 </View>
@@ -116,25 +118,25 @@ export default function AdminDashboardScreen({ navigation }) {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 200 + i * 50 }}
                 >
-                  <Text style={styles.cardValue}>{c.value}</Text>
+                  <Text style={[styles.cardValue, { color: colors.textPrimary }]}>{c.value}</Text>
                 </MotiView>
-                <Text style={styles.cardTitle}>{c.title}</Text>
+                <Text style={[styles.cardTitle, { color: colors.textMuted }]}>{c.title}</Text>
               </View>
             </MotiView>
           ))}
         </View>
 
         <StaggeredItem index={6}>
-          <View style={styles.quickActions}>
-            <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
+          <View style={[styles.quickActions, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Acciones Rápidas</Text>
             <QuickAction icon="people-outline" label="Gestionar Usuarios"
-              onPress={() => navigation.navigate('AdminUsuarios')} />
+              onPress={() => navigation.navigate('AdminUsuarios')} colors={colors} />
             <QuickAction icon="briefcase-outline" label="Ver Todas las Vacantes"
-              onPress={() => navigation.navigate('AdminVacantes')} />
+              onPress={() => navigation.navigate('AdminVacantes')} colors={colors} />
             <QuickAction icon="add-circle-outline" label="Crear Vacante (Admin)"
-              onPress={() => navigation.navigate('AdminCrearVacante')} />
+              onPress={() => navigation.navigate('AdminCrearVacante')} colors={colors} />
             <QuickAction icon="eye-outline" label="Vista Previa de Usuarios"
-              onPress={() => navigation.navigate('AdminVistas')} />
+              onPress={() => navigation.navigate('AdminVistas')} colors={colors} />
           </View>
         </StaggeredItem>
       </ScrollView>
@@ -142,14 +144,14 @@ export default function AdminDashboardScreen({ navigation }) {
   );
 }
 
-function QuickAction({ icon, label, onPress }) {
+function QuickAction({ icon, label, onPress, colors }) {
   return (
-    <AnimatedPressable style={qaStyles.row} onPress={onPress} scaleValue={0.98} haptic={false}>
+    <AnimatedPressable style={[qaStyles.row, { borderBottomColor: colors.border }]} onPress={onPress} scaleValue={0.98} haptic={false}>
       <View style={qaStyles.left}>
         <Ionicons name={icon} size={22} color={COLORS.primary} />
-        <Text style={qaStyles.label}>{label}</Text>
+        <Text style={[qaStyles.label, { color: colors.textPrimary }]}>{label}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
     </AnimatedPressable>
   );
 }
@@ -157,10 +159,10 @@ function QuickAction({ icon, label, onPress }) {
 const qaStyles = StyleSheet.create({
   row: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
+    paddingVertical: SPACING.md, borderBottomWidth: 1,
   },
   left: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  label: { fontSize: 16, fontWeight: '500', color: COLORS.textPrimary },
+  label: { fontSize: 16, fontWeight: '500' },
 });
 
 const styles = StyleSheet.create({

@@ -9,8 +9,10 @@ import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { adminAPI } from '../../services/api';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
+import { useAppTheme } from '../../context/ThemeContext';
 
 export default function AdminPostulantesVacanteScreen({ route, navigation }) {
+  const { colors, isDark } = useAppTheme();
   const { vacante } = route.params;
   const [postulaciones, setPostulaciones] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,33 +38,33 @@ export default function AdminPostulantesVacanteScreen({ route, navigation }) {
 
   const renderItem = ({ item, index }) => (
     <StaggeredItem index={index}>
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
         <View style={styles.topRow}>
-          <Text style={styles.nombre}>{item.nombre_completo || 'Trabajador'}</Text>
+          <Text style={[styles.nombre, { color: colors.textPrimary }]}>{item.nombre_completo || 'Trabajador'}</Text>
           <View style={styles.estadoBadge}>
             <Text style={styles.estadoText}>{item.estado || 'pendiente'}</Text>
           </View>
         </View>
 
         <View style={styles.infoRow}>
-          <Ionicons name="call-outline" size={14} color={COLORS.textLight} />
-          <Text style={styles.infoText}>{item.celular || 'Sin celular'}</Text>
+          <Ionicons name="call-outline" size={14} color={colors.textMuted} />
+          <Text style={[styles.infoText, { color: colors.textMuted }]}>{item.celular || 'Sin celular'}</Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Ionicons name="location-outline" size={14} color={COLORS.textLight} />
-          <Text style={styles.infoText}>
+          <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+          <Text style={[styles.infoText, { color: colors.textMuted }]}>
             {item.municipio || 'Sin municipio'}, {item.departamento || 'Sin departamento'}
           </Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Ionicons name="stats-chart-outline" size={14} color={COLORS.textLight} />
-          <Text style={styles.infoText}>Match: {Math.round(Number(item.puntaje_match || 0))}%</Text>
+          <Ionicons name="stats-chart-outline" size={14} color={colors.textMuted} />
+          <Text style={[styles.infoText, { color: colors.textMuted }]}>Match: {Math.round(Number(item.puntaje_match || 0))}%</Text>
         </View>
 
         <AnimatedPressable
-          style={styles.perfilBtn}
+          style={[styles.perfilBtn, { backgroundColor: colors.background }]}
           onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.trabajador_id })}
           scaleValue={0.93}
           haptic
@@ -76,7 +78,7 @@ export default function AdminPostulantesVacanteScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
         <MotiView
           from={{ scale: 0.8, opacity: 0.4 }}
           animate={{ scale: 1.1, opacity: 1 }}
@@ -89,11 +91,11 @@ export default function AdminPostulantesVacanteScreen({ route, navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <FadeInView delay={0}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{vacante?.titulo || 'Postulantes'}</Text>
-          <Text style={styles.subtitle}>{postulaciones.length} postulante(s)</Text>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>{vacante?.titulo || 'Postulantes'}</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>{postulaciones.length} postulante(s)</Text>
         </View>
       </FadeInView>
 
@@ -115,7 +117,7 @@ export default function AdminPostulantesVacanteScreen({ route, navigation }) {
         ListEmptyComponent={
           <View style={styles.center}>
             <FadeInView delay={0}>
-              <Text style={styles.empty}>Esta vacante no tiene postulantes todavía.</Text>
+              <Text style={[styles.empty, { color: colors.textMuted }]}>Esta vacante no tiene postulantes todavía.</Text>
             </FadeInView>
           </View>
         }

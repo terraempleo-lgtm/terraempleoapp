@@ -10,8 +10,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 import { showAlert } from '../../utils/alertService';
+import { useAppTheme } from '../../context/ThemeContext';
 
 export default function AdminUsuariosScreen({ navigation }) {
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -157,7 +159,7 @@ export default function AdminUsuariosScreen({ navigation }) {
 
   const renderItem = ({ item, index }) => (
     <StaggeredItem index={index}>
-      <AnimatedPressable style={styles.card} onPress={() => abrirDetalleUsuario(item)} scaleValue={0.99} haptic={false}>
+      <AnimatedPressable style={[styles.card, { backgroundColor: colors.surface }]} onPress={() => abrirDetalleUsuario(item)} scaleValue={0.99} haptic={false}>
         <View style={styles.cardTop}>
           <View style={styles.avatarWrap}>
             {item.foto_selfie ? (
@@ -169,8 +171,8 @@ export default function AdminUsuariosScreen({ navigation }) {
             )}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{item.nombre_completo}</Text>
-            <Text style={styles.celular}>{item.celular}</Text>
+            <Text style={[styles.name, { color: colors.textPrimary }]}>{item.nombre_completo}</Text>
+            <Text style={[styles.celular, { color: colors.textMuted }]}>{item.celular}</Text>
           </View>
           <View style={[styles.roleBadge, { backgroundColor: roleColor(item.rol) + '18' }]}>
             <Text style={[styles.roleText, { color: roleColor(item.rol) }]}>{roleLabel(item.rol)}</Text>
@@ -178,11 +180,11 @@ export default function AdminUsuariosScreen({ navigation }) {
         </View>
 
         <View style={styles.infoRow}>
-          <Ionicons name="location-outline" size={14} color={COLORS.textLight} />
-          <Text style={styles.infoText}>{item.municipio}, {item.departamento}</Text>
+          <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+          <Text style={[styles.infoText, { color: colors.textMuted }]}>{item.municipio}, {item.departamento}</Text>
         </View>
 
-        <View style={styles.statusRow}>
+        <View style={[styles.statusRow, { borderTopColor: colors.border }]}>
           <View style={styles.badges}>
             <View style={[styles.statusBadge, { backgroundColor: item.activo ? '#e6f7ee' : '#FFEBEE' }]}>
               <Text style={[styles.statusText, { color: item.activo ? COLORS.primary : COLORS.error }]}>
@@ -228,7 +230,7 @@ export default function AdminUsuariosScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
         <MotiView
           from={{ scale: 0.8, opacity: 0.4 }}
           animate={{ scale: 1.1, opacity: 1 }}
@@ -242,7 +244,7 @@ export default function AdminUsuariosScreen({ navigation }) {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView
           contentContainerStyle={[styles.center, { flex: 1 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
@@ -252,10 +254,10 @@ export default function AdminUsuariosScreen({ navigation }) {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', ...ANIMATION.spring.gentle }}
           >
-            <Ionicons name="cloud-offline-outline" size={48} color={COLORS.textLight} />
+            <Ionicons name="cloud-offline-outline" size={48} color={colors.textMuted} />
           </MotiView>
           <FadeInView delay={100}>
-            <Text style={{ fontSize: 16, color: COLORS.textLight, marginTop: SPACING.md, textAlign: 'center' }}>{error}</Text>
+            <Text style={{ fontSize: 16, color: colors.textMuted, marginTop: SPACING.md, textAlign: 'center' }}>{error}</Text>
           </FadeInView>
           <FadeInView delay={200}>
             <AnimatedPressable onPress={() => { setLoading(true); load(); }} style={{ marginTop: SPACING.lg, backgroundColor: COLORS.primary, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.sm, borderRadius: RADIUS.md }} scaleValue={0.95} haptic>
@@ -268,7 +270,7 @@ export default function AdminUsuariosScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={usuarios}
         keyExtractor={i => String(i.id)}
@@ -278,7 +280,7 @@ export default function AdminUsuariosScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.center}>
             <FadeInView delay={0}>
-              <Text style={styles.empty}>No hay usuarios.</Text>
+              <Text style={[styles.empty, { color: colors.textMuted }]}>No hay usuarios.</Text>
             </FadeInView>
           </View>
         }
@@ -290,16 +292,16 @@ export default function AdminUsuariosScreen({ navigation }) {
         presentationStyle="fullScreen"
         onRequestClose={cerrarRevisionDocumentos}
       >
-        <SafeAreaView style={[styles.modalContainer, { paddingTop: Math.max(insets.top, SPACING.md) }]} edges={['bottom']}>
+        <SafeAreaView style={[styles.modalContainer, { paddingTop: Math.max(insets.top, SPACING.md), backgroundColor: colors.background }]} edges={['bottom']}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Revisión manual de identidad</Text>
-            <AnimatedPressable onPress={cerrarRevisionDocumentos} style={styles.modalCloseBtn} scaleValue={0.9} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={22} color={COLORS.textPrimary} />
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Revisión manual de identidad</Text>
+            <AnimatedPressable onPress={cerrarRevisionDocumentos} style={[styles.modalCloseBtn, { backgroundColor: isDark ? colors.surface : COLORS.cardHover }]} scaleValue={0.9} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close" size={22} color={colors.textPrimary} />
             </AnimatedPressable>
           </View>
 
-          <Text style={styles.modalUserName}>{usuarioRevision?.nombre_completo || 'Usuario'}</Text>
-          <Text style={styles.modalHelpText}>Verifica que selfie y cédula coincidan visualmente.</Text>
+          <Text style={[styles.modalUserName, { color: colors.textPrimary }]}>{usuarioRevision?.nombre_completo || 'Usuario'}</Text>
+          <Text style={[styles.modalHelpText, { color: colors.textMuted }]}>Verifica que selfie y cédula coincidan visualmente.</Text>
           <View style={[styles.modalEstadoChip, getBadgeRevisionStyle(estadoRevision).badge]}>
             <Text style={[styles.modalEstadoText, getBadgeRevisionStyle(estadoRevision).text]}>
               Estado actual: {getBadgeRevisionStyle(estadoRevision).label}
@@ -309,7 +311,7 @@ export default function AdminUsuariosScreen({ navigation }) {
           <ScrollView contentContainerStyle={styles.modalScrollContent}>
             {cargandoDocumentos ? (
               <View style={styles.modalCenter}>
-                <Text style={styles.modalLoading}>Cargando documentos...</Text>
+                <Text style={[styles.modalLoading, { color: colors.textMuted }]}>Cargando documentos...</Text>
               </View>
             ) : (
               <>
@@ -317,16 +319,19 @@ export default function AdminUsuariosScreen({ navigation }) {
                   titulo="1. Selfie"
                   uri={documentosRevision?.selfie}
                   placeholder="No hay selfie disponible"
+                  colors={colors}
                 />
                 <DocumentoBloque
                   titulo="2. Frente de cédula"
                   uri={documentosRevision?.cedula_frente}
                   placeholder="No hay foto de cédula disponible"
+                  colors={colors}
                 />
                 <DocumentoBloque
                   titulo="3. Selfie con cédula"
                   uri={documentosRevision?.selfie_con_cedula}
                   placeholder="No hay selfie con cédula disponible"
+                  colors={colors}
                 />
                 <View style={styles.reviewActions}>
                   <AnimatedPressable
@@ -357,16 +362,16 @@ export default function AdminUsuariosScreen({ navigation }) {
   );
 }
 
-function DocumentoBloque({ titulo, uri, placeholder }) {
+function DocumentoBloque({ titulo, uri, placeholder, colors }) {
   return (
-    <View style={styles.docBlock}>
-      <Text style={styles.docTitle}>{titulo}</Text>
+    <View style={[styles.docBlock, { backgroundColor: colors.surface }]}>
+      <Text style={[styles.docTitle, { color: colors.textPrimary }]}>{titulo}</Text>
       {uri ? (
         <Image source={{ uri }} style={styles.docImage} resizeMode="cover" />
       ) : (
-        <View style={styles.docPlaceholder}>
-          <Ionicons name="image-outline" size={28} color={COLORS.textLight} />
-          <Text style={styles.docPlaceholderText}>{placeholder}</Text>
+        <View style={[styles.docPlaceholder, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="image-outline" size={28} color={colors.textMuted} />
+          <Text style={[styles.docPlaceholderText, { color: colors.textMuted }]}>{placeholder}</Text>
         </View>
       )}
     </View>

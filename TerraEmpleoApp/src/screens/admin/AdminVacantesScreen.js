@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 import { showAlert } from '../../utils/alertService';
+import { useAppTheme } from '../../context/ThemeContext';
 
 const LABELS_PAGO = {
   jornal: 'Jornal (diario)', semanal: 'Semanal',
@@ -17,6 +18,7 @@ const LABELS_PAGO = {
 };
 
 export default function AdminVacantesScreen({ navigation }) {
+  const { colors, isDark } = useAppTheme();
   const [vacantes, setVacantes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -98,10 +100,10 @@ export default function AdminVacantesScreen({ navigation }) {
       : 'Sin fecha';
     return (
       <StaggeredItem index={index}>
-        <AnimatedPressable style={styles.card} onPress={() => abrirDetalleVacante(item)} scaleValue={0.99} haptic={false}>
+        <AnimatedPressable style={[styles.card, { backgroundColor: colors.surface }]} onPress={() => abrirDetalleVacante(item)} scaleValue={0.99} haptic={false}>
           <View style={styles.cardTop}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.titulo}>{item.titulo}</Text>
+              <Text style={[styles.titulo, { color: colors.textPrimary }]}>{item.titulo}</Text>
               <TouchableOpacity
                 onPress={() => abrirDetalleEmpleador(item)}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
@@ -115,12 +117,12 @@ export default function AdminVacantesScreen({ navigation }) {
           </View>
 
           <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={14} color={COLORS.textLight} />
-            <Text style={styles.infoText}>{item.municipio}, {item.departamento}</Text>
+            <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+            <Text style={[styles.infoText, { color: colors.textMuted }]}>{item.municipio}, {item.departamento}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="cash-outline" size={14} color={COLORS.textLight} />
-            <Text style={styles.infoText}>
+            <Ionicons name="cash-outline" size={14} color={colors.textMuted} />
+            <Text style={[styles.infoText, { color: colors.textMuted }]}>
               ${item.salario_ofrecido ? Number(item.salario_ofrecido).toLocaleString() : 'N/A'} - {LABELS_PAGO[item.tipo_pago] || item.tipo_pago || 'N/A'}
             </Text>
           </View>
@@ -132,14 +134,14 @@ export default function AdminVacantesScreen({ navigation }) {
             </View>
           ) : null}
 
-          <View style={styles.footer}>
-            <Text style={styles.fecha}>{fechaTexto}</Text>
+          <View style={[styles.footer, { borderTopColor: colors.border }]}>
+            <Text style={[styles.fecha, { color: colors.textMuted }]}>{fechaTexto}</Text>
             <View style={styles.actions}>
-              <AnimatedPressable onPress={() => verPostulantes(item)} style={styles.actionBtn} scaleValue={0.9} haptic hapticStyle="light">
+              <AnimatedPressable onPress={() => verPostulantes(item)} style={[styles.actionBtn, { backgroundColor: colors.background }]} scaleValue={0.9} haptic hapticStyle="light">
                 <Ionicons name="people-outline" size={16} color={COLORS.primary} />
                 <Text style={[styles.actionText, { color: COLORS.primary }]}>Ver postulantes</Text>
               </AnimatedPressable>
-              <AnimatedPressable onPress={() => cambiarEstado(item)} style={styles.actionBtn} scaleValue={0.9} haptic hapticStyle="light">
+              <AnimatedPressable onPress={() => cambiarEstado(item)} style={[styles.actionBtn, { backgroundColor: colors.background }]} scaleValue={0.9} haptic hapticStyle="light">
                 <Ionicons
                   name={item.estado === 'activa' ? 'pause-circle-outline' : 'play-circle-outline'}
                   size={16}
@@ -149,7 +151,7 @@ export default function AdminVacantesScreen({ navigation }) {
                   {item.estado === 'activa' ? 'Pausar' : 'Activar'}
                 </Text>
               </AnimatedPressable>
-              <AnimatedPressable onPress={() => eliminar(item)} style={styles.actionBtn} scaleValue={0.9} haptic hapticStyle="light">
+              <AnimatedPressable onPress={() => eliminar(item)} style={[styles.actionBtn, { backgroundColor: colors.background }]} scaleValue={0.9} haptic hapticStyle="light">
                 <Ionicons name="trash-outline" size={16} color={COLORS.error} />
                 <Text style={[styles.actionText, { color: COLORS.error }]}>Eliminar</Text>
               </AnimatedPressable>
@@ -162,7 +164,7 @@ export default function AdminVacantesScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
         <MotiView
           from={{ scale: 0.8, opacity: 0.4 }}
           animate={{ scale: 1.1, opacity: 1 }}
@@ -176,7 +178,7 @@ export default function AdminVacantesScreen({ navigation }) {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView
           contentContainerStyle={[styles.center, { flex: 1 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
@@ -186,10 +188,10 @@ export default function AdminVacantesScreen({ navigation }) {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', ...ANIMATION.spring.gentle }}
           >
-            <Ionicons name="cloud-offline-outline" size={48} color={COLORS.textLight} />
+            <Ionicons name="cloud-offline-outline" size={48} color={colors.textMuted} />
           </MotiView>
           <FadeInView delay={100}>
-            <Text style={{ fontSize: 16, color: COLORS.textLight, marginTop: SPACING.md, textAlign: 'center' }}>{error}</Text>
+            <Text style={{ fontSize: 16, color: colors.textMuted, marginTop: SPACING.md, textAlign: 'center' }}>{error}</Text>
           </FadeInView>
           <FadeInView delay={200}>
             <AnimatedPressable onPress={() => { setLoading(true); load(); }} style={{ marginTop: SPACING.lg, backgroundColor: COLORS.primary, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.sm, borderRadius: RADIUS.md }} scaleValue={0.95} haptic>
@@ -202,7 +204,7 @@ export default function AdminVacantesScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={vacantes}
         keyExtractor={i => String(i.id)}
@@ -212,7 +214,7 @@ export default function AdminVacantesScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.center}>
             <FadeInView delay={0}>
-              <Text style={styles.empty}>No hay vacantes.</Text>
+              <Text style={[styles.empty, { color: colors.textMuted }]}>No hay vacantes.</Text>
             </FadeInView>
           </View>
         }

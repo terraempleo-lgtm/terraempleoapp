@@ -203,7 +203,7 @@ export default function PerfilScreen({ navigation }) {
             </View>
           </View>
 
-          <View style={s.empCard}>
+          <View style={[s.empCard, { backgroundColor: colors.surface }]}>
             {/* Avatar centered above card — spring entrance */}
             <MotiView
               from={{ scale: 0.5, opacity: 0, translateY: 20 }}
@@ -213,9 +213,9 @@ export default function PerfilScreen({ navigation }) {
               <View style={s.empAvatarRow}>
                 <View style={s.empAvatarWrap}>
                   {u?.foto_selfie && u.foto_selfie.startsWith('http') ? (
-                    <Image source={{ uri: u.foto_selfie }} style={s.empAvatar} />
+                    <Image source={{ uri: u.foto_selfie }} style={[s.empAvatar, { borderColor: colors.surface }]} />
                   ) : (
-                    <View style={s.empAvatarFallback}><Ionicons name="person" size={44} color={COLORS.textLight} /></View>
+                    <View style={[s.empAvatarFallback, { borderColor: colors.surface, backgroundColor: isDark ? colors.surface : '#F3F4F6' }]}><Ionicons name="person" size={44} color={COLORS.textLight} /></View>
                   )}
                   <View style={s.empBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>
                 </View>
@@ -223,39 +223,39 @@ export default function PerfilScreen({ navigation }) {
             </MotiView>
 
             <FadeInView delay={200}>
-              <Text style={s.empName}>{u?.nombre_completo}</Text>
+              <Text style={[s.empName, { color: colors.textPrimary }]}>{u?.nombre_completo}</Text>
             </FadeInView>
             <FadeInView delay={250}>
               <Text style={s.empFinca}>🏠 {empresa}</Text>
             </FadeInView>
             {ubicacion && (
               <FadeInView delay={300}>
-                <Text style={s.empLoc}>📍 {ubicacion}</Text>
+                <Text style={[s.empLoc, { color: colors.textSecondary }]}>📍 {ubicacion}</Text>
               </FadeInView>
             )}
 
             {/* 3 stats with animated numbers */}
             <StaggeredItem index={0}>
-              <View style={s.empStats}>
+              <View style={[s.empStats, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
                 <View style={s.empStatItem}>
                   <AnimatedNumber
                     value={calificacion > 0 ? `★ ${calificacion.toFixed(1)}` : '—'}
-                    style={s.empStatVal}
+                    style={[s.empStatVal, { color: colors.textPrimary }]}
                   />
-                  <Text style={s.empStatLabel}>RATING</Text>
+                  <Text style={[s.empStatLabel, { color: colors.textSecondary }]}>RATING</Text>
                 </View>
-                <View style={s.empStatDiv} />
+                <View style={[s.empStatDiv, { backgroundColor: colors.border }]} />
                 <View style={s.empStatItem}>
-                  <AnimatedNumber value={u?.total_vacantes || 0} style={s.empStatVal} />
-                  <Text style={s.empStatLabel}>VACANTES</Text>
+                  <AnimatedNumber value={u?.total_vacantes || 0} style={[s.empStatVal, { color: colors.textPrimary }]} />
+                  <Text style={[s.empStatLabel, { color: colors.textSecondary }]}>VACANTES</Text>
                 </View>
-                <View style={s.empStatDiv} />
+                <View style={[s.empStatDiv, { backgroundColor: colors.border }]} />
                 <View style={s.empStatItem}>
                   <AnimatedNumber
                     value={u?.verificado_sms ? '✓' : '—'}
                     style={[s.empStatVal, { color: COLORS.primary }]}
                   />
-                  <Text style={s.empStatLabel}>VERIFICADO</Text>
+                  <Text style={[s.empStatLabel, { color: colors.textSecondary }]}>VERIFICADO</Text>
                 </View>
               </View>
             </StaggeredItem>
@@ -264,11 +264,11 @@ export default function PerfilScreen({ navigation }) {
             {perfil?.nombre_empresa_finca && (
               <StaggeredItem index={1}>
                 <View style={s.secWrap}>
-                  <View style={s.secHead}><View style={s.secIcon}><Ionicons name="leaf-outline" size={16} color={COLORS.primary} /></View><Text style={s.secTitle}>Sobre la Finca</Text></View>
+                  <View style={s.secHead}><View style={s.secIcon}><Ionicons name="leaf-outline" size={16} color={COLORS.primary} /></View><Text style={[s.secTitle, { color: colors.textPrimary }]}>Sobre la Finca</Text></View>
                   {acercaDeEmpleador ? (
-                    <Text style={s.secText}>{acercaDeEmpleador}</Text>
+                    <Text style={[s.secText, { color: colors.textSecondary }]}>{acercaDeEmpleador}</Text>
                   ) : (
-                    <Text style={s.secTextMuted}>
+                    <Text style={[s.secTextMuted, { color: colors.textMuted }]}>
                       {`Finca ${empresa}`}{ubicacion ? `, ubicada en ${ubicacion}` : ''}.
                       {tipoPago ? ` Modalidad de pago: ${tipoPago}.` : ''}
                       {beneficios.length > 0 ? ` Ofrecemos ${beneficios.join(' y ').toLowerCase()}.` : ''}
@@ -282,7 +282,7 @@ export default function PerfilScreen({ navigation }) {
             {cultivosEmp.length > 0 && (
               <StaggeredItem index={2}>
                 <View style={s.secWrap}>
-                  <Text style={s.secTitle}>Cultivos Principales</Text>
+                  <Text style={[s.secTitle, { color: colors.textPrimary }]}>Cultivos Principales</Text>
                   <View style={s.chipWrap}>
                     {cultivosEmp.map((c, i) => (
                       <MotiView
@@ -312,21 +312,21 @@ export default function PerfilScreen({ navigation }) {
             {/* Verificación */}
             <StaggeredItem index={3}>
               <View style={s.secWrap}>
-                <Text style={s.secTitle}>Información Verificada</Text>
+                <Text style={[s.secTitle, { color: colors.textPrimary }]}>Información Verificada</Text>
                 <View style={s.verList}>
-                  <View style={s.verItem}>
+                  <View style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
                     <View style={s.verIcon}><Ionicons name="document-text-outline" size={18} color={COLORS.primary} /></View>
-                    <Text style={s.verText}>Registro Empresarial</Text>
+                    <Text style={[s.verText, { color: colors.textPrimary }]}>Registro Empresarial</Text>
                     <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
                   </View>
-                  <View style={s.verItem}>
+                  <View style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
                     <View style={s.verIcon}><Ionicons name="call-outline" size={18} color={COLORS.primary} /></View>
-                    <Text style={s.verText}>Teléfono Verificado</Text>
+                    <Text style={[s.verText, { color: colors.textPrimary }]}>Teléfono Verificado</Text>
                     <Ionicons name={u?.verificado_sms ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={u?.verificado_sms ? COLORS.primary : COLORS.textLight} />
                   </View>
-                  <View style={s.verItem}>
+                  <View style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
                     <View style={s.verIcon}><Ionicons name="location-outline" size={18} color={COLORS.primary} /></View>
-                    <Text style={s.verText}>Ubicación de la Finca</Text>
+                    <Text style={[s.verText, { color: colors.textPrimary }]}>Ubicación de la Finca</Text>
                     <Ionicons name={ubicacion ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={ubicacion ? COLORS.primary : COLORS.textLight} />
                   </View>
                 </View>
