@@ -13,3 +13,4 @@ export { default as TerraFooter } from './TerraFooter';
 export { default as WhatsAppFAB } from './WhatsAppFAB';
 export { Toast } from './Toast';
 export { CachedImage } from './CachedImage';
+export { EmptyState } from './EmptyState';
