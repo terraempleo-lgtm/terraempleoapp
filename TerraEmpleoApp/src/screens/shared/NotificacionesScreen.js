@@ -5,21 +5,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { SPACING, RADIUS } from '../../theme';
 import { notificacionesAPI, vacantesAPI, chatsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 
 const TIPO_CONFIG = {
-  match: { icon: 'flash', color: '#F57C00', bg: '#FFF8E1' },
-  nuevo_match: { icon: 'flash', color: '#F57C00', bg: '#FFF8E1' },
-  oferta_recomendada: { icon: 'briefcase', color: COLORS.primary, bg: COLORS.primarySoft },
-  nueva_vacante: { icon: 'briefcase', color: COLORS.primary, bg: COLORS.primarySoft },
-  postulacion: { icon: 'person-add', color: COLORS.info, bg: COLORS.infoSoft },
-  aceptado: { icon: 'checkmark-circle', color: COLORS.primary, bg: COLORS.primarySoft },
-  postulacion_aceptada: { icon: 'checkmark-circle', color: COLORS.primary, bg: COLORS.primarySoft },
-  chat_habilitado: { icon: 'chatbubbles', color: COLORS.info, bg: COLORS.infoSoft },
-  nuevo_mensaje: { icon: 'chatbubble-ellipses', color: COLORS.info, bg: COLORS.infoSoft },
-  rechazado: { icon: 'close-circle', color: COLORS.error, bg: COLORS.errorSoft },
+  match: { icon: 'flash', color: '#F57C00', bg: '#FFF3E0' },
+  nuevo_match: { icon: 'flash', color: '#F57C00', bg: '#FFF3E0' },
+  oferta_recomendada: { icon: 'briefcase', color: '#008d49', bg: '#e6f7ee' },
+  nueva_vacante: { icon: 'briefcase', color: '#008d49', bg: '#e6f7ee' },
+  postulacion: { icon: 'person-add', color: '#3B82F6', bg: '#EFF6FF' },
+  aceptado: { icon: 'checkmark-circle', color: '#008d49', bg: '#e6f7ee' },
+  postulacion_aceptada: { icon: 'checkmark-circle', color: '#008d49', bg: '#e6f7ee' },
+  chat_habilitado: { icon: 'chatbubbles', color: '#3B82F6', bg: '#EFF6FF' },
+  nuevo_mensaje: { icon: 'chatbubble-ellipses', color: '#3B82F6', bg: '#EFF6FF' },
+  rechazado: { icon: 'close-circle', color: '#DC2626', bg: '#FEF2F2' },
   calificacion: { icon: 'star', color: '#7B1FA2', bg: '#F3E5F5' },
 };
 
@@ -98,6 +99,7 @@ function normalizarNotificacion(raw) {
 
 export default function NotificacionesScreen({ navigation }) {
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const [notificaciones, setNotificaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -293,33 +295,64 @@ export default function NotificacionesScreen({ navigation }) {
   };
 
   const renderItem = ({ item }) => {
-    const config = TIPO_CONFIG[item.tipo] || TIPO_CONFIG.match;
+    const tipoKey = (item.tipo || '').toLowerCase();
+    const config = TIPO_CONFIG[tipoKey] || TIPO_CONFIG.match;
     const isUnread = !item.leida;
+
+    // Adapt icon bg/color for dark mode
+    const iconBg = isDark
+      ? config.color + '28'
+      : config.bg;
+
     return (
       <TouchableOpacity
-        style={[styles.card, isUnread && styles.cardUnread]}
+        style={[
+          styles.card,
+          {
+            backgroundColor: isUnread
+              ? (isDark ? colors.surface + 'ee' : '#f6fdf9')
+              : colors.surface,
+            borderColor: isUnread ? colors.primary + '30' : colors.border,
+          },
+        ]}
         onPress={() => handleNotificacionClick(item)}
-        activeOpacity={0.85}
+        activeOpacity={0.82}
       >
-        {/* Left accent */}
-        {isUnread && <View style={[styles.unreadBar, { backgroundColor: config.color }]} />}
+        {/* Unread dot indicator */}
+        {isUnread && (
+          <View style={styles.unreadDotWrap}>
+            <View style={[styles.unreadDot, { backgroundColor: '#22c55e' }]} />
+          </View>
+        )}
 
-        <View style={[styles.iconWrap, { backgroundColor: config.bg }]}>
+        {/* Icon circle */}
+        <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
           <Ionicons name={config.icon} size={20} color={config.color} />
         </View>
 
+        {/* Text content */}
         <View style={styles.cardBody}>
-          <View style={styles.cardTopRow}>
-            <Text style={[styles.titulo, isUnread && styles.tituloUnread]} numberOfLines={1}>
-              {item.titulo}
-            </Text>
-            <Text style={styles.tiempo}>{tiempoRelativo(item.created_at)}</Text>
-          </View>
-          <Text style={styles.mensaje} numberOfLines={2}>{item.mensaje}</Text>
+          <Text
+            style={[
+              styles.titulo,
+              { color: isUnread ? colors.textPrimary : colors.textSecondary },
+              isUnread && styles.tituloUnread,
+            ]}
+            numberOfLines={1}
+          >
+            {item.titulo}
+          </Text>
+          <Text style={[styles.mensaje, { color: colors.textMuted }]} numberOfLines={2}>
+            {item.mensaje}
+          </Text>
         </View>
 
-        <View style={styles.chevronWrap}>
-          <Ionicons name="chevron-forward" size={16} color={COLORS.textLight} />
+        {/* Time + chevron column */}
+        <View style={styles.rightCol}>
+          <Text style={[styles.tiempo, { color: colors.textMuted }]}>
+            {tiempoRelativo(item.created_at)}
+          </Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginTop: 6 }} />
         </View>
       </TouchableOpacity>
     );
@@ -327,33 +360,36 @@ export default function NotificacionesScreen({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
-          <View style={styles.headerIconWrap}>
-            <Ionicons name="notifications" size={20} color={COLORS.primary} />
+          <View style={[styles.headerIconWrap, { backgroundColor: colors.primary + '18' }]}>
+            <Ionicons name="notifications" size={20} color={colors.primary} />
           </View>
-          <Text style={styles.headerTitle}>Notificaciones</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Notificaciones</Text>
           {countNoLeidas > 0 && (
-            <View style={styles.headerBadge}>
+            <View style={[styles.headerBadge, { backgroundColor: colors.error }]}>
               <Text style={styles.headerBadgeText}>{countNoLeidas}</Text>
             </View>
           )}
         </View>
         {hayNoLeidas && (
-          <TouchableOpacity style={styles.markAllBtn} onPress={marcarTodasLeidas}>
-            <Ionicons name="checkmark-done" size={16} color={COLORS.primary} />
-            <Text style={styles.markAllText}>Leer todas</Text>
+          <TouchableOpacity
+            style={[styles.markAllBtn, { backgroundColor: colors.primary + '18' }]}
+            onPress={marcarTodasLeidas}
+          >
+            <Ionicons name="checkmark-done" size={15} color={colors.primary} />
+            <Text style={[styles.markAllText, { color: colors.primary }]}>Leer todas</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -362,23 +398,23 @@ export default function NotificacionesScreen({ navigation }) {
         data={notificaciones}
         keyExtractor={item => item.id.toString()}
         renderItem={renderItem}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, notificaciones.length === 0 && styles.listEmpty]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); cargar(); }}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <View style={styles.emptyIconWrap}>
-              <Ionicons name="notifications-off-outline" size={44} color={COLORS.primaryLight} />
+            <View style={[styles.emptyIconWrap, { backgroundColor: colors.primary + '18' }]}>
+              <Ionicons name="notifications-off-outline" size={44} color={colors.primary} />
             </View>
-            <Text style={styles.emptyTitle}>Sin notificaciones</Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin notificaciones</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               Las actualizaciones de tus vacantes y postulaciones aparecerán aquí
             </Text>
           </View>
@@ -389,98 +425,107 @@ export default function NotificacionesScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAF9' },
+  container: { flex: 1 },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   /* Header */
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
+    borderBottomWidth: 1,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   headerIconWrap: {
     width: 38, height: 38, borderRadius: 12,
-    backgroundColor: COLORS.primarySoft,
     justifyContent: 'center', alignItems: 'center',
   },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+  headerTitle: { fontSize: 20, fontWeight: '800' },
   headerBadge: {
-    backgroundColor: COLORS.error,
     minWidth: 22, height: 22, borderRadius: 11,
     justifyContent: 'center', alignItems: 'center',
     paddingHorizontal: 6,
   },
-  headerBadgeText: { fontSize: 11, fontWeight: '700', color: COLORS.white },
+  headerBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
   markAllBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: COLORS.primarySoft,
     paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: RADIUS.full,
+    borderRadius: 20,
   },
-  markAllText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
+  markAllText: { fontSize: 13, fontWeight: '600' },
 
   /* List */
-  list: { padding: SPACING.md, paddingBottom: SPACING.xxl },
+  list: { padding: SPACING.md, paddingBottom: SPACING.xl * 2, gap: SPACING.sm },
+  listEmpty: { flex: 1 },
 
   /* Card */
   card: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    ...SHADOWS.card,
+    borderWidth: 1,
     overflow: 'hidden',
   },
-  cardUnread: {
-    backgroundColor: COLORS.white,
-    borderLeftWidth: 0,
+
+  /* Unread dot */
+  unreadDotWrap: {
+    position: 'absolute',
+    left: 10,
+    top: '50%',
+    marginTop: -4,
   },
-  unreadBar: {
-    position: 'absolute', left: 0, top: 0, bottom: 0,
-    width: 4, borderTopLeftRadius: RADIUS.lg, borderBottomLeftRadius: RADIUS.lg,
-  },
-  iconWrap: {
-    width: 44, height: 44, borderRadius: 14,
-    justifyContent: 'center', alignItems: 'center',
-    flexShrink: 0,
-  },
-  cardBody: { flex: 1 },
-  cardTopRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: 3,
-  },
-  titulo: {
-    fontSize: 14, color: COLORS.textSecondary, fontWeight: '500',
-    flex: 1, marginRight: SPACING.sm,
-  },
-  tituloUnread: { color: COLORS.textPrimary, fontWeight: '700' },
-  mensaje: {
-    fontSize: 13, color: COLORS.textSecondary,
-    lineHeight: 18,
-  },
-  tiempo: { fontSize: 11, color: COLORS.textLight, flexShrink: 0 },
-  chevronWrap: {
-    width: 28, height: 28, borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center', alignItems: 'center',
-    flexShrink: 0,
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 
+  /* Icon circle */
+  iconCircle: {
+    width: 44, height: 44, borderRadius: 22,
+    justifyContent: 'center', alignItems: 'center',
+    flexShrink: 0,
+    marginLeft: 6,
+  },
+
+  /* Body */
+  cardBody: { flex: 1 },
+  titulo: {
+    fontSize: 15,
+    fontWeight: '500',
+    marginBottom: 3,
+  },
+  tituloUnread: { fontWeight: '700' },
+  mensaje: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+
+  /* Right column */
+  rightCol: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+  },
+  tiempo: { fontSize: 11, fontWeight: '500' },
+
   /* Empty */
-  empty: { alignItems: 'center', paddingTop: SPACING.xxl * 2, paddingHorizontal: SPACING.xl },
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: SPACING.xl * 3,
+    paddingHorizontal: SPACING.xl,
+  },
   emptyIconWrap: {
     width: 88, height: 88, borderRadius: 44,
-    backgroundColor: COLORS.primarySoft,
     justifyContent: 'center', alignItems: 'center',
     marginBottom: SPACING.md,
   },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.xs },
+  emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: SPACING.xs, textAlign: 'center' },
   emptyText: {
-    fontSize: 14, color: COLORS.textSecondary,
+    fontSize: 14,
     textAlign: 'center', lineHeight: 20,
   },
 });

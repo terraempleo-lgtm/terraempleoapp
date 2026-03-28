@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { chatsAPI } from '../../services/api';
-import { COLORS, SPACING, ANIMATION } from '../../theme';
+import { SPACING, RADIUS } from '../../theme';
 import { MotiView } from 'moti';
 import Animated, {
   useSharedValue, useAnimatedStyle,
@@ -32,16 +32,16 @@ function formatHora(dateStr) {
 }
 
 /* ── Shimmer skeleton row for loading ── */
-function ChatSkeleton() {
+function ChatSkeleton({ colors }) {
   return (
-    <View style={styles.chatItem}>
+    <View style={[styles.chatItem, { backgroundColor: colors.surface }]}>
       <ShimmerPlaceholder width={52} height={52} borderRadius={26} />
       <View style={styles.chatContent}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-          <ShimmerPlaceholder width={120} height={14} borderRadius={4} />
-          <ShimmerPlaceholder width={40} height={12} borderRadius={4} />
+          <ShimmerPlaceholder width={130} height={14} borderRadius={4} />
+          <ShimmerPlaceholder width={36} height={12} borderRadius={4} />
         </View>
-        <ShimmerPlaceholder width={160} height={12} borderRadius={4} style={{ marginBottom: 4 }} />
+        <ShimmerPlaceholder width={100} height={11} borderRadius={4} style={{ marginBottom: 5 }} />
         <ShimmerPlaceholder width={200} height={12} borderRadius={4} />
       </View>
     </View>
@@ -49,7 +49,7 @@ function ChatSkeleton() {
 }
 
 /* ── Pulsing badge for unread count ── */
-function PulsingBadge({ count }) {
+function PulsingBadge({ count, colors }) {
   const pulseScale = useSharedValue(1);
 
   useEffect(() => {
@@ -68,7 +68,7 @@ function PulsingBadge({ count }) {
   }));
 
   return (
-    <Animated.View style={[styles.badge, animStyle]}>
+    <Animated.View style={[styles.badge, { backgroundColor: colors.primary }, animStyle]}>
       <Text style={styles.badgeText}>
         {count > 9 ? '9+' : count}
       </Text>
@@ -126,37 +126,62 @@ export default function ChatsScreen({ navigation, route }) {
     const iniciales = item.otro_nombre
       ? item.otro_nombre.split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase()
       : '?';
+    const tieneNoLeidos = item.no_leidos > 0;
 
     return (
       <StaggeredItem index={index}>
-        <AnimatedPressable style={[styles.chatItem, { backgroundColor: colors.card }]} onPress={() => abrirChat(item)} scaleValue={0.98} haptic={false}>
+        <AnimatedPressable
+          style={[styles.chatItem, { backgroundColor: colors.surface }]}
+          onPress={() => abrirChat(item)}
+          scaleValue={0.98}
+          haptic={false}
+        >
           {/* Avatar */}
           <View style={styles.avatarContainer}>
-            <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? '#1f332b' : COLORS.primarySoft }]}>
+            <View style={[
+              styles.avatarPlaceholder,
+              { backgroundColor: isDark ? colors.primary + '28' : colors.primary + '18' },
+            ]}>
               <Text style={[styles.avatarText, { color: colors.primary }]}>{iniciales}</Text>
             </View>
             {tieneFoto && (
               <Image source={{ uri: item.otro_foto }} style={styles.avatar} />
             )}
-            {item.no_leidos > 0 && (
-              <PulsingBadge count={item.no_leidos} />
+            {tieneNoLeidos && (
+              <PulsingBadge count={item.no_leidos} colors={colors} />
             )}
           </View>
 
-          {/* Contenido */}
+          {/* Content */}
           <View style={styles.chatContent}>
+            {/* Name + time row */}
             <View style={styles.chatHeader}>
-              <Text style={[styles.nombreUsuario, { color: colors.textPrimary }]} numberOfLines={1}>{item.otro_nombre}</Text>
-              <Text style={[styles.hora, { color: colors.textMuted }]}>{formatHora(item.ultimo_mensaje_at)}</Text>
+              <Text
+                style={[
+                  styles.nombreUsuario,
+                  { color: tieneNoLeidos ? colors.textPrimary : colors.textSecondary },
+                  tieneNoLeidos && styles.nombreUnread,
+                ]}
+                numberOfLines={1}
+              >
+                {item.otro_nombre}
+              </Text>
+              <Text style={[styles.hora, { color: colors.textMuted }]}>
+                {formatHora(item.ultimo_mensaje_at)}
+              </Text>
             </View>
+
+            {/* Vacancy label */}
             <Text style={[styles.vacanteTitulo, { color: colors.primary }]} numberOfLines={1}>
               {item.vacante_titulo}
             </Text>
+
+            {/* Last message */}
             <Text
               style={[
                 styles.ultimoMensaje,
-                { color: colors.textSecondary },
-                item.no_leidos > 0 && [styles.ultimoMensajeNoLeido, { color: colors.textPrimary }],
+                { color: tieneNoLeidos ? colors.textPrimary : colors.textMuted },
+                tieneNoLeidos && styles.ultimoMensajeNoLeido,
               ]}
               numberOfLines={1}
             >
@@ -174,9 +199,9 @@ export default function ChatsScreen({ navigation, route }) {
         <DecorativeBackground />
         <FadeInView delay={0}>
           {[0, 1, 2, 3].map(i => (
-            <View key={i}>
-              <ChatSkeleton />
-              <View style={styles.separator} />
+            <View key={i} style={{ gap: 0 }}>
+              <ChatSkeleton colors={colors} />
+              <View style={[styles.separator, { backgroundColor: colors.border }]} />
             </View>
           ))}
         </FadeInView>
@@ -200,13 +225,15 @@ export default function ChatsScreen({ navigation, route }) {
               easing: Easing.inOut(Easing.ease),
             }}
           >
-            <Ionicons name="chatbubbles-outline" size={64} color={colors.textMuted} />
+            <View style={[styles.emptyIconWrap, { backgroundColor: colors.primary + '18' }]}>
+              <Ionicons name="chatbubbles-outline" size={48} color={colors.primary} />
+            </View>
           </MotiView>
           <FadeInView delay={200}>
             <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin conversaciones</Text>
           </FadeInView>
           <FadeInView delay={300}>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}> 
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               Los chats aparecen cuando un empleador acepta tu postulación.
             </Text>
           </FadeInView>
@@ -216,8 +243,19 @@ export default function ChatsScreen({ navigation, route }) {
           data={chats}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderChat}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => (
+            <View style={[styles.separator, { backgroundColor: colors.border, marginLeft: 80 }]} />
+          )}
         />
       )}
     </View>
@@ -225,80 +263,98 @@ export default function ChatsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1 },
+
+  listContent: { paddingBottom: SPACING.xl * 2 },
+
+  /* Empty state */
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
   },
+  emptyIconWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginTop: 16,
+    marginTop: 4,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyText: {
     fontSize: 14,
-    color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
+
+  /* Chat item */
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.white,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
   },
-  separator: { height: 1, backgroundColor: COLORS.borderLight, marginLeft: 76 },
-  avatarContainer: { position: 'relative', marginRight: 12 },
+  separator: { height: 1 },
+
+  /* Avatar */
+  avatarContainer: { position: 'relative', marginRight: SPACING.md },
   avatar: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 52,
-    height: 52,
+    top: 0, left: 0,
+    width: 52, height: 52,
     borderRadius: 26,
   },
   avatarPlaceholder: {
-    width: 52,
-    height: 52,
+    width: 52, height: 52,
     borderRadius: 26,
-    backgroundColor: COLORS.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: { fontSize: 18, fontWeight: '700', color: COLORS.primary },
+  avatarText: { fontSize: 18, fontWeight: '700' },
+
+  /* Unread badge */
   badge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: COLORS.primary,
+    top: -2, right: -2,
     borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    minWidth: 20, height: 20,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
     borderWidth: 2,
-    borderColor: COLORS.white,
+    borderColor: '#fff',
   },
-  badgeText: { color: COLORS.white, fontSize: 11, fontWeight: '700' },
+  badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+
+  /* Content */
   chatContent: { flex: 1 },
-  chatHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
-  nombreUsuario: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    flex: 1,
-    marginRight: 8,
+  chatHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
   },
-  hora: { fontSize: 12, color: COLORS.textLight },
-  vacanteTitulo: { fontSize: 12, color: COLORS.primary, fontWeight: '500', marginBottom: 2 },
-  ultimoMensaje: { fontSize: 13, color: COLORS.textSecondary },
-  ultimoMensajeNoLeido: { color: COLORS.textPrimary, fontWeight: '600' },
+  nombreUsuario: {
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  nombreUnread: { fontWeight: '700' },
+  hora: { fontSize: 11, fontWeight: '500' },
+  vacanteTitulo: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  ultimoMensaje: { fontSize: 13, fontWeight: '500' },
+  ultimoMensajeNoLeido: { fontWeight: '600' },
 });
