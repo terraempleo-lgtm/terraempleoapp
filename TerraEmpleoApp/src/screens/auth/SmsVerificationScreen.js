@@ -7,8 +7,10 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { authAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../utils/alertService';
+import { useAppTheme } from '../../context/ThemeContext';
 
 export default function SmsVerificationScreen({ route, navigation }) {
+  const { colors, isDark } = useAppTheme();
   const { celular, onVerificado, siguienteRuta, siguienteParams } = route.params || {};
 
   const [codigo, setCodigo] = useState(['', '', '', '', '', '']);
@@ -94,7 +96,7 @@ export default function SmsVerificationScreen({ route, navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.contenido}>
@@ -103,8 +105,8 @@ export default function SmsVerificationScreen({ route, navigation }) {
           <Ionicons name="shield-checkmark" size={36} color={COLORS.primary} />
         </View>
 
-        <Text style={styles.titulo}>Verifica tu celular</Text>
-        <Text style={styles.subtitulo}>
+        <Text style={[styles.titulo, { color: colors.textPrimary }]}>Verifica tu celular</Text>
+        <Text style={[styles.subtitulo, { color: colors.textSecondary }]}>
           Ingresa el código de 6 dígitos que enviamos al
         </Text>
         <Text style={styles.celular}>{celular}</Text>
@@ -115,7 +117,7 @@ export default function SmsVerificationScreen({ route, navigation }) {
             <TextInput
               key={index}
               ref={(ref) => (inputRefs.current[index] = ref)}
-              style={[styles.otpInput, digito ? styles.otpInputActivo : null]}
+              style={[styles.otpInput, { borderColor: colors.border, backgroundColor: isDark ? colors.surface : '#F9FAFB', color: colors.textPrimary }, digito ? styles.otpInputActivo : null]}
               value={digito}
               onChangeText={(val) => handleCambioDigito(val, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
@@ -143,7 +145,7 @@ export default function SmsVerificationScreen({ route, navigation }) {
 
         {/* Reenviar código */}
         <View style={styles.reenviarContainer}>
-          <Text style={styles.reenviarTexto}>¿No recibiste el código? </Text>
+          <Text style={[styles.reenviarTexto, { color: colors.textSecondary }]}>¿No recibiste el código? </Text>
           {countdown > 0 ? (
             <View style={styles.countdownWrap}>
               <Ionicons name="time-outline" size={14} color={COLORS.textLight} />

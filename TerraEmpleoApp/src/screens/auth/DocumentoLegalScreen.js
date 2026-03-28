@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 
 const CONTENIDOS = {
   habeas: {
@@ -75,23 +76,24 @@ const CONTENIDOS = {
 
 export default function DocumentoLegalScreen({ route }) {
   const tipo = route?.params?.tipo === 'terminos' ? 'terminos' : 'habeas';
+  const { colors } = useAppTheme();
 
   const contenido = useMemo(() => {
     return CONTENIDOS[tipo];
   }, [tipo]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerCard}>
-          <Text style={styles.titulo}>{contenido.titulo}</Text>
-          <Text style={styles.subtitulo}>{contenido.subtitulo}</Text>
+        <View style={[styles.headerCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.titulo, { color: colors.textPrimary }]}>{contenido.titulo}</Text>
+          <Text style={[styles.subtitulo, { color: colors.textSecondary }]}>{contenido.subtitulo}</Text>
         </View>
 
         {contenido.secciones.map((seccion) => (
-          <View key={seccion.titulo} style={styles.seccionCard}>
-            <Text style={styles.seccionTitulo}>{seccion.titulo}</Text>
-            <Text style={styles.seccionTexto}>{seccion.texto}</Text>
+          <View key={seccion.titulo} style={[styles.seccionCard, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.seccionTitulo, { color: colors.textPrimary }]}>{seccion.titulo}</Text>
+            <Text style={[styles.seccionTexto, { color: colors.textSecondary }]}>{seccion.texto}</Text>
           </View>
         ))}
       </ScrollView>

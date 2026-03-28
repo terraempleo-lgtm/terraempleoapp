@@ -12,6 +12,7 @@ import { DEPARTAMENTOS, getMunicipios } from '../../data/colombia';
 import { CULTIVOS, LABORES, NIVELES_ESTUDIO, TITULOS_SUGERIDOS, EXPERIENCIA_OPTIONS, DISPONIBILIDAD_OPTIONS } from '../../data/options';
 import { authAPI, cognitoAPI, setAuthToken } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import CamaraFoto from '../../components/CamaraFoto';
 import { showAlert } from '../../utils/alertService';
@@ -25,6 +26,7 @@ const STEP_LABELS = [
 
 export default function RegisterTrabajadorScreen({ navigation }) {
   const { signIn } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -286,8 +288,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <View style={styles.stepIconWrap}>
               <Ionicons name="person-circle-outline" size={32} color={COLORS.primary} />
             </View>
-            <Text style={styles.stepTitle}>Datos Personales</Text>
-            <Text style={styles.stepDesc}>Cuéntanos quién eres</Text>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Datos Personales</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Cuéntanos quién eres</Text>
             <Input label="Nombre completo" value={nombre} onChangeText={setNombre}
               placeholder="Ej: Juan Pérez García" icon="person-outline" required error={errors.nombre} />
             <Input label="Celular" value={celular} onChangeText={setCelular}
@@ -308,34 +310,34 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <View style={styles.stepIconWrap}>
               <Ionicons name="location-outline" size={32} color={COLORS.primary} />
             </View>
-            <Text style={styles.stepTitle}>Ubicación</Text>
-            <Text style={styles.stepDesc}>¿Dónde te encuentras?</Text>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Ubicación</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>¿Dónde te encuentras?</Text>
 
-            <Text style={styles.fieldLabel}>Departamento *</Text>
-            <TouchableOpacity style={styles.pickerButtonNew} onPress={() => setShowDeptPicker(true)}>
+            <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Departamento *</Text>
+            <TouchableOpacity style={[styles.pickerButtonNew, { backgroundColor: isDark ? colors.surface : '#F9FAFB', borderColor: colors.border }]} onPress={() => setShowDeptPicker(true)}>
               <Ionicons name="map-outline" size={20} color={departamento ? COLORS.primary : COLORS.textLight} />
-              <Text style={[styles.pickerText, !departamento && { color: COLORS.textLight }]}>
+              <Text style={[styles.pickerText, { color: colors.textPrimary }, !departamento && { color: colors.textMuted }]}>
                 {departamento || 'Seleccione un departamento'}
               </Text>
               <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
             </TouchableOpacity>
             {errors.departamento && <Text style={styles.errorText}>{errors.departamento}</Text>}
 
-            <Text style={styles.fieldLabel}>Municipio *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Municipio *</Text>
             <TouchableOpacity
-              style={[styles.pickerButtonNew, !departamento && styles.pickerDisabled]}
+              style={[styles.pickerButtonNew, { backgroundColor: isDark ? colors.surface : '#F9FAFB', borderColor: colors.border }, !departamento && styles.pickerDisabled]}
               onPress={() => departamento && setShowMunPicker(true)}
               disabled={!departamento}
             >
               <Ionicons name="business-outline" size={20} color={municipio ? COLORS.primary : COLORS.textLight} />
-              <Text style={[styles.pickerText, !municipio && { color: COLORS.textLight }]}>
+              <Text style={[styles.pickerText, { color: colors.textPrimary }, !municipio && { color: colors.textMuted }]}>
                 {municipio || 'Seleccione un municipio'}
               </Text>
               <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
             </TouchableOpacity>
             {errors.municipio && <Text style={styles.errorText}>{errors.municipio}</Text>}
 
-            <Text style={styles.fieldLabel}>Vereda / Sector</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Vereda / Sector</Text>
             <Input value={vereda} onChangeText={setVereda}
               placeholder="Ej: Vereda La Linda" icon="trail-sign-outline" />
 
@@ -375,27 +377,27 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <View style={styles.stepIconWrap}>
               <Ionicons name="shield-checkmark-outline" size={32} color={COLORS.primary} />
             </View>
-            <Text style={styles.stepTitle}>Cédula y Datos Legales</Text>
-            <Text style={styles.stepDesc}>Necesitamos verificar tu identidad</Text>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Cédula y Datos Legales</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Necesitamos verificar tu identidad</Text>
             <Input label="Número de cédula" value={cedula} onChangeText={setCedula}
               placeholder="Ej: 1234567890" keyboardType="numeric" icon="card-outline" required error={errors.cedula} />
 
-            <Text style={styles.legalSectionTitle}>Consentimientos legales</Text>
+            <Text style={[styles.legalSectionTitle, { color: colors.textPrimary }]}>Consentimientos legales</Text>
 
-            <View style={styles.legalCard}>
+            <View style={[styles.legalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.legalCardHeader}>
                 <View style={styles.legalIconWrap}>
                   <Ionicons name="document-text-outline" size={20} color={COLORS.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.legalCardTitle}>Habeas Data</Text>
-                  <Text style={styles.legalCardDesc}>Ley 1581 de 2012</Text>
+                  <Text style={[styles.legalCardTitle, { color: colors.textPrimary }]}>Habeas Data</Text>
+                  <Text style={[styles.legalCardDesc, { color: colors.textMuted }]}>Ley 1581 de 2012</Text>
                 </View>
                 <Switch value={!!aceptaHabeasData} onValueChange={setAceptaHabeasData}
                   trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
                   thumbColor={aceptaHabeasData ? COLORS.primary : '#f4f3f4'} />
               </View>
-              <Text style={styles.legalCardText}>
+              <Text style={[styles.legalCardText, { color: colors.textSecondary }]}>
                 Autorizo el tratamiento de mis datos personales, según la Ley 1581 de 2012.
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('DocumentoLegal', { tipo: 'habeas' })}>
@@ -404,20 +406,20 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             </View>
             {errors.habeas && <Text style={styles.errorText}>{errors.habeas}</Text>}
 
-            <View style={styles.legalCard}>
+            <View style={[styles.legalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.legalCardHeader}>
                 <View style={styles.legalIconWrap}>
                   <Ionicons name="checkmark-done-outline" size={20} color={COLORS.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.legalCardTitle}>Términos y Condiciones</Text>
-                  <Text style={styles.legalCardDesc}>Uso de la plataforma</Text>
+                  <Text style={[styles.legalCardTitle, { color: colors.textPrimary }]}>Términos y Condiciones</Text>
+                  <Text style={[styles.legalCardDesc, { color: colors.textMuted }]}>Uso de la plataforma</Text>
                 </View>
                 <Switch value={!!aceptaTerminos} onValueChange={setAceptaTerminos}
                   trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
                   thumbColor={aceptaTerminos ? COLORS.primary : '#f4f3f4'} />
               </View>
-              <Text style={styles.legalCardText}>
+              <Text style={[styles.legalCardText, { color: colors.textSecondary }]}>
                 Acepto los Términos y Condiciones de uso de la plataforma TerraEmpleo.
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('DocumentoLegal', { tipo: 'terminos' })}>
@@ -436,8 +438,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <View style={styles.stepIconWrap}>
               <Ionicons name="school-outline" size={32} color={COLORS.primary} />
             </View>
-            <Text style={styles.stepTitle}>Nivel de Estudios</Text>
-            <Text style={styles.stepDesc}>¿Cuál es tu formación?</Text>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Nivel de Estudios</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>¿Cuál es tu formación?</Text>
             <ChipSelector
               options={NIVELES_ESTUDIO.map(n => n.label)}
               selected={nivelEstudios ? [NIVELES_ESTUDIO.find(n => n.value === nivelEstudios)?.label] : []}
@@ -451,7 +453,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             />
             {(nivelEstudios === 'tecnico_tecnologo' || nivelEstudios === 'universitario') && (
               <View style={{ marginTop: SPACING.md }}>
-                <Text style={styles.fieldLabel}>Título obtenido</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Título obtenido</Text>
                 <Input
                   value={tituloEstudio}
                   onChangeText={setTituloEstudio}
@@ -460,9 +462,9 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   helper="Si no aparece en la lista, escríbelo manualmente."
                   maxLength={80}
                 />
-                <TouchableOpacity style={styles.pickerButtonNew} onPress={() => setShowTituloPicker(true)}>
+                <TouchableOpacity style={[styles.pickerButtonNew, { backgroundColor: isDark ? colors.surface : '#F9FAFB', borderColor: colors.border }]} onPress={() => setShowTituloPicker(true)}>
                   <Ionicons name="school-outline" size={20} color={tituloEstudio ? COLORS.primary : COLORS.textLight} />
-                  <Text style={[styles.pickerText, !tituloEstudio && { color: COLORS.textLight }]}>
+                  <Text style={[styles.pickerText, { color: colors.textPrimary }, !tituloEstudio && { color: colors.textMuted }]}>
                     {tituloEstudio || 'Seleccionar título sugerido'}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
@@ -479,8 +481,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <View style={styles.stepIconWrap}>
               <Ionicons name="construct-outline" size={32} color={COLORS.primary} />
             </View>
-            <Text style={styles.stepTitle}>Experiencia Laboral</Text>
-            <Text style={styles.stepDesc}>Selecciona tus habilidades y labores principales para ayudarte a encontrar mejores oportunidades.</Text>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Experiencia Laboral</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Selecciona tus habilidades y labores principales para ayudarte a encontrar mejores oportunidades.</Text>
             <ChipSelector
               label="Labores / Habilidades"
               options={LABORES}
@@ -500,8 +502,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <View style={styles.stepIconWrap}>
               <Ionicons name="leaf-outline" size={32} color={COLORS.primary} />
             </View>
-            <Text style={styles.stepTitle}>Cultivos y Disponibilidad</Text>
-            <Text style={styles.stepDesc}>Indica en qué has trabajado y cuándo estás disponible.</Text>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Cultivos y Disponibilidad</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Indica en qué has trabajado y cuándo estás disponible.</Text>
 
             <ChipSelector
               label="¿En qué cultivos has trabajado?"
@@ -512,7 +514,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               customLabel="+ Otro cultivo"
             />
 
-            <Text style={[styles.stepSubtitle, { marginTop: SPACING.lg }]}>Años de experiencia</Text>
+            <Text style={[styles.stepSubtitle, { marginTop: SPACING.lg, color: colors.textPrimary }]}>Años de experiencia</Text>
             <ChipSelector
               options={EXPERIENCIA_OPTIONS.map(e => e.label)}
               selected={experiencia ? [EXPERIENCIA_OPTIONS.find(e => e.value === experiencia)?.label] : []}
@@ -524,7 +526,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
               allowCustom={false}
             />
 
-            <Text style={[styles.stepSubtitle, { marginTop: SPACING.lg }]}>Disponibilidad</Text>
+            <Text style={[styles.stepSubtitle, { marginTop: SPACING.lg, color: colors.textPrimary }]}>Disponibilidad</Text>
             <ChipSelector
               options={DISPONIBILIDAD_OPTIONS.map(d => d.label)}
               selected={disponibilidad ? [DISPONIBILIDAD_OPTIONS.find(d => d.value === disponibilidad)?.label] : []}
@@ -545,21 +547,21 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <View style={styles.stepIconWrap}>
               <Ionicons name="chatbubble-ellipses-outline" size={32} color={COLORS.primary} />
             </View>
-            <Text style={styles.stepTitle}>Verificación SMS</Text>
-            <Text style={styles.stepDesc}>Verificaremos tu número de celular</Text>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Verificación SMS</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Verificaremos tu número de celular</Text>
 
             {!codigoEnviado ? (
               <View style={styles.smsContainer}>
                 <View style={styles.smsIconCircle}>
                   <Ionicons name="shield-checkmark" size={28} color={COLORS.primary} />
                 </View>
-                <Text style={styles.smsText}>Se enviará un código de 6 dígitos a:</Text>
+                <Text style={[styles.smsText, { color: colors.textSecondary }]}>Se enviará un código de 6 dígitos a:</Text>
                 <Text style={styles.smsPhone}>{celular}</Text>
                 <Button title="Enviar Código" onPress={enviarCodigo} size="large" />
               </View>
             ) : (
               <View style={styles.smsContainer}>
-                <Text style={styles.smsText}>Ingresa el código de 6 dígitos:</Text>
+                <Text style={[styles.smsText, { color: colors.textSecondary }]}>Ingresa el código de 6 dígitos:</Text>
                 <Input label="Código de verificación" value={codigoSMS} onChangeText={setCodigoSMS}
                   placeholder="Ingresa el código" keyboardType="numeric" maxLength={6}
                   icon="key-outline" error={errors.codigo} />
@@ -578,13 +580,13 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <View style={styles.stepIconWrap}>
               <Ionicons name="camera-outline" size={32} color={COLORS.primary} />
             </View>
-            <Text style={styles.stepTitle}>Fotos de Verificación</Text>
-            <Text style={styles.stepDesc}>Necesitamos verificar tu identidad</Text>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Fotos de Verificación</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Necesitamos verificar tu identidad</Text>
 
             <InfoBox variant="tip" text="Solo puedes tomar la foto en el momento, no se permite subir desde galería." />
 
             {/* Selfie */}
-            <View style={[styles.fotoCard, fotoSelfie && styles.fotoCardDone]}>
+            <View style={[styles.fotoCard, { backgroundColor: colors.surface, borderColor: colors.border }, fotoSelfie && styles.fotoCardDone]}>
               <View style={styles.fotoCardTop}>
                 <View style={[styles.fotoIconCircle, fotoSelfie && styles.fotoIconCircleDone]}>
                   <Ionicons
@@ -594,8 +596,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fotoLabel}>Selfie</Text>
-                  <Text style={styles.fotoDesc}>Foto de tu cara, mirando a la cámara</Text>
+                  <Text style={[styles.fotoLabel, { color: colors.textPrimary }]}>Selfie</Text>
+                  <Text style={[styles.fotoDesc, { color: colors.textMuted }]}>Foto de tu cara, mirando a la cámara</Text>
                 </View>
               </View>
               <InfoBox variant="info" text="Esta selfie será tu foto de perfil en TerraEmpleo." />
@@ -611,7 +613,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             {errors.selfie && <Text style={styles.errorText}>{errors.selfie}</Text>}
 
             {/* Foto cedula */}
-            <View style={[styles.fotoCard, fotoCedula && styles.fotoCardDone]}>
+            <View style={[styles.fotoCard, { backgroundColor: colors.surface, borderColor: colors.border }, fotoCedula && styles.fotoCardDone]}>
               <View style={styles.fotoCardTop}>
                 <View style={[styles.fotoIconCircle, fotoCedula && styles.fotoIconCircleDone]}>
                   <Ionicons
@@ -621,8 +623,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fotoLabel}>Foto de Cédula</Text>
-                  <Text style={styles.fotoDesc}>Foto frontal de tu documento de identidad</Text>
+                  <Text style={[styles.fotoLabel, { color: colors.textPrimary }]}>Foto de Cédula</Text>
+                  <Text style={[styles.fotoDesc, { color: colors.textMuted }]}>Foto frontal de tu documento de identidad</Text>
                 </View>
               </View>
               {!fotoCedula ? (
@@ -637,7 +639,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             {errors.cedFoto && <Text style={styles.errorText}>{errors.cedFoto}</Text>}
 
             {/* Selfie con cedula */}
-            <View style={[styles.fotoCard, fotoSelfieCedula && styles.fotoCardDone]}>
+            <View style={[styles.fotoCard, { backgroundColor: colors.surface, borderColor: colors.border }, fotoSelfieCedula && styles.fotoCardDone]}>
               <View style={styles.fotoCardTop}>
                 <View style={[styles.fotoIconCircle, fotoSelfieCedula && styles.fotoIconCircleDone]}>
                   <Ionicons
@@ -647,8 +649,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fotoLabel}>Selfie con Cédula</Text>
-                  <Text style={styles.fotoDesc}>Tú sosteniendo tu cédula junto a tu cara</Text>
+                  <Text style={[styles.fotoLabel, { color: colors.textPrimary }]}>Selfie con Cédula</Text>
+                  <Text style={[styles.fotoDesc, { color: colors.textMuted }]}>Tú sosteniendo tu cédula junto a tu cara</Text>
                 </View>
               </View>
               {!fotoSelfieCedula ? (
@@ -671,8 +673,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             <View style={styles.stepIconWrap}>
               <Ionicons name="document-text-outline" size={32} color={COLORS.primary} />
             </View>
-            <Text style={styles.stepTitle}>Resumen de tu Perfil</Text>
-            <Text style={styles.stepDesc}>Revisa que toda tu información sea correcta antes de finalizar.</Text>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Resumen de tu Perfil</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Revisa que toda tu información sea correcta antes de finalizar.</Text>
 
             {/* Identity hero */}
             <View style={styles.summaryHero}>
@@ -680,7 +682,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                 {fotoSelfie ? (
                   <Image source={{ uri: fotoSelfie }} style={styles.summaryAvatar} />
                 ) : (
-                  <View style={[styles.summaryAvatar, styles.summaryAvatarPlaceholder]}>
+                  <View style={[styles.summaryAvatar, styles.summaryAvatarPlaceholder, { backgroundColor: colors.surface }]}>
                     <Ionicons name="person" size={48} color={COLORS.primaryLight} />
                   </View>
                 )}
@@ -688,87 +690,91 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   <Ionicons name="checkmark" size={14} color={COLORS.white} />
                 </View>
               </View>
-              <Text style={styles.summaryHeroName}>{nombre}</Text>
-              <Text style={styles.summaryHeroSub}>Trabajador · {municipio || departamento}</Text>
-              <View style={styles.summaryVerifiedRow}>
+              <Text style={[styles.summaryHeroName, { color: colors.textPrimary }]}>{nombre}</Text>
+              <Text style={[styles.summaryHeroSub, { color: colors.textSecondary }]}>Trabajador · {municipio || departamento}</Text>
+              <View style={[styles.summaryVerifiedRow, { backgroundColor: colors.surface }]}>
                 <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />
                 <Text style={styles.summaryVerifiedText}>Identidad verificada</Text>
               </View>
             </View>
 
-            <Text style={styles.summaryGroupLabel}>DATOS DE LA CUENTA</Text>
+            <Text style={[styles.summaryGroupLabel, { color: colors.textMuted }]}>DATOS DE LA CUENTA</Text>
 
-            <View style={styles.summaryGroup}>
-              <SummaryCard icon="person-outline" label="NOMBRE COMPLETO" value={nombre} />
-              <View style={styles.summaryDivider} />
-              <SummaryCard icon="call-outline" label="CELULAR" value={celular} />
-              {correo ? <View style={styles.summaryDivider} /> : null}
-              {correo ? <SummaryCard icon="mail-outline" label="CORREO" value={correo} /> : null}
+            <View style={[styles.summaryGroup, { backgroundColor: colors.surface }]}>
+              <SummaryCard icon="person-outline" label="NOMBRE COMPLETO" value={nombre} colors={colors} />
+              <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+              <SummaryCard icon="call-outline" label="CELULAR" value={celular} colors={colors} />
+              {correo ? <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} /> : null}
+              {correo ? <SummaryCard icon="mail-outline" label="CORREO" value={correo} colors={colors} /> : null}
             </View>
 
-            <Text style={styles.summaryGroupLabel}>UBICACIÓN</Text>
-            <View style={styles.summaryGroup}>
+            <Text style={[styles.summaryGroupLabel, { color: colors.textMuted }]}>UBICACIÓN</Text>
+            <View style={[styles.summaryGroup, { backgroundColor: colors.surface }]}>
               <SummaryCard
                 icon="location-outline"
                 label="MUNICIPIO Y DEPARTAMENTO"
                 value={`${municipio}, ${departamento}`}
+                colors={colors}
               />
-              {vereda ? <View style={styles.summaryDivider} /> : null}
-              {vereda ? <SummaryCard icon="trail-sign-outline" label="VEREDA" value={vereda} /> : null}
+              {vereda ? <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} /> : null}
+              {vereda ? <SummaryCard icon="trail-sign-outline" label="VEREDA" value={vereda} colors={colors} /> : null}
             </View>
 
-            <Text style={styles.summaryGroupLabel}>PERFIL PROFESIONAL</Text>
-            <View style={styles.summaryGroup}>
+            <Text style={[styles.summaryGroupLabel, { color: colors.textMuted }]}>PERFIL PROFESIONAL</Text>
+            <View style={[styles.summaryGroup, { backgroundColor: colors.surface }]}>
               <SummaryCard
                 icon="school-outline"
                 label="ESTUDIOS"
                 value={NIVELES_ESTUDIO.find(n => n.value === nivelEstudios)?.label || 'N/A'}
+                colors={colors}
               />
-              {tituloEstudio ? <View style={styles.summaryDivider} /> : null}
-              {tituloEstudio ? <SummaryCard icon="ribbon-outline" label="TÍTULO" value={tituloEstudio} /> : null}
-              <View style={styles.summaryDivider} />
+              {tituloEstudio ? <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} /> : null}
+              {tituloEstudio ? <SummaryCard icon="ribbon-outline" label="TÍTULO" value={tituloEstudio} colors={colors} /> : null}
+              <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
               <SummaryCard
                 icon="time-outline"
                 label="EXPERIENCIA"
                 value={EXPERIENCIA_OPTIONS.find(e => e.value === experiencia)?.label || 'N/A'}
+                colors={colors}
               />
-              <View style={styles.summaryDivider} />
+              <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
               <SummaryCard
                 icon="calendar-outline"
                 label="DISPONIBILIDAD"
                 value={DISPONIBILIDAD_OPTIONS.find(d => d.value === disponibilidad)?.label || 'N/A'}
+                colors={colors}
               />
             </View>
 
             {(cultivos.length > 0 || habilidades.length > 0) ? (
               <View>
-                <Text style={styles.summaryGroupLabel}>HABILIDADES</Text>
-                <View style={styles.summaryGroup}>
+                <Text style={[styles.summaryGroupLabel, { color: colors.textMuted }]}>HABILIDADES</Text>
+                <View style={[styles.summaryGroup, { backgroundColor: colors.surface }]}>
                   {cultivos.length > 0 ? (
-                    <SummaryCard icon="leaf-outline" label="CULTIVOS" value={cultivos.join(' · ')} />
+                    <SummaryCard icon="leaf-outline" label="CULTIVOS" value={cultivos.join(' · ')} colors={colors} />
                   ) : null}
                   {cultivos.length > 0 && habilidades.length > 0 ? (
-                    <View style={styles.summaryDivider} />
+                    <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
                   ) : null}
                   {habilidades.length > 0 ? (
-                    <SummaryCard icon="construct-outline" label="HABILIDADES" value={habilidades.join(' · ')} />
+                    <SummaryCard icon="construct-outline" label="HABILIDADES" value={habilidades.join(' · ')} colors={colors} />
                   ) : null}
                 </View>
               </View>
             ) : null}
 
             <View style={styles.summaryFotosRow}>
-              <View style={[styles.summaryFotoChip, fotoCedula && styles.summaryFotoChipDone]}>
+              <View style={[styles.summaryFotoChip, { backgroundColor: colors.surface, borderColor: colors.border }, fotoCedula && styles.summaryFotoChipDone]}>
                 <Ionicons name={fotoCedula ? 'checkmark-circle' : 'close-circle'} size={15}
                   color={fotoCedula ? COLORS.primary : COLORS.textLight} />
-                <Text style={[styles.summaryFotoChipText, fotoCedula && styles.summaryFotoChipTextDone]}>
+                <Text style={[styles.summaryFotoChipText, { color: colors.textMuted }, fotoCedula && styles.summaryFotoChipTextDone]}>
                   Cédula
                 </Text>
               </View>
-              <View style={[styles.summaryFotoChip, fotoSelfieCedula && styles.summaryFotoChipDone]}>
+              <View style={[styles.summaryFotoChip, { backgroundColor: colors.surface, borderColor: colors.border }, fotoSelfieCedula && styles.summaryFotoChipDone]}>
                 <Ionicons name={fotoSelfieCedula ? 'checkmark-circle' : 'close-circle'} size={15}
                   color={fotoSelfieCedula ? COLORS.primary : COLORS.textLight} />
-                <Text style={[styles.summaryFotoChipText, fotoSelfieCedula && styles.summaryFotoChipTextDone]}>
+                <Text style={[styles.summaryFotoChipText, { color: colors.textMuted }, fotoSelfieCedula && styles.summaryFotoChipTextDone]}>
                   Selfie+Cédula
                 </Text>
               </View>
@@ -779,7 +785,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} labels={STEP_LABELS} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -851,15 +857,15 @@ export default function RegisterTrabajadorScreen({ navigation }) {
   );
 }
 
-function SummaryCard({ icon, label, value }) {
+function SummaryCard({ icon, label, value, colors }) {
   return (
     <View style={summaryStyles.row}>
       <View style={summaryStyles.iconWrap}>
         <Ionicons name={icon} size={18} color={COLORS.primary} />
       </View>
       <View style={summaryStyles.textWrap}>
-        <Text style={summaryStyles.label}>{label}</Text>
-        <Text style={summaryStyles.value}>{value}</Text>
+        <Text style={[summaryStyles.label, colors && { color: colors.textMuted }]}>{label}</Text>
+        <Text style={[summaryStyles.value, colors && { color: colors.textPrimary }]}>{value}</Text>
       </View>
     </View>
   );

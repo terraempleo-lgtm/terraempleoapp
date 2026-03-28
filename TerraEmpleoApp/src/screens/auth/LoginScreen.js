@@ -85,8 +85,8 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.gradientBg}>
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+    <View style={[styles.gradientBg, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
 
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView

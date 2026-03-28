@@ -4,8 +4,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { AppHeader, Button, TerraFooter } from '../../components/ui';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Button, TerraFooter } from '../../components/ui';
+import { useAppTheme } from '../../context/ThemeContext';
 
 const ROLES = [
   {
@@ -27,7 +28,8 @@ const ROLES = [
 ];
 
 export default function RoleSelectScreen({ navigation }) {
-  const [selected, setSelected] = useState(null);
+  const { colors } = useAppTheme();
+  const [selected, setSelected]= useState(null);
 
   const handleContinue = () => {
     if (!selected) return;
@@ -36,8 +38,7 @@ export default function RoleSelectScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <AppHeader onBack={() => navigation.goBack()} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -45,8 +46,8 @@ export default function RoleSelectScreen({ navigation }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>¿Cómo quieres usar TerraEmpleo?</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>¿Cómo quieres usar TerraEmpleo?</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Selecciona tu perfil para personalizar tu experiencia en el campo.
           </Text>
         </View>
@@ -58,7 +59,7 @@ export default function RoleSelectScreen({ navigation }) {
             return (
               <TouchableOpacity
                 key={role.key}
-                style={[styles.card, isSelected && styles.cardSelected]}
+                style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, isSelected && styles.cardSelected]}
                 onPress={() => setSelected(role.key)}
                 activeOpacity={0.8}
               >
@@ -73,10 +74,10 @@ export default function RoleSelectScreen({ navigation }) {
 
                 {/* Text */}
                 <View style={styles.cardText}>
-                  <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>
+                  <Text style={[styles.cardTitle, { color: colors.textPrimary }, isSelected && styles.cardTitleSelected]}>
                     {role.title}
                   </Text>
-                  <Text style={styles.cardDesc}>{role.description}</Text>
+                  <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>{role.description}</Text>
                 </View>
               </TouchableOpacity>
             );
@@ -85,7 +86,7 @@ export default function RoleSelectScreen({ navigation }) {
       </ScrollView>
 
       {/* Bottom area */}
-      <View style={styles.bottomArea}>
+      <View style={[styles.bottomArea, { backgroundColor: colors.background }]}>
         <Button
           title="Continuar"
           onPress={handleContinue}

@@ -16,9 +16,11 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input } from '../../components/ui';
 import { authAPI, cognitoAPI } from '../../services/api';
 import { showAlert } from '../../utils/alertService';
+import { useAppTheme } from '../../context/ThemeContext';
 
 
 export default function RecuperarPasswordScreen({ navigation, route }) {
+  const { colors, isDark } = useAppTheme();
   const celularInicial = route?.params?.celularInicial || '';
   // Método de recuperación: 'sms' | 'email'
   const [metodo, setMetodo] = useState('sms');
@@ -241,29 +243,29 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
   const strength = fuerzaPassword();
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
           <View style={styles.recuperarContainer}>
             {/* ── Paso 1: Solicitar código ── */}
             {paso === 1 && (
               <>
-                <Text style={styles.recuperarTitulo}>Restablecer contraseña</Text>
-                <Text style={styles.recuperarSubtitulo}>
+                <Text style={[styles.recuperarTitulo, { color: colors.textPrimary }]}>Restablecer contraseña</Text>
+                <Text style={[styles.recuperarSubtitulo, { color: colors.textSecondary }]}>
                   Elige cómo quieres recibir tu código de recuperación
                 </Text>
 
                 {/* Tabs SMS / Email / Passkey */}
                 <View style={styles.tabsRow}>
                   <TouchableOpacity
-                    style={[styles.tab, metodo === 'sms' && styles.tabActive]}
+                    style={[styles.tab, { backgroundColor: metodo === 'sms' ? COLORS.primary : colors.surface }, metodo === 'sms' && styles.tabActive]}
                     onPress={() => cambiarMetodo('sms')}
                   >
                     <Ionicons name="chatbubble-outline" size={18} color={metodo === 'sms' ? COLORS.white : COLORS.primary} />
                     <Text style={[styles.tabText, metodo === 'sms' && styles.tabTextActive]}>SMS</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.tab, metodo === 'email' && styles.tabActive]}
+                    style={[styles.tab, { backgroundColor: metodo === 'email' ? COLORS.primary : colors.surface }, metodo === 'email' && styles.tabActive]}
                     onPress={() => cambiarMetodo('email')}
                   >
                     <Ionicons name="mail-outline" size={18} color={metodo === 'email' ? COLORS.white : COLORS.primary} />
@@ -321,8 +323,8 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
             {/* ── Paso 2: Verificar código OTP ── */}
             {paso === 2 && (
               <>
-                <Text style={styles.recuperarTitulo}>Ingresa el código</Text>
-                <Text style={styles.recuperarSubtitulo}>
+                <Text style={[styles.recuperarTitulo, { color: colors.textPrimary }]}>Ingresa el código</Text>
+                <Text style={[styles.recuperarSubtitulo, { color: colors.textSecondary }]}>
                   {metodo === 'email'
                     ? `Enviamos un código de 6 dígitos a ${correo}`
                     : `Enviamos un código de 6 dígitos al ${celular}`}
@@ -341,8 +343,8 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
                     onPress={() => otpInputRef.current?.focus()}
                   >
                     {[0, 1, 2, 3, 4, 5].map((index) => (
-                      <View key={index} style={[styles.otpInput, otpCodigo.length > index && styles.otpInputFilled]}>
-                        <Text style={styles.otpDigit}>{otpCodigo[index] || ''}</Text>
+                      <View key={index} style={[styles.otpInput, { backgroundColor: colors.surface, borderColor: colors.border }, otpCodigo.length > index && styles.otpInputFilled]}>
+                        <Text style={[styles.otpDigit, { color: colors.textPrimary }]}>{otpCodigo[index] || ''}</Text>
                       </View>
                     ))}
                   </TouchableOpacity>
@@ -384,8 +386,8 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
             {/* ── Paso 3: Nueva contraseña ── */}
             {paso === 3 && (
               <>
-                <Text style={styles.recuperarTitulo}>Nueva contraseña</Text>
-                <Text style={styles.recuperarSubtitulo}>Crea una contraseña segura para tu cuenta</Text>
+                <Text style={[styles.recuperarTitulo, { color: colors.textPrimary }]}>Nueva contraseña</Text>
+                <Text style={[styles.recuperarSubtitulo, { color: colors.textSecondary }]}>Crea una contraseña segura para tu cuenta</Text>
 
                 <Input
                   label="Nueva contraseña"
