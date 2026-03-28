@@ -13,7 +13,7 @@ import {
 } from '../../services/passkeyService';
 
 export default function PasskeyEnrollScreen({ navigation, route }) {
-  const { user, token, cognitoAccessToken } = route.params;
+  const { user, token, cognitoAccessToken, fromPerfil } = route.params;
   const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,8 +36,12 @@ export default function PasskeyEnrollScreen({ navigation, route }) {
       await savePasskeyCelular(user.celular);
       await markPasskeyPrompted();
 
-      // 5. Entrar a la app
-      await signIn(user, token);
+      // 5. Si venimos de Perfil, solo volver; si no, hacer signIn
+      if (fromPerfil) {
+        navigation.goBack();
+      } else {
+        await signIn(user, token);
+      }
     } catch (err) {
       if (err.message?.includes('cancelled') || err.message?.includes('cancel')) {
         // El usuario canceló el diálogo nativo — tratar como "ahora no"
@@ -53,7 +57,11 @@ export default function PasskeyEnrollScreen({ navigation, route }) {
 
   const handleSkip = async () => {
     await markPasskeyPrompted();
-    await signIn(user, token);
+    if (fromPerfil) {
+      navigation.goBack();
+    } else {
+      await signIn(user, token);
+    }
   };
 
   const biometricLabel = Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'Huella / Face ID';

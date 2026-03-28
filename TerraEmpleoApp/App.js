@@ -178,6 +178,8 @@ function PerfilStack() {
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="PerfilHome" component={PerfilScreen} options={{ title: 'Mi Perfil' }} />
       <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ title: 'Editar Perfil' }} />
+      <Stack.Screen name="PasskeyEnrollPerfil" component={PasskeyEnrollScreen}
+        options={{ headerShown: false, gestureEnabled: false }} />
     </Stack.Navigator>
   );
 }
@@ -476,9 +478,9 @@ function AuthStack() {
     <Stack.Navigator screenOptions={{ ...stackScreenOptions, headerShown: false, headerRight: undefined }}>
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen}
-        options={{ headerShown: false }} />
+        options={{ headerShown: true, title: 'Iniciar sesión' }} />
       <Stack.Screen name="RoleSelect" component={RoleSelectScreen}
-        options={{ headerShown: false }} />
+        options={{ headerShown: true, title: 'Tipo de cuenta' }} />
       <Stack.Screen name="RegisterTrabajador" component={RegisterTrabajadorScreen}
         options={{ headerShown: true, title: 'Registro Trabajador' }} />
       <Stack.Screen name="RegisterEmpleador" component={RegisterEmpleadorScreen}

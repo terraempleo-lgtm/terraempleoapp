@@ -6,10 +6,12 @@ const AuthContext = createContext(null);
 
 const TOKEN_KEY = 'terraempleo_token';
 const USER_KEY = 'terraempleo_user';
+const COGNITO_TOKEN_KEY = 'terraempleo_cognito_token';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
+  const [cognitoAccessToken, setCognitoAccessToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Restaurar sesión al iniciar
@@ -46,14 +48,16 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signIn = useCallback(async (userData, authToken) => {
+  const signIn = useCallback(async (userData, authToken, cognitoToken) => {
     console.log('SIGN_IN', userData?.nombre_completo);
     setAuthToken(authToken);
     setToken(authToken);
     setUser(userData);
+    if (cognitoToken) setCognitoAccessToken(cognitoToken);
     try {
       await SecureStore.setItemAsync(TOKEN_KEY, authToken);
       await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
+      if (cognitoToken) await SecureStore.setItemAsync(COGNITO_TOKEN_KEY, cognitoToken);
     } catch (err) {
       console.error('Error saving session:', err);
     }
@@ -64,9 +68,11 @@ export function AuthProvider({ children }) {
     setAuthToken(null);
     setToken(null);
     setUser(null);
+    setCognitoAccessToken(null);
     try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
       await SecureStore.deleteItemAsync(USER_KEY);
+      await SecureStore.deleteItemAsync(COGNITO_TOKEN_KEY);
     } catch (err) {
       console.error('Error clearing session:', err);
     }
@@ -81,7 +87,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signIn, signOut, updateUser, setLoading }}>
+    <AuthContext.Provider value={{ user, token, cognitoAccessToken, loading, signIn, signOut, updateUser, setLoading }}>
       {children}
     </AuthContext.Provider>
   );

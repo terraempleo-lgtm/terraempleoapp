@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from '../../theme';
-import { Button, Input, AppHeader, TerraFooter } from '../../components/ui';
+import { Button, Input, TerraFooter } from '../../components/ui';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 import { authAPI, cognitoAPI, passkeyAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -103,7 +103,7 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
-      await signIn(user, token);
+      await signIn(user, token, cognitoAccessToken);
     } catch (err) {
       const msg = err.code === 'ECONNABORTED'
         ? 'El servidor tardó demasiado. Intenta de nuevo.'
@@ -153,8 +153,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.gradientBg}>
-      <SafeAreaView style={styles.container}>
-        <AppHeader title="Iniciar sesión" onBack={() => navigation.goBack()} />
+      <SafeAreaView style={styles.container} edges={['bottom']}>
 
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView

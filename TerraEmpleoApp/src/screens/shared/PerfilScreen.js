@@ -1,13 +1,19 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Alert,
+  View, Text, StyleSheet, ScrollView, Platform,
   Image, Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { authAPI, vacantesAPI } from '../../services/api';
+import { authAPI, vacantesAPI, passkeyAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import {
+  isPasskeySupported,
+  getPasskeyCelular,
+  removePasskeyCelular,
+  wasPasskeyPrompted,
+} from '../../services/passkeyService';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -96,12 +102,59 @@ function PulsingDot({ color = COLORS.primary, size = 14, delay = 0 }) {
 }
 
 export default function PerfilScreen({ navigation }) {
-  const { user, signOut } = useAuth();
+  const { user, token, cognitoAccessToken, signOut } = useAuth();
   const { isDark, toggleMode, colors } = useAppTheme();
   const [perfil, setPerfil] = useState(null);
   const [userData, setUserData] = useState(null);
   const [fotoFincaPrincipal, setFotoFincaPrincipal] = useState(null);
   const insets = useSafeAreaInsets();
+
+  // ── Passkey state ──
+  const [passkeyEnrolled, setPasskeyEnrolled] = useState(false);
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      if (!isPasskeySupported()) return;
+      setPasskeyAvailable(true);
+      const cel = await getPasskeyCelular();
+      setPasskeyEnrolled(!!cel);
+    })();
+  }, []);
+
+  const handlePasskeyActivate = () => {
+    if (!cognitoAccessToken) {
+      showAlert(
+        'Inicio de sesión requerido',
+        'Para activar Face ID, cierra sesión e inicia sesión nuevamente con tu número de celular.',
+        [{ text: 'Entendido' }],
+      );
+      return;
+    }
+    navigation.navigate('PasskeyEnrollPerfil', {
+      user: userData || user,
+      token,
+      cognitoAccessToken,
+      fromPerfil: true,
+    });
+  };
+
+  const handlePasskeyDeactivate = () => {
+    showAlert(
+      'Desactivar Face ID / Touch ID',
+      '¿Seguro que quieres desactivar el acceso biométrico? Podrás volver a activarlo después.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Desactivar', style: 'destructive',
+          onPress: async () => {
+            await removePasskeyCelular();
+            setPasskeyEnrolled(false);
+          },
+        },
+      ],
+    );
+  };
 
   const u = userData || user;
   const esTrabajador = u?.rol === 'trabajador';
@@ -353,6 +406,23 @@ export default function PerfilScreen({ navigation }) {
                 </Text>
                 <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
               </AnimatedPressable>
+              {passkeyAvailable && (
+                <AnimatedPressable
+                  style={[s.themeRow, { backgroundColor: isDark ? '#1a322a' : '#F8FAF9', borderColor: isDark ? '#2a4c41' : COLORS.borderLight }]}
+                  onPress={passkeyEnrolled ? handlePasskeyDeactivate : handlePasskeyActivate}
+                  scaleValue={0.97} haptic
+                >
+                  <View style={[s.themeIcon, { backgroundColor: passkeyEnrolled ? COLORS.primarySoft : (isDark ? '#244238' : '#F3F4F6') }]}>
+                    <Ionicons name={Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline'} size={17} color={passkeyEnrolled ? COLORS.primary : colors.textSecondary} />
+                  </View>
+                  <Text style={[s.themeTxt, { color: colors.textPrimary }]}>
+                    {Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'Huella / Face ID'}
+                  </Text>
+                  {passkeyEnrolled
+                    ? <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
+                    : <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />}
+                </AnimatedPressable>
+              )}
               <AnimatedPressable style={s.logoutRow} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
                 <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
               </AnimatedPressable>
@@ -589,6 +659,23 @@ export default function PerfilScreen({ navigation }) {
               </Text>
               <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
             </AnimatedPressable>
+            {passkeyAvailable && (
+              <AnimatedPressable
+                style={[s.themeRow, { backgroundColor: isDark ? '#1a322a' : '#F8FAF9', borderColor: isDark ? '#2a4c41' : COLORS.borderLight }]}
+                onPress={passkeyEnrolled ? handlePasskeyDeactivate : handlePasskeyActivate}
+                scaleValue={0.97} haptic
+              >
+                <View style={[s.themeIcon, { backgroundColor: passkeyEnrolled ? COLORS.primarySoft : (isDark ? '#244238' : '#F3F4F6') }]}>
+                  <Ionicons name={Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline'} size={17} color={passkeyEnrolled ? COLORS.primary : colors.textSecondary} />
+                </View>
+                <Text style={[s.themeTxt, { color: colors.textPrimary }]}>
+                  {Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'Huella / Face ID'}
+                </Text>
+                {passkeyEnrolled
+                  ? <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
+                  : <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />}
+              </AnimatedPressable>
+            )}
             <AnimatedPressable style={[s.logoutRow, { backgroundColor: isDark ? '#2a1717' : 'transparent' }]} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
               <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
             </AnimatedPressable>
