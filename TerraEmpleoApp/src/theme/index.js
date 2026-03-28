@@ -70,9 +70,9 @@ export const COLORS = {
 };
 
 export const FONTS = {
-  // Sistema tipografico global: legible, profesional y consistente.
+  // Sistema tipografico global: usando SF Pro (iOS) y Roboto (Android)
   family: {
-    regular: 'System',
+    regular: '-apple-system',  // SF Pro en iOS, system font en Android
   },
   weight: {
     regular: '400',
@@ -101,23 +101,23 @@ export const FONTS = {
   },
 
   // Tokens semanticos reutilizables en toda la app.
-  regular: { fontFamily: 'System', fontSize: 15, lineHeight: 22, color: COLORS.textPrimary },
-  bold: { fontFamily: 'System', fontSize: 15, lineHeight: 22, fontWeight: '700', color: COLORS.textPrimary },
-  title: { fontFamily: 'System', fontSize: 24, lineHeight: 32, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.2 },
-  titleLarge: { fontFamily: 'System', fontSize: 30, lineHeight: 38, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.2 },
-  subtitle: { fontFamily: 'System', fontSize: 17, lineHeight: 24, fontWeight: '700', color: COLORS.textPrimary },
-  caption: { fontFamily: 'System', fontSize: 13, lineHeight: 18, color: COLORS.textSecondary },
-  small: { fontFamily: 'System', fontSize: 13, lineHeight: 18, color: COLORS.textLight },
-  button: { fontFamily: 'System', fontSize: 15, lineHeight: 20, fontWeight: '700', color: COLORS.white },
-  buttonSmall: { fontFamily: 'System', fontSize: 14, lineHeight: 18, fontWeight: '700', color: COLORS.white },
-  bigButton: { fontFamily: 'System', fontSize: 16, lineHeight: 22, fontWeight: '700', color: COLORS.white },
-  input: { fontFamily: 'System', fontSize: 15, lineHeight: 22, color: COLORS.textPrimary },
-  chip: { fontFamily: 'System', fontSize: 14, lineHeight: 20, fontWeight: '600' },
-  sectionTitle: { fontFamily: 'System', fontSize: 20, lineHeight: 28, fontWeight: '700', color: COLORS.textPrimary },
-  label: { fontFamily: 'System', fontSize: 15, lineHeight: 22, fontWeight: '600', color: COLORS.textPrimary },
-  body: { fontFamily: 'System', fontSize: 15, lineHeight: 22, color: COLORS.textSecondary },
-  bodySmall: { fontFamily: 'System', fontSize: 14, lineHeight: 20, color: COLORS.textSecondary },
-  link: { fontFamily: 'System', fontSize: 15, lineHeight: 22, fontWeight: '600', color: COLORS.primary },
+  regular: { fontFamily: '-apple-system', fontSize: 15, lineHeight: 22, color: COLORS.textPrimary },
+  bold: { fontFamily: '-apple-system', fontSize: 15, lineHeight: 22, fontWeight: '700', color: COLORS.textPrimary },
+  title: { fontFamily: '-apple-system', fontSize: 24, lineHeight: 32, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.2 },
+  titleLarge: { fontFamily: '-apple-system', fontSize: 30, lineHeight: 38, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.2 },
+  subtitle: { fontFamily: '-apple-system', fontSize: 17, lineHeight: 24, fontWeight: '700', color: COLORS.textPrimary },
+  caption: { fontFamily: '-apple-system', fontSize: 13, lineHeight: 18, color: COLORS.textSecondary },
+  small: { fontFamily: '-apple-system', fontSize: 13, lineHeight: 18, color: COLORS.textLight },
+  button: { fontFamily: '-apple-system', fontSize: 15, lineHeight: 20, fontWeight: '700', color: COLORS.white },
+  buttonSmall: { fontFamily: '-apple-system', fontSize: 14, lineHeight: 18, fontWeight: '700', color: COLORS.white },
+  bigButton: { fontFamily: '-apple-system', fontSize: 16, lineHeight: 22, fontWeight: '700', color: COLORS.white },
+  input: { fontFamily: '-apple-system', fontSize: 15, lineHeight: 22, color: COLORS.textPrimary },
+  chip: { fontFamily: '-apple-system', fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  sectionTitle: { fontFamily: '-apple-system', fontSize: 20, lineHeight: 28, fontWeight: '700', color: COLORS.textPrimary },
+  label: { fontFamily: '-apple-system', fontSize: 15, lineHeight: 22, fontWeight: '600', color: COLORS.textPrimary },
+  body: { fontFamily: '-apple-system', fontSize: 15, lineHeight: 22, color: COLORS.textSecondary },
+  bodySmall: { fontFamily: '-apple-system', fontSize: 14, lineHeight: 20, color: COLORS.textSecondary },
+  link: { fontFamily: '-apple-system', fontSize: 15, lineHeight: 22, fontWeight: '600', color: COLORS.primary },
 };
 
 export const SPACING = {
