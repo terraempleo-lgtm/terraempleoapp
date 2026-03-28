@@ -13,6 +13,8 @@ import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS, FONTS } from './src/theme';
 import { AnimatedTabBar } from './src/components/animated';
+import { Toast } from './src/components/ui';
+import { setGlobalToastRef } from './src/utils/toastService';
 
 // ── Helper: lazy en todos los entornos (Metro no hace split → resuelve sync en native)
 const lazyWeb = (importFn) => React.lazy(importFn);
@@ -545,6 +547,11 @@ function RootNavigator() {
 
 function AppShell() {
   const { navigationTheme, colors, isDark } = useAppTheme();
+  const toastRef = useRef(null);
+
+  React.useEffect(() => {
+    setGlobalToastRef(toastRef.current);
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -552,6 +559,7 @@ function AppShell() {
         <NavigationContainer ref={navigationRef} theme={navigationTheme}>
           <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.primaryDark} />
           <RootNavigator />
+          <Toast ref={toastRef} />
         </NavigationContainer>
       </AuthProvider>
     </GestureHandlerRootView>
