@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { trabajadoresAPI, vacantesAPI } from '../../services/api';
 import { showAlert } from '../../utils/alertService';
+import { useAppTheme } from '../../context/ThemeContext';
 
 const PROXIMIDAD_CONFIG = {
   mismo_municipio: { label: 'Mismo municipio', color: COLORS.primary, icon: 'location' },
@@ -27,11 +28,11 @@ const FILTRO_PROX = [
   { key: 'mismo_departamento', label: 'Mismo departamento' },
 ];
 
-function MatchBadge({ puntaje }) {
+function MatchBadge({ puntaje, colors, isDark }) {
   if (!puntaje || puntaje === 0) return null;
   const nivel = puntaje >= 70 ? 'alto' : puntaje >= 40 ? 'medio' : 'bajo';
   const color = nivel === 'alto' ? COLORS.primary : nivel === 'medio' ? COLORS.warning : COLORS.textLight;
-  const bg = nivel === 'alto' ? COLORS.primarySoft : nivel === 'medio' ? COLORS.warningSoft : '#F3F4F6';
+  const bg = nivel === 'alto' ? COLORS.primarySoft : nivel === 'medio' ? COLORS.warningSoft : (isDark ? colors.surface : '#F3F4F6');
   const label = nivel === 'alto' ? 'Match alto' : nivel === 'medio' ? 'Match medio' : 'Match base';
   return (
     <View style={[styles.matchBadge, { backgroundColor: bg }]}>
@@ -56,26 +57,26 @@ function StarRating({ value }) {
   );
 }
 
-function TrabajadorCard({ item, onVerPerfil, onContactar, enviando }) {
+function TrabajadorCard({ item, onVerPerfil, onContactar, enviando, colors, isDark }) {
   const prox = PROXIMIDAD_CONFIG[item.proximidad] || PROXIMIDAD_CONFIG.lejano;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface }]}>
       <View style={styles.cardTop}>
         <View style={styles.avatarWrap}>
           {item.foto_selfie ? (
             <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
           ) : (
-            <View style={styles.avatarFallback}>
+            <View style={[styles.avatarFallback, { backgroundColor: isDark ? colors.surface : '#78909C' }]}>
               <Ionicons name="person" size={22} color={COLORS.white} />
             </View>
           )}
         </View>
 
         <View style={styles.cardInfo}>
-          <Text style={styles.nombre} numberOfLines={1}>{item.nombre_completo}</Text>
+          <Text style={[styles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>{item.nombre_completo}</Text>
           <View style={styles.badgesRow}>
-            <MatchBadge puntaje={item.puntaje_match} />
+            <MatchBadge puntaje={item.puntaje_match} colors={colors} isDark={isDark} />
             {prox.label ? (
               <View style={[styles.proxBadge, { backgroundColor: `${prox.color}18` }]}>
                 <Ionicons name={prox.icon} size={11} color={prox.color} />
@@ -87,16 +88,16 @@ function TrabajadorCard({ item, onVerPerfil, onContactar, enviando }) {
 
         <View style={styles.ratingCol}>
           <StarRating value={item.calificacion_promedio} />
-          <Text style={styles.ratingNum}>{item.calificacion_promedio > 0 ? item.calificacion_promedio.toFixed(1) : '—'}</Text>
+          <Text style={[styles.ratingNum, { color: colors.textPrimary }]}>{item.calificacion_promedio > 0 ? item.calificacion_promedio.toFixed(1) : '—'}</Text>
         </View>
       </View>
 
       <View style={styles.skillRow}>
         {(item.cultivos || []).slice(0, 2).map((c, i) => (
-          <View key={`c-${i}`} style={styles.skillChip}><Text style={styles.skillText}>{c}</Text></View>
+          <View key={`c-${i}`} style={[styles.skillChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderColor: colors.border, borderWidth: 1 }]}><Text style={[styles.skillText, { color: colors.textSecondary }]}>{c}</Text></View>
         ))}
         {(item.habilidades || []).slice(0, 2).map((h, i) => (
-          <View key={`h-${i}`} style={styles.skillChip}><Text style={styles.skillText}>{h}</Text></View>
+          <View key={`h-${i}`} style={[styles.skillChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderColor: colors.border, borderWidth: 1 }]}><Text style={[styles.skillText, { color: colors.textSecondary }]}>{h}</Text></View>
         ))}
       </View>
 
@@ -115,6 +116,7 @@ function TrabajadorCard({ item, onVerPerfil, onContactar, enviando }) {
 }
 
 export default function TrabajadoresRecomendadosScreen({ navigation }) {
+  const { colors, isDark } = useAppTheme();
   const [vacantes, setVacantes] = useState([]);
   const [vacanteSeleccionadaId, setVacanteSeleccionadaId] = useState(null);
   const [recomendados, setRecomendados] = useState([]);
@@ -242,21 +244,21 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <View style={styles.centerWrap}>
           <Ionicons name="sparkles-outline" size={40} color={COLORS.primaryLight} />
-          <Text style={styles.loadingText}>Buscando trabajadores para ti...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Buscando trabajadores para ti...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Para ti</Text>
-          <Text style={styles.headerSub}>Trabajadores recomendados por match con tu vacante</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Para ti</Text>
+          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>Trabajadores recomendados por match con tu vacante</Text>
         </View>
         <View style={styles.headerIcon}>
           <Ionicons name="sparkles" size={22} color={COLORS.primary} />
@@ -269,27 +271,27 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
           return (
             <TouchableOpacity
               key={String(v.id)}
-              style={[styles.vacanteChip, activa && styles.vacanteChipActive]}
+              style={[styles.vacanteChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderColor: colors.border }, activa && styles.vacanteChipActive]}
               onPress={() => setVacanteSeleccionadaId(Number(v.id))}
             >
-              <Text style={[styles.vacanteChipText, activa && styles.vacanteChipTextActive]} numberOfLines={1}>{v.titulo}</Text>
+              <Text style={[styles.vacanteChipText, { color: colors.textSecondary }, activa && styles.vacanteChipTextActive]} numberOfLines={1}>{v.titulo}</Text>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      <View style={styles.searchWrap}>
-        <Ionicons name="search" size={17} color={COLORS.textLight} />
+      <View style={[styles.searchWrap, { backgroundColor: isDark ? colors.surface : '#F9FAFB', borderColor: colors.border }]}>
+        <Ionicons name="search" size={17} color={colors.textMuted} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: colors.textPrimary }]}
           placeholder="Buscar trabajador, cultivo, habilidad, zona..."
-          placeholderTextColor={COLORS.textLight}
+          placeholderTextColor={colors.textMuted}
           value={search}
           onChangeText={setSearch}
         />
         {search.length > 0 ? (
           <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={17} color={COLORS.textLight} />
+            <Ionicons name="close-circle" size={17} color={colors.textMuted} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -300,10 +302,10 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
           return (
             <TouchableOpacity
               key={`match-${f.key}`}
-              style={[styles.filtroChip, active && styles.filtroChipActive]}
+              style={[styles.filtroChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderColor: colors.border }, active && styles.filtroChipActive]}
               onPress={() => setFiltroMatch(f.key)}
             >
-              <Text style={[styles.filtroChipText, active && styles.filtroChipTextActive]}>{f.label}</Text>
+              <Text style={[styles.filtroChipText, { color: colors.textSecondary }, active && styles.filtroChipTextActive]}>{f.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -315,10 +317,10 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
           return (
             <TouchableOpacity
               key={`prox-${f.key}`}
-              style={[styles.filtroChip, active && styles.filtroChipActive]}
+              style={[styles.filtroChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderColor: colors.border }, active && styles.filtroChipActive]}
               onPress={() => setFiltroProx(f.key)}
             >
-              <Text style={[styles.filtroChipText, active && styles.filtroChipTextActive]}>{f.label}</Text>
+              <Text style={[styles.filtroChipText, { color: colors.textSecondary }, active && styles.filtroChipTextActive]}>{f.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -326,7 +328,7 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
 
       {vacanteSeleccionada ? (
         <View style={styles.statsCard}>
-          <Text style={styles.statsTitle}>{vacanteSeleccionada.titulo}</Text>
+          <Text style={[styles.statsTitle, { color: colors.textPrimary }]}>{vacanteSeleccionada.titulo}</Text>
           <Text style={styles.statsSub}>{recomendadosFiltrados.length} trabajador(es) en resultados</Text>
         </View>
       ) : null}
@@ -340,6 +342,8 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
             onVerPerfil={verPerfil}
             onContactar={contactar}
             enviando={Number(enviandoContactoId) === Number(item.id)}
+            colors={colors}
+            isDark={isDark}
           />
         )}
         contentContainerStyle={[styles.list, recomendadosFiltrados.length === 0 && styles.listEmpty]}
@@ -353,8 +357,8 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="people-outline" size={44} color={COLORS.primaryLight} />
-            <Text style={styles.emptyTitle}>Sin recomendaciones</Text>
-            <Text style={styles.emptyText}>No encontramos trabajadores con match para esta vacante por ahora.</Text>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin recomendaciones</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No encontramos trabajadores con match para esta vacante por ahora.</Text>
           </View>
         }
       />
@@ -363,9 +367,9 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.white },
+  container: { flex: 1 },
   centerWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.sm },
-  loadingText: { fontSize: 15, color: COLORS.textSecondary },
+  loadingText: { fontSize: 15 },
 
   header: {
     flexDirection: 'row',
@@ -375,8 +379,8 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.sm,
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
-  headerSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  headerTitle: { fontSize: 22, fontWeight: '800' },
+  headerSub: { fontSize: 12, marginTop: 2 },
   headerIcon: {
     width: 38,
     height: 38,
@@ -398,15 +402,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: '#F3F4F6',
     paddingHorizontal: 12,
     paddingVertical: 7,
     minHeight: 32,
     justifyContent: 'center',
   },
   vacanteChipActive: { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primary },
-  vacanteChipText: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary },
+  vacanteChipText: { fontSize: 12, fontWeight: '600' },
   vacanteChipTextActive: { color: COLORS.primary },
 
   searchWrap: {
@@ -415,14 +417,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
-    backgroundColor: '#F9FAFB',
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 7,
   },
-  searchInput: { flex: 1, fontSize: 13, color: COLORS.textPrimary, padding: 0 },
+  searchInput: { flex: 1, fontSize: 13, padding: 0 },
 
   filtrosRow: {
     flexDirection: 'row',
@@ -443,9 +443,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: RADIUS.full,
-    backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: COLORS.border,
     minHeight: 32,
     justifyContent: 'center',
   },
@@ -453,7 +451,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primarySoft,
     borderColor: COLORS.primary,
   },
-  filtroChipText: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary },
+  filtroChipText: { fontSize: 12, fontWeight: '600' },
   filtroChipTextActive: { color: COLORS.primary },
 
   statsCard: {
@@ -467,13 +465,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.sm,
   },
-  statsTitle: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
+  statsTitle: { fontSize: 13, fontWeight: '700' },
   statsSub: { fontSize: 12, color: COLORS.primary, marginTop: 2 },
 
   list: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.md },
   listEmpty: { flexGrow: 1 },
   card: {
-    backgroundColor: COLORS.white,
     borderRadius: RADIUS.md,
     marginBottom: SPACING.sm,
     padding: SPACING.sm,
@@ -488,10 +485,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryLight,
   },
   avatar: { width: 46, height: 46 },
-  avatarFallback: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#78909C' },
+  avatarFallback: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   cardInfo: { flex: 1, gap: 3 },
-  nombre: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
+  nombre: { fontSize: 16, fontWeight: '700' },
   badgesRow: { flexDirection: 'row', gap: SPACING.xs, flexWrap: 'wrap', marginTop: 2 },
 
   matchBadge: {
@@ -515,17 +512,16 @@ const styles = StyleSheet.create({
   proxText: { fontSize: 11, fontWeight: '600' },
 
   ratingCol: { alignItems: 'center', gap: 2 },
-  ratingNum: { fontSize: 12, fontWeight: '700', color: COLORS.textPrimary },
+  ratingNum: { fontSize: 12, fontWeight: '700' },
 
   skillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8 },
   skillChip: {
-    backgroundColor: '#F3F4F6',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: RADIUS.full,
     maxWidth: 130,
   },
-  skillText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '500' },
+  skillText: { fontSize: 11, fontWeight: '500' },
 
   actionsRow: { marginTop: 8, flexDirection: 'row', gap: 8, alignItems: 'center' },
   btnContactar: {
@@ -559,6 +555,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     gap: SPACING.xs,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  emptyText: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '700' },
+  emptyText: { fontSize: 13, textAlign: 'center' },
 });

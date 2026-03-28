@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import { vacantesAPI } from '../../services/api';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
@@ -23,6 +24,7 @@ function timeAgo(dateStr) {
 }
 
 export default function ExplorarVacantesScreen({ navigation }) {
+  const { colors, isDark } = useAppTheme();
   const [vacantes, setVacantes] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -53,7 +55,7 @@ export default function ExplorarVacantesScreen({ navigation }) {
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, { backgroundColor: colors.surface }]}
         activeOpacity={0.9}
         onPress={() => navigation.navigate('DetalleVacanteReferencia', { vacante: item })}
       >
@@ -74,28 +76,28 @@ export default function ExplorarVacantesScreen({ navigation }) {
 
         <View style={styles.body}>
           <View style={styles.topRow}>
-            <Text style={styles.title} numberOfLines={1}>{item.titulo}</Text>
-            <Text style={styles.timeText}>{timeAgo(item.created_at)}</Text>
+            <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>{item.titulo}</Text>
+            <Text style={[styles.timeText, { color: colors.textMuted }]}>{timeAgo(item.created_at)}</Text>
           </View>
 
-          <Text style={styles.finca} numberOfLines={1}>{item.nombre_empresa_finca || 'Finca'}</Text>
+          <Text style={[styles.finca, { color: colors.textSecondary }]} numberOfLines={1}>{item.nombre_empresa_finca || 'Finca'}</Text>
 
           <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={13} color={COLORS.textLight} />
-            <Text style={styles.metaText} numberOfLines={1}>{ubicacion}</Text>
+            <Ionicons name="location-outline" size={13} color={colors.textMuted} />
+            <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>{ubicacion}</Text>
           </View>
 
           {fechaInicio ? (
             <View style={styles.startBadge}>
               <Ionicons name="calendar-outline" size={12} color={COLORS.primary} />
-              <Text style={styles.startBadgeText}>Inicio: {fechaInicio}</Text>
+              <Text style={[styles.startBadgeText, { color: colors.textPrimary }]}>Inicio: {fechaInicio}</Text>
             </View>
           ) : null}
 
           <View style={styles.footerRow}>
             <View style={styles.salaryRow}>
               <Ionicons name="cash-outline" size={14} color={COLORS.primary} />
-              <Text style={styles.salaryText}>{pago.valor}</Text>
+              <Text style={[styles.salaryText, { color: colors.textPrimary }]}>{pago.valor}</Text>
             </View>
             <View style={styles.readOnlyPill}>
               <Ionicons name="eye-outline" size={12} color={COLORS.primary} />
@@ -108,10 +110,10 @@ export default function ExplorarVacantesScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <View style={styles.headerInfo}>
-        <Text style={styles.headerTitle}>Explorar ofertas</Text>
-        <Text style={styles.headerSub}>Referencia de otras fincas (sin acciones de trabajador)</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+      <View style={[styles.headerInfo, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Explorar ofertas</Text>
+        <Text style={[styles.headerSub, { color: colors.textSecondary }]}>Referencia de otras fincas (sin acciones de trabajador)</Text>
       </View>
 
       <FlatList
@@ -129,8 +131,8 @@ export default function ExplorarVacantesScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="briefcase-outline" size={48} color={COLORS.primaryLight} />
-            <Text style={styles.emptyTitle}>Sin ofertas para explorar</Text>
-            <Text style={styles.emptyText}>Cuando haya vacantes de otras fincas apareceran aqui.</Text>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin ofertas para explorar</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Cuando haya vacantes de otras fincas apareceran aqui.</Text>
           </View>
         }
       />
@@ -139,20 +141,17 @@ export default function ExplorarVacantesScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAF9' },
+  container: { flex: 1 },
   headerInfo: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
     paddingBottom: SPACING.sm,
-    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
-  headerSub: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  headerTitle: { fontSize: 22, fontWeight: '800' },
+  headerSub: { fontSize: 13, marginTop: 2 },
   list: { padding: SPACING.md, paddingBottom: SPACING.xl },
   card: {
-    backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     marginBottom: SPACING.md,
     overflow: 'hidden',
@@ -180,11 +179,11 @@ const styles = StyleSheet.create({
   urgentText: { fontSize: 10, fontWeight: '700', color: COLORS.error },
   body: { padding: SPACING.md },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  title: { flex: 1, fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  timeText: { fontSize: 11, color: COLORS.textLight },
-  finca: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2, marginBottom: SPACING.sm },
+  title: { flex: 1, fontSize: 16, fontWeight: '700' },
+  timeText: { fontSize: 11 },
+  finca: { fontSize: 13, marginTop: 2, marginBottom: SPACING.sm },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: SPACING.xs },
-  metaText: { flex: 1, fontSize: 13, color: COLORS.textSecondary },
+  metaText: { flex: 1, fontSize: 13 },
   startBadge: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -196,10 +195,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginBottom: SPACING.sm,
   },
-  startBadgeText: { fontSize: 12, color: '#000000', fontWeight: '700' },
+  startBadgeText: { fontSize: 12, fontWeight: '700' },
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   salaryRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  salaryText: { fontSize: 14, color: COLORS.textPrimary, fontWeight: '700' },
+  salaryText: { fontSize: 14, fontWeight: '700' },
   readOnlyPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -211,6 +210,6 @@ const styles = StyleSheet.create({
   },
   readOnlyText: { fontSize: 12, color: COLORS.primary, fontWeight: '700' },
   empty: { alignItems: 'center', paddingTop: SPACING.xxl * 2, paddingHorizontal: SPACING.xl, gap: SPACING.sm },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
-  emptyText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center' },
+  emptyTitle: { fontSize: 18, fontWeight: '700' },
+  emptyText: { fontSize: 14, textAlign: 'center' },
 });

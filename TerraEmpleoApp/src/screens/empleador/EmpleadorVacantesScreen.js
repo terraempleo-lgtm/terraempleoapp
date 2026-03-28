@@ -7,6 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
@@ -87,6 +88,7 @@ function PulsingBadge({ count }) {
 
 export default function EmpleadorVacantesScreen({ navigation }) {
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [vacantes, setVacantes] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -170,13 +172,13 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
     return (
       <StaggeredItem index={index}>
-        <View style={[styles.card, !isActiva && styles.cardInactiva]}>
+        <View style={[styles.card, { backgroundColor: colors.card }, !isActiva && styles.cardInactiva]}>
           {/* Action buttons */}
           <View style={styles.cardActionsOverlay}>
             <AnimatedPressable
               onPress={() => navigation.navigate('EditarVacante', { vacante: item })}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={styles.actionBtn}
+              style={[styles.actionBtn, { backgroundColor: isDark ? 'rgba(13,27,22,0.97)' : 'rgba(255,255,255,0.95)' }]}
               scaleValue={0.85}
               haptic
               hapticStyle="light"
@@ -187,7 +189,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
               <AnimatedPressable
                 onPress={() => abrirConfirmacionArchivar(item)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={styles.actionBtn}
+                style={[styles.actionBtn, { backgroundColor: isDark ? 'rgba(13,27,22,0.97)' : 'rgba(255,255,255,0.95)' }]}
                 scaleValue={0.85}
                 haptic
                 hapticStyle="light"
@@ -219,7 +221,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
             {/* Content */}
             <View style={styles.cardBody}>
               <View style={styles.cardTopRow}>
-                <View style={[styles.estadoBadge, !isActiva && styles.estadoBadgeInactiva]}>
+                <View style={[styles.estadoBadge, !isActiva && styles.estadoBadgeInactiva, !isActiva && { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]}>
                   <View style={[styles.estadoDot, { backgroundColor: isActiva ? COLORS.primary : COLORS.textLight }]} />
                   <Text style={[styles.estadoText, !isActiva && styles.estadoTextInactiva]}>
                     {isActiva ? 'Activa' : 'Inactiva'}
@@ -227,13 +229,13 @@ export default function EmpleadorVacantesScreen({ navigation }) {
                 </View>
               </View>
 
-              <Text style={[styles.cardTitle, !isActiva && styles.cardTitleInactiva]} numberOfLines={1}>
+              <Text style={[styles.cardTitle, { color: colors.textPrimary }, !isActiva && styles.cardTitleInactiva, !isActiva && { color: colors.textSecondary }]} numberOfLines={1}>
                 {item.titulo}
               </Text>
 
               <View style={styles.cardLocationRow}>
                 <Ionicons name="location-outline" size={13} color={COLORS.textLight} />
-                <Text style={styles.cardLocation} numberOfLines={1}>
+                <Text style={[styles.cardLocation, { color: colors.textSecondary }]} numberOfLines={1}>
                   {[item.municipio, item.departamento].filter(Boolean).join(', ') || 'Colombia'}
                 </Text>
               </View>
@@ -247,11 +249,11 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
               <View style={styles.salaryRow}>
                 <Ionicons name="cash-outline" size={13} color={COLORS.primary} />
-                <Text style={styles.salaryText} numberOfLines={1}>{pago.valor}</Text>
+                <Text style={[styles.salaryText, { color: colors.textPrimary }]} numberOfLines={1}>{pago.valor}</Text>
               </View>
 
               {/* Footer: postulantes + time */}
-              <View style={styles.cardFooter}>
+              <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
                 {isActiva ? (
                   <View style={styles.postulantesRow}>
                     {postulantes > 0 && <AvatarStack count={postulantes} />}
@@ -280,7 +282,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
     <View>
       {/* Greeting */}
       <FadeInView delay={0}>
-        <View style={styles.greetingSection}>
+        <View style={[styles.greetingSection, { backgroundColor: colors.surface }]}>
           <View style={styles.greetingLeft}>
             <View style={styles.avatarWrap}>
               {user?.foto_selfie ? (
@@ -295,8 +297,8 @@ export default function EmpleadorVacantesScreen({ navigation }) {
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.greetingLabel}>Hola,</Text>
-              <Text style={styles.greetingName}>{firstName}</Text>
+              <Text style={[styles.greetingLabel, { color: colors.textSecondary }]}>Hola,</Text>
+              <Text style={[styles.greetingName, { color: colors.textPrimary }]}>{firstName}</Text>
             </View>
           </View>
           <View style={styles.headerActions}>
@@ -306,7 +308,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
               scaleValue={0.9}
               haptic
             >
-              <Ionicons name="notifications-outline" size={22} color={COLORS.textPrimary} />
+              <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
               {noLeidas > 0 && <PulsingBadge count={noLeidas} />}
             </AnimatedPressable>
           </View>
@@ -315,18 +317,18 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
       {mostrarTarjetaVerificacion && (
         <FadeInView delay={80}>
-          <View style={styles.verificacionCard}>
+          <View style={[styles.verificacionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.verificacionHeader}>
               <Ionicons
                 name={estadoIdentidad === 'rechazada' ? 'alert-circle' : 'shield-outline'}
                 size={18}
                 color={estadoIdentidad === 'rechazada' ? COLORS.error : COLORS.primary}
               />
-              <Text style={styles.verificacionTitle}>
+              <Text style={[styles.verificacionTitle, { color: colors.textPrimary }]}>
                 {estadoIdentidad === 'rechazada' ? 'Verificación rechazada' : 'Verificación de identidad'}
               </Text>
             </View>
-            <Text style={styles.verificacionText}>
+            <Text style={[styles.verificacionText, { color: colors.textSecondary }]}>
               {estadoIdentidad === 'rechazada'
                 ? 'Tu verificación fue rechazada. ¿Quieres verificarte otra vez? Sube una nueva foto de cédula.'
                 : 'Tu cédula está en proceso de verificación. Te avisaremos cuando sea aprobada.'}
@@ -342,13 +344,13 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
       {/* Header row */}
       <FadeInView delay={100}>
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface }]}>
           <View style={styles.headerTopRow}>
             <View style={styles.headerLeft}>
               <View style={styles.headerIcon}>
                 <Ionicons name="leaf" size={20} color={COLORS.primary} />
               </View>
-              <Text style={styles.headerTitle}>Mis Vacantes</Text>
+              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Mis Vacantes</Text>
               <MotiView
                 from={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -388,7 +390,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
       {/* Tabs — animated */}
       <FadeInView delay={150}>
-        <View style={styles.tabs}>
+        <View style={[styles.tabs, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           {[
             { key: 'activa', label: 'Activas', count: activas.length },
             { key: 'inactiva', label: 'Inactivas', count: inactivas.length },
@@ -397,17 +399,17 @@ export default function EmpleadorVacantesScreen({ navigation }) {
             return (
               <AnimatedPressable
                 key={tab.key}
-                style={[styles.tab, isActive && styles.tabActive]}
+                style={[styles.tab, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }, isActive && styles.tabActive]}
                 onPress={() => setTabActiva(tab.key)}
                 scaleValue={0.93}
                 haptic
                 hapticStyle="light"
               >
-                <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                <Text style={[styles.tabText, { color: colors.textSecondary }, isActive && styles.tabTextActive]}>
                   {tab.label}
                 </Text>
-                <View style={[styles.tabCount, isActive && styles.tabCountActive]}>
-                  <Text style={[styles.tabCountText, isActive && styles.tabCountTextActive]}>
+                <View style={[styles.tabCount, { backgroundColor: colors.border }, isActive && styles.tabCountActive]}>
+                  <Text style={[styles.tabCountText, { color: colors.textSecondary }, isActive && styles.tabCountTextActive]}>
                     {tab.count}
                   </Text>
                 </View>
@@ -420,7 +422,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.surface : '#F8FAF9' }]} edges={['top', 'bottom']}>
       <FlatList
         data={lista}
         keyExtractor={(item) => item.id?.toString()}
@@ -453,12 +455,12 @@ export default function EmpleadorVacantesScreen({ navigation }) {
               </View>
             </MotiView>
             <FadeInView delay={200}>
-              <Text style={styles.emptyTitle}>
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
                 {tabActiva === 'activa' ? 'Sin vacantes activas' : 'Sin vacantes inactivas'}
               </Text>
             </FadeInView>
             <FadeInView delay={300}>
-              <Text style={styles.emptyText}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                 {tabActiva === 'activa'
                   ? 'Crea tu primera vacante y empieza a recibir postulantes'
                   : 'Las vacantes cerradas aparecerán aquí'}
@@ -487,17 +489,17 @@ export default function EmpleadorVacantesScreen({ navigation }) {
         animationType="fade"
         onRequestClose={cerrarConfirmacionArchivar}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+        <View style={[styles.modalBackdrop, { backgroundColor: isDark ? 'rgba(13,27,22,0.7)' : 'rgba(15, 23, 42, 0.45)' }]}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
             <View style={styles.modalIconWrap}>
               <Ionicons name="archive-outline" size={22} color={COLORS.accent} />
             </View>
 
-            <Text style={styles.modalTitle}>Archivar vacante</Text>
-            <Text style={styles.modalText}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Archivar vacante</Text>
+            <Text style={[styles.modalText, { color: colors.textPrimary }]}>
               {`¿Deseas archivar "${vacanteAArchivar?.titulo || 'esta vacante'}"?`}
             </Text>
-            <Text style={styles.modalSubtext}>
+            <Text style={[styles.modalSubtext, { color: colors.textSecondary }]}>
               Ya no aparecerá a trabajadores, pero seguirá en tu historial.
             </Text>
 
@@ -510,12 +512,12 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
             <View style={styles.modalActions}>
               <AnimatedPressable
-                style={[styles.modalBtn, styles.modalBtnGhost]}
+                style={[styles.modalBtn, styles.modalBtnGhost, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderColor: colors.border }]}
                 onPress={cerrarConfirmacionArchivar}
                 disabled={Boolean(archivandoId)}
                 scaleValue={0.97}
               >
-                <Text style={styles.modalBtnGhostText}>Cancelar</Text>
+                <Text style={[styles.modalBtnGhostText, { color: colors.textSecondary }]}>Cancelar</Text>
               </AnimatedPressable>
 
               <AnimatedPressable

@@ -9,6 +9,7 @@ import { vacantesAPI, calificacionesAPI, chatsAPI } from '../../services/api';
 import { StarRating, Input } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../utils/alertService';
+import { useAppTheme } from '../../context/ThemeContext';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -43,6 +44,7 @@ const TABS = [
 
 export default function VerPostulacionesScreen({ route, navigation }) {
   const { vacante } = route.params;
+  const { colors, isDark } = useAppTheme();
   const [postulaciones, setPostulaciones] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('todos');
@@ -143,7 +145,7 @@ export default function VerPostulacionesScreen({ route, navigation }) {
     const estadoBadge = getEstadoBadge(item.estado);
 
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
         {/* Status indicator */}
         <View style={[styles.cardStatusBar, { backgroundColor: estadoBadge.color }]} />
 
@@ -164,10 +166,10 @@ export default function VerPostulacionesScreen({ route, navigation }) {
             </TouchableOpacity>
 
             <View style={styles.candidateInfo}>
-              <Text style={styles.candidateName} numberOfLines={1}>{item.nombre_completo}</Text>
+              <Text style={[styles.candidateName, { color: colors.textPrimary }]} numberOfLines={1}>{item.nombre_completo}</Text>
               <View style={styles.metaRow}>
                 {item.calificacion_promedio > 0 && (
-                  <View style={styles.ratingChip}>
+                  <View style={[styles.ratingChip, { backgroundColor: isDark ? '#2a2200' : '#FFF8E1' }]}>
                     <Ionicons name="star" size={12} color="#FFB300" />
                     <Text style={styles.ratingText}>{Number(item.calificacion_promedio).toFixed(1)}</Text>
                   </View>
@@ -190,30 +192,30 @@ export default function VerPostulacionesScreen({ route, navigation }) {
           {/* Info chips */}
           <View style={styles.infoChipsRow}>
             {disponibilidad && (
-              <View style={styles.infoChip}>
-                <Ionicons name="calendar-outline" size={12} color={COLORS.textSecondary} />
-                <Text style={styles.infoChipText}>{disponibilidad}</Text>
+              <View style={[styles.infoChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}>
+                <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
+                <Text style={[styles.infoChipText, { color: colors.textSecondary }]}>{disponibilidad}</Text>
               </View>
             )}
             {item.nivel_estudios && (
-              <View style={styles.infoChip}>
-                <Ionicons name="school-outline" size={12} color={COLORS.textSecondary} />
-                <Text style={styles.infoChipText}>{LABELS_ESTUDIOS[item.nivel_estudios] || item.nivel_estudios}</Text>
+              <View style={[styles.infoChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}>
+                <Ionicons name="school-outline" size={12} color={colors.textSecondary} />
+                <Text style={[styles.infoChipText, { color: colors.textSecondary }]}>{LABELS_ESTUDIOS[item.nivel_estudios] || item.nivel_estudios}</Text>
               </View>
             )}
           </View>
 
           {/* Separator */}
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           {/* Action buttons */}
           <View style={styles.actions}>
             <TouchableOpacity
-              style={styles.btnOutline}
+              style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}
               onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.trabajador_id, vacante_id: vacante.id, postulacion_estado: item.estado })}
             >
-              <Ionicons name="person-outline" size={15} color={COLORS.textSecondary} />
-              <Text style={styles.btnOutlineText}>Perfil</Text>
+              <Ionicons name="person-outline" size={15} color={colors.textSecondary} />
+              <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Perfil</Text>
             </TouchableOpacity>
 
             {isPendiente && (
@@ -264,10 +266,10 @@ export default function VerPostulacionesScreen({ route, navigation }) {
 
           {/* Rating panel */}
           {calificandoId === item.trabajador_id && (
-            <View style={styles.calificarBox}>
+            <View style={[styles.calificarBox, { backgroundColor: isDark ? '#2a2200' : '#FFF8E1' }]}>
               <View style={styles.calificarHeader}>
                 <Ionicons name="star" size={18} color="#FFB300" />
-                <Text style={styles.calificarTitle}>Calificar a {item.nombre_completo?.split(' ')[0]}</Text>
+                <Text style={[styles.calificarTitle, { color: colors.textPrimary }]}>Calificar a {item.nombre_completo?.split(' ')[0]}</Text>
               </View>
               <StarRating rating={estrellas} onRate={setEstrellas} size={32} />
               <Input
@@ -286,10 +288,10 @@ export default function VerPostulacionesScreen({ route, navigation }) {
                   <Text style={styles.btnPrimaryText}>Enviar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.btnOutline}
+                  style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}
                   onPress={() => setCalificandoId(null)}
                 >
-                  <Text style={styles.btnOutlineText}>Cancelar</Text>
+                  <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Cancelar</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -302,31 +304,31 @@ export default function VerPostulacionesScreen({ route, navigation }) {
   const ListHeader = (
     <View>
       {/* Vacancy info card */}
-      <View style={styles.vacanteCard}>
+      <View style={[styles.vacanteCard, { backgroundColor: colors.surface }]}>
         <View style={styles.vacanteIconWrap}>
           <Ionicons name="briefcase" size={22} color={COLORS.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.vacanteTitle} numberOfLines={2}>{vacante.titulo}</Text>
-          <Text style={styles.vacanteMeta}>{timeAgo(vacante.created_at)}</Text>
+          <Text style={[styles.vacanteTitle, { color: colors.textPrimary }]} numberOfLines={2}>{vacante.titulo}</Text>
+          <Text style={[styles.vacanteMeta, { color: colors.textSecondary }]}>{timeAgo(vacante.created_at)}</Text>
         </View>
       </View>
 
       {/* Stats row */}
-      <View style={styles.statsRow}>
+      <View style={[styles.statsRow, { backgroundColor: colors.surface }]}>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{postulaciones.length}</Text>
-          <Text style={styles.statLabel}>Total</Text>
+          <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{postulaciones.length}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total</Text>
         </View>
-        <View style={styles.statDivider} />
+        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
         <View style={styles.statItem}>
           <Text style={[styles.statNumber, { color: COLORS.warning }]}>{pendientesCount}</Text>
-          <Text style={styles.statLabel}>Nuevos</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Nuevos</Text>
         </View>
-        <View style={styles.statDivider} />
+        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
         <View style={styles.statItem}>
           <Text style={[styles.statNumber, { color: COLORS.primary }]}>{aceptadosCount}</Text>
-          <Text style={styles.statLabel}>Aceptados</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Aceptados</Text>
         </View>
       </View>
 
@@ -337,11 +339,11 @@ export default function VerPostulacionesScreen({ route, navigation }) {
           return (
             <TouchableOpacity
               key={t.key}
-              style={[styles.tabChip, isActive && styles.tabChipActive]}
+              style={[styles.tabChip, { backgroundColor: colors.surface }, isActive && styles.tabChipActive]}
               onPress={() => setTab(t.key)}
             >
-              <Ionicons name={t.icon} size={14} color={isActive ? COLORS.white : COLORS.textSecondary} />
-              <Text style={[styles.tabChipText, isActive && styles.tabChipTextActive]}>{t.label}</Text>
+              <Ionicons name={t.icon} size={14} color={isActive ? COLORS.white : colors.textSecondary} />
+              <Text style={[styles.tabChipText, { color: colors.textSecondary }, isActive && styles.tabChipTextActive]}>{t.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -349,18 +351,18 @@ export default function VerPostulacionesScreen({ route, navigation }) {
 
       {/* Search bar */}
       <View style={styles.searchWrap}>
-        <View style={styles.searchInner}>
-          <Ionicons name="search" size={17} color={COLORS.textLight} />
+        <View style={[styles.searchInner, { backgroundColor: colors.surface }]}>
+          <Ionicons name="search" size={17} color={colors.textMuted} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.textPrimary }]}
             placeholder="Buscar por nombre..."
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={COLORS.textLight} />
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -369,13 +371,13 @@ export default function VerPostulacionesScreen({ route, navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.surface : '#F8FAF9' }]} edges={['top', 'bottom']}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={20} color={COLORS.textPrimary} />
+      <View style={[styles.header, { backgroundColor: colors.background, borderColor: colors.border }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]}>
+          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Postulaciones</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Postulaciones</Text>
         <View style={styles.headerBadge}>
           <Text style={styles.headerBadgeText}>{postulaciones.length}</Text>
         </View>
@@ -402,10 +404,10 @@ export default function VerPostulacionesScreen({ route, navigation }) {
             <View style={styles.emptyIconWrap}>
               <Ionicons name="people-outline" size={44} color={COLORS.primaryLight} />
             </View>
-            <Text style={styles.emptyTitle}>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
               {search ? 'Sin resultados' : 'Sin postulantes aún'}
             </Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               {search
                 ? 'No se encontraron candidatos con ese nombre'
                 : 'Los candidatos aparecerán aquí cuando se postulen'}
@@ -418,22 +420,20 @@ export default function VerPostulacionesScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAF9' },
+  container: { flex: 1 },
 
   /* Header */
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1, borderColor: COLORS.borderLight,
+    borderBottomWidth: 1,
     gap: SPACING.sm,
   },
   backBtn: {
     width: 38, height: 38, borderRadius: 12,
-    backgroundColor: '#F3F4F6',
     justifyContent: 'center', alignItems: 'center',
   },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, flex: 1 },
+  headerTitle: { fontSize: 18, fontWeight: '700', flex: 1 },
   headerBadge: {
     backgroundColor: COLORS.primarySoft,
     paddingHorizontal: 10, paddingVertical: 4,
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   /* Vacante info card */
   vacanteCard: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.lg,
     padding: SPACING.md, marginBottom: SPACING.sm,
     ...SHADOWS.card,
   },
@@ -453,20 +453,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primarySoft,
     justifyContent: 'center', alignItems: 'center',
   },
-  vacanteTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary },
-  vacanteMeta: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  vacanteTitle: { fontSize: 17, fontWeight: '700' },
+  vacanteMeta: { fontSize: 12, marginTop: 2 },
 
   /* Stats */
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.lg,
     padding: SPACING.md, marginBottom: SPACING.sm,
     ...SHADOWS.card,
   },
   statItem: { flex: 1, alignItems: 'center' },
-  statNumber: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
-  statLabel: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2, fontWeight: '500' },
-  statDivider: { width: 1, backgroundColor: COLORS.borderLight, marginHorizontal: SPACING.sm },
+  statNumber: { fontSize: 22, fontWeight: '800' },
+  statLabel: { fontSize: 11, marginTop: 2, fontWeight: '500' },
+  statDivider: { width: 1, marginHorizontal: SPACING.sm },
 
   /* Tabs */
   tabs: {
@@ -477,31 +477,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.white,
     ...SHADOWS.small,
   },
   tabChipActive: { backgroundColor: COLORS.primary },
-  tabChipText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
+  tabChipText: { fontSize: 13, fontWeight: '600' },
   tabChipTextActive: { color: COLORS.white },
 
   /* Search */
   searchWrap: { marginBottom: SPACING.md },
   searchInner: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.md, paddingVertical: 10,
     gap: SPACING.sm,
     ...SHADOWS.small,
   },
-  searchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary, padding: 0 },
+  searchInput: { flex: 1, fontSize: 14, padding: 0 },
 
   /* List */
   list: { padding: SPACING.md, paddingBottom: 100 },
 
   /* Card */
   card: {
-    backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     marginBottom: SPACING.md,
     ...SHADOWS.card,
@@ -520,11 +517,11 @@ const styles = StyleSheet.create({
   },
   avatarImg: { width: 56, height: 56, borderRadius: 16 },
   candidateInfo: { flex: 1 },
-  candidateName: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 4 },
+  candidateName: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   ratingChip: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#FFF8E1', paddingHorizontal: 7, paddingVertical: 2,
+    paddingHorizontal: 7, paddingVertical: 2,
     borderRadius: RADIUS.full,
   },
   ratingText: { fontSize: 12, fontWeight: '700', color: '#F57C00' },
@@ -546,13 +543,12 @@ const styles = StyleSheet.create({
   infoChipsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: SPACING.sm },
   infoChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#F3F4F6',
     paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: RADIUS.full,
   },
-  infoChipText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '500' },
+  infoChipText: { fontSize: 12, fontWeight: '500' },
 
-  divider: { height: 1, backgroundColor: COLORS.borderLight, marginBottom: SPACING.sm },
+  divider: { height: 1, marginBottom: SPACING.sm },
 
   /* Buttons */
   actions: { flexDirection: 'row', gap: SPACING.sm, alignItems: 'center', flexWrap: 'wrap' },
@@ -560,9 +556,8 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     paddingVertical: 10,
     borderRadius: RADIUS.full,
-    backgroundColor: '#F3F4F6',
   },
-  btnOutlineText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
+  btnOutlineText: { fontSize: 13, fontWeight: '600' },
   btnDanger: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     paddingVertical: 10,
@@ -597,13 +592,12 @@ const styles = StyleSheet.create({
   /* Rating */
   calificarBox: {
     marginTop: SPACING.md,
-    backgroundColor: '#FFF8E1',
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     gap: SPACING.sm,
   },
   calificarHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  calificarTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
+  calificarTitle: { fontSize: 14, fontWeight: '700' },
   calificarBtns: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
 
   /* Empty */
@@ -614,6 +608,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     marginBottom: SPACING.md,
   },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.xs },
-  emptyText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: SPACING.xs },
+  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
 });

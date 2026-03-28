@@ -6,6 +6,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import { vacantesAPI } from '../../services/api';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
@@ -13,6 +14,7 @@ import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 export default function DetalleVacanteReferenciaScreen({ route, navigation }) {
   const { vacante: vacanteBase } = route.params;
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppTheme();
   const [vacante, setVacante] = useState(vacanteBase);
   const [loading, setLoading] = useState(true);
   const [fotoActiva, setFotoActiva] = useState(0);
@@ -57,14 +59,14 @@ export default function DetalleVacanteReferenciaScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingWrap}>
+      <View style={[styles.loadingWrap, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.root} edges={['bottom']}>
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['bottom']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: SPACING.xl }}>
         <View style={styles.heroWrap}>
           {heroFotos.length > 1 ? (
@@ -102,52 +104,52 @@ export default function DetalleVacanteReferenciaScreen({ route, navigation }) {
           </View>
         </View>
 
-        <View style={styles.content}>
-          <Text style={styles.title}>{vacante?.titulo}</Text>
-          <Text style={styles.finca}>{vacante?.nombre_empresa_finca || 'Finca'}</Text>
+        <View style={[styles.content, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>{vacante?.titulo}</Text>
+          <Text style={[styles.finca, { color: colors.textSecondary }]}>{vacante?.nombre_empresa_finca || 'Finca'}</Text>
 
           {vacante?.descripcion ? (
             <View style={styles.block}>
-              <Text style={styles.blockTitle}>Descripcion</Text>
-              <Text style={styles.blockText}>{vacante.descripcion}</Text>
+              <Text style={[styles.blockTitle, { color: colors.textPrimary }]}>Descripcion</Text>
+              <Text style={[styles.blockText, { color: colors.textSecondary }]}>{vacante.descripcion}</Text>
             </View>
           ) : null}
 
-          <View style={styles.infoCard}>
+          <View style={[styles.infoCard, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
             <View style={styles.infoRow}>
               <Ionicons name="location-outline" size={16} color={COLORS.primary} />
-              <Text style={styles.infoText}>{ubicacion}</Text>
+              <Text style={[styles.infoText, { color: colors.textPrimary }]}>{ubicacion}</Text>
             </View>
             <View style={styles.infoRow}>
               <Ionicons name="cash-outline" size={16} color={COLORS.primary} />
-              <Text style={styles.infoText}>{pago.valor}</Text>
+              <Text style={[styles.infoText, { color: colors.textPrimary }]}>{pago.valor}</Text>
             </View>
             <View style={styles.infoRow}>
               <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
-              <Text style={styles.infoText}>Inicio: {fechaInicio}</Text>
+              <Text style={[styles.infoText, { color: colors.textPrimary }]}>Inicio: {fechaInicio}</Text>
             </View>
             {vacante?.duracion ? (
               <View style={styles.infoRow}>
                 <Ionicons name="time-outline" size={16} color={COLORS.primary} />
-                <Text style={styles.infoText}>Duracion: {vacante.duracion}</Text>
+                <Text style={[styles.infoText, { color: colors.textPrimary }]}>Duracion: {vacante.duracion}</Text>
               </View>
             ) : null}
           </View>
 
           {vacante?.requisitos ? (
             <View style={styles.block}>
-              <Text style={styles.blockTitle}>Requisitos</Text>
-              <Text style={styles.blockText}>{vacante.requisitos}</Text>
+              <Text style={[styles.blockTitle, { color: colors.textPrimary }]}>Requisitos</Text>
+              <Text style={[styles.blockText, { color: colors.textSecondary }]}>{vacante.requisitos}</Text>
             </View>
           ) : null}
 
           {labores.length > 0 ? (
             <View style={styles.block}>
-              <Text style={styles.blockTitle}>Labores</Text>
+              <Text style={[styles.blockTitle, { color: colors.textPrimary }]}>Labores</Text>
               <View style={styles.chipsWrap}>
                 {labores.map((l, i) => (
-                  <View key={i} style={styles.chipGray}>
-                    <Text style={styles.chipGrayText}>{l}</Text>
+                  <View key={i} style={[styles.chipGray, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]}>
+                    <Text style={[styles.chipGrayText, { color: colors.textPrimary }]}>{l}</Text>
                   </View>
                 ))}
               </View>
@@ -156,7 +158,7 @@ export default function DetalleVacanteReferenciaScreen({ route, navigation }) {
 
           {cultivos.length > 0 ? (
             <View style={styles.block}>
-              <Text style={styles.blockTitle}>Cultivos</Text>
+              <Text style={[styles.blockTitle, { color: colors.textPrimary }]}>Cultivos</Text>
               <View style={styles.chipsWrap}>
                 {cultivos.map((c, i) => (
                   <View key={i} style={styles.chipGreen}>
@@ -170,10 +172,10 @@ export default function DetalleVacanteReferenciaScreen({ route, navigation }) {
 
           {(vacante?.ofrece_alojamiento || vacante?.ofrece_alimentacion || vacante?.otros_beneficios) ? (
             <View style={styles.block}>
-              <Text style={styles.blockTitle}>Beneficios</Text>
-              {vacante?.ofrece_alojamiento ? <Text style={styles.blockText}>• Alojamiento incluido</Text> : null}
-              {vacante?.ofrece_alimentacion ? <Text style={styles.blockText}>• Alimentacion incluida</Text> : null}
-              {vacante?.otros_beneficios ? <Text style={styles.blockText}>• {vacante.otros_beneficios}</Text> : null}
+              <Text style={[styles.blockTitle, { color: colors.textPrimary }]}>Beneficios</Text>
+              {vacante?.ofrece_alojamiento ? <Text style={[styles.blockText, { color: colors.textSecondary }]}>• Alojamiento incluido</Text> : null}
+              {vacante?.ofrece_alimentacion ? <Text style={[styles.blockText, { color: colors.textSecondary }]}>• Alimentacion incluida</Text> : null}
+              {vacante?.otros_beneficios ? <Text style={[styles.blockText, { color: colors.textSecondary }]}>• {vacante.otros_beneficios}</Text> : null}
             </View>
           ) : null}
         </View>
@@ -183,8 +185,8 @@ export default function DetalleVacanteReferenciaScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.white },
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white },
+  root: { flex: 1 },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   heroWrap: { height: 300, backgroundColor: COLORS.primarySoft, position: 'relative' },
   heroImg: { width: '100%', height: 300 },
   heroPlaceholder: {
@@ -216,7 +218,6 @@ const styles = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.5)' },
   dotActive: { width: 20, backgroundColor: COLORS.white },
   content: {
-    backgroundColor: COLORS.white,
     marginTop: -20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -225,10 +226,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary },
   finca: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4, marginBottom: SPACING.md },
   infoCard: {
-    backgroundColor: '#F8FAF9',
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
     padding: SPACING.md,
     marginBottom: SPACING.md,
   },
@@ -239,7 +238,6 @@ const styles = StyleSheet.create({
   blockText: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22 },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chipGray: {
-    backgroundColor: '#F3F4F6',
     borderRadius: RADIUS.full,
     paddingHorizontal: 12,
     paddingVertical: 6,

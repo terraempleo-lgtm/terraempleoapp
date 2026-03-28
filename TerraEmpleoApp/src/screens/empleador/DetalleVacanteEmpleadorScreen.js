@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import { vacantesAPI } from '../../services/api';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
@@ -19,22 +20,22 @@ function timeAgo(dateStr) {
   return `Publicado hace ${diff} días`;
 }
 
-function Chip({ label }) {
+function Chip({ label, colors }) {
   return (
-    <View style={styles.chip}>
+    <View style={[styles.chip, { backgroundColor: colors.surface, borderColor: COLORS.primary + '33' }]}>
       <Text style={styles.chipText}>{label}</Text>
     </View>
   );
 }
 
-function SectionCard({ icon, title, children }) {
+function SectionCard({ icon, title, children, colors }) {
   return (
-    <View style={styles.sectionCard}>
+    <View style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionIconWrap}>
           <Ionicons name={icon} size={18} color={COLORS.primary} />
         </View>
-        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{title}</Text>
       </View>
       {children}
     </View>
@@ -42,6 +43,7 @@ function SectionCard({ icon, title, children }) {
 }
 
 export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
+  const { colors } = useAppTheme();
   const { vacante: vacanteParam } = route.params;
   const [vacante, setVacante] = useState(vacanteParam);
   const [stats, setStats] = useState({ total: 0, pendientes: 0, aceptadas: 0 });
@@ -119,7 +121,7 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -208,42 +210,42 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
 
         {/* Descripción debajo de fotos */}
         {vacante.descripcion ? (
-          <View style={styles.descripcionCard}>
+          <View style={[styles.descripcionCard, { backgroundColor: colors.surface }]}>
             <View style={styles.descripcionHeader}>
               <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
-              <Text style={styles.descripcionTitle}>Descripción</Text>
+              <Text style={[styles.descripcionTitle, { color: colors.textPrimary }]}>Descripción</Text>
             </View>
-            <Text style={styles.descTextStrong}>{vacante.descripcion}</Text>
+            <Text style={[styles.descTextStrong, { color: colors.textPrimary }]}>{vacante.descripcion}</Text>
           </View>
         ) : null}
 
         {/* Panel postulaciones */}
-        <View style={styles.postulacionesPanel}>
+        <View style={[styles.postulacionesPanel, { backgroundColor: colors.surface }]}>
           <View style={styles.panelHeader}>
             <View style={styles.panelHeaderIcon}>
               <Ionicons name="people-outline" size={16} color={COLORS.primary} />
             </View>
-            <Text style={styles.panelHeaderTitle}>Resumen de postulaciones</Text>
+            <Text style={[styles.panelHeaderTitle, { color: colors.textPrimary }]}>Resumen de postulaciones</Text>
           </View>
 
-          <View style={styles.statsRow}>
+          <View style={[styles.statsRow, { borderColor: colors.border }]}>
             <TouchableOpacity
               style={styles.statCard}
               onPress={() => navigation.navigate('VerPostulaciones', { vacante })}
               activeOpacity={0.75}
             >
               <Text style={styles.statNum}>{stats.total}</Text>
-              <Text style={styles.statLabel}>POSTULANTES</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>POSTULANTES</Text>
             </TouchableOpacity>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statCard}>
               <Text style={styles.statNum}>{stats.pendientes}</Text>
-              <Text style={styles.statLabel}>NUEVOS</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>NUEVOS</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statCard}>
               <Text style={styles.statNum}>{stats.aceptadas}</Text>
-              <Text style={styles.statLabel}>ACEPTADOS</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>ACEPTADOS</Text>
             </View>
           </View>
 
@@ -270,41 +272,41 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
         <View style={styles.details}>
           {/* Cultivos */}
           {vacante.cultivos?.length > 0 && (
-            <SectionCard icon="leaf-outline" title="Cultivos">
+            <SectionCard icon="leaf-outline" title="Cultivos" colors={colors}>
               <View style={styles.chipsWrap}>
-                {vacante.cultivos.map((c, i) => <Chip key={i} label={c.cultivo || c.nombre || String(c)} />)}
+                {vacante.cultivos.map((c, i) => <Chip key={i} label={c.cultivo || c.nombre || String(c)} colors={colors} />)}
               </View>
             </SectionCard>
           )}
 
           {/* Labores */}
           {vacante.labores?.length > 0 && (
-            <SectionCard icon="construct-outline" title="Labores requeridas">
+            <SectionCard icon="construct-outline" title="Labores requeridas" colors={colors}>
               <View style={styles.chipsWrap}>
-                {vacante.labores.map((l, i) => <Chip key={i} label={l.labor || l.nombre || String(l)} />)}
+                {vacante.labores.map((l, i) => <Chip key={i} label={l.labor || l.nombre || String(l)} colors={colors} />)}
               </View>
             </SectionCard>
           )}
 
           {/* Pago y beneficios */}
-          <SectionCard icon="cash-outline" title="Pago y beneficios">
+          <SectionCard icon="cash-outline" title="Pago y beneficios" colors={colors}>
             <View style={styles.beneficiosList}>
               {vacante.tipo_pago && (
                 <View style={styles.beneficioRow}>
                   <Ionicons name="card-outline" size={16} color={COLORS.primary} />
-                  <Text style={styles.beneficioText}>
+                  <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>
                     Tipo de pago: {pago.tipoLabel || vacante.tipo_pago}
                   </Text>
                 </View>
               )}
               <View style={styles.beneficioRow}>
                 <Ionicons name="cash" size={16} color={COLORS.primary} />
-                <Text style={styles.beneficioText}>Salario: {pago.valor}</Text>
+                <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>Salario: {pago.valor}</Text>
               </View>
               {vacante.duracion ? (
                 <View style={styles.beneficioRow}>
                   <Ionicons name="time-outline" size={16} color={COLORS.primary} />
-                  <Text style={styles.beneficioText}>Duración: {vacante.duracion}</Text>
+                  <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>Duración: {vacante.duracion}</Text>
                 </View>
               ) : null}
               <View style={styles.beneficioRow}>
@@ -313,7 +315,7 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
                   size={16}
                   color={vacante.ofrece_alojamiento ? COLORS.primary : COLORS.textLight}
                 />
-                <Text style={[styles.beneficioText, !vacante.ofrece_alojamiento && styles.textMuted]}>
+                <Text style={[styles.beneficioText, { color: colors.textPrimary }, !vacante.ofrece_alojamiento && { color: colors.textMuted }]}>
                   Alojamiento {vacante.ofrece_alojamiento ? 'incluido' : 'no incluido'}
                 </Text>
               </View>
@@ -323,28 +325,28 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
                   size={16}
                   color={vacante.ofrece_alimentacion ? COLORS.primary : COLORS.textLight}
                 />
-                <Text style={[styles.beneficioText, !vacante.ofrece_alimentacion && styles.textMuted]}>
+                <Text style={[styles.beneficioText, { color: colors.textPrimary }, !vacante.ofrece_alimentacion && { color: colors.textMuted }]}>
                   Alimentación {vacante.ofrece_alimentacion ? 'incluida' : 'no incluida'}
                 </Text>
               </View>
               {vacante.otros_beneficios ? (
                 <View style={styles.beneficioRow}>
                   <Ionicons name="gift-outline" size={16} color={COLORS.accent} />
-                  <Text style={styles.beneficioText}>{vacante.otros_beneficios}</Text>
+                  <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>{vacante.otros_beneficios}</Text>
                 </View>
               ) : null}
             </View>
           </SectionCard>
 
-          <SectionCard icon="calendar-clear-outline" title="Fechas">
+          <SectionCard icon="calendar-clear-outline" title="Fechas" colors={colors}>
             <View style={styles.beneficiosList}>
               <View style={styles.beneficioRow}>
                 <Ionicons name="play-circle-outline" size={16} color={COLORS.primary} />
-                <Text style={styles.beneficioText}>Inicio: {fechaInicioTexto}</Text>
+                <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>Inicio: {fechaInicioTexto}</Text>
               </View>
               <View style={styles.beneficioRow}>
                 <Ionicons name="stop-circle-outline" size={16} color={vacante.fecha_fin ? COLORS.accent : COLORS.textLight} />
-                <Text style={styles.beneficioText}>
+                <Text style={[styles.beneficioText, { color: colors.textPrimary }]}>
                   Finalización: {vacante.fecha_fin
                     ? formatVacancyStartDate(vacante.fecha_fin, { long: true, fallback: 'Por definir' })
                     : 'Sin fecha límite'}
@@ -354,8 +356,8 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
           </SectionCard>
 
           {vacante.requisitos ? (
-            <SectionCard icon="checkmark-done-outline" title="Requisitos">
-              <Text style={styles.descText}>{vacante.requisitos}</Text>
+            <SectionCard icon="checkmark-done-outline" title="Requisitos" colors={colors}>
+              <Text style={[styles.descText, { color: colors.textSecondary }]}>{vacante.requisitos}</Text>
             </SectionCard>
           ) : null}
 
@@ -366,7 +368,7 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1 },
   scrollContent: { paddingBottom: SPACING.lg },
 
   /* Hero */
@@ -440,7 +442,6 @@ const styles = StyleSheet.create({
   heroMetaDot: { fontSize: 13, color: 'rgba(255,255,255,0.5)', marginHorizontal: 2 },
 
   descripcionCard: {
-    backgroundColor: COLORS.white,
     marginHorizontal: SPACING.md,
     marginTop: SPACING.sm,
     borderRadius: RADIUS.lg,
@@ -455,7 +456,6 @@ const styles = StyleSheet.create({
   postulacionesPanel: {
     marginHorizontal: SPACING.md,
     marginTop: SPACING.sm,
-    backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     ...SHADOWS.card,
     paddingBottom: SPACING.sm,
@@ -519,7 +519,6 @@ const styles = StyleSheet.create({
   /* Details */
   details: { padding: SPACING.md, gap: SPACING.sm },
   sectionCard: {
-    backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     padding: SPACING.sm,
     ...SHADOWS.small,
@@ -537,10 +536,9 @@ const styles = StyleSheet.create({
   /* Chips */
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
-    backgroundColor: COLORS.primarySoft,
     borderRadius: RADIUS.full,
     paddingHorizontal: 12, paddingVertical: 5,
-    borderWidth: 1, borderColor: COLORS.primary + '33',
+    borderWidth: 1,
   },
   chipText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
 

@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import { trabajadoresAPI, vacantesAPI } from '../../services/api';
 import { showAlert } from '../../utils/alertService';
 
@@ -73,21 +74,21 @@ function MatchBadge({ puntaje }) {
   );
 }
 
-function TrabajadorCard({ item, onPress, onContact, loadingContacto }) {
+function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isDark }) {
   const proxConfig = PROXIMIDAD_CONFIG[item.proximidad] || PROXIMIDAD_CONFIG.lejano;
   const dispLabel = DISPONIBILIDAD_LABELS[item.disponibilidad];
   const expLabel = EXPERIENCIA_LABELS[item.anios_experiencia];
   const ubicacion = [item.municipio, item.departamento].filter(Boolean).join(', ');
 
   return (
-    <TouchableOpacity style={styles.card} onPress={() => onPress(item)} activeOpacity={0.85}>
+    <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface }]} onPress={() => onPress(item)} activeOpacity={0.85}>
       <View style={styles.cardTop}>
         {/* Avatar */}
         <View style={styles.avatarWrap}>
           {item.foto_selfie ? (
             <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
           ) : (
-            <View style={styles.avatarFallback}>
+            <View style={[styles.avatarFallback, { backgroundColor: isDark ? colors.surface : '#78909C' }]}>
               <Ionicons name="person" size={22} color={COLORS.white} />
             </View>
           )}
@@ -95,12 +96,12 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto }) {
 
         {/* Info principal */}
         <View style={styles.cardInfo}>
-          <Text style={styles.nombre} numberOfLines={1}>{item.nombre_completo}</Text>
+          <Text style={[styles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>{item.nombre_completo}</Text>
 
           {ubicacion ? (
             <View style={styles.row}>
-              <Ionicons name="location-outline" size={12} color={COLORS.textLight} />
-              <Text style={styles.ubicacion} numberOfLines={1}>{ubicacion}</Text>
+              <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+              <Text style={[styles.ubicacion, { color: colors.textMuted }]} numberOfLines={1}>{ubicacion}</Text>
             </View>
           ) : null}
 
@@ -120,7 +121,7 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto }) {
         {/* Rating */}
         <View style={styles.ratingCol}>
           <StarRating value={item.calificacion_promedio} />
-          <Text style={styles.ratingNum}>
+          <Text style={[styles.ratingNum, { color: colors.textPrimary }]}>
             {item.calificacion_promedio > 0
               ? item.calificacion_promedio.toFixed(1)
               : '—'}
@@ -138,8 +139,8 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto }) {
         ) : null}
         {expLabel ? (
           <View style={styles.metaChip}>
-            <Ionicons name="ribbon-outline" size={11} color={COLORS.textSecondary} />
-            <Text style={[styles.metaChipText, { color: COLORS.textSecondary }]}>{expLabel}</Text>
+            <Ionicons name="ribbon-outline" size={11} color={colors.textSecondary} />
+            <Text style={[styles.metaChipText, { color: colors.textSecondary }]}>{expLabel}</Text>
           </View>
         ) : null}
       </View>
@@ -148,8 +149,8 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto }) {
       {item.habilidades?.length > 0 || item.cultivos?.length > 0 ? (
         <View style={styles.skillsRow}>
           {[...item.cultivos.slice(0, 2), ...item.habilidades.slice(0, 2)].map((s, i) => (
-            <View key={i} style={styles.skillChip}>
-              <Text style={styles.skillText} numberOfLines={1}>{s}</Text>
+            <View key={i} style={[styles.skillChip, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}>
+              <Text style={[styles.skillText, { color: colors.textSecondary }]} numberOfLines={1}>{s}</Text>
             </View>
           ))}
           {item.cultivos.length + item.habilidades.length > 4 ? (
@@ -178,6 +179,7 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto }) {
 }
 
 export default function BuscarTrabajadoresScreen({ navigation }) {
+  const { colors, isDark } = useAppTheme();
   const [trabajadores, setTrabajadores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -265,22 +267,22 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <View style={styles.centerWrap}>
           <Ionicons name="people-outline" size={40} color={COLORS.primaryLight} />
-          <Text style={styles.loadingText}>Buscando trabajadores...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Buscando trabajadores...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Trabajadores</Text>
-          <Text style={styles.headerSub}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Trabajadores</Text>
+          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
             {filtrados.length} disponible{filtrados.length !== 1 ? 's' : ''}
           </Text>
           {vacanteContacto?.titulo ? (
@@ -293,18 +295,18 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
       </View>
 
       {/* Búsqueda */}
-      <View style={styles.searchWrap}>
-        <Ionicons name="search" size={17} color={COLORS.textLight} />
+      <View style={[styles.searchWrap, { backgroundColor: isDark ? colors.surface : '#F9FAFB', borderColor: colors.border }]}>
+        <Ionicons name="search" size={17} color={colors.textMuted} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: colors.textPrimary }]}
           placeholder="Buscar por nombre, lugar, habilidad..."
-          placeholderTextColor={COLORS.textLight}
+          placeholderTextColor={colors.textMuted}
           value={search}
           onChangeText={setSearch}
         />
         {search.length > 0 ? (
           <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={17} color={COLORS.textLight} />
+            <Ionicons name="close-circle" size={17} color={colors.textMuted} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -316,15 +318,15 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
           return (
             <TouchableOpacity
               key={t.key}
-              style={[styles.ordenTab, active && styles.ordenTabActive]}
+              style={[styles.ordenTab, { backgroundColor: isDark ? colors.border : '#F3F4F6' }, active && styles.ordenTabActive]}
               onPress={() => onOrden(t.key)}
             >
               <Ionicons
                 name={t.icon}
                 size={14}
-                color={active ? COLORS.white : COLORS.textSecondary}
+                color={active ? COLORS.white : colors.textSecondary}
               />
-              <Text style={[styles.ordenTabText, active && styles.ordenTabTextActive]}>
+              <Text style={[styles.ordenTabText, { color: colors.textSecondary }, active && styles.ordenTabTextActive]}>
                 {t.label}
               </Text>
             </TouchableOpacity>
@@ -343,10 +345,10 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
           return (
             <TouchableOpacity
               key={f.key}
-              style={[styles.dispChip, active && styles.dispChipActive]}
+              style={[styles.dispChip, { backgroundColor: isDark ? colors.border : '#F3F4F6', borderColor: colors.border }, active && styles.dispChipActive]}
               onPress={() => onDisponibilidad(f.key)}
             >
-              <Text style={[styles.dispChipText, active && styles.dispChipTextActive]}>
+              <Text style={[styles.dispChipText, { color: colors.textSecondary }, active && styles.dispChipTextActive]}>
                 {f.label}
               </Text>
             </TouchableOpacity>
@@ -364,6 +366,8 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
             onPress={irPerfil}
             onContact={solicitarContacto}
             loadingContacto={Number(enviandoContactoId) === Number(item.id)}
+            colors={colors}
+            isDark={isDark}
           />
         )}
         contentContainerStyle={styles.list}
@@ -377,8 +381,8 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="people-outline" size={44} color={COLORS.primaryLight} />
-            <Text style={styles.emptyTitle}>Sin resultados</Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin resultados</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               Prueba cambiando los filtros o el orden de búsqueda.
             </Text>
           </View>

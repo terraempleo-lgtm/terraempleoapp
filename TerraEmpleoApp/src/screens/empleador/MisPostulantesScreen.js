@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import { vacantesAPI, chatsAPI } from '../../services/api';
 
 const TABS = [
@@ -45,6 +46,7 @@ function getEstadoConfig(estadoNormalizado) {
 }
 
 export default function MisPostulantesScreen({ navigation }) {
+  const { colors, isDark } = useAppTheme();
   const [postulantes, setPostulantes] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('todos');
@@ -160,12 +162,12 @@ export default function MisPostulantesScreen({ navigation }) {
     const matchPct = Math.round(item.puntaje_match || 0);
 
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
         <View style={[styles.statusBar, { backgroundColor: estado.color }]} />
 
         <View style={styles.cardBody}>
           <View style={styles.topRow}>
-            <View style={styles.avatarWrap}>
+            <View style={[styles.avatarWrap, { backgroundColor: isDark ? colors.surface : '#B0BEC5' }]}>
               {item.foto_selfie ? (
                 <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
               ) : (
@@ -174,9 +176,9 @@ export default function MisPostulantesScreen({ navigation }) {
             </View>
 
             <View style={styles.mainInfo}>
-              <Text style={styles.nombre} numberOfLines={1}>{item.nombre_completo || 'Postulante'}</Text>
-              <Text style={styles.vacante} numberOfLines={1}>{item.vacante_titulo || 'Vacante'}</Text>
-              <Text style={styles.finca} numberOfLines={1}>{item.finca_nombre}</Text>
+              <Text style={[styles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>{item.nombre_completo || 'Postulante'}</Text>
+              <Text style={[styles.vacante, { color: colors.textSecondary }]} numberOfLines={1}>{item.vacante_titulo || 'Vacante'}</Text>
+              <Text style={[styles.finca, { color: colors.textMuted }]} numberOfLines={1}>{item.finca_nombre}</Text>
             </View>
 
             <View style={[styles.estadoBadge, { backgroundColor: estado.bg }]}>
@@ -187,8 +189,8 @@ export default function MisPostulantesScreen({ navigation }) {
 
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
-              <Ionicons name="time-outline" size={13} color={COLORS.textLight} />
-              <Text style={styles.metaText}>{timeAgo(item.created_at)}</Text>
+              <Ionicons name="time-outline" size={13} color={colors.textMuted} />
+              <Text style={[styles.metaText, { color: colors.textSecondary }]}>{timeAgo(item.created_at)}</Text>
             </View>
             {matchPct > 0 ? (
               <View style={styles.metaItem}>
@@ -199,19 +201,19 @@ export default function MisPostulantesScreen({ navigation }) {
           </View>
 
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.btnOutline} onPress={() => irPerfil(item)}>
-              <Ionicons name="person-outline" size={14} color={COLORS.textSecondary} />
-              <Text style={styles.btnOutlineText}>Ver perfil</Text>
+            <TouchableOpacity style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]} onPress={() => irPerfil(item)}>
+              <Ionicons name="person-outline" size={14} color={colors.textSecondary} />
+              <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Ver perfil</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.btnOutline} onPress={() => irVacante(item)}>
-              <Ionicons name="briefcase-outline" size={14} color={COLORS.textSecondary} />
-              <Text style={styles.btnOutlineText}>Ver vacante</Text>
+            <TouchableOpacity style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]} onPress={() => irVacante(item)}>
+              <Ionicons name="briefcase-outline" size={14} color={colors.textSecondary} />
+              <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Ver vacante</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.btnOutline} onPress={() => irPostulacion(item)}>
-              <Ionicons name="reader-outline" size={14} color={COLORS.textSecondary} />
-              <Text style={styles.btnOutlineText}>Ver postulacion</Text>
+            <TouchableOpacity style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]} onPress={() => irPostulacion(item)}>
+              <Ionicons name="reader-outline" size={14} color={colors.textSecondary} />
+              <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Ver postulacion</Text>
             </TouchableOpacity>
           </View>
 
@@ -227,36 +229,36 @@ export default function MisPostulantesScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mis Postulantes</Text>
-        <Text style={styles.headerSub}>Panel rapido de reclutamiento</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Mis Postulantes</Text>
+        <Text style={[styles.headerSub, { color: colors.textSecondary }]}>Panel rapido de reclutamiento</Text>
       </View>
 
       <View style={styles.statsRow}>
-        <View style={styles.statCard}><Text style={styles.statNum}>{counts.total}</Text><Text style={styles.statLabel}>Total</Text></View>
-        <View style={styles.statCard}><Text style={[styles.statNum, { color: COLORS.info }]}>{counts.nuevos}</Text><Text style={styles.statLabel}>Nuevos</Text></View>
-        <View style={styles.statCard}><Text style={[styles.statNum, { color: COLORS.primary }]}>{counts.aceptados}</Text><Text style={styles.statLabel}>Aceptados</Text></View>
+        <View style={[styles.statCard, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}><Text style={[styles.statNum, { color: colors.textPrimary }]}>{counts.total}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total</Text></View>
+        <View style={[styles.statCard, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}><Text style={[styles.statNum, { color: COLORS.info }]}>{counts.nuevos}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>Nuevos</Text></View>
+        <View style={[styles.statCard, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}><Text style={[styles.statNum, { color: COLORS.primary }]}>{counts.aceptados}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>Aceptados</Text></View>
       </View>
 
       <View style={styles.tabsRow}>
         {TABS.map((t) => {
           const active = tab === t.key;
           return (
-            <TouchableOpacity key={t.key} style={[styles.tab, active && styles.tabActive]} onPress={() => setTab(t.key)}>
-              <Ionicons name={t.icon} size={13} color={active ? COLORS.white : COLORS.textSecondary} />
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>{t.label}</Text>
+            <TouchableOpacity key={t.key} style={[styles.tab, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }, active && styles.tabActive]} onPress={() => setTab(t.key)}>
+              <Ionicons name={t.icon} size={13} color={active ? COLORS.white : colors.textSecondary} />
+              <Text style={[styles.tabText, { color: colors.textSecondary }, active && styles.tabTextActive]}>{t.label}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
-      <View style={styles.searchWrap}>
-        <Ionicons name="search" size={17} color={COLORS.textLight} />
+      <View style={[styles.searchWrap, { backgroundColor: isDark ? colors.surface : '#F9FAFB', borderColor: colors.border }]}>
+        <Ionicons name="search" size={17} color={colors.textMuted} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: colors.textPrimary }]}
           placeholder="Buscar por trabajador o vacante..."
-          placeholderTextColor={COLORS.textLight}
+          placeholderTextColor={colors.textMuted}
           value={search}
           onChangeText={setSearch}
         />
@@ -277,8 +279,8 @@ export default function MisPostulantesScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="people-outline" size={48} color={COLORS.primaryLight} />
-            <Text style={styles.emptyTitle}>Sin postulantes por ahora</Text>
-            <Text style={styles.emptyText}>Cuando lleguen postulaciones apareceran aqui con acceso rapido.</Text>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin postulantes por ahora</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Cuando lleguen postulaciones apareceran aqui con acceso rapido.</Text>
           </View>
         }
       />
