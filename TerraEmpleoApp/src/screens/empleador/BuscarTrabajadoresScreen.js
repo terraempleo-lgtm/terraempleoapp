@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { AnimatedPressable } from '../../components/animated';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
 import { trabajadoresAPI, vacantesAPI } from '../../services/api';
@@ -79,24 +80,42 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isD
   const dispLabel = DISPONIBILIDAD_LABELS[item.disponibilidad];
   const expLabel = EXPERIENCIA_LABELS[item.anios_experiencia];
   const ubicacion = [item.municipio, item.departamento].filter(Boolean).join(', ');
+  const matchNum = Number(item.puntaje_match || 0);
+  const matchColor = matchNum >= 70 ? COLORS.primary : matchNum >= 40 ? COLORS.warning : COLORS.textLight;
+  const matchBg = matchNum >= 70 ? COLORS.primarySoft : matchNum >= 40 ? COLORS.warningSoft : (isDark ? colors.surface : '#F3F4F6');
 
   return (
-    <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface }]} onPress={() => onPress(item)} activeOpacity={0.85}>
+    <AnimatedPressable
+      style={[styles.card, { backgroundColor: colors.surface }]}
+      onPress={() => onPress(item)}
+      scaleValue={0.98}
+      haptic={false}
+    >
       <View style={styles.cardTop}>
-        {/* Avatar */}
+        {/* Avatar with match pill */}
         <View style={styles.avatarWrap}>
-          {item.foto_selfie ? (
-            <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarFallback, { backgroundColor: isDark ? colors.surface : '#78909C' }]}>
-              <Ionicons name="person" size={22} color={COLORS.white} />
+          <View style={styles.avatarCircle}>
+            {item.foto_selfie ? (
+              <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatarFallback, { backgroundColor: isDark ? '#2E4A3E' : COLORS.primarySoft }]}>
+                <Ionicons name="person" size={26} color={COLORS.primary} />
+              </View>
+            )}
+          </View>
+          {matchNum > 0 && (
+            <View style={[styles.matchPill, { backgroundColor: matchBg }]}>
+              <Ionicons name="flash" size={9} color={matchColor} />
+              <Text style={[styles.matchPillText, { color: matchColor }]}>{matchNum}%</Text>
             </View>
           )}
         </View>
 
         {/* Info principal */}
         <View style={styles.cardInfo}>
-          <Text style={[styles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>{item.nombre_completo}</Text>
+          <Text style={[styles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>
+            {item.nombre_completo}
+          </Text>
 
           {ubicacion ? (
             <View style={styles.row}>
@@ -105,17 +124,14 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isD
             </View>
           ) : null}
 
-          <View style={styles.badgesRow}>
-            <MatchBadge puntaje={item.puntaje_match} />
-            {proxConfig.label ? (
-              <View style={[styles.proximidadBadge, { backgroundColor: proxConfig.color + '18' }]}>
-                <Ionicons name={proxConfig.icon} size={11} color={proxConfig.color} />
-                <Text style={[styles.proximidadText, { color: proxConfig.color }]}>
-                  {proxConfig.label}
-                </Text>
-              </View>
-            ) : null}
-          </View>
+          {proxConfig.label ? (
+            <View style={[styles.proximidadBadge, { backgroundColor: proxConfig.color + '15' }]}>
+              <Ionicons name={proxConfig.icon} size={10} color={proxConfig.color} />
+              <Text style={[styles.proximidadText, { color: proxConfig.color }]}>
+                {proxConfig.label}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Rating */}
@@ -129,7 +145,7 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isD
         </View>
       </View>
 
-      {/* Detalles */}
+      {/* Meta chips */}
       <View style={styles.cardMeta}>
         {dispLabel ? (
           <View style={styles.metaChip}>
@@ -138,7 +154,7 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isD
           </View>
         ) : null}
         {expLabel ? (
-          <View style={styles.metaChip}>
+          <View style={[styles.metaChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderWidth: 1, borderColor: colors.border }]}>
             <Ionicons name="ribbon-outline" size={11} color={colors.textSecondary} />
             <Text style={[styles.metaChipText, { color: colors.textSecondary }]}>{expLabel}</Text>
           </View>
@@ -146,17 +162,22 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isD
       </View>
 
       {/* Skills */}
-      {item.habilidades?.length > 0 || item.cultivos?.length > 0 ? (
+      {(item.cultivos?.length > 0 || item.habilidades?.length > 0) ? (
         <View style={styles.skillsRow}>
-          {[...item.cultivos.slice(0, 2), ...item.habilidades.slice(0, 2)].map((s, i) => (
-            <View key={i} style={[styles.skillChip, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}>
+          {(item.cultivos || []).slice(0, 2).map((s, i) => (
+            <View key={`c-${i}`} style={[styles.skillChip, styles.cultivoChip, { borderColor: `${COLORS.primary}35` }]}>
+              <Text style={[styles.skillText, { color: COLORS.primary }]} numberOfLines={1}>{s}</Text>
+            </View>
+          ))}
+          {(item.habilidades || []).slice(0, 2).map((s, i) => (
+            <View key={`h-${i}`} style={[styles.skillChip, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}>
               <Text style={[styles.skillText, { color: colors.textSecondary }]} numberOfLines={1}>{s}</Text>
             </View>
           ))}
-          {item.cultivos.length + item.habilidades.length > 4 ? (
+          {(item.cultivos?.length || 0) + (item.habilidades?.length || 0) > 4 ? (
             <View style={styles.skillChipMore}>
               <Text style={styles.skillTextMore}>
-                +{item.cultivos.length + item.habilidades.length - 4}
+                +{(item.cultivos?.length || 0) + (item.habilidades?.length || 0) - 4}
               </Text>
             </View>
           ) : null}
@@ -165,16 +186,22 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isD
 
       {/* CTA */}
       <View style={styles.cardFooter}>
-        <TouchableOpacity style={styles.btnContactar} onPress={() => onContact(item)} disabled={loadingContacto}>
+        <AnimatedPressable
+          style={[styles.btnContactar, loadingContacto && { opacity: 0.7 }]}
+          onPress={() => onContact(item)}
+          disabled={loadingContacto}
+          scaleValue={0.96}
+          haptic
+        >
           <Ionicons name={loadingContacto ? 'hourglass-outline' : 'chatbubble-ellipses-outline'} size={14} color={COLORS.white} />
           <Text style={styles.btnContactarText}>{loadingContacto ? 'Enviando...' : 'Contactar'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.btnPerfil} onPress={() => onPress(item)}>
+        </AnimatedPressable>
+        <AnimatedPressable style={styles.btnPerfil} onPress={() => onPress(item)} scaleValue={0.96} haptic>
           <Ionicons name="person-outline" size={14} color={COLORS.primary} />
           <Text style={styles.btnPerfilText}>Ver perfil completo</Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 
@@ -495,21 +522,26 @@ const styles = StyleSheet.create({
   },
 
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.xs },
-  avatarWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: RADIUS.md,
+  avatarWrap: { alignItems: 'center', gap: 4, flexShrink: 0 },
+  avatarCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     overflow: 'hidden',
-    backgroundColor: COLORS.primaryLight,
-    flexShrink: 0,
+    backgroundColor: COLORS.primarySoft,
   },
-  avatar: { width: 46, height: 46 },
-  avatarFallback: {
-    flex: 1,
-    justifyContent: 'center',
+  avatar: { width: 58, height: 58, borderRadius: 29 },
+  avatarFallback: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  matchPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#78909C',
+    gap: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
   },
+  matchPillText: { fontSize: 10, fontWeight: '800' },
+  cultivoChip: { backgroundColor: COLORS.primarySoft, borderWidth: 1 },
 
   cardInfo: { flex: 1, gap: 3 },
   nombre: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
