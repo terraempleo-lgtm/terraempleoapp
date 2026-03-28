@@ -336,7 +336,7 @@ export default function PerfilScreen({ navigation }) {
             {/* Editar Perfil */}
             <StaggeredItem index={4}>
               <AnimatedPressable style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.96} haptic>
-                <Ionicons name="create-outline" size={20} color={COLORS.white} />
+                <Ionicons name="create-outline" size={20} color={COLORS.primary} />
                 <Text style={s.ctaBtnTxt}>Editar Perfil</Text>
               </AnimatedPressable>
               <AnimatedPressable
@@ -436,7 +436,37 @@ export default function PerfilScreen({ navigation }) {
         {/* ACERCA DE */}
         <StaggeredItem index={0}>
           <View style={s.secWrap}>
-            <Text style={[s.secLabel, { color: colors.primary }]}>ACERCA DE</Text>
+            <View style={s.secHead}>
+              <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="person-outline" size={17} color={colors.primary} /></View>
+              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Información Personal</Text>
+            </View>
+            <View style={{ gap: 12, marginTop: 8 }}>
+              {ubicacionT && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Ionicons name="location-outline" size={18} color={colors.textSecondary} />
+                  <Text style={{ fontSize: 15, color: colors.textPrimary }}>{ubicacionT}</Text>
+                </View>
+              )}
+              {u?.celular && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Ionicons name="call-outline" size={18} color={colors.textSecondary} />
+                  <Text style={{ fontSize: 15, color: colors.textPrimary }}>{u.celular}</Text>
+                </View>
+              )}
+              {u?.email && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
+                  <Text style={{ fontSize: 15, color: colors.textPrimary }}>{u.email}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          
+          <View style={s.secWrap}>
+            <View style={s.secHead}>
+              <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="document-text-outline" size={17} color={colors.primary} /></View>
+              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Acerca de mí</Text>
+            </View>
             {acercaDeTrabajador ? (
               <Text style={[s.secText, { color: colors.textSecondary }]}>{acercaDeTrabajador}</Text>
             ) : (
@@ -448,7 +478,10 @@ export default function PerfilScreen({ navigation }) {
         {perfil?.hoja_vida_url ? (
           <StaggeredItem index={1}>
             <View style={s.secWrap}>
-              <Text style={s.secLabel}>HOJA DE VIDA</Text>
+              <View style={s.secHead}>
+                <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="document-attach-outline" size={17} color={colors.primary} /></View>
+                <Text style={[s.secTitle, { color: colors.textPrimary }]}>Hoja de vida</Text>
+              </View>
               <AnimatedPressable
                 style={[
                   s.cvCard,
@@ -473,18 +506,27 @@ export default function PerfilScreen({ navigation }) {
         {especialidades.length > 0 && (
           <StaggeredItem index={2}>
             <View style={s.secWrap}>
-              <Text style={[s.secLabel, { color: colors.primary }]}>HABILIDADES Y ESPECIALIDADES</Text>
+              <View style={s.secHead}>
+                <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="star-outline" size={17} color={colors.primary} /></View>
+                <Text style={[s.secTitle, { color: colors.textPrimary }]}>Habilidades y Cultivos</Text>
+              </View>
               <View style={s.chipWrap}>
-                {especialidades.map((e, i) => (
-                  <MotiView
-                    key={i}
-                    from={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 40 }}
-                  >
-                    <View style={[s.chipOutline, { borderColor: colors.border }]}><Text style={[s.chipOutlineTxt, { color: colors.textSecondary }]}>{e}</Text></View>
-                  </MotiView>
-                ))}
+                {especialidades.map((e, i) => {
+                  const isCultivo = cultivos.includes(e);
+                  return (
+                    <MotiView
+                      key={i}
+                      from={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 40 }}
+                    >
+                      <View style={isCultivo ? s.chipColor : [s.chipOutline, { borderColor: colors.border }]}>
+                        {isCultivo && <Ionicons name="leaf" size={12} color={COLORS.primary} />}
+                        <Text style={isCultivo ? s.chipColorTxt : [s.chipOutlineTxt, { color: colors.textSecondary }]}>{e}</Text>
+                      </View>
+                    </MotiView>
+                  );
+                })}
               </View>
             </View>
           </StaggeredItem>
@@ -494,11 +536,14 @@ export default function PerfilScreen({ navigation }) {
         {experiencia && (
           <StaggeredItem index={3}>
             <View style={s.secWrap}>
-              <Text style={[s.secLabel, { color: colors.primary }]}>EXPERIENCIA LABORAL</Text>
+              <View style={s.secHead}>
+                <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="briefcase-outline" size={17} color={colors.primary} /></View>
+                <Text style={[s.secTitle, { color: colors.textPrimary }]}>Experiencia y Formación</Text>
+              </View>
               <View style={s.timeline}>
                 <View style={s.tlItem}>
                   <PulsingDot color={COLORS.primary} />
-                  <View style={s.tlLine} />
+                  <View style={[s.tlLine, { backgroundColor: colors.border }]} />
                   <View style={s.tlContent}>
                     <Text style={[s.tlTitle, { color: colors.textPrimary }]}>Experiencia Agrícola</Text>
                     <Text style={[s.tlSub, { color: colors.primary }]}>{experiencia}</Text>
@@ -553,7 +598,10 @@ export default function PerfilScreen({ navigation }) {
         {/* DOCUMENTACIÓN */}
         <StaggeredItem index={5}>
           <View style={s.secWrap}>
-            <Text style={[s.secLabel, { color: colors.primary }]}>DOCUMENTACIÓN VERIFICADA</Text>
+            <View style={s.secHead}>
+              <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="shield-checkmark-outline" size={17} color={colors.primary} /></View>
+              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Documentación Verificada</Text>
+            </View>
             <View style={s.verList}>
               <View style={[s.verItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={[s.verIcon, { backgroundColor: isDark ? '#223a32' : COLORS.primarySoft }]}><Ionicons name="card-outline" size={18} color={COLORS.primary} /></View>
@@ -573,7 +621,7 @@ export default function PerfilScreen({ navigation }) {
         <StaggeredItem index={6}>
           <View style={s.secWrap}>
             <AnimatedPressable style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.96} haptic>
-              <Ionicons name="create-outline" size={20} color={COLORS.white} /><Text style={s.ctaBtnTxt}>Editar Perfil</Text>
+              <Ionicons name="create-outline" size={20} color={COLORS.primary} /><Text style={s.ctaBtnTxt}>Editar Perfil</Text>
             </AnimatedPressable>
             <AnimatedPressable
               style={[s.themeRow, { backgroundColor: isDark ? '#1a322a' : '#F8FAF9', borderColor: isDark ? '#2a4c41' : COLORS.borderLight }]}
@@ -610,10 +658,10 @@ const s = StyleSheet.create({
   /* Profile center */
   profileCenter: { alignItems: 'center', paddingTop: SPACING.lg, paddingBottom: SPACING.md },
   avatarWrap: { position: 'relative', marginBottom: SPACING.md },
-  avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 4, borderColor: COLORS.primarySoft },
-  avatarFallback: { width: 120, height: 120, borderRadius: 60, borderWidth: 4, borderColor: COLORS.primarySoft, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
-  verifiedBadge: { position: 'absolute', bottom: 4, right: 4, width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: COLORS.white },
-  fullName: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary, textAlign: 'center', marginBottom: 6 },
+  avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: COLORS.primarySoft },
+  avatarFallback: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: COLORS.primarySoft, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
+  verifiedBadge: { position: 'absolute', bottom: 2, right: -4, width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.white },
+  fullName: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary, textAlign: 'center', marginBottom: 6 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
   ratingVal: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },
   ratingCnt: { fontSize: 14, color: COLORS.textSecondary },
@@ -669,8 +717,8 @@ const s = StyleSheet.create({
   cvCardName: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
 
   /* CTA */
-  ctaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, backgroundColor: COLORS.primary, paddingVertical: 16, borderRadius: RADIUS.full, ...SHADOWS.button },
-  ctaBtnTxt: { fontSize: 17, fontWeight: '700', color: COLORS.white },
+  ctaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, backgroundColor: 'transparent', borderWidth: 1.5, borderColor: COLORS.primary, paddingVertical: 16, borderRadius: RADIUS.full },
+  ctaBtnTxt: { fontSize: 17, fontWeight: '700', color: COLORS.primary },
   themeRow: {
     marginTop: SPACING.sm,
     flexDirection: 'row',
@@ -707,11 +755,11 @@ const s = StyleSheet.create({
   heroCircleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.95)', justifyContent: 'center', alignItems: 'center', ...SHADOWS.medium },
 
   empCard: { backgroundColor: COLORS.white, borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: -32, paddingHorizontal: SPACING.lg, paddingTop: 0, paddingBottom: SPACING.lg },
-  empAvatarRow: { alignItems: 'center', marginTop: -50 },
+  empAvatarRow: { alignItems: 'center', marginTop: -40 },
   empAvatarWrap: { position: 'relative' },
-  empAvatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: COLORS.white },
-  empAvatarFallback: { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: COLORS.white, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
-  empBadge: { position: 'absolute', bottom: 2, right: 2, width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: COLORS.white },
+  empAvatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: COLORS.white },
+  empAvatarFallback: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: COLORS.white, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
+  empBadge: { position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.white },
   empName: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary, textAlign: 'center', marginTop: SPACING.sm },
   empFinca: { fontSize: 15, fontWeight: '600', color: COLORS.primary, textAlign: 'center', marginTop: 4 },
   empLoc: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginTop: 2, marginBottom: SPACING.md },

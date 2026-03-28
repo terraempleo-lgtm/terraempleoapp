@@ -6,9 +6,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { chatsAPI } from '../../services/api';
-import { COLORS } from '../../theme';
+import { COLORS, RADIUS, SHADOWS, SPACING, ANIMATION } from '../../theme';
 import { showAlert } from '../../utils/alertService';
+import { AnimatedPressable } from '../../components/animated';
 
 function formatHoraMensaje(dateStr) {
   if (!dateStr) return '';
@@ -36,6 +38,7 @@ function esMismoDia(a, b) {
 export default function ChatDetalleScreen({ route, navigation }) {
   const { chat } = route.params;
   const { user } = useAuth();
+  const { isDark, colors } = useAppTheme();
   const [mensajes, setMensajes] = useState([]);
   const [texto, setTexto] = useState('');
   const [loading, setLoading] = useState(true);
@@ -75,16 +78,27 @@ export default function ChatDetalleScreen({ route, navigation }) {
 
   useEffect(() => {
     navigation.setOptions({
-      title: chat.otro_nombre,
+      headerTitle: () => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }}>
+            <Ionicons name="person" size={20} color={COLORS.white} />
+          </View>
+          <View>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.white }}>{chat.otro_nombre}</Text>
+            {chat.vacante_titulo && <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }} numberOfLines={1}>{chat.vacante_titulo}</Text>}
+          </View>
+        </View>
+      ),
+      headerTitleAlign: 'left',
       headerLeft: () => (
-        <TouchableOpacity onPress={volverAlPerfilRelacionado} style={{ marginLeft: 16 }}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.white} />
-        </TouchableOpacity>
+        <AnimatedPressable onPress={volverAlPerfilRelacionado} style={{ marginLeft: 16 }} scaleValue={0.9} haptic>
+          <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+        </AnimatedPressable>
       ),
       headerRight: () => (
-        <TouchableOpacity onPress={llamar} style={{ marginRight: 16 }}>
+        <AnimatedPressable onPress={llamar} style={{ marginRight: 16 }} scaleValue={0.9} haptic>
           <Ionicons name="call" size={22} color={COLORS.white} />
-        </TouchableOpacity>
+        </AnimatedPressable>
       ),
     });
   }, [navigation, chat, user]);
@@ -177,12 +191,15 @@ export default function ChatDetalleScreen({ route, navigation }) {
           </View>
         )}
         <View style={[styles.mensajeRow, esMio ? styles.mensajeRowMio : styles.mensajeRowOtro]}>
-          <View style={[styles.burbuja, esMio ? styles.burbujaPropia : styles.burbujaOtra]}>
-            <Text style={[styles.textoMensaje, esMio ? styles.textoMio : styles.textoOtro]}>
+          <View style={[
+            styles.burbuja, 
+            esMio ? styles.burbujaPropia : [styles.burbujaOtra, { backgroundColor: colors.surface }]
+          ]}>
+            <Text style={[styles.textoMensaje, esMio ? styles.textoMio : { color: colors.textPrimary }]}>
               {item.mensaje}
             </Text>
             <View style={styles.metaRow}>
-              <Text style={[styles.horaTexto, esMio ? styles.horaMio : styles.horaOtro]}>
+              <Text style={[styles.horaTexto, esMio ? styles.horaMio : { color: colors.textMuted }]}>
                 {formatHoraMensaje(item.created_at)}
               </Text>
               {esMio && (
@@ -210,16 +227,10 @@ export default function ChatDetalleScreen({ route, navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: isDark ? colors.background : '#F0F4F1' }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      {/* Cabecera de vacante */}
-      <View style={styles.vacanteHeader}>
-        <Ionicons name="briefcase-outline" size={14} color={COLORS.primary} />
-        <Text style={styles.vacanteTitulo} numberOfLines={1}>{chat.vacante_titulo}</Text>
-      </View>
-
       {/* Lista de mensajes */}
       <FlatList
         ref={flatListRef}
@@ -237,29 +248,29 @@ export default function ChatDetalleScreen({ route, navigation }) {
       />
 
       {/* Input de mensaje */}
-      <View style={styles.inputBar}>
+      <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: isDark ? colors.background : '#F0F4F1', color: colors.textPrimary, borderColor: isDark ? colors.border : 'transparent' }]}
           value={texto}
           onChangeText={setTexto}
           placeholder="Escribe un mensaje..."
-          placeholderTextColor={COLORS.textLight}
+          placeholderTextColor={colors.textLight}
           multiline
           maxLength={1000}
           returnKeyType="default"
         />
-        <TouchableOpacity
+        <AnimatedPressable
           style={[styles.sendBtn, (!texto.trim() || enviando) && styles.sendBtnDisabled]}
           onPress={enviar}
           disabled={!texto.trim() || enviando}
-          activeOpacity={0.8}
+          scaleValue={0.9}
         >
           {enviando ? (
             <ActivityIndicator size="small" color={COLORS.white} />
           ) : (
             <Ionicons name="send" size={20} color={COLORS.white} />
           )}
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
     </KeyboardAvoidingView>
   );
@@ -302,7 +313,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 6,
-    borderRadius: 12,
+    borderRadius: RADIUS.xl,
     elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -311,11 +322,11 @@ const styles = StyleSheet.create({
   },
   burbujaPropia: {
     backgroundColor: COLORS.primary,
-    borderTopRightRadius: 2,
+    borderBottomRightRadius: 4,
   },
   burbujaOtra: {
     backgroundColor: COLORS.white,
-    borderTopLeftRadius: 2,
+    borderBottomLeftRadius: 4,
   },
   textoMensaje: { fontSize: 15, lineHeight: 21 },
   textoMio: { color: COLORS.white },

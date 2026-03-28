@@ -264,16 +264,36 @@ export default function DetalleVacanteScreen({ route, navigation }) {
               )}
             </View>
 
+            {/* Empresa info card */}
+            {vacante.nombre_empresa_finca && (
+              <View style={[styles.empresaCard, { backgroundColor: isDark ? colors.card : COLORS.primaryMuted, borderColor: colors.border }]}>
+                <View style={styles.empresaIconWrap}>
+                  <Ionicons name="business-outline" size={20} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.empresaNombre, { color: colors.textPrimary }]}>{vacante.nombre_empresa_finca}</Text>
+                  {(vacante.municipio || vacante.departamento) && (
+                    <View style={styles.empresaLocRow}>
+                      <Ionicons name="location-outline" size={13} color={colors.textMuted} />
+                      <Text style={[styles.empresaLocText, { color: colors.textMuted }]}>{[vacante.municipio, vacante.departamento].filter(Boolean).join(', ')}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+
             <Text style={[styles.title, { color: colors.textPrimary }]}>{vacante.titulo}</Text>
 
             {vacante.descripcion && (
               <StaggeredItem index={0}>
-                <View style={styles.barSection}>
-                  <View style={styles.barGreen} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.barTitle, { color: colors.textPrimary }]}>Descripción</Text>
-                    <Text style={[styles.description, { color: colors.textSecondary }]}>{vacante.descripcion}</Text>
+                <View style={styles.sectionBlock}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
+                      <Ionicons name="document-text-outline" size={17} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Descripción</Text>
                   </View>
+                  <Text style={[styles.description, { color: colors.textSecondary }]}>{vacante.descripcion}</Text>
                 </View>
               </StaggeredItem>
             )}
@@ -282,21 +302,21 @@ export default function DetalleVacanteScreen({ route, navigation }) {
             <StaggeredItem index={1}>
               <View style={[styles.infoBlock, { backgroundColor: isDark ? colors.surface : '#FAFAF9', borderColor: colors.border }]}>
                 <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
-                  <View style={styles.infoCircle}><Ionicons name="location-outline" size={16} color={COLORS.primary} /></View>
+                  <View style={[styles.infoCircle, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="location-outline" size={16} color={colors.primary} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Ubicación</Text>
                     <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{[vacante.municipio, vacante.departamento].filter(Boolean).join(', ') || 'Colombia'}</Text>
                   </View>
                 </View>
                 <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
-                  <View style={styles.infoCircle}><Ionicons name="cash-outline" size={16} color={COLORS.primary} /></View>
+                  <View style={[styles.infoCircle, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="cash-outline" size={16} color={colors.primary} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Salario</Text>
                     <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{pago.valor}</Text>
                   </View>
                 </View>
                 <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
-                  <View style={styles.infoCircle}><Ionicons name="calendar-clear-outline" size={16} color={COLORS.primary} /></View>
+                  <View style={[styles.infoCircle, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="calendar-clear-outline" size={16} color={colors.primary} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Fecha de inicio</Text>
                     <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{fechaInicioTexto}</Text>
@@ -304,7 +324,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                 </View>
                 {vacante.duracion ? (
                   <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-                    <View style={styles.infoCircle}><Ionicons name="calendar-outline" size={16} color={COLORS.primary} /></View>
+                    <View style={[styles.infoCircle, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="calendar-outline" size={16} color={colors.primary} /></View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Duración</Text>
                       <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{vacante.duracion}</Text>
@@ -316,55 +336,79 @@ export default function DetalleVacanteScreen({ route, navigation }) {
 
             {requisitosTexto ? (
               <StaggeredItem index={2}>
-                <View style={styles.barSection}>
-                  <View style={styles.barGreen} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.barTitle, { color: colors.textPrimary }]}>Requisitos</Text>
-                    <Text style={[styles.description, { color: colors.textSecondary }]}>{requisitosTexto}</Text>
+                <View style={styles.sectionBlock}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
+                      <Ionicons name="clipboard-outline" size={17} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Requisitos</Text>
                   </View>
+                  <Text style={[styles.description, { color: colors.textSecondary }]}>{requisitosTexto}</Text>
                 </View>
               </StaggeredItem>
             ) : null}
 
-            {labores.length > 0 && (
+            {(vacante.cultivos || []).length > 0 && (
               <StaggeredItem index={3}>
-                <View style={styles.barSection}>
-                  <View style={styles.barGreen} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.barTitle, { color: colors.textPrimary }]}>Labores solicitadas</Text>
-                    <View style={styles.chipsRow}>
-                      {labores.map((r, i) => (
-                        <View key={i} style={[styles.reqChip, { borderColor: colors.border }]}>
-                          <Ionicons name="checkmark-circle-outline" size={14} color={colors.textSecondary} />
-                          <Text style={[styles.reqChipText, { color: colors.textSecondary }]}>{r}</Text>
-                        </View>
-                      ))}
-                      {(vacante.cultivos || []).map((c, i) => (
-                        <View key={`c${i}`} style={styles.chipGreen}>
-                          <Ionicons name="leaf" size={12} color={COLORS.primary} />
-                          <Text style={styles.chipGreenText}>{c.cultivo || c}</Text>
-                        </View>
-                      ))}
+                <View style={styles.sectionBlock}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
+                      <Ionicons name="leaf-outline" size={17} color={colors.primary} />
                     </View>
+                    <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Cultivos</Text>
+                  </View>
+                  <View style={styles.chipsRow}>
+                    {(vacante.cultivos || []).map((c, i) => (
+                      <View key={`c${i}`} style={styles.chipGreen}>
+                        <Ionicons name="leaf" size={12} color={colors.primary} />
+                        <Text style={[styles.chipGreenText, { color: colors.primary }]}>{c.cultivo || c}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </StaggeredItem>
+            )}
+
+            {labores.length > 0 && (
+              <StaggeredItem index={4}>
+                <View style={styles.sectionBlock}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={[styles.sectionIconBg, { backgroundColor: isDark ? colors.card : '#F1F5F9' }]}>
+                      <Ionicons name="construct-outline" size={17} color={colors.textSecondary} />
+                    </View>
+                    <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Labores solicitadas</Text>
+                  </View>
+                  <View style={styles.chipsRow}>
+                    {labores.map((r, i) => (
+                      <View key={i} style={[styles.reqChip, { backgroundColor: isDark ? colors.card : '#F8FAFC', borderColor: colors.border }]}>
+                        <Ionicons name="construct-outline" size={13} color={colors.textSecondary} />
+                        <Text style={[styles.reqChipText, { color: colors.textSecondary }]}>{r}</Text>
+                      </View>
+                    ))}
                   </View>
                 </View>
               </StaggeredItem>
             )}
 
             {(beneficios.length > 0 || vacante.otros_beneficios) && (
-              <StaggeredItem index={4}>
-                <View style={styles.benefCard}>
-                  <Text style={styles.benefTitle}>Beneficios adicionales</Text>
+              <StaggeredItem index={5}>
+                <View style={[styles.benefCard, { backgroundColor: isDark ? colors.card : COLORS.primarySoft }]}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={[styles.sectionIconBg, { backgroundColor: isDark ? colors.surface : COLORS.primaryMuted }]}>
+                      <Ionicons name="gift-outline" size={17} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.benefTitle, { color: colors.primary }]}>Beneficios adicionales</Text>
+                  </View>
                   {beneficios.map((b, i) => (
                     <View key={i} style={styles.benefRow}>
-                      <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
-                      <Text style={styles.benefText}>{b.desc}</Text>
+                      <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                      <Text style={[styles.benefText, { color: isDark ? colors.textSecondary : COLORS.primaryDark }]}>{b.desc}</Text>
                     </View>
                   ))}
                   {vacante.otros_beneficios && (
                     <View style={styles.benefRow}>
-                      <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
-                      <Text style={styles.benefText}>{vacante.otros_beneficios}</Text>
+                      <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                      <Text style={[styles.benefText, { color: isDark ? colors.textSecondary : COLORS.primaryDark }]}>{vacante.otros_beneficios}</Text>
                     </View>
                   )}
                 </View>
@@ -376,33 +420,30 @@ export default function DetalleVacanteScreen({ route, navigation }) {
 
       {/* Footer sticky CTA */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.background, borderColor: colors.border }]}>
-        <View style={styles.footerLeft}>
-          <Text style={[styles.footerLabel, { color: colors.textMuted }]}>Salario</Text>
-          <Text style={[styles.footerSalary, { color: colors.textPrimary }]}>{pago.valor}</Text>
-        </View>
-        {user?.rol === 'trabajador' && (
-          <AnimatedPressable
-            style={[styles.postBtn, postulado && styles.postBtnDone]}
-            onPress={!postulado ? () => setShowPostModal(true) : undefined}
-            disabled={loading || postulado}
-            scaleValue={ANIMATION.scale.pressed}
-            haptic={!postulado}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-              <>
-                <Ionicons
-                  name={postulado ? 'checkmark-circle' : 'paper-plane'}
-                  size={18}
-                  color={COLORS.white}
-                />
-                <Text style={styles.postBtnText}>
-                  {postulado ? 'Postulado' : 'Postularme'}
-                </Text>
-              </>
-            )}
-          </AnimatedPressable>
+        {postulado ? (
+          <View style={styles.postBtnDoneWrap}>
+            <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+            <Text style={styles.postBtnDoneText}>Ya estás postulado</Text>
+          </View>
+        ) : (
+          user?.rol === 'trabajador' && (
+            <AnimatedPressable
+              style={styles.postBtn}
+              onPress={() => setShowPostModal(true)}
+              disabled={loading}
+              scaleValue={ANIMATION.scale.pressed}
+              haptic
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <>
+                  <Ionicons name="paper-plane" size={18} color={COLORS.white} />
+                  <Text style={styles.postBtnText}>Postularme</Text>
+                </>
+              )}
+            </AnimatedPressable>
+          )
         )}
       </View>
 
@@ -599,50 +640,68 @@ const styles = StyleSheet.create({
 
   title: { fontSize: 24, fontWeight: '800', marginBottom: SPACING.lg, lineHeight: 32 },
 
+  /* Empresa card */
+  empresaCard: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  empresaIconWrap: {
+    width: 42, height: 42, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center', alignItems: 'center', flexShrink: 0,
+  },
+  empresaNombre: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  empresaLocRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  empresaLocText: { fontSize: 13 },
+
+  /* Section headers */
+  sectionBlock: { marginBottom: SPACING.lg },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
+  sectionIconBg: { width: 36, height: 36, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  sectionHeaderTitle: { fontSize: 15, fontWeight: '700' },
+
   infoBlock: { borderWidth: 1, borderRadius: RADIUS.lg, overflow: 'hidden', marginBottom: SPACING.lg },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm + 4, borderBottomWidth: 1 },
   infoCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
   infoLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.4 },
   infoValue: { fontSize: 15, fontWeight: '700', marginTop: 1 },
 
-  barSection: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg },
-  barGreen: { width: 4, borderRadius: 4, backgroundColor: COLORS.primary, minHeight: 24 },
-  barTitle: { fontSize: 16, fontWeight: '700', marginBottom: SPACING.sm },
   description: { fontSize: 15, lineHeight: 24 },
 
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   reqChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 7 },
   reqChipText: { fontSize: 13, fontWeight: '600' },
   chipGreen: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: COLORS.primarySoft, paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.full },
-  chipGreenText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
+  chipGreenText: { fontSize: 13, fontWeight: '600' },
 
-  benefCard: { backgroundColor: COLORS.primarySoft, borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
-  benefTitle: { fontSize: 15, fontWeight: '700', color: COLORS.primary, marginBottom: SPACING.sm },
+  benefCard: { borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
+  benefTitle: { fontSize: 15, fontWeight: '700' },
   benefRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
-  benefText: { fontSize: 14, color: COLORS.primaryDark, fontWeight: '500' },
+  benefText: { fontSize: 14, fontWeight: '500' },
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
     ...SHADOWS.large,
-    gap: SPACING.md,
   },
-  footerLeft: { flex: 1 },
-  footerLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3, marginBottom: 2 },
-  footerSalary: { fontSize: 20, fontWeight: '800' },
   postBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 14,
+    height: 52,
+    width: '100%',
     borderRadius: RADIUS.full,
     ...SHADOWS.button,
   },
-  postBtnDone: { backgroundColor: COLORS.primaryLight, ...SHADOWS.none },
   postBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 16 },
+  postBtnDoneWrap: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: SPACING.sm, height: 52, backgroundColor: COLORS.primarySoft,
+    borderRadius: RADIUS.full, width: '100%',
+  },
+  postBtnDoneText: { fontSize: 16, fontWeight: '700', color: COLORS.primary },
 
   modalOverlay: {
     flex: 1, backgroundColor: COLORS.overlay,
@@ -686,7 +745,7 @@ const styles = StyleSheet.create({
   modalPostBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: COLORS.primary, borderRadius: RADIUS.full,
-    paddingVertical: 16, marginBottom: SPACING.sm,
+    height: 52, width: '100%', marginBottom: SPACING.sm,
     ...SHADOWS.button,
   },
   modalPostBtnText: { color: COLORS.white, fontSize: 17, fontWeight: '700' },
