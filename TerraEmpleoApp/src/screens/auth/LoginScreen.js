@@ -23,7 +23,7 @@ function isEmail(value) {
 }
 
 export default function LoginScreen({ navigation }) {
-  const { signIn } = useAuth();
+  const { signIn, tryBiometricLogin } = useAuth();
   const { colors } = useAppTheme();
   const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
