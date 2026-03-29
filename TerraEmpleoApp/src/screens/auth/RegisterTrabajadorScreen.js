@@ -28,6 +28,7 @@ const STEP_LABELS = [
 export default function RegisterTrabajadorScreen({ navigation }) {
   const { signIn } = useAuth();
   const { colors, isDark } = useAppTheme();
+  const isWeb = Platform.OS === 'web';
   const { contenedorMaxAncho } = useDisenoResponsive();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -78,10 +79,24 @@ export default function RegisterTrabajadorScreen({ navigation }) {
 
   // Scroll to top and clear errors when step changes
   useEffect(() => {
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    const scrollToTop = () => {
+      if (!scrollRef.current || typeof scrollRef.current.scrollTo !== 'function') return;
+      try {
+        scrollRef.current.scrollTo({ y: 0, animated: false });
+      } catch (_) {
+        // On web, ScrollView internals can be null during mount transitions.
+      }
+    };
+
+    if (isWeb) {
+      setTimeout(scrollToTop, 0);
+    } else {
+      scrollToTop();
+      Keyboard.dismiss();
+    }
+
     setErrors({});
-    Keyboard.dismiss();
-  }, [step]);
+  }, [step, isWeb]);
 
   const validateStep = () => {
     const errs = {};

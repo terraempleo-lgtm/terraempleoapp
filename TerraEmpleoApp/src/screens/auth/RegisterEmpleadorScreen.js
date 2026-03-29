@@ -80,10 +80,24 @@ export default function RegisterEmpleadorScreen({ navigation }) {
 
   // Scroll to top and clear errors when step changes
   useEffect(() => {
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    const scrollToTop = () => {
+      if (!scrollRef.current || typeof scrollRef.current.scrollTo !== 'function') return;
+      try {
+        scrollRef.current.scrollTo({ y: 0, animated: false });
+      } catch (_) {
+        // On web, ScrollView internals can be null during mount transitions.
+      }
+    };
+
+    if (isWeb) {
+      setTimeout(scrollToTop, 0);
+    } else {
+      scrollToTop();
+      Keyboard.dismiss();
+    }
+
     setErrors({});
-    Keyboard.dismiss();
-  }, [step]);
+  }, [step, isWeb]);
 
   const validateStep = () => {
     const errs = {};
