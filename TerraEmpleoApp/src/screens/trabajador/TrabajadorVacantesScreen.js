@@ -18,6 +18,7 @@ import { vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 import { PickerModal } from '../../components/ui';
 import DecorativeBackground from '../../components/ui/DecorativeBackground';
 import { AnimatedPressable, StaggeredItem, SkeletonCard } from '../../components/animated';
@@ -117,6 +118,7 @@ function PulsingBadge({ count }) {
 export default function TrabajadorVacantesScreen({ navigation }) {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
+  const { contenedorMaxAncho } = useDisenoResponsive();
   const [vacantes, setVacantes] = useState([]);
   const [vacantesPostuladas, setVacantesPostuladas] = useState(new Set());
   const [refreshing, setRefreshing] = useState(false);
@@ -520,7 +522,10 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         renderItem={renderVacante}
         keyExtractor={(item) => item.id?.toString()}
         ListHeaderComponent={ListHeader}
-        contentContainerStyle={s.list}
+        contentContainerStyle={[
+          s.list,
+          { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         initialNumToRender={6}

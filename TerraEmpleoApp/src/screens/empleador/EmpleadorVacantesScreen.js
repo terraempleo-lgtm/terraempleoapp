@@ -9,6 +9,7 @@ import { vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { MotiView } from 'moti';
@@ -129,6 +130,7 @@ function ResumenSemanaCard({ postulantesTotal, activasCount, isDark }) {
 export default function EmpleadorVacantesScreen({ navigation }) {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
+  const { contenedorMaxAncho } = useDisenoResponsive();
   const insets = useSafeAreaInsets();
   const [vacantes, setVacantes] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -476,7 +478,11 @@ export default function EmpleadorVacantesScreen({ navigation }) {
         keyExtractor={(item) => item.id?.toString()}
         renderItem={renderVacante}
         ListHeaderComponent={ListHeader}
-        contentContainerStyle={[styles.list, { paddingBottom: Math.max(120, insets.bottom + 96) }]}
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: Math.max(120, insets.bottom + 96) },
+          { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

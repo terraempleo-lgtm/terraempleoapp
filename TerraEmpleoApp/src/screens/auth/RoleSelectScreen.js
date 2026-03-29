@@ -7,6 +7,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, TerraFooter } from '../../components/ui';
 import { useAppTheme } from '../../context/ThemeContext';
+import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 
 const ROLES = [
   {
@@ -29,6 +30,7 @@ const ROLES = [
 
 export default function RoleSelectScreen({ navigation }) {
   const { colors } = useAppTheme();
+  const { contenedorMaxAncho } = useDisenoResponsive();
   const [selected, setSelected]= useState(null);
 
   const handleContinue = () => {
@@ -41,7 +43,10 @@ export default function RoleSelectScreen({ navigation }) {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -86,7 +91,12 @@ export default function RoleSelectScreen({ navigation }) {
       </ScrollView>
 
       {/* Bottom area */}
-      <View style={[styles.bottomArea, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.bottomArea,
+          { backgroundColor: colors.background, maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' },
+        ]}
+      >
         <Button
           title="Continuar"
           onPress={handleContinue}

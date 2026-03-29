@@ -10,9 +10,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 import { useAppTheme } from '../../context/ThemeContext';
+import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 
 export default function AdminDashboardScreen({ navigation }) {
   const { colors, isDark } = useAppTheme();
+  const { contenedorMaxAncho, columnas } = useDisenoResponsive();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,7 +59,11 @@ export default function AdminDashboardScreen({ navigation }) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView
-          contentContainerStyle={[styles.content, { justifyContent: 'center', alignItems: 'center', flex: 1 }]}
+          contentContainerStyle={[
+            styles.content,
+            { justifyContent: 'center', alignItems: 'center', flex: 1 },
+            { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' },
+          ]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         >
           <MotiView
@@ -88,11 +94,15 @@ export default function AdminDashboardScreen({ navigation }) {
     { title: 'Postulaciones', value: stats?.postulaciones || 0, icon: 'document-text', color: '#00838F' },
     { title: 'Calificaciones', value: stats?.calificaciones || 0, icon: 'star', color: '#EF6C00' },
   ];
+  const anchoTarjeta = columnas === 1 ? '100%' : columnas === 2 ? '48%' : '31%';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' },
+        ]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
       >
         <FadeInView delay={0}>
@@ -100,14 +110,14 @@ export default function AdminDashboardScreen({ navigation }) {
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>Resumen general de TerraEmpleo</Text>
         </FadeInView>
 
-        <View style={styles.grid}>
+        <View style={[styles.grid, columnas > 1 && { justifyContent: 'space-between' }]}>
           {cards.map((c, i) => (
             <MotiView
               key={i}
               from={{ opacity: 0, translateY: 20, scale: 0.9 }}
               animate={{ opacity: 1, translateY: 0, scale: 1 }}
               transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 80 }}
-              style={styles.cardWrap}
+              style={[styles.cardWrap, { width: anchoTarjeta }]}
             >
               <View style={[styles.card, { backgroundColor: colors.surface }]}>
                 <View style={[styles.iconWrap, { backgroundColor: c.color + '18' }]}>

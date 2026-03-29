@@ -14,6 +14,7 @@ import { authAPI, cognitoAPI, setAuthToken } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 import CamaraFoto from '../../components/CamaraFoto';
 import { showAlert } from '../../utils/alertService';
 
@@ -27,6 +28,7 @@ const STEP_LABELS = [
 export default function RegisterTrabajadorScreen({ navigation }) {
   const { signIn } = useAuth();
   const { colors, isDark } = useAppTheme();
+  const { contenedorMaxAncho } = useDisenoResponsive();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -793,11 +795,12 @@ export default function RegisterTrabajadorScreen({ navigation }) {
       >
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { width: '100%' }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.formCard}>
+          <View style={[styles.formCard, { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' }]}
+          >
             <FadeInView key={`step-${step}`} delay={50} translateY={10} duration={ANIMATION.duration.normal}>
               {renderStep()}
             </FadeInView>
@@ -805,7 +808,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
 
           <View style={{ flex: 1 }} />
 
-          <View style={styles.footerInScroll}>
+          <View style={[styles.footerInScroll, { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' }]}
+          >
             <View style={styles.footer}>
               {step > 1 && (
                 <View style={{ flex: 1 }}>

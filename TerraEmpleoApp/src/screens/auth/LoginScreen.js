@@ -15,6 +15,7 @@ import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/a
 import { authAPI, cognitoAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
+import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 
 function isEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -23,6 +24,7 @@ function isEmail(value) {
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
   const { colors } = useAppTheme();
+  const { contenedorMaxAncho } = useDisenoResponsive();
   const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -90,7 +92,10 @@ export default function LoginScreen({ navigation }) {
 
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' },
+            ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -156,7 +161,12 @@ export default function LoginScreen({ navigation }) {
         </KeyboardAvoidingView>
 
         <FadeInView delay={400} translateY={10}>
-          <View style={[styles.footer, { backgroundColor: 'transparent' }]}>
+          <View
+            style={[
+              styles.footer,
+              { backgroundColor: 'transparent', maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' },
+            ]}
+          >
             {!!errorLogin && (
               <View style={styles.errorBox}>
                 <Text style={styles.errorBoxText}>{errorLogin}</Text>
