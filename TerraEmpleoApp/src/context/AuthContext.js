@@ -1,11 +1,59 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { setAuthToken, setGlobalSignOutHandler, authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
 const TOKEN_KEY = 'terraempleo_token';
 const USER_KEY  = 'terraempleo_user';
+const isWeb = Platform.OS === 'web';
+const memoryStore = {};
+
+const localGet = (key) => {
+  try {
+    if (typeof localStorage !== 'undefined') return localStorage.getItem(key);
+  } catch (_) {}
+  return memoryStore[key] || null;
+};
+
+const localSet = (key, value) => {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, value);
+      return;
+    }
+  } catch (_) {}
+  memoryStore[key] = value;
+};
+
+const localDelete = (key) => {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(key);
+      return;
+    }
+  } catch (_) {}
+  delete memoryStore[key];
+};
+
+const getStoredItem = async (key) => {
+  if (isWeb) return localGet(key);
+  if (typeof SecureStore?.getItemAsync === 'function') return SecureStore.getItemAsync(key);
+  return localGet(key);
+};
+
+const setStoredItem = async (key, value) => {
+  if (isWeb) return localSet(key, value);
+  if (typeof SecureStore?.setItemAsync === 'function') return SecureStore.setItemAsync(key, value);
+  return localSet(key, value);
+};
+
+const deleteStoredItem = async (key) => {
+  if (isWeb) return localDelete(key);
+  if (typeof SecureStore?.deleteItemAsync === 'function') return SecureStore.deleteItemAsync(key);
+  return localDelete(key);
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser]     = useState(null);
@@ -16,8 +64,8 @@ export function AuthProvider({ children }) {
 
   const restoreSession = async () => {
     try {
-      const savedToken   = await SecureStore.getItemAsync(TOKEN_KEY);
-      const savedUserStr = await SecureStore.getItemAsync(USER_KEY);
+      const savedToken   = await getStoredItem(TOKEN_KEY);
+      const savedUserStr = await getStoredItem(USER_KEY);
       if (savedToken && savedUserStr) {
         // Restaurar inmediatamente desde datos locales — el usuario no espera ni se desloguea por mala red
         const savedUser = JSON.parse(savedUserStr);
@@ -33,8 +81,8 @@ export function AuthProvider({ children }) {
               setAuthToken(null);
               setToken(null);
               setUser(null);
-              await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
-              await SecureStore.deleteItemAsync(USER_KEY).catch(() => {});
+              await deleteStoredItem(TOKEN_KEY).catch(() => {});
+              await deleteStoredItem(USER_KEY).catch(() => {});
             }
             // Errores de red, timeout, 5xx → mantener sesión local
           });
@@ -52,8 +100,8 @@ export function AuthProvider({ children }) {
     setToken(authToken);
     setUser(userData);
     try {
-      await SecureStore.setItemAsync(TOKEN_KEY, authToken);
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
+      await setStoredItem(TOKEN_KEY, authToken);
+      await setStoredItem(USER_KEY, JSON.stringify(userData));
     } catch (err) {
       console.error('Error saving session:', err);
     }
@@ -65,8 +113,8 @@ export function AuthProvider({ children }) {
     setToken(null);
     setUser(null);
     try {
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
-      await SecureStore.deleteItemAsync(USER_KEY);
+      await deleteStoredItem(TOKEN_KEY);
+      await deleteStoredItem(USER_KEY);
     } catch (err) {
       console.error('Error clearing session:', err);
     }
@@ -81,14 +129,14 @@ export function AuthProvider({ children }) {
    */
   const tryBiometricLogin = useCallback(async () => {
     try {
-      const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      const savedToken = await getStoredItem(TOKEN_KEY);
       if (!savedToken) return { ok: false, reason: 'no_session' };
       setAuthToken(savedToken);
       const res = await authAPI.getPerfil();
       const freshUser = res.data.user;
       setToken(savedToken);
       setUser(freshUser);
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(freshUser)).catch(() => {});
+      await setStoredItem(USER_KEY, JSON.stringify(freshUser)).catch(() => {});
       return { ok: true };
     } catch {
       setAuthToken(null);
@@ -99,7 +147,7 @@ export function AuthProvider({ children }) {
   const updateUser = useCallback((userData) => {
     setUser(prev => {
       const updated = { ...prev, ...userData };
-      SecureStore.setItemAsync(USER_KEY, JSON.stringify(updated)).catch(() => {});
+      setStoredItem(USER_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);
