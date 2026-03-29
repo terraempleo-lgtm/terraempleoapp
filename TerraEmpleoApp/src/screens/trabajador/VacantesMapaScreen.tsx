@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   FlatList,
   Image,
   ScrollView,
@@ -21,6 +20,7 @@ import { vacantesAPI } from '../../services/api';
 import { useAppTheme } from '../../context/ThemeContext';
 import DecorativeBackground from '../../components/ui/DecorativeBackground';
 import { showAlert } from '../../utils/alertService';
+import { AnimatedPressable } from '../../components/animated';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -297,9 +297,9 @@ function SearchBar({ value, onChange, count }: { value: string; onChange: (t: st
         returnKeyType="search"
       />
       {value.length > 0
-        ? <TouchableOpacity onPress={() => onChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        ? <AnimatedPressable onPress={() => onChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} scaleValue={0.9} haptic>
             <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         : count > 0
           ? <View style={sbStyles.countBadge}>
               <Text style={sbStyles.countText}>{count}</Text>
@@ -341,19 +341,20 @@ function FilterChips({ selected, onSelect }: { selected: FilterType; onSelect: (
         const cfg = CULTIVO_CONFIG[f];
         const active = selected === f;
         return (
-          <TouchableOpacity key={f} onPress={() => onSelect(f)}
+          <AnimatedPressable key={f} onPress={() => onSelect(f)}
             style={[
               fcStyles.chip,
               { backgroundColor: colors.surface, borderColor: colors.primary },
               active && [fcStyles.chipActive, { backgroundColor: colors.primary }],
             ]}
-            activeOpacity={0.8}
+            scaleValue={0.95}
+            haptic
           >
             {cfg.emoji
               ? <Text style={fcStyles.emoji}>{cfg.emoji}</Text>
               : <Ionicons name={cfg.icon} size={13} color={active ? '#FFF' : colors.primary} />}
             <Text style={[fcStyles.label, { color: colors.primary }, active && fcStyles.labelActive]}>{cfg.label}</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         );
       })}
     </ScrollView>
@@ -429,7 +430,7 @@ const CARD_GAP = 12;
 function VacancyCard({ vacancy, selected, onPress }: { vacancy: Vacancy; selected: boolean; onPress: () => void }) {
   const cfg = CULTIVO_CONFIG[vacancy.cultivo];
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.88}
+    <AnimatedPressable onPress={onPress} scaleValue={0.97} haptic
       style={[vcStyles.card, selected && vcStyles.cardSelected]}>
       <View style={vcStyles.imgWrap}>
         {vacancy.fotoUrl
@@ -437,11 +438,11 @@ function VacancyCard({ vacancy, selected, onPress }: { vacancy: Vacancy; selecte
           : <View style={[vcStyles.imgFallback, { backgroundColor: `${cfg.color}18` }]}>
               <Ionicons name={cfg.icon} size={34} color={cfg.color} />
             </View>}
-        {vacancy.verificada && (
+        {Boolean(vacancy.verificada) ? (
           <View style={vcStyles.verifiedBadge}>
             <Ionicons name="shield-checkmark" size={10} color="#FFF" />
           </View>
-        )}
+        ) : null}
       </View>
       <View style={vcStyles.info}>
         <Text style={vcStyles.title} numberOfLines={1}>{vacancy.titulo}</Text>
@@ -466,7 +467,7 @@ function VacancyCard({ vacancy, selected, onPress }: { vacancy: Vacancy; selecte
         </View>
         <Text style={vcStyles.price}>{formatPrice(vacancy.salarioDia)}</Text>
       </View>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 
@@ -504,15 +505,15 @@ function FloatingMapControls({ onZoomIn, onZoomOut, onLocate }: {
 }) {
   return (
     <View style={fmcStyles.wrap}>
-      <TouchableOpacity onPress={onZoomIn} style={fmcStyles.btn} activeOpacity={0.8}>
+      <AnimatedPressable onPress={onZoomIn} style={fmcStyles.btn} scaleValue={0.9} haptic>
         <Ionicons name="add" size={22} color="#424242" />
-      </TouchableOpacity>
-      <TouchableOpacity onPress={onZoomOut} style={fmcStyles.btn} activeOpacity={0.8}>
+      </AnimatedPressable>
+      <AnimatedPressable onPress={onZoomOut} style={fmcStyles.btn} scaleValue={0.9} haptic>
         <Ionicons name="remove" size={22} color="#424242" />
-      </TouchableOpacity>
-      <TouchableOpacity onPress={onLocate} style={[fmcStyles.btn, fmcStyles.btnAccent]} activeOpacity={0.8}>
+      </AnimatedPressable>
+      <AnimatedPressable onPress={onLocate} style={[fmcStyles.btn, fmcStyles.btnAccent]} scaleValue={0.9} haptic>
         <Ionicons name="locate" size={20} color="#FFFFFF" />
-      </TouchableOpacity>
+      </AnimatedPressable>
     </View>
   );
 }
@@ -535,7 +536,7 @@ const COLOMBIA_CENTER: Region = {
   latitudeDelta: 9, longitudeDelta: 9,
 };
 
-export default function VacantesMapaScreen() {
+export default function VacantesMapaScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const [rawData, setRawData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -701,7 +702,7 @@ export default function VacantesMapaScreen() {
             coordinate={{ latitude: v.latitude, longitude: v.longitude }}
             anchor={{ x: 0.5, y: 1 }}
             tracksViewChanges={false}
-            onPress={() => handleMarkerPress(index)}
+            onPress={() => { if (index === selectedIndex) { navigation.navigate('DetalleVacante', { vacante: v }); } else { handleMarkerPress(index); } }} 
           >
             <CustomMarker vacancy={v} selected={index === selectedIndex} />
           </Marker>
@@ -747,7 +748,7 @@ export default function VacantesMapaScreen() {
               <VacancyCard
                 vacancy={item}
                 selected={index === selectedIndex}
-                onPress={() => handleMarkerPress(index)}
+                onPress={() => { if (index === selectedIndex) { navigation.navigate('DetalleVacante', { vacante: item }); } else { handleMarkerPress(index); } }} 
               />
             )}
           />

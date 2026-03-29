@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, TextInput, Image,
+  View, Text, StyleSheet, FlatList,
+  RefreshControl, TextInput, Image, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
 import { vacantesAPI, chatsAPI } from '../../services/api';
+import { AnimatedPressable } from '../../components/animated';
 
 const TABS = [
   { key: 'todos', label: 'Todos', icon: 'people' },
@@ -21,8 +22,8 @@ function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 86400000);
   if (diff === 0) return 'Hoy';
-  if (diff === 1) return 'Hace 1 dia';
-  return `Hace ${diff} dias`;
+  if (diff === 1) return 'Hace 1 día';
+  return `Hace ${diff} días`;
 }
 
 function normalizarEstado(estado) {
@@ -43,6 +44,13 @@ function getEstadoConfig(estadoNormalizado) {
     default:
       return { label: 'Pendiente', icon: 'time', color: COLORS.warning, bg: COLORS.warningSoft };
   }
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(' ');
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 export default function MisPostulantesScreen({ navigation }) {
@@ -133,6 +141,17 @@ export default function MisPostulantesScreen({ navigation }) {
     rechazados: postulantes.filter((p) => p.estado_normalizado === 'rechazado').length,
   }), [postulantes]);
 
+  const getTabCount = (key) => {
+    switch (key) {
+      case 'todos': return counts.total;
+      case 'nuevos': return counts.nuevos;
+      case 'pendientes': return counts.pendientes;
+      case 'aceptados': return counts.aceptados;
+      case 'rechazados': return counts.rechazados;
+      default: return 0;
+    }
+  };
+
   const irPerfil = (item) => {
     navigation.navigate('PerfilPublicoTrabajador', {
       trabajador_id: item.trabajador_id,
@@ -160,25 +179,38 @@ export default function MisPostulantesScreen({ navigation }) {
   const renderItem = ({ item }) => {
     const estado = getEstadoConfig(item.estado_normalizado);
     const matchPct = Math.round(item.puntaje_match || 0);
+    const initials = getInitials(item.nombre_completo);
 
     return (
       <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        {/* Left accent bar */}
         <View style={[styles.statusBar, { backgroundColor: estado.color }]} />
 
         <View style={styles.cardBody}>
+          {/* Top row: avatar + name + badge */}
           <View style={styles.topRow}>
-            <View style={[styles.avatarWrap, { backgroundColor: isDark ? colors.surface : '#B0BEC5' }]}>
-              {item.foto_selfie ? (
-                <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarFallback}><Ionicons name="person" size={20} color={COLORS.white} /></View>
-              )}
-            </View>
+            <AnimatedPressable onPress={() => irPerfil(item)}>
+              <View style={[styles.avatarWrap, { backgroundColor: COLORS.primarySoft }]}>
+                {item.foto_selfie ? (
+                  <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
+                ) : (
+                  <Text style={[styles.avatarInitials, { color: COLORS.primary }]}>{initials}</Text>
+                )}
+              </View>
+            </AnimatedPressable>
 
             <View style={styles.mainInfo}>
-              <Text style={[styles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>{item.nombre_completo || 'Postulante'}</Text>
-              <Text style={[styles.vacante, { color: colors.textSecondary }]} numberOfLines={1}>{item.vacante_titulo || 'Vacante'}</Text>
-              <Text style={[styles.finca, { color: colors.textMuted }]} numberOfLines={1}>{item.finca_nombre}</Text>
+              <Text style={[styles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>
+                {item.nombre_completo || 'Postulante'}
+              </Text>
+              {/* Vacante chip */}
+              <View style={[styles.vacanteChip, { backgroundColor: isDark ? colors.surface : COLORS.primarySoft, borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}>
+                <Ionicons name="briefcase-outline" size={11} color={COLORS.primary} />
+                <Text style={styles.vacanteChipText} numberOfLines={1}>{item.vacante_titulo || 'Vacante'}</Text>
+              </View>
+              <Text style={[styles.finca, { color: colors.textSecondary }]} numberOfLines={1}>
+                {item.finca_nombre}
+              </Text>
             </View>
 
             <View style={[styles.estadoBadge, { backgroundColor: estado.bg }]}>
@@ -187,41 +219,55 @@ export default function MisPostulantesScreen({ navigation }) {
             </View>
           </View>
 
+          {/* Meta row: date + match */}
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
-              <Ionicons name="time-outline" size={13} color={colors.textMuted} />
+              <Ionicons name="time-outline" size={13} color={colors.textSecondary} />
               <Text style={[styles.metaText, { color: colors.textSecondary }]}>{timeAgo(item.created_at)}</Text>
             </View>
-            {matchPct > 0 ? (
-              <View style={styles.metaItem}>
-                <Ionicons name="flash-outline" size={13} color={COLORS.primary} />
-                <Text style={[styles.metaText, { color: COLORS.primary, fontWeight: '700' }]}>{matchPct}% match</Text>
+            {matchPct > 0 && (
+              <View style={[styles.matchPill, { backgroundColor: COLORS.primarySoft }]}>
+                <Ionicons name="flash" size={12} color={COLORS.primary} />
+                <Text style={[styles.matchPillText, { color: COLORS.primary }]}>{matchPct}% match</Text>
               </View>
-            ) : null}
+            )}
           </View>
 
+          {/* Divider */}
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          {/* Action buttons */}
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]} onPress={() => irPerfil(item)}>
+            <AnimatedPressable
+              style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : COLORS.borderLight, borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}
+              onPress={() => irPerfil(item)}
+            >
               <Ionicons name="person-outline" size={14} color={colors.textSecondary} />
-              <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Ver perfil</Text>
-            </TouchableOpacity>
+              <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Perfil</Text>
+            </AnimatedPressable>
 
-            <TouchableOpacity style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]} onPress={() => irVacante(item)}>
+            <AnimatedPressable
+              style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : COLORS.borderLight, borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}
+              onPress={() => irVacante(item)}
+            >
               <Ionicons name="briefcase-outline" size={14} color={colors.textSecondary} />
-              <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Ver vacante</Text>
-            </TouchableOpacity>
+              <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Vacante</Text>
+            </AnimatedPressable>
 
-            <TouchableOpacity style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]} onPress={() => irPostulacion(item)}>
+            <AnimatedPressable
+              style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : COLORS.borderLight, borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}
+              onPress={() => irPostulacion(item)}
+            >
               <Ionicons name="reader-outline" size={14} color={colors.textSecondary} />
-              <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Ver postulacion</Text>
-            </TouchableOpacity>
+              <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Postulación</Text>
+            </AnimatedPressable>
           </View>
 
           {item.chat_id ? (
-            <TouchableOpacity style={styles.btnChat} onPress={() => irChat(item)}>
+            <AnimatedPressable style={styles.btnChat} onPress={() => irChat(item)}>
               <Ionicons name="chatbubble-ellipses" size={14} color={COLORS.primary} />
               <Text style={styles.btnChatText}>Ir al chat</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           ) : null}
         </View>
       </View>
@@ -230,38 +276,79 @@ export default function MisPostulantesScreen({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
-      <View style={styles.header}>
+      {/* Header */}
+      <View style={[styles.header, { borderColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Mis Postulantes</Text>
-        <Text style={[styles.headerSub, { color: colors.textSecondary }]}>Panel rapido de reclutamiento</Text>
+        <Text style={[styles.headerSub, { color: colors.textSecondary }]}>Panel rápido de reclutamiento</Text>
       </View>
 
+      {/* Stats row */}
       <View style={styles.statsRow}>
-        <View style={[styles.statCard, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}><Text style={[styles.statNum, { color: colors.textPrimary }]}>{counts.total}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total</Text></View>
-        <View style={[styles.statCard, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}><Text style={[styles.statNum, { color: COLORS.info }]}>{counts.nuevos}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>Nuevos</Text></View>
-        <View style={[styles.statCard, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}><Text style={[styles.statNum, { color: COLORS.primary }]}>{counts.aceptados}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>Aceptados</Text></View>
+        <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.statNum, { color: colors.textPrimary }]}>{counts.total}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total</Text>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.statNum, { color: COLORS.info }]}>{counts.nuevos}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Nuevos</Text>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.statNum, { color: COLORS.primary }]}>{counts.aceptados}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Aceptados</Text>
+        </View>
       </View>
 
-      <View style={styles.tabsRow}>
+      {/* Tabs — horizontal scrollable pills */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabsScroll}
+        style={styles.tabsContainer}
+      >
         {TABS.map((t) => {
           const active = tab === t.key;
+          const count = getTabCount(t.key);
           return (
-            <TouchableOpacity key={t.key} style={[styles.tab, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }, active && styles.tabActive]} onPress={() => setTab(t.key)}>
+            <AnimatedPressable
+              key={t.key}
+              style={[
+                styles.tabPill,
+                { backgroundColor: active ? COLORS.primary : colors.surface },
+                !active && { borderWidth: 1, borderColor: colors.border },
+              ]}
+              onPress={() => setTab(t.key)}
+            >
               <Ionicons name={t.icon} size={13} color={active ? COLORS.white : colors.textSecondary} />
-              <Text style={[styles.tabText, { color: colors.textSecondary }, active && styles.tabTextActive]}>{t.label}</Text>
-            </TouchableOpacity>
+              <Text style={[styles.tabPillText, { color: active ? COLORS.white : colors.textSecondary }]}>
+                {t.label}
+              </Text>
+              {count > 0 && (
+                <View style={[styles.tabCount, { backgroundColor: active ? 'rgba(255,255,255,0.25)' : COLORS.primarySoft }]}>
+                  <Text style={[styles.tabCountText, { color: active ? COLORS.white : COLORS.primary }]}>
+                    {count}
+                  </Text>
+                </View>
+              )}
+            </AnimatedPressable>
           );
         })}
-      </View>
+      </ScrollView>
 
-      <View style={[styles.searchWrap, { backgroundColor: isDark ? colors.surface : '#F9FAFB', borderColor: colors.border }]}>
-        <Ionicons name="search" size={17} color={colors.textMuted} />
+      {/* Search with icon */}
+      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Ionicons name="search" size={17} color={colors.textSecondary} />
         <TextInput
           style={[styles.searchInput, { color: colors.textPrimary }]}
           placeholder="Buscar por trabajador o vacante..."
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.textSecondary}
           value={search}
           onChangeText={setSearch}
         />
+        {search.length > 0 && (
+          <AnimatedPressable onPress={() => setSearch('')} haptic={false}>
+            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+          </AnimatedPressable>
+        )}
       </View>
 
       <FlatList
@@ -269,18 +356,25 @@ export default function MisPostulantesScreen({ navigation }) {
         keyExtractor={(item, index) => `${item.id}-${index}`}
         renderItem={renderItem}
         contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); cargar(); }}
             colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
           />
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="people-outline" size={48} color={COLORS.primaryLight} />
+            <View style={[styles.emptyIconWrap, { backgroundColor: COLORS.primarySoft }]}>
+              <Ionicons name="people-outline" size={44} color={COLORS.primary} />
+            </View>
             <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin postulantes por ahora</Text>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Cuando lleguen postulaciones apareceran aqui con acceso rapido.</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              Cuando lleguen postulaciones aparecerán aquí con acceso rápido.
+            </Text>
           </View>
         }
       />
@@ -289,73 +383,75 @@ export default function MisPostulantesScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.white },
+  container: { flex: 1 },
+
+  /* Header */
   header: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
     paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
   },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary },
-  headerSub: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  headerTitle: { fontSize: 24, fontWeight: '800' },
+  headerSub: { fontSize: 13, marginTop: 2 },
 
+  /* Stats */
   statsRow: {
     flexDirection: 'row',
     gap: SPACING.sm,
     paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.sm,
+    paddingVertical: SPACING.sm,
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#F8FAF9',
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
     paddingVertical: SPACING.sm,
     alignItems: 'center',
+    ...SHADOWS.small,
   },
-  statNum: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
-  statLabel: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
+  statNum: { fontSize: 20, fontWeight: '800' },
+  statLabel: { fontSize: 11, marginTop: 2, fontWeight: '500' },
 
-  tabsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.sm,
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F3F4F6',
+  /* Tabs — horizontal scrollable pills */
+  tabsContainer: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.sm },
+  tabsScroll: { gap: SPACING.sm, paddingRight: SPACING.sm },
+  tabPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 13, paddingVertical: 8,
     borderRadius: RADIUS.full,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    ...SHADOWS.small,
   },
-  tabActive: { backgroundColor: COLORS.primary },
-  tabText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
-  tabTextActive: { color: COLORS.white },
+  tabPillText: { fontSize: 12, fontWeight: '600' },
+  tabCount: {
+    paddingHorizontal: 6, paddingVertical: 1,
+    borderRadius: RADIUS.full,
+    minWidth: 20, alignItems: 'center',
+  },
+  tabCountText: { fontSize: 11, fontWeight: '700' },
 
+  /* Search */
   searchWrap: {
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.sm,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: '#F9FAFB',
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
     paddingHorizontal: SPACING.md,
-    paddingVertical: 10,
+    paddingVertical: 11,
+    ...SHADOWS.small,
   },
-  searchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary, padding: 0 },
+  searchInput: { flex: 1, fontSize: 14, padding: 0 },
 
+  /* List */
   list: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl },
+
+  /* Card */
   card: {
     flexDirection: 'row',
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     marginBottom: SPACING.md,
     overflow: 'hidden',
     ...SHADOWS.card,
@@ -363,66 +459,82 @@ const styles = StyleSheet.create({
   statusBar: { width: 4 },
   cardBody: { flex: 1, padding: SPACING.md },
 
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  avatarWrap: { width: 54, height: 54, borderRadius: 16, overflow: 'hidden', backgroundColor: '#B0BEC5' },
-  avatar: { width: 54, height: 54, borderRadius: 16 },
-  avatarFallback: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  mainInfo: { flex: 1 },
-  nombre: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  vacante: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, marginTop: 2 },
-  finca: { fontSize: 12, color: COLORS.textLight, marginTop: 1 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
+  avatarWrap: {
+    width: 54, height: 54, borderRadius: 27,
+    overflow: 'hidden', flexShrink: 0,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatar: { width: 54, height: 54, borderRadius: 27 },
+  avatarInitials: { fontSize: 18, fontWeight: '800' },
+  mainInfo: { flex: 1, minWidth: 0 },
+  nombre: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  vacanteChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: RADIUS.full,
+    alignSelf: 'flex-start',
+    marginBottom: 2,
+    maxWidth: '100%',
+  },
+  vacanteChipText: { fontSize: 11, fontWeight: '700', color: COLORS.primary, flexShrink: 1 },
+  finca: { fontSize: 12, marginTop: 1 },
 
   estadoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 8, paddingVertical: 5,
     borderRadius: RADIUS.full,
+    flexShrink: 0,
   },
   estadoText: { fontSize: 11, fontWeight: '700' },
 
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginTop: SPACING.sm },
+  /* Meta row */
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm, flexWrap: 'wrap' },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: 12, color: COLORS.textSecondary },
+  metaText: { fontSize: 12 },
+  matchPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: RADIUS.full,
+  },
+  matchPillText: { fontSize: 12, fontWeight: '700' },
 
+  divider: { height: 1, marginBottom: SPACING.sm },
+
+  /* Actions */
   actionsRow: {
     flexDirection: 'row',
     gap: SPACING.xs,
-    marginTop: SPACING.sm,
     flexWrap: 'wrap',
   },
   btnOutline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 8,
     borderRadius: RADIUS.full,
   },
-  btnOutlineText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
+  btnOutlineText: { fontSize: 12, fontWeight: '600' },
   btnChat: {
     marginTop: SPACING.sm,
     alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: COLORS.primarySoft,
-    borderWidth: 1.2,
-    borderColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    borderWidth: 1.5, borderColor: COLORS.primary,
+    paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: RADIUS.full,
   },
-  btnChatText: { fontSize: 12, color: COLORS.primary, fontWeight: '700' },
+  btnChatText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
 
+  /* Empty */
   empty: {
     alignItems: 'center',
     paddingTop: SPACING.xxl,
     paddingHorizontal: SPACING.xl,
-    gap: SPACING.sm,
   },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
-  emptyText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center' },
+  emptyIconWrap: {
+    width: 88, height: 88, borderRadius: 44,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: SPACING.xs },
+  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
 });

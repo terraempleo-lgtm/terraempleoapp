@@ -135,7 +135,7 @@ function VacanteCard({ item, colors, onPress }) {
           </View>
 
           {/* Cultivo chips */}
-          {cultivos.length > 0 && (
+          {cultivos.length > 0 ? (
             <View style={styles.chipsRow}>
               {cultivos.slice(0, 3).map((c, i) => (
                 <View
@@ -148,13 +148,13 @@ function VacanteCard({ item, colors, onPress }) {
                   </Text>
                 </View>
               ))}
-              {cultivos.length > 3 && (
+              {cultivos.length > 3 ? (
                 <View style={[styles.chip, { backgroundColor: colors.border, borderColor: colors.border }]}>
                   <Text style={[styles.chipText, { color: colors.textMuted }]}>+{cultivos.length - 3}</Text>
                 </View>
-              )}
+              ) : null}
             </View>
-          )}
+          ) : null}
 
           {/* Footer row: salary + date + CTA */}
           <View style={styles.footer}>
@@ -184,22 +184,22 @@ function VacanteCard({ item, colors, onPress }) {
           </View>
 
           {/* Benefits pills row */}
-          {(item.ofrece_alojamiento || item.ofrece_alimentacion) && (
+          {(Boolean(item.ofrece_alojamiento) || Boolean(item.ofrece_alimentacion)) ? (
             <View style={styles.benefitPills}>
-              {item.ofrece_alojamiento && (
+              {Boolean(item.ofrece_alojamiento) ? (
                 <View style={[styles.benefitPill, { backgroundColor: COLORS.infoSoft }]}>
                   <Ionicons name="home-outline" size={11} color={COLORS.info} />
                   <Text style={[styles.benefitPillText, { color: COLORS.info }]}>Alojamiento</Text>
                 </View>
-              )}
-              {item.ofrece_alimentacion && (
+              ) : null}
+              {Boolean(item.ofrece_alimentacion) ? (
                 <View style={[styles.benefitPill, { backgroundColor: COLORS.warningSoft }]}>
                   <Ionicons name="restaurant-outline" size={11} color={COLORS.warning} />
                   <Text style={[styles.benefitPillText, { color: COLORS.warning }]}>Alimentación</Text>
                 </View>
-              )}
+              ) : null}
             </View>
-          )}
+          ) : null}
         </View>
       </AnimatedPressable>
     </Animated.View>

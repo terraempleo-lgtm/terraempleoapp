@@ -291,7 +291,7 @@ export default function VacantesRecomendadasScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <DecorativeBackground intensity="strong" />
       <FlatList
         data={vacantes}

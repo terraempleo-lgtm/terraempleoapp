@@ -46,7 +46,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
   const flatListRef = useRef(null);
   const pollingRef = useRef(null);
 
-  const volverAlPerfilRelacionado = () => {
+  const irAlPerfilRelacionado = () => {
     const otroUsuarioId = Number(chat?.otro_usuario_id);
     const vacanteId = Number(chat?.vacante_id);
 
@@ -56,7 +56,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
     }
 
     if (user.rol === 'empleador') {
-      navigation.replace('PerfilPublicoTrabajador', {
+      navigation.navigate('PerfilPublicoTrabajador', {
         trabajador_id: otroUsuarioId,
         vacante_id: Number.isFinite(vacanteId) ? vacanteId : undefined,
         postulacion_estado: 'aceptada',
@@ -65,7 +65,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
     }
 
     if (user.rol === 'trabajador') {
-      navigation.replace('PerfilPublicoEmpleador', {
+      navigation.navigate('PerfilPublicoEmpleador', {
         empleador_id: otroUsuarioId,
         vacante_id: Number.isFinite(vacanteId) ? vacanteId : undefined,
         chat_data: chat,
@@ -79,7 +79,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
   useEffect(() => {
     navigation.setOptions({
       headerTitle: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <AnimatedPressable onPress={irAlPerfilRelacionado} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }}>
             <Ionicons name="person" size={20} color={COLORS.white} />
           </View>
@@ -87,11 +87,11 @@ export default function ChatDetalleScreen({ route, navigation }) {
             <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.white }}>{chat.otro_nombre}</Text>
             {chat.vacante_titulo && <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }} numberOfLines={1}>{chat.vacante_titulo}</Text>}
           </View>
-        </View>
+        </AnimatedPressable>
       ),
       headerTitleAlign: 'left',
       headerLeft: () => (
-        <AnimatedPressable onPress={volverAlPerfilRelacionado} style={{ marginLeft: 16 }} scaleValue={0.9} haptic>
+        <AnimatedPressable onPress={() => navigation.goBack()} style={{ marginLeft: 16 }} scaleValue={0.9} haptic>
           <Ionicons name="arrow-back" size={24} color={COLORS.white} />
         </AnimatedPressable>
       ),

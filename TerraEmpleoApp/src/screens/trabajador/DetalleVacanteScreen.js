@@ -247,11 +247,11 @@ export default function DetalleVacanteScreen({ route, navigation }) {
         >
           <View style={[styles.contentCard, { backgroundColor: colors.background }]}>
             <View style={styles.badgeRow}>
-              {vacante.urgente && (
+              {Boolean(vacante.urgente) ? (
                 <View style={styles.urgentBadge}>
                   <Text style={styles.urgentText}>URGENTE</Text>
                 </View>
-              )}
+              ) : null}
               {vacante.created_at && (
                 <Text style={[styles.timeText, { color: colors.textMuted }]}>
                   Publicado {(() => {
@@ -265,7 +265,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
             </View>
 
             {/* Empresa info card */}
-            {vacante.nombre_empresa_finca && (
+            {Boolean(vacante.nombre_empresa_finca) ? (
               <View style={[styles.empresaCard, { backgroundColor: isDark ? colors.card : COLORS.primaryMuted, borderColor: colors.border }]}>
                 <View style={styles.empresaIconWrap}>
                   <Ionicons name="business-outline" size={20} color={colors.primary} />
@@ -280,7 +280,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                   )}
                 </View>
               </View>
-            )}
+            ) : null}
 
             <Text style={[styles.title, { color: colors.textPrimary }]}>{vacante.titulo}</Text>
 

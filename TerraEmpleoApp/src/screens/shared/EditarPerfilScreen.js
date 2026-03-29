@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
-  KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Linking,
+  KeyboardAvoidingView, Platform, Switch, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -13,11 +13,14 @@ import {
 } from '../../data/options';
 import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../utils/alertService';
+import { AnimatedPressable } from '../../components/animated';
 
 export default function EditarPerfilScreen({ navigation, route }) {
   const { updateUser, user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const { userData: initUser, perfil: initPerfil } = route.params || {};
   const rol = user?.rol;
 
@@ -200,36 +203,37 @@ export default function EditarPerfilScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
           {/* Datos personales */}
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Datos Personales</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Datos Personales</Text>
             <Input label="Nombre completo" value={nombre} onChangeText={setNombre}
               placeholder="Ej: Juan Pérez García" icon="person-outline" required error={errors.nombre} />
 
-            <TouchableOpacity style={styles.pickerButton} onPress={() => setShowDeptPicker(true)}>
+            <AnimatedPressable style={[styles.pickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setShowDeptPicker(true)} scaleValue={0.97}>
               <Ionicons name="location-outline" size={20} color={COLORS.primary} />
-              <Text style={[styles.pickerText, !departamento && { color: COLORS.textLight }]}>
+              <Text style={[styles.pickerText, { color: colors.textPrimary }, !departamento && { color: colors.textMuted }]}>
                 {departamento || 'Seleccione departamento *'}
               </Text>
-              <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
-            </TouchableOpacity>
+              <Ionicons name="chevron-down" size={20} color={colors.textLight} />
+            </AnimatedPressable>
             {errors.departamento && <Text style={styles.errorText}>{errors.departamento}</Text>}
 
-            <TouchableOpacity
-              style={[styles.pickerButton, !departamento && styles.pickerDisabled]}
+            <AnimatedPressable
+              style={[styles.pickerButton, { backgroundColor: colors.surface, borderColor: colors.border }, !departamento && styles.pickerDisabled]}
               onPress={() => departamento && setShowMunPicker(true)}
               disabled={!departamento}
+              scaleValue={0.97}
             >
               <Ionicons name="map-outline" size={20} color={COLORS.primary} />
-              <Text style={[styles.pickerText, !municipio && { color: COLORS.textLight }]}>
+              <Text style={[styles.pickerText, { color: colors.textPrimary }, !municipio && { color: colors.textMuted }]}>
                 {municipio || 'Seleccione municipio *'}
               </Text>
-              <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
-            </TouchableOpacity>
+              <Ionicons name="chevron-down" size={20} color={colors.textLight} />
+            </AnimatedPressable>
             {errors.municipio && <Text style={styles.errorText}>{errors.municipio}</Text>}
 
             <Input label="Vereda (opcional)" value={vereda} onChangeText={setVereda}
@@ -238,8 +242,8 @@ export default function EditarPerfilScreen({ navigation, route }) {
 
           {/* Campos trabajador */}
           {rol === 'trabajador' && (
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Perfil Trabajador</Text>
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Perfil Trabajador</Text>
 
               <Input
                 label="Acerca de"
@@ -267,13 +271,13 @@ export default function EditarPerfilScreen({ navigation, route }) {
 
               {(nivelEstudios === 'tecnico_tecnologo' || nivelEstudios === 'universitario') && (
                 <View style={{ marginTop: SPACING.sm }}>
-                  <TouchableOpacity style={styles.pickerButton} onPress={() => setShowTituloPicker(true)}>
+                  <AnimatedPressable style={[styles.pickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setShowTituloPicker(true)} scaleValue={0.97}>
                     <Ionicons name="school-outline" size={20} color={COLORS.primary} />
-                    <Text style={[styles.pickerText, !tituloEstudio && { color: COLORS.textLight }]}>
+                    <Text style={[styles.pickerText, { color: colors.textPrimary }, !tituloEstudio && { color: colors.textMuted }]}>
                       {tituloEstudio || 'Seleccione su título'}
                     </Text>
-                    <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
-                  </TouchableOpacity>
+                    <Ionicons name="chevron-down" size={20} color={colors.textLight} />
+                  </AnimatedPressable>
                   <PickerModal visible={showTituloPicker} onClose={() => setShowTituloPicker(false)}
                     title="Título obtenido" options={TITULOS_SUGERIDOS} selectedValue={tituloEstudio}
                     onSelect={setTituloEstudio} />
@@ -343,21 +347,22 @@ export default function EditarPerfilScreen({ navigation, route }) {
 
                 <View style={styles.hojaVidaAcciones}>
                   {hojaVidaUrl ? (
-                    <TouchableOpacity style={styles.hojaVidaBtnOutline} onPress={verHojaVida}>
+                    <AnimatedPressable style={[styles.hojaVidaBtnOutline, { borderColor: COLORS.primary }]} onPress={verHojaVida} scaleValue={0.95}>
                       <Ionicons name="open-outline" size={16} color={COLORS.primary} />
                       <Text style={styles.hojaVidaBtnOutlineText}>Ver hoja de vida</Text>
-                    </TouchableOpacity>
+                    </AnimatedPressable>
                   ) : null}
-                  <TouchableOpacity
-                    style={styles.hojaVidaBtnPrimary}
+                  <AnimatedPressable
+                    style={[styles.hojaVidaBtnPrimary, { backgroundColor: COLORS.primary }]}
                     onPress={manejarSubidaHojaVida}
                     disabled={subiendoHojaVida}
+                    scaleValue={0.95}
                   >
                     <Ionicons name="cloud-upload-outline" size={16} color={COLORS.white} />
                     <Text style={styles.hojaVidaBtnPrimaryText}>
                       {subiendoHojaVida ? 'Subiendo...' : hojaVidaUrl ? 'Cambiar hoja de vida' : 'Subir hoja de vida'}
                     </Text>
-                  </TouchableOpacity>
+                  </AnimatedPressable>
                 </View>
               </View>
             </View>
@@ -365,8 +370,8 @@ export default function EditarPerfilScreen({ navigation, route }) {
 
           {/* Campos empleador */}
           {rol === 'empleador' && (
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Perfil Empleador</Text>
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Perfil Empleador</Text>
 
               <Input
                 label="Acerca de"
@@ -381,26 +386,26 @@ export default function EditarPerfilScreen({ navigation, route }) {
                 onChangeText={setNombreEmpresa} placeholder="Ej: Finca El Paraíso"
                 icon="business-outline" required error={errors.empresa} />
 
-              <Text style={styles.fieldLabel}>Tipo de pago</Text>
-              <TouchableOpacity style={styles.pickerButton} onPress={() => setShowTipoPagoPicker(true)}>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Tipo de pago</Text>
+              <AnimatedPressable style={[styles.pickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setShowTipoPagoPicker(true)} scaleValue={0.97}>
                 <Ionicons name="cash-outline" size={20} color={COLORS.primary} />
-                <Text style={[styles.pickerText, !tipoPago && { color: COLORS.textLight }]}>
+                <Text style={[styles.pickerText, { color: colors.textPrimary }, !tipoPago && { color: colors.textMuted }]}>
                   {tipoPago ? TIPO_PAGO_OPTIONS.find(t => t.value === tipoPago)?.label : 'Seleccione tipo de pago'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
-              </TouchableOpacity>
+                <Ionicons name="chevron-down" size={20} color={colors.textLight} />
+              </AnimatedPressable>
 
-              <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>Ofrece alojamiento</Text>
+              <View style={[styles.switchRow, { borderBottomColor: colors.borderLight }]}>
+                <Text style={[styles.switchLabel, { color: colors.textPrimary }]}>Ofrece alojamiento</Text>
                 <Switch value={ofreceAlojamiento} onValueChange={setOfreceAlojamiento}
-                  trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
+                  trackColor={{ false: colors.border, true: COLORS.primaryLight }}
                   thumbColor={ofreceAlojamiento ? COLORS.primary : '#f4f3f4'} />
               </View>
 
-              <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>Ofrece alimentación</Text>
+              <View style={[styles.switchRow, { borderBottomColor: colors.borderLight }]}>
+                <Text style={[styles.switchLabel, { color: colors.textPrimary }]}>Ofrece alimentación</Text>
                 <Switch value={ofreceAlimentacion} onValueChange={setOfreceAlimentacion}
-                  trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
+                  trackColor={{ false: colors.border, true: COLORS.primaryLight }}
                   thumbColor={ofreceAlimentacion ? COLORS.primary : '#f4f3f4'} />
               </View>
 

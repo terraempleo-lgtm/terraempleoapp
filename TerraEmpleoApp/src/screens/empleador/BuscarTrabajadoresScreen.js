@@ -321,67 +321,101 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Búsqueda */}
-      <View style={[styles.searchWrap, { backgroundColor: isDark ? colors.surface : '#F9FAFB', borderColor: colors.border }]}>
-        <Ionicons name="search" size={17} color={colors.textMuted} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.textPrimary }]}
-          placeholder="Buscar por nombre, lugar, habilidad..."
-          placeholderTextColor={colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 ? (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={17} color={colors.textMuted} />
-          </TouchableOpacity>
-        ) : null}
+      {/* Controles de Búsqueda y Filtros */}
+      <View style={{ paddingHorizontal: SPACING.md, marginBottom: 12 }}>
+        {/* Barra de Búsqueda Rediseñada */}
+        <View style={[
+          styles.searchWrap,
+          { backgroundColor: isDark ? colors.surface : COLORS.background, borderColor: isDark ? colors.border : '#E5E7EB' }
+        ]}>
+          <Ionicons name="search" size={20} color={colors.textMuted} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+            placeholder="Buscar talentos o habilidades..."
+            placeholderTextColor={colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+          />
+          {search.length > 0 ? (
+            <TouchableOpacity onPress={() => setSearch('')} style={{ padding: 4 }}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.searchFilterIconBadge}>
+              <Ionicons name="options-outline" size={16} color={COLORS.primary} />
+            </View>
+          )}
+        </View>
+
+        {/* Tabs de Orden (Mejor Match vs. Cercanos) Rediseñados */}
+        <View style={styles.ordenRow}>
+          {ORDEN_TABS.map((t) => {
+            const active = orden === t.key;
+            return (
+              <AnimatedPressable
+                key={t.key}
+                scaleValue={0.96}
+                haptic
+                style={[
+                  styles.ordenTab,
+                  { backgroundColor: active ? COLORS.primary : (isDark ? colors.border : '#F3F4F6') }
+                ]}
+                onPress={() => onOrden(t.key)}
+              >
+                <Ionicons
+                  name={t.icon}
+                  size={15}
+                  color={active ? COLORS.white : colors.textSecondary}
+                />
+                <Text style={[
+                  styles.ordenTabText,
+                  { color: active ? COLORS.white : colors.textSecondary }
+                ]}>
+                  {t.label}
+                </Text>
+              </AnimatedPressable>
+            );
+          })}
+        </View>
       </View>
 
-      {/* Orden */}
-      <View style={styles.ordenRow}>
-        {ORDEN_TABS.map((t) => {
-          const active = orden === t.key;
-          return (
-            <TouchableOpacity
-              key={t.key}
-              style={[styles.ordenTab, { backgroundColor: isDark ? colors.border : '#F3F4F6' }, active && styles.ordenTabActive]}
-              onPress={() => onOrden(t.key)}
-            >
-              <Ionicons
-                name={t.icon}
-                size={14}
-                color={active ? COLORS.white : colors.textSecondary}
-              />
-              <Text style={[styles.ordenTabText, { color: colors.textSecondary }, active && styles.ordenTabTextActive]}>
-                {t.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* Filtro de Disponibilidad - Rediseñado y Responsive */}
+      <View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.dispScrollView}
+          contentContainerStyle={styles.dispRow}
+        >
+          {DISPONIBILIDAD_FILTROS.map((f, index) => {
+            const active = disponibilidad === f.key;
+            return (
+              <AnimatedPressable
+                key={f.key}
+                scaleValue={0.95}
+                style={[
+                  styles.dispChip,
+                  { 
+                    backgroundColor: active ? COLORS.primarySoft : (isDark ? colors.surface : '#FFFFFF'),
+                    borderColor: active ? COLORS.primary : (isDark ? colors.border : '#E5E7EB'),
+                    marginLeft: index === 0 ? SPACING.md : 0,
+                    marginRight: index === DISPONIBILIDAD_FILTROS.length - 1 ? SPACING.md : 0,
+                  }
+                ]}
+                onPress={() => onDisponibilidad(f.key)}
+              >
+                <Text style={[
+                  styles.dispChipText,
+                  { color: active ? COLORS.primaryDark : colors.textSecondary }
+                ]}>
+                  {f.label}
+                </Text>
+              </AnimatedPressable>
+            );
+          })}
+        </ScrollView>
       </View>
-
-      {/* Filtro disponibilidad */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.dispRow}
-      >
-        {DISPONIBILIDAD_FILTROS.map((f) => {
-          const active = disponibilidad === f.key;
-          return (
-            <TouchableOpacity
-              key={f.key}
-              style={[styles.dispChip, { backgroundColor: isDark ? colors.border : '#F3F4F6', borderColor: colors.border }, active && styles.dispChipActive]}
-              onPress={() => onDisponibilidad(f.key)}
-            >
-              <Text style={[styles.dispChipText, { color: colors.textSecondary }, active && styles.dispChipTextActive]}>
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
 
       {/* Lista */}
       <FlatList
@@ -451,65 +485,58 @@ const styles = StyleSheet.create({
   },
 
   searchWrap: {
-    marginHorizontal: SPACING.md,
-    marginBottom: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: SPACING.sm,
     backgroundColor: '#F9FAFB',
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 7,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
+    marginBottom: 10,
+    ...SHADOWS.light,
   },
-  searchInput: { flex: 1, fontSize: 13, color: COLORS.textPrimary, padding: 0 },
+  searchInput: { flex: 1, fontSize: 15, color: COLORS.textPrimary, padding: 0, height: 22 },
+  searchFilterIconBadge: {
+    backgroundColor: COLORS.primarySoft,
+    padding: 4,
+    borderRadius: RADIUS.md,
+  },
 
   ordenRow: {
     flexDirection: 'row',
-    gap: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    marginBottom: 6,
+    gap: SPACING.sm,
   },
   ordenTab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 7,
-    borderRadius: RADIUS.md,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  ordenTabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primaryDark,
-  },
-  ordenTabText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
-  ordenTabTextActive: { color: COLORS.white },
-
-  dispRow: {
-    paddingHorizontal: SPACING.md,
     gap: 6,
-    marginBottom: 6,
+    paddingVertical: 10,
+    borderRadius: RADIUS.lg,
+    backgroundColor: '#F3F4F6',
+    ...SHADOWS.light,
+  },
+  ordenTabText: { fontSize: 13, fontWeight: '700' },
+
+  dispScrollView: {
+    flexGrow: 0,
+    marginBottom: 12,
+  },
+  dispRow: {
+    gap: 10,
+    paddingVertical: 4,
     alignItems: 'center',
   },
   dispChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: RADIUS.full,
-    backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    ...SHADOWS.light,
   },
-  dispChipActive: {
-    backgroundColor: COLORS.primarySoft,
-    borderColor: COLORS.primary,
-  },
-  dispChipText: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary },
-  dispChipTextActive: { color: COLORS.primary },
+  dispChipText: { fontSize: 13, fontWeight: '700' },
 
   list: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.lg },
 

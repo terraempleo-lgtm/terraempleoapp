@@ -250,7 +250,7 @@ async function detalleVacante(req, res) {
     const vacantes = await query(`
       SELECT v.*, u.nombre_completo as nombre_empleador,
         pe.nombre_empresa_finca, pe.ofrece_alojamiento as pe_ofrece_alojamiento,
-        pe.ofrece_alimentacion as pe_ofrece_alimentacion, pe.beneficios_extra
+        pe.ofrece_alimentacion as pe_ofrece_alimentacion, pe.beneficios_extra, pe.foto_finca_fachada as foto_portada, u.foto_selfie as foto_empleador
       FROM vacantes v
       JOIN usuarios u ON u.id = v.empleador_id
       LEFT JOIN perfil_empleador pe ON pe.usuario_id = v.empleador_id
@@ -278,6 +278,12 @@ async function detalleVacante(req, res) {
     vacante.labores = await query('SELECT labor FROM vacante_labores WHERE vacante_id = ?', [id]);
     vacante.fotos = await query('SELECT id, url, descripcion, orden FROM vacante_fotos WHERE vacante_id = ? ORDER BY orden ASC', [id]);
     await signArrayField(vacante.fotos, 'url');
+    if (vacante.foto_portada) {
+      vacante.foto_portada = await signUrl(vacante.foto_portada);
+    }
+    if (vacante.foto_empleador) {
+      vacante.foto_empleador = await signUrl(vacante.foto_empleador);
+    }
 
     res.json({ vacante });
   } catch (err) {

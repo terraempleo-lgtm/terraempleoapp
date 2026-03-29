@@ -183,7 +183,7 @@ function PerfilStack() {
 }
 
 // Wrappers para screens lazy usadas directamente en Tab.Screen (sin stack propio)
-const MisPostulacionesTab = () => <S><MisPostulacionesScreen /></S>;
+const MisPostulacionesTab = (props) => <S><MisPostulacionesScreen {...props} /></S>;
 
 function AdminVerificacionStack() {
   return (

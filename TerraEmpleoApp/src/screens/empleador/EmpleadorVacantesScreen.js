@@ -326,12 +326,14 @@ export default function EmpleadorVacantesScreen({ navigation }) {
       <FadeInView delay={0}>
         <View style={[styles.greetingSection, { backgroundColor: colors.surface }]}>
           <View style={styles.greetingLeft}>
-            <View style={styles.avatarWrap}>
-              {user?.foto_selfie ? (
-                <Image source={{ uri: user.foto_selfie }} style={styles.avatarImg} />
-              ) : (
-                <Ionicons name="person" size={20} color={COLORS.primary} />
-              )}
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatarWrap}>
+                {user?.foto_selfie ? (
+                  <Image source={{ uri: user.foto_selfie }} style={styles.avatarImg} />
+                ) : (
+                  <Ionicons name="person" size={20} color={COLORS.primary} />
+                )}
+              </View>
               {identidadAprobada && (
                 <View style={styles.verificadoBadge}>
                   <Ionicons name="checkmark" size={11} color={COLORS.white} />
@@ -357,16 +359,9 @@ export default function EmpleadorVacantesScreen({ navigation }) {
         </View>
       </FadeInView>
 
-      <FadeInView delay={60}>
-        <ResumenSemanaCard
-          postulantesTotal={postulantesCount}
-          activasCount={activas.length}
-          isDark={isDark}
-        />
-      </FadeInView>
-
+      {/* Verificacion Card moved right after Greeting, before Actions */}
       {mostrarTarjetaVerificacion && (
-        <FadeInView delay={80}>
+        <FadeInView delay={50}>
           <View style={[styles.verificacionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.verificacionHeader}>
               <Ionicons
@@ -468,11 +463,19 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           })}
         </View>
       </FadeInView>
+
+      <FadeInView delay={200}>
+        <ResumenSemanaCard
+          postulantesTotal={postulantesCount}
+          activasCount={activas.length}
+          isDark={isDark}
+        />
+      </FadeInView>
     </View>
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.surface : '#F8FAF9' }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.surface : '#F8FAF9' }]} edges={['bottom']}>
       <FlatList
         data={lista}
         keyExtractor={(item) => item.id?.toString()}
@@ -613,6 +616,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
   },
+  avatarContainer: {
+    position: 'relative',
+  },
   avatarWrap: {
     width: 48,
     height: 48,
@@ -623,7 +629,6 @@ const styles = StyleSheet.create({
     borderWidth: 2.5,
     borderColor: COLORS.primary,
     overflow: 'hidden',
-    position: 'relative',
   },
   avatarImg: { width: 48, height: 48, borderRadius: 24 },
   verificadoBadge: {
@@ -764,6 +769,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
+    marginBottom: SPACING.md,
   },
   tab: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -784,12 +790,13 @@ const styles = StyleSheet.create({
   tabCountTextActive: { color: COLORS.white },
 
   /* List */
-  list: { padding: SPACING.md, paddingBottom: 100 },
+  list: { paddingBottom: 100 },
 
   /* Card */
   card: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
+    marginHorizontal: SPACING.lg,
     marginBottom: SPACING.md,
     ...SHADOWS.card,
     overflow: 'hidden',

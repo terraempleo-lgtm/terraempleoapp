@@ -437,33 +437,6 @@ export default function PerfilScreen({ navigation }) {
         <StaggeredItem index={0}>
           <View style={s.secWrap}>
             <View style={s.secHead}>
-              <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="person-outline" size={17} color={colors.primary} /></View>
-              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Información Personal</Text>
-            </View>
-            <View style={{ gap: 12, marginTop: 8 }}>
-              {ubicacionT && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Ionicons name="location-outline" size={18} color={colors.textSecondary} />
-                  <Text style={{ fontSize: 15, color: colors.textPrimary }}>{ubicacionT}</Text>
-                </View>
-              )}
-              {u?.celular && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Ionicons name="call-outline" size={18} color={colors.textSecondary} />
-                  <Text style={{ fontSize: 15, color: colors.textPrimary }}>{u.celular}</Text>
-                </View>
-              )}
-              {u?.email && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
-                  <Text style={{ fontSize: 15, color: colors.textPrimary }}>{u.email}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-          
-          <View style={s.secWrap}>
-            <View style={s.secHead}>
               <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="document-text-outline" size={17} color={colors.primary} /></View>
               <Text style={[s.secTitle, { color: colors.textPrimary }]}>Acerca de mí</Text>
             </View>

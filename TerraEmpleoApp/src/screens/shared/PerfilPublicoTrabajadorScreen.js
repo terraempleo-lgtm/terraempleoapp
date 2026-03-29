@@ -154,7 +154,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
         contentContainerStyle={{ paddingBottom: hasFooter ? 110 : 32 }}
       >
         {/* Top bar */}
-        <View style={[s.topBar, { paddingTop: insets.top + 8, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+              <View style={[s.topBar, { paddingTop: SPACING.sm, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
           <AnimatedPressable style={[s.iconBtn, { backgroundColor: colors.surface }]} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
           </AnimatedPressable>
@@ -225,10 +225,10 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
             </View>
             <View style={[s.statDivider, { backgroundColor: colors.border }]} />
             <View style={s.statItem}>
-              <Text style={[s.statNum, { color: colors.primary }]}>
-                {experiencia ? experiencia.split(' ')[0] : '—'}
+                    <Text style={[s.statNum, s.statNumExp, { color: colors.primary }]}> 
+                      {experiencia || '—'}
               </Text>
-              <Text style={[s.statLabel, { color: colors.textMuted }]}>Exp.</Text>
+                    <Text style={[s.statLabel, { color: colors.textMuted }]}>Experiencia</Text>
             </View>
           </View>
         </View>
@@ -494,6 +494,7 @@ const s = StyleSheet.create({
   },
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
   statNum: { fontSize: 22, fontWeight: '800' },
+  statNumExp: { fontSize: 16, textAlign: 'center', lineHeight: 18 },
   statLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
   statDivider: { width: 1, marginVertical: 4 },
 

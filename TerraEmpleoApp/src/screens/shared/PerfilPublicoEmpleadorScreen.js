@@ -1,16 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, Pressable,
-  ActivityIndicator,
+  ActivityIndicator, Animated, Dimensions
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
 import { vacantesAPI, calificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Input, StarRating } from '../../components/ui';
 import { showAlert } from '../../utils/alertService';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 function AnimatedPressable({ style, onPress, disabled, children, activeOpacity = 0.85 }) {
   return (
@@ -38,19 +41,22 @@ function SectionHeader({ icon, title, colors }) {
 const sh = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.md },
   iconBox: { width: 36, height: 36, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 15, fontWeight: '700' },
+  headerTitle: { fontSize: 16, fontWeight: '700' },
 });
 
 export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
   const { vacante_id, chat_data } = route.params || {};
   const { user } = useAuth();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const scrollY = useRef(new Animated.Value(0)).current;
+
   const [loading, setLoading] = useState(true);
   const [vacante, setVacante] = useState(null);
   const [estrellas, setEstrellas] = useState(0);
   const [comentario, setComentario] = useState('');
   const [enviandoCalificacion, setEnviandoCalificacion] = useState(false);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -80,7 +86,14 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
   const nombrePropietario = vacante?.nombre_empleador || chat_data?.otro_nombre || 'Empleador';
   const empleadorId = Number(route?.params?.empleador_id || chat_data?.otro_usuario_id || vacante?.empleador_id);
   const ubicacion = [vacante?.municipio, vacante?.departamento].filter(Boolean).join(', ');
-  const fotoFinca = vacante?.foto_portada || null;
+  
+  const fotosArray = vacante?.fotos?.length > 0 
+    ? vacante.fotos.map(f => f.url) 
+    : (vacante?.foto_portada ? [vacante.foto_portada] : []);
+
+  const avatarFoto = vacante?.foto_empleador || chat_data?.otro_foto;
+  
+  const tieneFotos = fotosArray.length > 0;
 
   const beneficios = [
     vacante?.ofrece_alojamiento && 'Alojamiento incluido',
@@ -124,190 +137,189 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
     );
   }
 
-  const initials = (nombreFinca || 'F')
-    .split(' ')
-    .map(w => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+  const initials = (nombreFinca || 'F').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+  const handleScrollPhoto = (event) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = event.nativeEvent.contentOffset.x / slideSize;
+    setActivePhotoIndex(Math.round(index));
+  };
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
-      <ScrollView
+      <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        scrollEventThrottle={16}
       >
-        {/* HERO — foto finca o gradiente placeholder */}
+        {/* HERO / FOTOS */}
         <View style={s.heroWrap}>
-          {fotoFinca ? (
-            <Image source={{ uri: fotoFinca }} style={s.heroImg} resizeMode="cover" />
+          {avatarFoto || tieneFotos ? (
+            <>
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={handleScrollPhoto}
+                style={{ flex: 1 }}
+              >
+                {fotosArray.map((url, i) => (
+                  <Image key={i} source={{ uri: url }} style={s.heroImg} resizeMode="cover" />
+                ))}
+              </ScrollView>
+              {fotosArray.length > 1 && (
+                <View style={s.paginationWrap}>
+                  {fotosArray.map((_, i) => (
+                    <View key={i} style={[s.dot, i === activePhotoIndex ? { backgroundColor: '#fff', width: 14 } : { backgroundColor: 'rgba(255,255,255,0.5)' }]} />
+                  ))}
+                </View>
+              )}
+            </>
           ) : (
-            <View style={[s.heroPlaceholder, { backgroundColor: colors.primary + '20' }]}>
-              <View style={[s.heroLeafBox, { backgroundColor: colors.primary + '25' }]}>
-                <Ionicons name="leaf" size={40} color={colors.primary} />
-              </View>
-            </View>
+            <LinearGradient
+              colors={[colors.primary + 'CC', colors.primaryDark || '#1B5E20']}
+              style={s.heroPlaceholder}
+            >
+              <Ionicons name="leaf" size={70} color="rgba(255,255,255,0.15)" />
+            </LinearGradient>
           )}
-          {/* Back button overlay */}
+
+          {/* Fade Superior para el botón back */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.5)', 'transparent']}
+            style={[s.heroGradient, { paddingTop: insets.top + 8 }]}
+            pointerEvents="none"
+          />
           <AnimatedPressable
-            style={[s.heroBackBtn, { paddingTop: insets.top + 8, backgroundColor: 'rgba(0,0,0,0.28)' }]}
+            style={[s.heroBackBtn, { top: insets.top + 8 }]}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <View style={s.blurCircle}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </View>
           </AnimatedPressable>
         </View>
 
-        {/* Identity card — floats over hero */}
+        {/* INFO PRINCIPAL */}
         <View style={[s.identityCard, { backgroundColor: colors.surface, ...SHADOWS.card }]}>
-          {/* Avatar circular */}
+          {/* Avatar superpuesto */}
           <View style={[s.avatarWrap, { borderColor: colors.surface }]}>
-            {fotoFinca ? (
-              <Image source={{ uri: fotoFinca }} style={[s.avatar, { borderColor: colors.primary }]} />
+            {avatarFoto || tieneFotos ? (
+              <Image source={{ uri: avatarFoto || fotosArray[0] }} style={[s.avatar, { borderColor: colors.primary }]} />
             ) : (
-              <View style={[s.avatarFallback, { borderColor: colors.primary, backgroundColor: colors.primary + '18' }]}>
+              <View style={[s.avatarFallback, { backgroundColor: colors.primary + '18', borderColor: colors.primary }]}>
                 <Text style={[s.avatarInitials, { color: colors.primary }]}>{initials}</Text>
               </View>
             )}
           </View>
 
-          <View style={s.identityInfo}>
+          <View style={s.identityHeader}>
             <Text style={[s.nombreFinca, { color: colors.textPrimary }]} numberOfLines={2}>
               {nombreFinca}
             </Text>
-            <Text style={[s.nombrePropietario, { color: colors.textSecondary }]}>{nombrePropietario}</Text>
+            <View style={s.propietarioRow}>
+              <Ionicons name="person-outline" size={14} color={colors.textSecondary} />
+              <Text style={[s.nombrePropietario, { color: colors.textSecondary }]}>{nombrePropietario}</Text>
+            </View>
             {ubicacion ? (
               <View style={s.metaRow}>
-                <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+                <Ionicons name="location" size={14} color={COLORS.error || '#D32F2F'} />
                 <Text style={[s.metaText, { color: colors.textMuted }]}>{ubicacion}</Text>
               </View>
             ) : null}
           </View>
 
-          {/* Stats row */}
-          <View style={[s.statsRow, { borderTopColor: colors.border }]}>
+          {/* STATS */}
+          <View style={[s.statsRow, { borderColor: colors.border }]}>
             <View style={s.statItem}>
-              <Text style={[s.statNum, { color: colors.primary }]}>
-                {vacante?.activa ? '1' : '0'}
-              </Text>
+              <Text style={[s.statNum, { color: colors.primary }]}>{vacante?.activa ? '1' : '0'}</Text>
               <Text style={[s.statLabel, { color: colors.textMuted }]}>Vacante{vacante?.activa ? '' : 's'}</Text>
             </View>
             <View style={[s.statDivider, { backgroundColor: colors.border }]} />
             <View style={s.statItem}>
-              <Text style={[s.statNum, { color: colors.primary }]}>
-                {vacante?.cultivos?.length || 0}
-              </Text>
+              <Text style={[s.statNum, { color: colors.primary }]}>{vacante?.cultivos?.length || 0}</Text>
               <Text style={[s.statLabel, { color: colors.textMuted }]}>Cultivos</Text>
             </View>
             <View style={[s.statDivider, { backgroundColor: colors.border }]} />
             <View style={s.statItem}>
-              <Text style={[s.statNum, { color: colors.primary }]}>
-                {beneficios.length}
-              </Text>
+              <Text style={[s.statNum, { color: colors.primary }]}>{beneficios.length}</Text>
               <Text style={[s.statLabel, { color: colors.textMuted }]}>Beneficios</Text>
             </View>
           </View>
         </View>
 
-        {/* Descripción de la vacante */}
-        {vacante?.descripcion ? (
-          <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="document-text-outline" title="Descripción" colors={colors} />
-            <Text style={[s.bodyText, { color: colors.textSecondary }]}>{vacante.descripcion}</Text>
-          </View>
-        ) : null}
-
-        {/* Vacante activa — mini card */}
-        {vacante ? (
+        {/* VACANTE ACTUAL */}
+        {vacante?.titulo && (
           <View style={[s.card, { backgroundColor: colors.surface }]}>
             <SectionHeader icon="briefcase-outline" title="Vacante Publicada" colors={colors} />
-            <View style={[s.vacanteCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <View style={s.vacanteCardTop}>
-                <View style={s.vacanteTitleRow}>
-                  <View style={[s.vacanteDot, { backgroundColor: vacante.activa ? COLORS.badgeActiveText : COLORS.textLight }]} />
-                  <Text style={[s.vacanteTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-                    {vacante.titulo || vacante.tipo_labor || 'Vacante agrícola'}
-                  </Text>
+            <View style={[s.vacanteItem, { borderColor: colors.border, backgroundColor: isDark ? colors.background : '#F8FAFC' }]}>
+              <View style={s.vacanteLeft}>
+                <View style={[s.dotContainer, { backgroundColor: vacante.activa ? '#E8F5E9' : '#FFEBEE' }]}>
+                  <View style={[s.dotStatus, { backgroundColor: vacante.activa ? COLORS.success : COLORS.error }]} />
                 </View>
-                <View style={[s.vacanteBadge, { backgroundColor: vacante.activa ? COLORS.badgeActive : COLORS.badgeInactive }]}>
-                  <Text style={[s.vacanteBadgeTxt, { color: vacante.activa ? COLORS.badgeActiveText : COLORS.badgeInactiveText }]}>
-                    {vacante.activa ? 'Activa' : 'Cerrada'}
-                  </Text>
-                </View>
+                <Text style={[s.vacanteItemTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                  {vacante.titulo}
+                </Text>
               </View>
-              {vacante.salario_ofrecido ? (
-                <View style={s.metaRow}>
-                  <Ionicons name="cash-outline" size={14} color={colors.textMuted} />
-                  <Text style={[s.metaText, { color: colors.textMuted }]}>
-                    {vacante.salario_ofrecido} / {vacante.tipo_pago || 'mes'}
-                  </Text>
-                </View>
-              ) : null}
-              {vacante.num_trabajadores ? (
-                <View style={s.metaRow}>
-                  <Ionicons name="people-outline" size={14} color={colors.textMuted} />
-                  <Text style={[s.metaText, { color: colors.textMuted }]}>
-                    {vacante.num_trabajadores} trabajador{vacante.num_trabajadores > 1 ? 'es' : ''} requerido{vacante.num_trabajadores > 1 ? 's' : ''}
-                  </Text>
-                </View>
-              ) : null}
+              <View style={[s.vacanteBadge, { backgroundColor: vacante.activa ? COLORS.success + '15' : COLORS.error + '15' }]}>
+                <Text style={[s.vacanteBadgeTxt, { color: vacante.activa ? COLORS.success : COLORS.error }]}>
+                  {vacante.activa ? 'Activa' : 'Cerrada'}
+                </Text>
+              </View>
             </View>
           </View>
-        ) : null}
+        )}
 
-        {/* Beneficios */}
-        {beneficios.length > 0 ? (
+        {/* CULTIVOS */}
+        {vacante?.cultivos?.length > 0 && (
           <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="gift-outline" title="Beneficios" colors={colors} />
-            <View style={s.chipWrap}>
-              {beneficios.map((b, idx) => (
-                <View key={idx} style={[s.chipBlue, { backgroundColor: COLORS.infoSoft }]}>
-                  <Ionicons name="checkmark-circle" size={14} color={COLORS.info} />
-                  <Text style={[s.chipBlueTxt, { color: COLORS.info }]}>{b}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        {/* Cultivos */}
-        {(vacante?.cultivos || []).length > 0 ? (
-          <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="leaf-outline" title="Cultivos" colors={colors} />
+            <SectionHeader icon="leaf-outline" title="Cultivos de la Finca" colors={colors} />
             <View style={s.chipWrap}>
               {vacante.cultivos.map((c, i) => (
-                <View key={i} style={[s.chipGreen, { backgroundColor: colors.primary + '15' }]}>
-                  <Text style={[s.chipGreenTxt, { color: colors.primary }]}>
-                    {typeof c === 'string' ? c : c.cultivo}
-                  </Text>
+                <View key={i} style={[s.chip, { backgroundColor: colors.primary + '15' }]}>
+                  <Text style={[s.chipTxt, { color: colors.primaryDark || colors.primary }]}>{c.cultivo}</Text>
                 </View>
               ))}
             </View>
           </View>
-        ) : null}
+        )}
 
-        {/* Calificar empleador (solo trabajador) */}
-        {user?.rol === 'trabajador' ? (
+        {/* BENEFICIOS */}
+        {beneficios.length > 0 && (
           <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="star-outline" title="Calificar Empleador" colors={colors} />
-            <Text style={[s.bodyText, { color: colors.textMuted, marginBottom: SPACING.md }]}>
-              ¿Cómo fue tu experiencia trabajando con esta finca?
-            </Text>
-            <StarRating rating={estrellas} onRate={setEstrellas} size={32} />
-            <View style={{ marginTop: SPACING.md }}>
-              <Input
-                label="Comentario (opcional)"
-                value={comentario}
-                onChangeText={setComentario}
-                placeholder="Describe tu experiencia con este empleador..."
-                multiline
-                numberOfLines={3}
-              />
+            <SectionHeader icon="gift-outline" title="Beneficios que Ofrece" colors={colors} />
+            <View style={s.listWrap}>
+              {beneficios.map((b, i) => (
+                <View key={i} style={s.listItemRow}>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  <Text style={[s.listItemTxt, { color: colors.textSecondary }]}>{b}</Text>
+                </View>
+              ))}
             </View>
+          </View>
+        )}
+
+        {/* CALIFICAR EMPLEADOR (Si el trabajador aplica a vacante) */}
+        {user?.rol === 'trabajador' && vacante?.estado === 'cerrada' ? (
+          <View style={[s.card, { backgroundColor: colors.surface }]}>
+            <SectionHeader icon="star-half-outline" title="Calificar Empleador" colors={colors} />
+            <Text style={[s.helpText, { color: colors.textSecondary }]}>
+              Ayuda a otros trabajadores compartiendo cómo fue trabajar con {nombrePropietario}.
+            </Text>
+            <View style={{ marginVertical: SPACING.md }}>
+              <StarRating rating={estrellas} onChange={setEstrellas} size={36} />
+            </View>
+            <Input
+              value={comentario}
+              onChangeText={setComentario}
+              placeholder="Describe tu experiencia (opcional)..."
+              multiline
+              numberOfLines={3}
+              style={{ backgroundColor: colors.background }}
+            />
             <AnimatedPressable
-              style={[
-                s.btnCalificar,
-                { backgroundColor: colors.primary, opacity: enviandoCalificacion ? 0.7 : 1 },
-              ]}
+              style={[s.btnCalificar, { backgroundColor: colors.primary, opacity: enviandoCalificacion ? 0.7 : 1 }]}
               onPress={enviarCalificacion}
               disabled={enviandoCalificacion}
             >
@@ -319,17 +331,18 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
           </View>
         ) : null}
 
-        {/* Volver */}
-        <View style={{ paddingHorizontal: SPACING.md, paddingBottom: SPACING.lg }}>
+        {/* VolVER */}
+        <View style={{ paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl, marginTop: SPACING.md }}>
           <AnimatedPressable
-            style={[s.btnVolver, { borderColor: colors.border }]}
+            style={[s.btnVolver, { backgroundColor: isDark ? colors.surface : '#fff', borderColor: colors.border }]}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back-outline" size={18} color={colors.textSecondary} />
+            <Ionicons name="chatbubbles-outline" size={20} color={colors.textSecondary} />
             <Text style={[s.btnVolverText, { color: colors.textSecondary }]}>Volver al chat</Text>
           </AnimatedPressable>
         </View>
-      </ScrollView>
+
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -339,102 +352,105 @@ const s = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   /* HERO */
-  heroWrap: { width: '100%', height: 220, position: 'relative' },
-  heroImg: { width: '100%', height: '100%' },
-  heroPlaceholder: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
+  heroWrap: { width: '100%', height: 260, position: 'relative', backgroundColor: '#e2e8f0' },
+  heroImg: { width: SCREEN_WIDTH, height: 260 },
+  heroPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  heroGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 100 },
+  heroBackBtn: { position: 'absolute', left: SPACING.md, zIndex: 10 },
+  blurCircle: {
+    width: 40, height: 40, borderRadius: 20, 
+    backgroundColor: 'rgba(0,0,0,0.3)', 
+    justifyContent: 'center', alignItems: 'center'
   },
-  heroLeafBox: {
-    width: 88, height: 88, borderRadius: RADIUS.xxl,
-    justifyContent: 'center', alignItems: 'center',
+  paginationWrap: {
+    position: 'absolute', bottom: 30, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6
   },
-  heroBackBtn: {
-    position: 'absolute', top: 0, left: 0,
-    width: 52, paddingBottom: 8, paddingLeft: 12,
-    justifyContent: 'flex-end',
-  },
+  dot: { width: 8, height: 8, borderRadius: 4 },
 
-  /* Identity card */
+  /* INFO PRINCIPAL */
   identityCard: {
-    marginHorizontal: SPACING.md,
-    marginTop: -36,
+    marginHorizontal: SPACING.lg,
+    marginTop: -20,
     borderRadius: RADIUS.xl,
-    padding: SPACING.md,
-    paddingTop: 52,
-    marginBottom: SPACING.sm,
+    padding: SPACING.lg,
+    paddingTop: 45, // espacio para el avatar
+    marginBottom: SPACING.lg,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   avatarWrap: {
-    position: 'absolute',
-    top: -36,
-    left: SPACING.md,
-    borderWidth: 3,
-    borderRadius: RADIUS.full,
-  },
-  avatar: { width: 72, height: 72, borderRadius: 36, borderWidth: 2.5 },
-  avatarFallback: {
-    width: 72, height: 72, borderRadius: 36, borderWidth: 2.5,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  avatarInitials: { fontSize: 22, fontWeight: '800' },
-  identityInfo: { gap: 3 },
-  nombreFinca: { fontSize: 20, fontWeight: '800', lineHeight: 26 },
-  nombrePropietario: { fontSize: 14 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  metaText: { fontSize: 13 },
-
-  /* Stats */
-  statsRow: {
-    flexDirection: 'row', borderTopWidth: 1,
-    marginTop: SPACING.md, paddingTop: SPACING.md,
-  },
-  statItem: { flex: 1, alignItems: 'center', gap: 2 },
-  statNum: { fontSize: 22, fontWeight: '800' },
-  statLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
-  statDivider: { width: 1, marginVertical: 4 },
-
-  /* Cards */
-  card: {
-    marginHorizontal: SPACING.md, marginBottom: SPACING.sm,
-    borderRadius: RADIUS.xl, padding: SPACING.md,
+    position: 'absolute', top: -36, left: SPACING.lg,
+    borderWidth: 4, borderRadius: 40,
     ...SHADOWS.small,
   },
-  bodyText: { fontSize: 14, lineHeight: 22 },
-
-  /* Vacante mini-card */
-  vacanteCard: {
-    borderRadius: RADIUS.lg, borderWidth: 1,
-    padding: SPACING.md, gap: SPACING.sm,
+  avatar: { width: 72, height: 72, borderRadius: 36, borderWidth: 1 },
+  avatarFallback: {
+    width: 72, height: 72, borderRadius: 36, borderWidth: 1,
+    justifyContent: 'center', alignItems: 'center',
   },
-  vacanteCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  vacanteTitleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 },
-  vacanteDot: { width: 8, height: 8, borderRadius: 4 },
-  vacanteTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
-  vacanteBadge: { borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 4 },
-  vacanteBadgeTxt: { fontSize: 12, fontWeight: '700' },
+  avatarInitials: { fontSize: 24, fontWeight: '800' },
+  identityHeader: { gap: 6 },
+  nombreFinca: { fontSize: 24, fontWeight: '800', lineHeight: 28, letterSpacing: -0.5 },
+  propietarioRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nombrePropietario: { fontSize: 16, fontWeight: '500' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  metaText: { fontSize: 14, fontWeight: '500' },
 
-  /* Chips */
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chipGreen: { borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 7 },
-  chipGreenTxt: { fontSize: 13, fontWeight: '600' },
-  chipBlue: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 7,
+  /* ESTADÍSTICAS */
+  statsRow: {
+    flexDirection: 'row', borderTopWidth: 1.5,
+    marginTop: SPACING.lg, paddingTop: SPACING.md,
+    justifyContent: 'space-around'
   },
-  chipBlueTxt: { fontSize: 13, fontWeight: '600' },
+  statItem: { alignItems: 'center', gap: 2 },
+  statNum: { fontSize: 22, fontWeight: '800' },
+  statLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  statDivider: { width: 1, marginVertical: 6, opacity: 0.6 },
 
-  /* Rating */
+  /* CARDS GLOBALES */
+  card: {
+    marginHorizontal: SPACING.lg, marginBottom: SPACING.lg,
+    borderRadius: RADIUS.xl, padding: SPACING.lg,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.03)',
+    ...SHADOWS.small,
+  },
+  
+  /* VACANTES */
+  vacanteItem: {
+    flexDirection: 'row', alignItems: 'center',
+    padding: SPACING.sm, borderRadius: RADIUS.lg, borderWidth: 1,
+  },
+  vacanteLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
+  dotContainer: { width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  dotStatus: { width: 8, height: 8, borderRadius: 4, margin: 0 },
+  vacanteItemTitle: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
+  vacanteBadge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: RADIUS.full },
+  vacanteBadgeTxt: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
+
+  /* CULTIVOS CHIPS */
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: RADIUS.full },
+  chipTxt: { fontSize: 14, fontWeight: '700' },
+
+  /* LISTAS GENÉRICAS */
+  listWrap: { gap: 12 },
+  listItemRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  listItemTxt: { fontSize: 15, fontWeight: '500' },
+
+  /* EXTRAS */
+  helpText: { fontSize: 14, lineHeight: 20 },
   btnCalificar: {
     marginTop: SPACING.md, borderRadius: RADIUS.full,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: SPACING.sm, paddingVertical: 14, ...SHADOWS.button,
   },
   btnCalificarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-
-  /* Volver */
   btnVolver: {
-    borderWidth: 1.5, borderRadius: RADIUS.full,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: SPACING.sm, paddingVertical: 14,
+    borderWidth: 1.5, borderRadius: RADIUS.full, paddingVertical: 14, gap: 8,
+    ...SHADOWS.small
   },
-  btnVolverText: { fontSize: 15, fontWeight: '600' },
+  btnVolverText: { fontSize: 16, fontWeight: '600' },
 });

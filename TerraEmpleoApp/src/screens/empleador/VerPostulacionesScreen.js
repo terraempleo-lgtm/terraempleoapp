@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Alert, RefreshControl, Image, TextInput,
+  View, Text, StyleSheet, FlatList,
+  Alert, RefreshControl, Image, TextInput, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -10,6 +10,7 @@ import { StarRating, Input } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../utils/alertService';
 import { useAppTheme } from '../../context/ThemeContext';
+import { AnimatedPressable } from '../../components/animated';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -41,6 +42,13 @@ const TABS = [
   { key: 'aceptada', label: 'Aceptados', icon: 'checkmark-circle' },
   { key: 'rechazada', label: 'Rechazados', icon: 'close-circle' },
 ];
+
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(' ');
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 export default function VerPostulacionesScreen({ route, navigation }) {
   const { vacante } = route.params;
@@ -143,30 +151,36 @@ export default function VerPostulacionesScreen({ route, navigation }) {
     const isPendiente = item.estado === 'pendiente' || item.estado === 'match_auto';
     const isAceptada = item.estado === 'aceptada';
     const estadoBadge = getEstadoBadge(item.estado);
+    const initials = getInitials(item.nombre_completo);
 
     return (
       <View style={[styles.card, { backgroundColor: colors.surface }]}>
-        {/* Status indicator */}
+        {/* Left accent bar */}
         <View style={[styles.cardStatusBar, { backgroundColor: estadoBadge.color }]} />
 
         <View style={styles.cardContent}>
           {/* Top row: avatar + info + match */}
           <View style={styles.cardTop}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.trabajador_id, vacante_id: vacante.id, postulacion_estado: item.estado })}
-              activeOpacity={0.85}
+            <AnimatedPressable
+              onPress={() => navigation.navigate('PerfilPublicoTrabajador', {
+                trabajador_id: item.trabajador_id,
+                vacante_id: vacante.id,
+                postulacion_estado: item.estado,
+              })}
             >
-              <View style={styles.avatar}>
+              <View style={[styles.avatar, { backgroundColor: COLORS.primarySoft }]}>
                 {item.foto_selfie ? (
                   <Image source={{ uri: item.foto_selfie }} style={styles.avatarImg} />
                 ) : (
-                  <Ionicons name="person" size={26} color={COLORS.white} />
+                  <Text style={[styles.avatarInitials, { color: COLORS.primary }]}>{initials}</Text>
                 )}
               </View>
-            </TouchableOpacity>
+            </AnimatedPressable>
 
             <View style={styles.candidateInfo}>
-              <Text style={[styles.candidateName, { color: colors.textPrimary }]} numberOfLines={1}>{item.nombre_completo}</Text>
+              <Text style={[styles.candidateName, { color: colors.textPrimary }]} numberOfLines={1}>
+                {item.nombre_completo}
+              </Text>
               <View style={styles.metaRow}>
                 {item.calificacion_promedio > 0 && (
                   <View style={[styles.ratingChip, { backgroundColor: isDark ? '#2a2200' : '#FFF8E1' }]}>
@@ -175,7 +189,7 @@ export default function VerPostulacionesScreen({ route, navigation }) {
                   </View>
                 )}
                 <View style={[styles.estadoChip, { backgroundColor: estadoBadge.bg }]}>
-                  <Ionicons name={estadoBadge.icon} size={12} color={estadoBadge.color} />
+                  <Ionicons name={estadoBadge.icon} size={11} color={estadoBadge.color} />
                   <Text style={[styles.estadoChipText, { color: estadoBadge.color }]}>{estadoBadge.label}</Text>
                 </View>
               </View>
@@ -183,76 +197,80 @@ export default function VerPostulacionesScreen({ route, navigation }) {
 
             {matchPct > 0 && (
               <View style={[styles.matchBadge, { backgroundColor: matchStyle.bg }]}>
-                <Ionicons name={matchStyle.icon} size={14} color={matchStyle.text} />
+                <Ionicons name={matchStyle.icon} size={13} color={matchStyle.text} />
                 <Text style={[styles.matchText, { color: matchStyle.text }]}>{matchPct}%</Text>
               </View>
             )}
           </View>
 
-          {/* Info chips */}
+          {/* Info chips row */}
           <View style={styles.infoChipsRow}>
             {disponibilidad && (
-              <View style={[styles.infoChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}>
+              <View style={[styles.infoChip, { backgroundColor: isDark ? colors.surface : COLORS.borderLight, borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}>
                 <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
                 <Text style={[styles.infoChipText, { color: colors.textSecondary }]}>{disponibilidad}</Text>
               </View>
             )}
             {item.nivel_estudios && (
-              <View style={[styles.infoChip, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}>
+              <View style={[styles.infoChip, { backgroundColor: isDark ? colors.surface : COLORS.borderLight, borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}>
                 <Ionicons name="school-outline" size={12} color={colors.textSecondary} />
                 <Text style={[styles.infoChipText, { color: colors.textSecondary }]}>{LABELS_ESTUDIOS[item.nivel_estudios] || item.nivel_estudios}</Text>
               </View>
             )}
           </View>
 
-          {/* Separator */}
+          {/* Divider */}
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           {/* Action buttons */}
           <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}
-              onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.trabajador_id, vacante_id: vacante.id, postulacion_estado: item.estado })}
+            <AnimatedPressable
+              style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : COLORS.borderLight, borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}
+              onPress={() => navigation.navigate('PerfilPublicoTrabajador', {
+                trabajador_id: item.trabajador_id,
+                vacante_id: vacante.id,
+                postulacion_estado: item.estado,
+              })}
             >
               <Ionicons name="person-outline" size={15} color={colors.textSecondary} />
               <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Perfil</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
 
             {isPendiente && (
               <>
-                <TouchableOpacity
+                <AnimatedPressable
                   style={styles.btnDanger}
                   onPress={() => cambiarEstado(item.id, 'rechazada')}
                 >
                   <Ionicons name="close" size={15} color={COLORS.error} />
                   <Text style={styles.btnDangerText}>Rechazar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </AnimatedPressable>
+                <AnimatedPressable
                   style={styles.btnPrimary}
                   onPress={() => cambiarEstado(item.id, 'aceptada')}
                 >
                   <Ionicons name="checkmark" size={15} color={COLORS.white} />
                   <Text style={styles.btnPrimaryText}>Aceptar</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               </>
             )}
 
             {isAceptada && calificandoId !== item.trabajador_id && (
               <>
-                <TouchableOpacity
+                <AnimatedPressable
                   style={styles.btnChat}
                   onPress={() => irAlChat(item)}
                 >
                   <Ionicons name="chatbubble-ellipses" size={14} color={COLORS.primary} />
                   <Text style={styles.btnChatText}>Chat</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </AnimatedPressable>
+                <AnimatedPressable
                   style={styles.btnPrimary}
                   onPress={() => setCalificandoId(item.trabajador_id)}
                 >
                   <Ionicons name="star-outline" size={14} color={COLORS.white} />
                   <Text style={styles.btnPrimaryText}>Calificar</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               </>
             )}
 
@@ -269,7 +287,9 @@ export default function VerPostulacionesScreen({ route, navigation }) {
             <View style={[styles.calificarBox, { backgroundColor: isDark ? '#2a2200' : '#FFF8E1' }]}>
               <View style={styles.calificarHeader}>
                 <Ionicons name="star" size={18} color="#FFB300" />
-                <Text style={[styles.calificarTitle, { color: colors.textPrimary }]}>Calificar a {item.nombre_completo?.split(' ')[0]}</Text>
+                <Text style={[styles.calificarTitle, { color: colors.textPrimary }]}>
+                  Calificar a {item.nombre_completo?.split(' ')[0]}
+                </Text>
               </View>
               <StarRating rating={estrellas} onRate={setEstrellas} size={32} />
               <Input
@@ -281,18 +301,18 @@ export default function VerPostulacionesScreen({ route, navigation }) {
                 numberOfLines={2}
               />
               <View style={styles.calificarBtns}>
-                <TouchableOpacity
+                <AnimatedPressable
                   style={styles.btnPrimary}
                   onPress={() => enviarCalificacion(item.trabajador_id)}
                 >
                   <Text style={styles.btnPrimaryText}>Enviar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : '#F3F4F6', borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}
+                </AnimatedPressable>
+                <AnimatedPressable
+                  style={[styles.btnOutline, { backgroundColor: isDark ? colors.surface : COLORS.borderLight, borderWidth: isDark ? 1 : 0, borderColor: colors.border }]}
                   onPress={() => setCalificandoId(null)}
                 >
                   <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Cancelar</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               </View>
             </View>
           )}
@@ -309,7 +329,9 @@ export default function VerPostulacionesScreen({ route, navigation }) {
           <Ionicons name="briefcase" size={22} color={COLORS.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.vacanteTitle, { color: colors.textPrimary }]} numberOfLines={2}>{vacante.titulo}</Text>
+          <Text style={[styles.vacanteTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+            {vacante.titulo}
+          </Text>
           <Text style={[styles.vacanteMeta, { color: colors.textSecondary }]}>{timeAgo(vacante.created_at)}</Text>
         </View>
       </View>
@@ -332,38 +354,63 @@ export default function VerPostulacionesScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* Tabs */}
-      <View style={styles.tabs}>
+      {/* Tabs — scrollable pills */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabsScroll}
+        style={styles.tabsContainer}
+      >
         {TABS.map(t => {
           const isActive = tab === t.key;
+          const count = t.key === 'pendiente'
+            ? pendientesCount
+            : t.key === 'aceptada'
+              ? aceptadosCount
+              : t.key === 'rechazada'
+                ? postulaciones.filter(p => p.estado === 'rechazada').length
+                : postulaciones.length;
           return (
-            <TouchableOpacity
+            <AnimatedPressable
               key={t.key}
-              style={[styles.tabChip, { backgroundColor: colors.surface }, isActive && styles.tabChipActive]}
+              style={[
+                styles.tabPill,
+                { backgroundColor: isActive ? COLORS.primary : colors.surface },
+                !isActive && { borderWidth: 1, borderColor: colors.border },
+              ]}
               onPress={() => setTab(t.key)}
             >
               <Ionicons name={t.icon} size={14} color={isActive ? COLORS.white : colors.textSecondary} />
-              <Text style={[styles.tabChipText, { color: colors.textSecondary }, isActive && styles.tabChipTextActive]}>{t.label}</Text>
-            </TouchableOpacity>
+              <Text style={[styles.tabPillText, { color: isActive ? COLORS.white : colors.textSecondary }]}>
+                {t.label}
+              </Text>
+              {count > 0 && (
+                <View style={[styles.tabCount, { backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : COLORS.primarySoft }]}>
+                  <Text style={[styles.tabCountText, { color: isActive ? COLORS.white : COLORS.primary }]}>
+                    {count}
+                  </Text>
+                </View>
+              )}
+            </AnimatedPressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* Search bar */}
       <View style={styles.searchWrap}>
-        <View style={[styles.searchInner, { backgroundColor: colors.surface }]}>
-          <Ionicons name="search" size={17} color={colors.textMuted} />
+        <View style={[styles.searchInner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="search" size={17} color={colors.textSecondary} />
           <TextInput
             style={[styles.searchInput, { color: colors.textPrimary }]}
             placeholder="Buscar por nombre..."
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={colors.textSecondary}
             value={search}
             onChangeText={setSearch}
           />
           {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
+            <AnimatedPressable onPress={() => setSearch('')} haptic={false}>
+              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+            </AnimatedPressable>
           )}
         </View>
       </View>
@@ -371,13 +418,23 @@ export default function VerPostulacionesScreen({ route, navigation }) {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.surface : '#F8FAF9' }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.background, borderColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }]}>
+        <AnimatedPressable
+          onPress={() => navigation.goBack()}
+          style={[styles.backBtn, { backgroundColor: isDark ? colors.surface : COLORS.borderLight }]}
+        >
           <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Postulaciones</Text>
+        </AnimatedPressable>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+            Postulaciones
+          </Text>
+          <Text style={[styles.headerSub, { color: colors.textSecondary }]} numberOfLines={1}>
+            {vacante.titulo}
+          </Text>
+        </View>
         <View style={styles.headerBadge}>
           <Text style={styles.headerBadgeText}>{postulaciones.length}</Text>
         </View>
@@ -401,8 +458,8 @@ export default function VerPostulacionesScreen({ route, navigation }) {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <View style={styles.emptyIconWrap}>
-              <Ionicons name="people-outline" size={44} color={COLORS.primaryLight} />
+            <View style={[styles.emptyIconWrap, { backgroundColor: COLORS.primarySoft }]}>
+              <Ionicons name="people-outline" size={44} color={COLORS.primary} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
               {search ? 'Sin resultados' : 'Sin postulantes aún'}
@@ -430,28 +487,32 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   backBtn: {
-    width: 38, height: 38, borderRadius: 12,
+    width: 40, height: 40, borderRadius: RADIUS.md,
     justifyContent: 'center', alignItems: 'center',
+    flexShrink: 0,
   },
-  headerTitle: { fontSize: 18, fontWeight: '700', flex: 1 },
+  headerTitle: { fontSize: 17, fontWeight: '700', lineHeight: 22 },
+  headerSub: { fontSize: 12, marginTop: 1 },
   headerBadge: {
     backgroundColor: COLORS.primarySoft,
     paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: RADIUS.full,
+    flexShrink: 0,
   },
   headerBadgeText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
 
   /* Vacante info card */
   vacanteCard: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     padding: SPACING.md, marginBottom: SPACING.sm,
     ...SHADOWS.card,
   },
   vacanteIconWrap: {
-    width: 48, height: 48, borderRadius: 14,
+    width: 48, height: 48, borderRadius: RADIUS.md,
     backgroundColor: COLORS.primarySoft,
     justifyContent: 'center', alignItems: 'center',
+    flexShrink: 0,
   },
   vacanteTitle: { fontSize: 17, fontWeight: '700' },
   vacanteMeta: { fontSize: 12, marginTop: 2 },
@@ -459,7 +520,7 @@ const styles = StyleSheet.create({
   /* Stats */
   statsRow: {
     flexDirection: 'row',
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     padding: SPACING.md, marginBottom: SPACING.sm,
     ...SHADOWS.card,
   },
@@ -468,28 +529,34 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 11, marginTop: 2, fontWeight: '500' },
   statDivider: { width: 1, marginHorizontal: SPACING.sm },
 
-  /* Tabs */
-  tabs: {
-    flexDirection: 'row', gap: SPACING.sm,
-    marginBottom: SPACING.sm, flexWrap: 'wrap',
+  /* Tabs — scrollable pills */
+  tabsContainer: { marginBottom: SPACING.sm },
+  tabsScroll: {
+    gap: SPACING.sm,
+    paddingRight: SPACING.sm,
   },
-  tabChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 14, paddingVertical: 8,
+  tabPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 14, paddingVertical: 9,
     borderRadius: RADIUS.full,
     ...SHADOWS.small,
   },
-  tabChipActive: { backgroundColor: COLORS.primary },
-  tabChipText: { fontSize: 13, fontWeight: '600' },
-  tabChipTextActive: { color: COLORS.white },
+  tabPillText: { fontSize: 13, fontWeight: '600' },
+  tabCount: {
+    paddingHorizontal: 6, paddingVertical: 1,
+    borderRadius: RADIUS.full,
+    minWidth: 20, alignItems: 'center',
+  },
+  tabCountText: { fontSize: 11, fontWeight: '700' },
 
   /* Search */
   searchWrap: { marginBottom: SPACING.md },
   searchInner: {
     flexDirection: 'row', alignItems: 'center',
-    borderRadius: RADIUS.lg,
-    paddingHorizontal: SPACING.md, paddingVertical: 10,
+    borderRadius: RADIUS.xl,
+    paddingHorizontal: SPACING.md, paddingVertical: 11,
     gap: SPACING.sm,
+    borderWidth: 1.5,
     ...SHADOWS.small,
   },
   searchInput: { flex: 1, fontSize: 14, padding: 0 },
@@ -499,7 +566,7 @@ const styles = StyleSheet.create({
 
   /* Card */
   card: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     marginBottom: SPACING.md,
     ...SHADOWS.card,
     flexDirection: 'row',
@@ -508,17 +575,20 @@ const styles = StyleSheet.create({
   cardStatusBar: { width: 4 },
   cardContent: { flex: 1, padding: SPACING.md },
 
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
+  cardTop: {
+    flexDirection: 'row', alignItems: 'center',
+    gap: SPACING.sm, marginBottom: SPACING.sm,
+  },
   avatar: {
-    width: 56, height: 56, borderRadius: 16,
-    backgroundColor: '#B0BEC5',
+    width: 54, height: 54, borderRadius: 27,
     justifyContent: 'center', alignItems: 'center',
     overflow: 'hidden', flexShrink: 0,
   },
-  avatarImg: { width: 56, height: 56, borderRadius: 16 },
+  avatarImg: { width: 54, height: 54, borderRadius: 27 },
+  avatarInitials: { fontSize: 18, fontWeight: '800' },
   candidateInfo: { flex: 1 },
   candidateName: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   ratingChip: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 7, paddingVertical: 2,
@@ -527,15 +597,16 @@ const styles = StyleSheet.create({
   ratingText: { fontSize: 12, fontWeight: '700', color: '#F57C00' },
   estadoChip: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 7, paddingVertical: 2,
+    paddingHorizontal: 7, paddingVertical: 3,
     borderRadius: RADIUS.full,
   },
-  estadoChipText: { fontSize: 11, fontWeight: '600' },
+  estadoChipText: { fontSize: 11, fontWeight: '700' },
 
   matchBadge: {
     alignItems: 'center', gap: 2,
     paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.full,
+    flexShrink: 0,
   },
   matchText: { fontSize: 13, fontWeight: '800' },
 
@@ -571,6 +642,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: RADIUS.full,
     backgroundColor: COLORS.primary,
+    ...SHADOWS.button,
   },
   btnPrimaryText: { fontSize: 13, fontWeight: '700', color: COLORS.white },
   btnChat: {
@@ -592,7 +664,7 @@ const styles = StyleSheet.create({
   /* Rating */
   calificarBox: {
     marginTop: SPACING.md,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     padding: SPACING.md,
     gap: SPACING.sm,
   },
@@ -604,7 +676,6 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: SPACING.xxl, paddingHorizontal: SPACING.xl },
   emptyIconWrap: {
     width: 88, height: 88, borderRadius: 44,
-    backgroundColor: COLORS.primarySoft,
     justifyContent: 'center', alignItems: 'center',
     marginBottom: SPACING.md,
   },

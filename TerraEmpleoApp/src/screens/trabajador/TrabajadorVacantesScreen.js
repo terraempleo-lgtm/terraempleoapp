@@ -273,12 +273,12 @@ export default function TrabajadorVacantesScreen({ navigation }) {
               <Text style={[s.cardTime, { color: colors.textMuted }]}>{timeAgo(item.fecha_creacion)}</Text>
             </View>
 
-            {item.nombre_empresa_finca && (
+            {Boolean(item.nombre_empresa_finca) ? (
               <View style={s.cardFarmRow}>
                 <Ionicons name="business-outline" size={14} color={colors.textSecondary} />
                 <Text style={[s.cardFarm, { color: colors.textSecondary }]} numberOfLines={1}>{item.nombre_empresa_finca}</Text>
               </View>
-            )}
+            ) : null}
             {inicioTexto ? (
               <View style={s.startDateBadge}>
                 <Ionicons name="calendar-outline" size={12} color={COLORS.primary} />
@@ -521,7 +521,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <SafeAreaView style={[s.root, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <SafeAreaView style={[s.root, { backgroundColor: colors.background }]} edges={['bottom']}>
       <DecorativeBackground intensity="strong" />
       <FlatList
         data={filtered}

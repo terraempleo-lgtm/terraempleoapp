@@ -109,7 +109,7 @@ export default function MisPostulacionesScreen({ navigation }) {
       const detalles = await Promise.all(idsVacantes.map(async (id) => {
         try {
           const detalle = await vacantesAPI.detalle(id);
-          return { id, foto: detalle.data?.vacante?.foto_portada || null };
+          return { id, foto: detalle.data?.vacante?.fotos?.[0]?.url || detalle.data?.vacante?.foto_portada || null };
         } catch (_) {
           return { id, foto: null };
         }
@@ -328,50 +328,44 @@ export default function MisPostulacionesScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <DecorativeBackground intensity="strong" />
-      <FadeInView delay={0}>
-        <View style={styles.headerRow}>
-          <AnimatedPressable
-            style={[styles.backBtn, { backgroundColor: isDark ? '#1f332b' : '#EEF4EF', borderColor: colors.border }]}
-            onPress={() => navigation?.canGoBack?.() ? navigation.goBack() : navigation?.navigate?.('Vacantes')}
-            scaleValue={0.9}
-            haptic
-          >
-            <Ionicons name="arrow-back" size={22} color={colors.primary} />
-          </AnimatedPressable>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Mis Postulaciones</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-      </FadeInView>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsRow}
-        style={{ flexGrow: 0 }}
-      >
-        {chips.map((chip, i) => {
-          const activo = filtro === chip.key;
-          return (
-            <AnimatedPressable
-              key={chip.key}
-              style={[
-                styles.filterChip,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-                activo && [styles.filterChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
-              ]}
-              onPress={() => setFiltro(chip.key)}
-              scaleValue={0.93}
-              haptic
-              hapticStyle="light"
-            >
-              <View style={[styles.filterDot, activo && styles.filterDotActive]} />
-              <Text style={[styles.filterText, { color: colors.textSecondary }, activo && [styles.filterTextActive, { color: COLORS.white }]]}>{chip.label}</Text>
-            </AnimatedPressable>
-          );
-        })}
-      </ScrollView>
+      <View style={{ paddingTop: SPACING.sm }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsRow}
+          style={{ flexGrow: 0, marginBottom: 8 }}
+        >
+          {chips.map((chip, index) => {
+            const activo = filtro === chip.key;
+            return (
+              <AnimatedPressable
+                key={chip.key}
+                style={[
+                  styles.filterChip,
+                  { 
+                    backgroundColor: activo ? COLORS.primarySoft : (isDark ? colors.surface : '#FFFFFF'),
+                    borderColor: activo ? COLORS.primary : (isDark ? colors.border : '#E5E7EB'),
+                    marginLeft: index === 0 ? SPACING.md : 0,
+                    marginRight: index === chips.length - 1 ? SPACING.md : 0,
+                  }
+                ]}
+                onPress={() => setFiltro(chip.key)}
+                scaleValue={0.95}
+                haptic
+                hapticStyle="light"
+              >
+                <View style={[styles.filterDot, { backgroundColor: activo ? COLORS.primary : (isDark ? colors.textMuted : '#EAB308') }]} />
+                <Text style={[styles.filterText, { color: activo ? COLORS.primaryDark : colors.textSecondary }]}>
+                  {chip.label}
+                </Text>
+              </AnimatedPressable>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       <FlatList
         data={dataFiltrada}
@@ -455,36 +449,29 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 40 },
 
   chipsRow: {
-    paddingHorizontal: SPACING.lg,
-    gap: 6,
-    paddingBottom: 8,
+    gap: 8,
+    paddingVertical: 6,
+    alignItems: 'center',
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    ...SHADOWS.small,
-  },
-  filterChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    ...SHADOWS.light,
   },
   filterDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#EAB308',
   },
-  filterDotActive: { backgroundColor: COLORS.white },
   filterText: {
     fontSize: 13,
     fontWeight: '700',
   },
-  filterTextActive: { color: COLORS.white },
 
   list: {
     paddingHorizontal: SPACING.lg,

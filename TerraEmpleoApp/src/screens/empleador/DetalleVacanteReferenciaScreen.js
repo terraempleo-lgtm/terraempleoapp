@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image,
-  FlatList, TouchableOpacity, ActivityIndicator,
+  FlatList, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { vacantesAPI } from '../../services/api';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
+import { AnimatedPressable } from '../../components/animated';
 
 export default function DetalleVacanteReferenciaScreen({ route, navigation }) {
   const { vacante: vacanteBase } = route.params;
@@ -94,9 +95,9 @@ export default function DetalleVacanteReferenciaScreen({ route, navigation }) {
           )}
 
           <View style={[styles.topBar, { top: insets.top + 8 }]}> 
-            <TouchableOpacity style={styles.heroBtn} onPress={() => navigation.goBack()}>
+            <AnimatedPressable style={styles.heroBtn} onPress={() => navigation.goBack()} scaleValue={0.9} haptic>
               <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
-            </TouchableOpacity>
+            </AnimatedPressable>
             <View style={styles.readOnlyBadgeTop}>
               <Ionicons name="eye-outline" size={13} color={COLORS.primary} />
               <Text style={styles.readOnlyBadgeText}>Vista de referencia</Text>
