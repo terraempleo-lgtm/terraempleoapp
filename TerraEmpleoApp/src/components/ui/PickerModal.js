@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Keyboard, Modal, TextInput, FlatList, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, {
   BottomSheetBackdrop,
@@ -19,7 +19,6 @@ export default function PickerModal({
   onSelect,
   searchable = true,
 }) {
-  const isWeb = Platform.OS === 'web';
   const insets = useSafeAreaInsets();
   const [search, setSearch] = React.useState('');
   const bottomSheetRef = useRef(null);
@@ -97,69 +96,6 @@ export default function PickerModal({
   }, []);
 
   if (!visible) return null;
-
-  if (isWeb) {
-    return (
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-        <View style={styles.webOverlay}>
-          <Pressable style={styles.webBackdrop} onPress={handleClose} />
-          <View style={[styles.webCard, { marginTop: insets.top + 12 }]}> 
-            <View style={styles.header}>
-              <Text style={styles.title}>{title}</Text>
-              <AnimatedPressable onPress={handleClose} scaleValue={0.9} haptic={false}>
-                <Ionicons name="close-circle" size={30} color={COLORS.textLight} />
-              </AnimatedPressable>
-            </View>
-
-            {searchable && (
-              <View style={styles.searchContainer}>
-                <View style={styles.searchInputWrap}>
-                  <Ionicons name="search" size={18} color={COLORS.textLight} style={styles.searchIcon} />
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Buscar..."
-                    placeholderTextColor={COLORS.textLight}
-                    value={search}
-                    onChangeText={setSearch}
-                    autoCorrect={false}
-                    autoCapitalize="none"
-                    returnKeyType="search"
-                  />
-                  {search.length > 0 && (
-                    <AnimatedPressable
-                      onPress={() => setSearch('')}
-                      scaleValue={0.85}
-                      haptic={false}
-                      style={styles.clearBtn}
-                    >
-                      <Ionicons name="close-circle" size={18} color={COLORS.textLight} />
-                    </AnimatedPressable>
-                  )}
-                </View>
-              </View>
-            )}
-
-            <FlatList
-              data={filtered}
-              keyExtractor={keyExtractor}
-              renderItem={renderItem}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={true}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              ListEmptyComponent={
-                <View style={styles.emptyWrap}>
-                  <Ionicons name="search-outline" size={32} color={COLORS.border} />
-                  <Text style={styles.empty}>No se encontraron resultados</Text>
-                </View>
-              }
-              ListFooterComponent={<View style={{ height: Math.max(SPACING.xxxl * 2, insets.bottom + 24) }} />}
-            />
-          </View>
-        </View>
-      </Modal>
-    );
-  }
 
   return (
     <BottomSheet
@@ -246,22 +182,6 @@ export default function PickerModal({
 const styles = StyleSheet.create({
   sheet: {
     zIndex: 1000,
-  },
-  webOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  webBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  webCard: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
-    overflow: 'hidden',
-    ...SHADOWS.large,
   },
   background: {
     backgroundColor: COLORS.white,
