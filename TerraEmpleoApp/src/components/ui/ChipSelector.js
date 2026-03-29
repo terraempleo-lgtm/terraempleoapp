@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Modal } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Modal, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { COLORS, RADIUS, SPACING, SHADOWS, FONTS, ANIMATION } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable } from '../animated';
@@ -118,13 +118,12 @@ export default function ChipSelector({
       {error && <Text style={styles.error}>{error}</Text>}
 
       {/* Modal para agregar personalizado */}
-      <Modal visible={showCustomInput} transparent animationType="fade">
-        <AnimatedPressable
+      <Modal visible={showCustomInput} transparent animationType="fade" onRequestClose={() => setShowCustomInput(false)}>
+        <KeyboardAvoidingView
           style={styles.modalOverlay}
-          onPress={() => setShowCustomInput(false)}
-          haptic={false}
-          scaleValue={1}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowCustomInput(false)} />
           <MotiView
             from={{ opacity: 0, scale: 0.9, translateY: 20 }}
             animate={{ opacity: 1, scale: 1, translateY: 0 }}
@@ -139,6 +138,8 @@ export default function ChipSelector({
               placeholder="Escribe aquí..."
               placeholderTextColor={COLORS.textLight}
               autoFocus
+              returnKeyType="done"
+              onSubmitEditing={addCustom}
             />
             <View style={styles.modalButtons}>
               <AnimatedPressable
@@ -159,7 +160,7 @@ export default function ChipSelector({
               </AnimatedPressable>
             </View>
           </MotiView>
-        </AnimatedPressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -220,13 +221,17 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
   },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.overlay,
+  },
   modalContent: {
     width: '100%',
+    maxWidth: 520,
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,

@@ -789,16 +789,56 @@ export default function RegisterTrabajadorScreen({ navigation }) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} labels={STEP_LABELS} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={[styles.scrollContent, { width: '100%' }]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+      {Platform.OS === 'web' ? (
+        <View style={{ flex: 1 }}>
+          <ScrollView
+            ref={scrollRef}
+            style={[styles.scroll, styles.scrollWeb]}
+            contentContainerStyle={[styles.scrollContent, { width: '100%' }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={[styles.formCard, { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' }]}
+            >
+              <FadeInView key={`step-${step}`} delay={50} translateY={10} duration={ANIMATION.duration.normal}>
+                {renderStep()}
+              </FadeInView>
+            </View>
+
+            <View style={{ flex: 1 }} />
+
+            <View style={[styles.footerInScroll, { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' }]}
+            >
+              <View style={styles.footer}>
+                {step > 1 && (
+                  <View style={{ flex: 1 }}>
+                    <Button title="Anterior" onPress={prevStep} variant="outline" size="medium" icon="arrow-back" />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  {step < TOTAL_STEPS ? (
+                    <Button title="Siguiente" onPress={nextStep} size="medium" loading={loading} iconRight="arrow-forward" />
+                  ) : (
+                    <Button title="Finalizar Registro" onPress={handleRegister} loading={loading} size="medium" icon="checkmark-circle" />
+                  )}
+                </View>
+              </View>
+              <TerraFooter />
+            </View>
+          </ScrollView>
+        </View>
+      ) : (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
+          <ScrollView
+            ref={scrollRef}
+            style={[styles.scroll, styles.scrollWeb]}
+            contentContainerStyle={[styles.scrollContent, { width: '100%' }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           <View style={[styles.formCard, { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' }]}
           >
             <FadeInView key={`step-${step}`} delay={50} translateY={10} duration={ANIMATION.duration.normal}>
@@ -828,6 +868,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      )}
 
       <PickerModal
         visible={showDeptPicker}
@@ -889,6 +930,11 @@ const summaryStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
+  scroll: { flex: 1 },
+  scrollWeb: {
+    overflowY: 'auto',
+    height: '100%',
+  },
   scrollContent: { flexGrow: 1, paddingBottom: Platform.OS === 'android' ? 20 : 0 },
   formCard: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md },
   footerInScroll: {
