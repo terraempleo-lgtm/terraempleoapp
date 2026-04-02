@@ -127,6 +127,15 @@ jobs:
             --content-type "text/html; charset=utf-8" \
             --cache-control "no-cache"
 
+          # Eliminación de cuenta (requerido por Google Play)
+          # Subido con y sin extensión: /delete-account.html y /delete-account (URL limpia)
+          aws s3 cp public/delete-account.html s3://terraempleo-web-frontend/delete-account.html \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "no-cache"
+          aws s3 cp public/delete-account.html s3://terraempleo-web-frontend/delete-account \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "no-cache"
+
           # .well-known — sin caché, content-type explícito (requerido por iOS y Android para passkeys)
           aws s3 cp public/.well-known/apple-app-site-association \
             s3://terraempleo-web-frontend/.well-known/apple-app-site-association \

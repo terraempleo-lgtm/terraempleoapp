@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eliminación de cuenta – TerraEmpleo</title>
+  <meta name="description" content="Solicita la eliminación de tu cuenta y datos personales en TerraEmpleo. Conoce el proceso, plazos y qué información se elimina." />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f9fafb;
+      color: #1a1a1a;
+      line-height: 1.7;
+    }
+    header {
+      background: #008d49;
+      color: #fff;
+      padding: 32px 24px 28px;
+      text-align: center;
+    }
+    header h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      line-height: 1.3;
+    }
+    header p {
+      font-size: 13px;
+      margin-top: 8px;
+      opacity: 0.85;
+    }
+    main {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+    section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px 28px 22px;
+      margin-bottom: 16px;
+      border: 1px solid #e5e7eb;
+    }
+    h2 {
+      font-size: 14px;
+      font-weight: 800;
+      color: #008d49;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    p { font-size: 14px; color: #374151; margin-bottom: 10px; }
+    p:last-child { margin-bottom: 0; }
+    ul {
+      margin: 8px 0 10px 20px;
+      font-size: 14px;
+      color: #374151;
+    }
+    ul li { margin-bottom: 6px; }
+    strong { color: #1a1a1a; font-weight: 700; }
+
+    /* Contact card */
+    .contact-card {
+      background: #f0faf4;
+      border: 1.5px solid #008d49;
+      border-radius: 10px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .contact-card .email-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: #005c30;
+    }
+    .contact-card .subject-hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+    .btn-mailto {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #008d49;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 10px 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .btn-mailto:hover { background: #006b38; }
+    .btn-copy {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff;
+      color: #008d49;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1.5px solid #008d49;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .btn-copy:hover { background: #f0faf4; }
+    .btn-copy.copied { color: #6b7280; border-color: #d1d5db; }
+    .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+    /* Badge */
+    .badge {
+      display: inline-block;
+      background: #e8f5e9;
+      color: #008d49;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 20px;
+      padding: 4px 14px;
+      margin-bottom: 20px;
+    }
+
+    /* Icon row */
+    .icon-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .icon-row .icon {
+      font-size: 18px;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+    .icon-row p { margin-bottom: 0; }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #9ca3af;
+      padding: 0 24px 40px;
+    }
+
+    @media (max-width: 480px) {
+      header h1 { font-size: 18px; }
+      section { padding: 22px 18px 18px; }
+      .contact-card { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Eliminación de cuenta</h1>
+  <p>TerraEmpleo · Política de eliminación de datos</p>
+</header>
+
+<main>
+  <p class="badge">Requisito Google Play · Privacidad del usuario</p>
+
+  <!-- Intro -->
+  <section>
+    <h2>¿Cómo solicitar la eliminación?</h2>
+    <p>Los usuarios pueden solicitar la eliminación de su cuenta y de los datos asociados enviando una solicitud al correo oficial de soporte.</p>
+    <div class="contact-card">
+      <div>
+        <div class="email-text">terraempleo@gmail.com</div>
+        <div class="subject-hint">Asunto sugerido: <strong>Eliminación de cuenta</strong></div>
+      </div>
+    </div>
+    <div class="btn-group">
+      <a class="btn-mailto" href="mailto:terraempleo@gmail.com?subject=Eliminaci%C3%B3n%20de%20cuenta">
+        ✉ Enviar solicitud
+      </a>
+      <button class="btn-copy" id="btnCopy" onclick="copyEmail()">
+        📋 Copiar correo
+      </button>
+    </div>
+  </section>
+
+  <!-- What to include -->
+  <section>
+    <h2>Información que debe incluir en la solicitud</h2>
+    <p>Para procesar la solicitud correctamente, por favor incluya:</p>
+    <ul>
+      <li>Correo electrónico <strong>o</strong> número de teléfono registrado en la app</li>
+      <li>Nombre completo (opcional)</li>
+      <li>Mensaje solicitando la eliminación de su cuenta</li>
+    </ul>
+  </section>
+
+  <!-- Plazo -->
+  <section>
+    <h2>Plazo de atención</h2>
+    <div class="icon-row">
+      <span class="icon">📅</span>
+      <p>Las solicitudes se procesarán en un plazo máximo de <strong>7 días hábiles</strong> contados a partir de la recepción del correo.</p>
+    </div>
+  </section>
+
+  <!-- Datos eliminados -->
+  <section>
+    <h2>Datos que se eliminarán</h2>
+    <ul>
+      <li>Información del perfil (nombre, foto, descripción)</li>
+      <li>Datos de contacto registrados</li>
+      <li>Historial de uso relacionado con la cuenta</li>
+      <li>Contenido asociado al perfil, cuando aplique</li>
+    </ul>
+  </section>
+
+  <!-- Datos conservados -->
+  <section>
+    <h2>Datos que podrían conservarse temporalmente</h2>
+    <p>Podrían conservarse registros mínimos cuando existan motivos legales, de seguridad o prevención de fraude, según lo permita la normatividad colombiana vigente (Ley 1581 de 2012).</p>
+  </section>
+
+  <!-- Nota final -->
+  <section>
+    <h2>Nota importante</h2>
+    <div class="icon-row">
+      <span class="icon">ℹ️</span>
+      <p>Si deseas eliminar tu cuenta, debes hacerlo mediante la solicitud enviada al correo indicado. No existe actualmente un botón de eliminación automática dentro de la aplicación; el proceso se gestiona de forma manual por el equipo de soporte.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>© 2025 TerraEmpleo. Todos los derechos reservados.</p>
+  <p style="margin-top:4px;">Potenciando el campo colombiano 🌱</p>
+</footer>
+
+<script>
+  function copyEmail() {
+    navigator.clipboard.writeText('terraempleo@gmail.com').then(function() {
+      var btn = document.getElementById('btnCopy');
+      btn.textContent = '✓ Copiado';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.innerHTML = '📋 Copiar correo';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(function() {
+      // Fallback para navegadores sin clipboard API
+      var el = document.createElement('textarea');
+      el.value = 'terraempleo@gmail.com';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      var btn = document.getElementById('btnCopy');
+      btn.textContent = '✓ Copiado';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.innerHTML = '📋 Copiar correo';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+</script>
+
+</body>
+</html>
