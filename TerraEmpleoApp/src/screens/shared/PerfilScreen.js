@@ -353,9 +353,6 @@ export default function PerfilScreen({ navigation }) {
                 </Text>
                 <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
               </AnimatedPressable>
-              <AnimatedPressable style={s.logoutRow} onPress={() => Linking.openURL('https://app.terrampleo.com/delete-account')} scaleValue={0.97} haptic hapticStyle="light">
-                <Ionicons name="trash-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Eliminar cuenta</Text>
-              </AnimatedPressable>
               <AnimatedPressable style={s.logoutRow} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
                 <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
               </AnimatedPressable>
@@ -612,9 +609,6 @@ export default function PerfilScreen({ navigation }) {
                 {isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
               </Text>
               <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-            </AnimatedPressable>
-            <AnimatedPressable style={[s.logoutRow, { backgroundColor: isDark ? '#2a1717' : 'transparent' }]} onPress={() => Linking.openURL('https://app.terrampleo.com/delete-account')} scaleValue={0.97} haptic hapticStyle="light">
-              <Ionicons name="trash-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Eliminar cuenta</Text>
             </AnimatedPressable>
             <AnimatedPressable style={[s.logoutRow, { backgroundColor: isDark ? '#2a1717' : 'transparent' }]} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
               <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>

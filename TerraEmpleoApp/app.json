@@ -32,7 +32,12 @@
         "ACCESS_COARSE_LOCATION",
         "INTERNET",
         "VIBRATE"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyD3jV2DMX9d4CPEC_vHcKgihsBDPt-sS1E"
+        }
+      }
     },
     "web": {
       "bundler": "metro",

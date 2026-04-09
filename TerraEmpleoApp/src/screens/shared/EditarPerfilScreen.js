@@ -439,7 +439,13 @@ export default function EditarPerfilScreen({ navigation, route }) {
             loadingText="Guardando..."
             onPress={handleGuardar}
             loading={loading}
-            size="large" style={{ marginTop: SPACING.md, marginBottom: SPACING.xl }} />
+            size="large" style={{ marginTop: SPACING.md, marginBottom: SPACING.sm }} />
+          <Text
+            onPress={() => Linking.openURL('https://app.terrampleo.com/delete-account')}
+            style={styles.deleteAccountLink}
+          >
+            Eliminar cuenta
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -533,4 +539,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
   },
   successText: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  deleteAccountLink: {
+    fontSize: 12, color: COLORS.textLight, textAlign: 'center',
+    textDecorationLine: 'underline', marginBottom: SPACING.xl, paddingVertical: SPACING.xs,
+  },
 });
