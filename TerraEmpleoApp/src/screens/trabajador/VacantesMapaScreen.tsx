@@ -10,9 +10,11 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, Region, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Region, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -20,7 +22,6 @@ import { vacantesAPI } from '../../services/api';
 import { useAppTheme } from '../../context/ThemeContext';
 import DecorativeBackground from '../../components/ui/DecorativeBackground';
 import { showAlert } from '../../utils/alertService';
-import { AnimatedPressable } from '../../components/animated';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -297,9 +298,9 @@ function SearchBar({ value, onChange, count }: { value: string; onChange: (t: st
         returnKeyType="search"
       />
       {value.length > 0
-        ? <AnimatedPressable onPress={() => onChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} scaleValue={0.9} haptic>
+        ? <TouchableOpacity onPress={() => onChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.7}>
             <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-          </AnimatedPressable>
+          </TouchableOpacity>
         : count > 0
           ? <View style={sbStyles.countBadge}>
               <Text style={sbStyles.countText}>{count}</Text>
@@ -341,20 +342,18 @@ function FilterChips({ selected, onSelect }: { selected: FilterType; onSelect: (
         const cfg = CULTIVO_CONFIG[f];
         const active = selected === f;
         return (
-          <AnimatedPressable key={f} onPress={() => onSelect(f)}
+          <TouchableOpacity key={f} onPress={() => onSelect(f)} activeOpacity={0.8}
             style={[
               fcStyles.chip,
               { backgroundColor: colors.surface, borderColor: colors.primary },
               active && [fcStyles.chipActive, { backgroundColor: colors.primary }],
             ]}
-            scaleValue={0.95}
-            haptic
           >
             {cfg.emoji
               ? <Text style={fcStyles.emoji}>{cfg.emoji}</Text>
               : <Ionicons name={cfg.icon} size={13} color={active ? '#FFF' : colors.primary} />}
             <Text style={[fcStyles.label, { color: colors.primary }, active && fcStyles.labelActive]}>{cfg.label}</Text>
-          </AnimatedPressable>
+          </TouchableOpacity>
         );
       })}
     </ScrollView>
@@ -430,7 +429,7 @@ const CARD_GAP = 12;
 function VacancyCard({ vacancy, selected, onPress }: { vacancy: Vacancy; selected: boolean; onPress: () => void }) {
   const cfg = CULTIVO_CONFIG[vacancy.cultivo];
   return (
-    <AnimatedPressable onPress={onPress} scaleValue={0.97} haptic
+    <TouchableOpacity onPress={onPress} activeOpacity={0.88}
       style={[vcStyles.card, selected && vcStyles.cardSelected]}>
       <View style={vcStyles.imgWrap}>
         {vacancy.fotoUrl
@@ -467,7 +466,7 @@ function VacancyCard({ vacancy, selected, onPress }: { vacancy: Vacancy; selecte
         </View>
         <Text style={vcStyles.price}>{formatPrice(vacancy.salarioDia)}</Text>
       </View>
-    </AnimatedPressable>
+    </TouchableOpacity>
   );
 }
 
@@ -505,15 +504,15 @@ function FloatingMapControls({ onZoomIn, onZoomOut, onLocate }: {
 }) {
   return (
     <View style={fmcStyles.wrap}>
-      <AnimatedPressable onPress={onZoomIn} style={fmcStyles.btn} scaleValue={0.9} haptic>
+      <TouchableOpacity onPress={onZoomIn} style={fmcStyles.btn} activeOpacity={0.8}>
         <Ionicons name="add" size={22} color="#424242" />
-      </AnimatedPressable>
-      <AnimatedPressable onPress={onZoomOut} style={fmcStyles.btn} scaleValue={0.9} haptic>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onZoomOut} style={fmcStyles.btn} activeOpacity={0.8}>
         <Ionicons name="remove" size={22} color="#424242" />
-      </AnimatedPressable>
-      <AnimatedPressable onPress={onLocate} style={[fmcStyles.btn, fmcStyles.btnAccent]} scaleValue={0.9} haptic>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onLocate} style={[fmcStyles.btn, fmcStyles.btnAccent]} activeOpacity={0.8}>
         <Ionicons name="locate" size={20} color="#FFFFFF" />
-      </AnimatedPressable>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -688,7 +687,7 @@ export default function VacantesMapaScreen({ navigation }: any) {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_DEFAULT}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
         initialRegion={COLOMBIA_CENTER}
         onRegionChangeComplete={setRegion}
         showsUserLocation={!!userLocation}

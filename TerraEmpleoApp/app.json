@@ -49,6 +49,12 @@
       "expo-camera",
       "expo-image-picker",
       [
+        "react-native-maps",
+        {
+          "googleMapsApiKey": "AIzaSyD3jV2DMX9d4CPEC_vHcKgihsBDPt-sS1E"
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "TerraEmpleo necesita acceso a tu ubicacion para mostrar vacantes cercanas."
