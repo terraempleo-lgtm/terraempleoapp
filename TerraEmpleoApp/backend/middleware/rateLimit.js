@@ -3,7 +3,7 @@ const rateLimit = require('express-rate-limit');
 // Limita intentos de autenticacion para reducir fuerza bruta.
 const authLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Demasiados intentos de inicio de sesion. Intenta de nuevo en 15 minutos.' },
