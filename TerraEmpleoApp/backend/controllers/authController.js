@@ -673,18 +673,12 @@ async function actualizarPasswordRecuperacion(req, res) {
     }
 
     const resets = await query(
-      'SELECT * FROM password_resets WHERE token = ? AND usado = 0 ORDER BY created_at DESC LIMIT 1',
+      'SELECT * FROM password_resets WHERE token = ? AND usado = 0 AND expira_en > NOW() ORDER BY created_at DESC LIMIT 1',
       [reset_token]
     );
 
     if (!resets || resets.length === 0) {
-      console.log('[NUEVA PASSWORD] Token no encontrado en BD para celularDB:', celularDB);
-      return res.status(400).json({ error: 'Token inválido o expirado. Solicita un nuevo código.' });
-    }
-
-    const expiraEn = new Date(resets[0].expira_en).getTime();
-    if (Date.now() > expiraEn) {
-      console.log('[NUEVA PASSWORD] Token expirado. expira_en:', resets[0].expira_en, 'now:', new Date());
+      console.log('[NUEVA PASSWORD] Token no encontrado o expirado para celularDB:', celularDB);
       return res.status(400).json({ error: 'Token inválido o expirado. Solicita un nuevo código.' });
     }
 
@@ -728,11 +722,10 @@ async function solicitarRecuperacionEmail(req, res) {
     await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celular]);
 
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-    const expira = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
 
     await query(
-      'INSERT INTO password_resets (celular, codigo, expira_en) VALUES (?, ?, ?)',
-      [celular, codigo, expira]
+      'INSERT INTO password_resets (celular, codigo, expira_en) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))',
+      [celular, codigo]
     );
 
     // Enviar email con el código OTP
@@ -763,7 +756,7 @@ async function solicitarRecuperacionEmail(req, res) {
             <div style="text-align: center; margin: 24px 0;">
               <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #008d49; background: #e6f7ee; padding: 12px 24px; border-radius: 8px;">${codigo}</span>
             </div>
-            <p style="color: #4b5563; font-size: 13px;">Este código expira en <strong>10 minutos</strong>.</p>
+            <p style="color: #4b5563; font-size: 13px;">Este código expira en <strong>30 minutos</strong>.</p>
             <p style="color: #4b5563; font-size: 13px;">Si no solicitaste este cambio, ignora este correo.</p>
           </div>
           <p style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 16px;">© TerraEmpleo - Potenciando el campo colombiano</p>
