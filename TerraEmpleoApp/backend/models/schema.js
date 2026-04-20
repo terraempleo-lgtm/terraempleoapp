@@ -303,9 +303,11 @@ async function initializeDatabase() {
       INDEX idx_celular (celular)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
-  // Migración: columna token puede no existir si la tabla fue creada antes de agregarla
+  // Migraciones: columnas que pueden no existir si la tabla fue creada antes
   try { await query('ALTER TABLE password_resets ADD COLUMN IF NOT EXISTS token VARCHAR(64) DEFAULT NULL'); } catch (_) {}
   try { await query('ALTER TABLE password_resets ADD INDEX IF NOT EXISTS idx_token (token)'); } catch (_) {}
+  // Eliminar ON UPDATE CURRENT_TIMESTAMP de expira_en — causaba que el UPDATE del token sobreescribiera la expiración
+  try { await query('ALTER TABLE password_resets MODIFY COLUMN expira_en TIMESTAMP NOT NULL DEFAULT current_timestamp()'); } catch (_) {}
 
   // Tabla para códigos de verificación SMS (funciona para usuarios registrados y no registrados)
   await query(`
