@@ -471,6 +471,31 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           isDark={isDark}
         />
       </FadeInView>
+
+      <FadeInView delay={250}>
+        <AnimatedPressable
+          style={styles.explorarBtn}
+          onPress={() => navigation.navigate('ExplorarVacantes')}
+          scaleValue={0.97}
+          haptic
+        >
+          <LinearGradient
+            colors={['#FF8F00', '#F57C00']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.explorarGradient}
+          >
+            <View style={styles.explorarLeft}>
+              <Ionicons name="search" size={22} color="#FFF" />
+              <View>
+                <Text style={styles.explorarTitle}>Explorar ofertas</Text>
+                <Text style={styles.explorarSub}>Inspírate en otras vacantes del sector</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
+          </LinearGradient>
+        </AnimatedPressable>
+      </FadeInView>
     </View>
   );
 
@@ -603,6 +628,39 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAF9' },
+
+  /* Explorar ofertas button */
+  explorarBtn: {
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
+    ...SHADOWS.medium,
+  },
+  explorarGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+  },
+  explorarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    flex: 1,
+  },
+  explorarTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  explorarSub: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 2,
+  },
 
   /* Greeting */
   greetingSection: {

@@ -283,8 +283,8 @@ function EmpleadorTabs() {
         options={{ tabBarLabel: 'Mis Vacantes' }} />
       <Tab.Screen name="Trabajadores" component={BuscarTrabajadoresStack}
         options={{ tabBarLabel: 'Trabajadores' }} />
-      <Tab.Screen name="Explorar" component={ExplorarVacantesStack}
-        options={{ tabBarLabel: 'Explorar ofertas' }} />
+      <Tab.Screen name="Mapa" component={TrabajadoresMapaTabStack}
+        options={{ tabBarLabel: 'Mapa' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
         options={{ tabBarLabel: 'Mensajes' }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
@@ -380,6 +380,23 @@ function EmpleadorVacantesStack() {
           options={{ title: 'Perfil del Trabajador' }} />
         <Stack.Screen name="Notificaciones" component={NotificacionesScreen}
           options={{ title: 'Notificaciones' }} />
+        <Stack.Screen name="ExplorarVacantes" component={ExplorarVacantesScreen}
+          options={{ title: 'Explorar ofertas' }} />
+        <Stack.Screen name="DetalleVacanteReferencia" component={DetalleVacanteReferenciaScreen}
+          options={{ title: 'Detalle de referencia' }} />
+      </Stack.Navigator>
+    </S>
+  );
+}
+
+function TrabajadoresMapaTabStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="TrabajadoresMapaHome" component={TrabajadoresMapaScreen}
+          options={{ title: 'Mapa de trabajadores' }} />
+        <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
+          options={{ title: 'Perfil del Trabajador' }} />
       </Stack.Navigator>
     </S>
   );
