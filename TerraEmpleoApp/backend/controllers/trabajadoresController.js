@@ -190,7 +190,7 @@ async function listarTrabajadores(req, res) {
     }
 
     const trabajadores = await query(`
-      SELECT u.id, u.nombre_completo, u.departamento, u.municipio, u.foto_selfie,
+      SELECT u.id, u.nombre_completo, u.departamento, u.municipio, u.foto_selfie, u.latitud, u.longitud,
         u.calificacion_promedio, u.total_calificaciones,
         pt.id as perfil_id, pt.anios_experiencia, pt.disponibilidad, pt.nivel_estudios, pt.acerca_de
       FROM usuarios u
@@ -256,6 +256,8 @@ async function listarTrabajadores(req, res) {
           nombre_completo: t.nombre_completo,
           departamento: t.departamento,
           municipio: t.municipio,
+          latitud: t.latitud !== null && t.latitud !== undefined ? parseFloat(t.latitud) : null,
+          longitud: t.longitud !== null && t.longitud !== undefined ? parseFloat(t.longitud) : null,
           foto_selfie: foto,
           calificacion_promedio: parseFloat(t.calificacion_promedio || 0),
           total_calificaciones: Number(t.total_calificaciones || 0),
@@ -308,7 +310,7 @@ async function trabajadoresRecomendados(req, res) {
     }
 
     const trabajadores = await query(`
-      SELECT u.id, u.nombre_completo, u.departamento, u.municipio, u.foto_selfie,
+      SELECT u.id, u.nombre_completo, u.departamento, u.municipio, u.foto_selfie, u.latitud, u.longitud,
         u.calificacion_promedio, u.total_calificaciones,
         pt.id as perfil_id, pt.anios_experiencia, pt.disponibilidad, pt.nivel_estudios, pt.acerca_de
       FROM usuarios u
@@ -352,6 +354,8 @@ async function trabajadoresRecomendados(req, res) {
           nombre_completo: t.nombre_completo,
           departamento: t.departamento,
           municipio: t.municipio,
+          latitud: t.latitud !== null && t.latitud !== undefined ? parseFloat(t.latitud) : null,
+          longitud: t.longitud !== null && t.longitud !== undefined ? parseFloat(t.longitud) : null,
           foto_selfie: foto,
           calificacion_promedio: parseFloat(t.calificacion_promedio || 0),
           total_calificaciones: Number(t.total_calificaciones || 0),

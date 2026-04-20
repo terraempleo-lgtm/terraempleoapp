@@ -321,6 +321,20 @@ export default function MisPostulacionesScreen({ navigation }) {
               <Text style={[styles.detailBtnText, { color: colors.primary }]}>Ver detalle</Text>
               <Ionicons name="chevron-forward" size={16} color={colors.primary} />
             </AnimatedPressable>
+            {esAceptada && Number(item.empleador_id) > 0 ? (
+              <AnimatedPressable
+                style={[styles.detailBtn, styles.rateBtn]}
+                onPress={() => navigation.navigate('PerfilPublicoEmpleador', {
+                  vacante_id: item.vacante_id,
+                  empleador_id: item.empleador_id,
+                })}
+                scaleValue={0.95}
+                haptic
+              >
+                <Ionicons name="star-outline" size={15} color={COLORS.warning} />
+                <Text style={[styles.detailBtnText, { color: COLORS.warning }]}>Calificar empleador</Text>
+              </AnimatedPressable>
+            ) : null}
           </View>
         </AnimatedPressable>
       </StaggeredItem>
@@ -605,6 +619,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 1,
+  },
+  rateBtn: {
+    marginTop: 8,
   },
   detailBtnText: {
     fontSize: 14,

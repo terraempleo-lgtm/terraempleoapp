@@ -33,6 +33,22 @@ function LabelValue({ label, value, colors }) {
   );
 }
 
+function Stars({ value = 0 }) {
+  const count = Math.max(0, Math.min(5, Math.round(Number(value) || 0)));
+  return (
+    <View style={styles.starsRow}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Ionicons
+          key={i}
+          name={i <= count ? 'star' : 'star-outline'}
+          size={14}
+          color={i <= count ? COLORS.star : COLORS.starEmpty}
+        />
+      ))}
+    </View>
+  );
+}
+
 export default function AdminDetalleUsuarioScreen({ route }) {
   const { colors, isDark } = useAppTheme();
   const usuarioId = route?.params?.usuarioId;
@@ -78,7 +94,7 @@ export default function AdminDetalleUsuarioScreen({ route }) {
     );
   }
 
-  const { user, perfil, vacantes, postulaciones } = detalle;
+  const { user, perfil, vacantes, postulaciones, calificacionesRecibidas } = detalle;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -166,6 +182,36 @@ export default function AdminDetalleUsuarioScreen({ route }) {
             <Text style={styles.counter}>{(postulaciones || []).length}</Text>
           </View>
         )}
+
+        <View style={[styles.card, { backgroundColor: colors.surface }]}> 
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Calificaciones recibidas (interno)</Text>
+          {(calificacionesRecibidas || []).length === 0 ? (
+            <Text style={[styles.emptySmall, { color: colors.textSecondary }]}>Sin calificaciones registradas.</Text>
+          ) : (
+            (calificacionesRecibidas || []).map((c) => (
+              <View key={String(c.id)} style={[styles.ratingItem, { borderColor: colors.border }]}> 
+                <View style={styles.ratingTop}>
+                  <Text style={[styles.ratingBy, { color: colors.textPrimary }]} numberOfLines={1}>{c.nombre_calificador}</Text>
+                  <Text style={[styles.ratingDate, { color: colors.textMuted }]}>
+                    {c.created_at ? new Date(c.created_at).toLocaleDateString('es-CO') : ''}
+                  </Text>
+                </View>
+                <View style={styles.ratingMid}>
+                  <Stars value={c.estrellas} />
+                  <Text style={[styles.ratingScore, { color: colors.textSecondary }]}>{Number(c.estrellas || 0).toFixed(1)}</Text>
+                </View>
+                {c.vacante_titulo ? (
+                  <Text style={[styles.ratingVacante, { color: colors.textMuted }]} numberOfLines={1}>Vacante: {c.vacante_titulo}</Text>
+                ) : null}
+                {c.comentario ? (
+                  <Text style={[styles.ratingComment, { color: colors.textSecondary }]}>{c.comentario}</Text>
+                ) : (
+                  <Text style={[styles.ratingCommentEmpty, { color: colors.textMuted }]}>Sin comentario interno.</Text>
+                )}
+              </View>
+            ))
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -281,5 +327,57 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     color: COLORS.primary,
+  },
+  emptySmall: {
+    fontSize: 13,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  ratingItem: {
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    padding: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  ratingTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  ratingBy: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  ratingDate: {
+    fontSize: 11,
+  },
+  ratingMid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  ratingScore: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  ratingVacante: {
+    marginTop: 2,
+    fontSize: 11,
+  },
+  ratingComment: {
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  ratingCommentEmpty: {
+    marginTop: 6,
+    fontSize: 12,
+    fontStyle: 'italic',
   },
 });

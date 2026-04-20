@@ -279,7 +279,30 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
 
     try {
       setEnviandoContactoId(Number(item.id));
-      await trabajadoresAPI.contactar(item.id, { vacante_id: vacanteSeleccionadaId });
+      const res = await trabajadoresAPI.contactar(item.id, { vacante_id: vacanteSeleccionadaId });
+      const estado = res?.data?.estado;
+      const chatId = Number(res?.data?.chat_id || 0);
+
+      if (estado === 'aceptada' && chatId) {
+        showAlert('Listo', 'Este trabajador ya aceptó contacto. Te llevamos al chat.');
+        navigation.navigate('Mensajes', {
+          screen: 'ChatDetalle',
+          params: {
+            chat: {
+              id: chatId,
+              otro_nombre: item.nombre_completo,
+              otro_foto: item.foto_selfie,
+            },
+          },
+        });
+        return;
+      }
+
+      if (estado === 'contacto_solicitado') {
+        showAlert('En espera', `${item.nombre_completo} debe aceptar para habilitar el chat.`);
+        return;
+      }
+
       showAlert('Listo', `Solicitud de contacto enviada a ${item.nombre_completo}.`);
     } catch (err) {
       showAlert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud');

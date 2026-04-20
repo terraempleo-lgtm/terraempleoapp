@@ -112,13 +112,24 @@ async function calificar(req, res) {
 async function obtenerCalificaciones(req, res) {
   try {
     const { usuario_id } = req.params;
-    const calificaciones = await query(`
-      SELECT c.*, u.nombre_completo as nombre_calificador
-      FROM calificaciones c
-      JOIN usuarios u ON u.id = c.calificador_id
-      WHERE c.calificado_id = ?
-      ORDER BY c.created_at DESC
-    `, [usuario_id]);
+    const isAdmin = req.user?.rol === 'admin';
+    const calificaciones = isAdmin
+      ? await query(`
+          SELECT c.id, c.calificador_id, c.calificado_id, c.vacante_id, c.estrellas, c.comentario, c.created_at,
+            u.nombre_completo as nombre_calificador
+          FROM calificaciones c
+          JOIN usuarios u ON u.id = c.calificador_id
+          WHERE c.calificado_id = ?
+          ORDER BY c.created_at DESC
+        `, [usuario_id])
+      : await query(`
+          SELECT c.id, c.calificador_id, c.calificado_id, c.vacante_id, c.estrellas, c.created_at,
+            u.nombre_completo as nombre_calificador
+          FROM calificaciones c
+          JOIN usuarios u ON u.id = c.calificador_id
+          WHERE c.calificado_id = ?
+          ORDER BY c.created_at DESC
+        `, [usuario_id]);
 
     res.json({ calificaciones });
   } catch (err) {

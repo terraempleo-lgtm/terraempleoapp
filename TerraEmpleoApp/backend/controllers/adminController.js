@@ -138,7 +138,18 @@ async function getUsuarioDetalle(req, res) {
       `, [id]);
     }
 
-    res.json({ user, perfil, vacantes, postulaciones });
+    const calificacionesRecibidas = await query(`
+      SELECT c.id, c.calificador_id, c.vacante_id, c.estrellas, c.comentario, c.created_at,
+        u.nombre_completo as nombre_calificador, u.rol as rol_calificador,
+        v.titulo as vacante_titulo
+      FROM calificaciones c
+      JOIN usuarios u ON u.id = c.calificador_id
+      LEFT JOIN vacantes v ON v.id = c.vacante_id
+      WHERE c.calificado_id = ?
+      ORDER BY c.created_at DESC
+    `, [id]);
+
+    res.json({ user, perfil, vacantes, postulaciones, calificacionesRecibidas });
   } catch (err) {
     console.error('Error obteniendo usuario:', err);
     res.status(500).json({ error: 'Error interno del servidor' });

@@ -85,6 +85,8 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
   const nombreFinca = vacante?.nombre_empresa_finca || chat_data?.otro_nombre || 'Finca';
   const nombrePropietario = vacante?.nombre_empleador || chat_data?.otro_nombre || 'Empleador';
   const empleadorId = Number(route?.params?.empleador_id || chat_data?.otro_usuario_id || vacante?.empleador_id);
+  const calificacionPromedio = Number(vacante?.calificacion_promedio || 0);
+  const totalCalificaciones = Number(vacante?.total_calificaciones || 0);
   const ubicacion = [vacante?.municipio, vacante?.departamento].filter(Boolean).join(', ');
   
   const fotosArray = vacante?.fotos?.length > 0 
@@ -247,6 +249,19 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
               <Text style={[s.statLabel, { color: colors.textMuted }]}>Beneficios</Text>
             </View>
           </View>
+
+          <View style={[s.ratingPublicRow, { borderTopColor: colors.border }]}> 
+            <Text style={[s.ratingPublicTitle, { color: colors.textSecondary }]}>Calificación pública</Text>
+            <View style={s.ratingPublicValueWrap}>
+              <Ionicons name="star" size={16} color={COLORS.star} />
+              <Text style={[s.ratingPublicValue, { color: colors.textPrimary }]}> 
+                {calificacionPromedio > 0 ? calificacionPromedio.toFixed(1) : 'Sin calificaciones'}
+              </Text>
+            </View>
+            {totalCalificaciones > 0 ? (
+              <Text style={[s.ratingPublicCount, { color: colors.textMuted }]}>{totalCalificaciones} reseña{totalCalificaciones !== 1 ? 's' : ''}</Text>
+            ) : null}
+          </View>
         </View>
 
         {/* VACANTE ACTUAL */}
@@ -301,19 +316,19 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
         )}
 
         {/* CALIFICAR EMPLEADOR (Si el trabajador aplica a vacante) */}
-        {user?.rol === 'trabajador' && vacante?.estado === 'cerrada' ? (
+        {user?.rol === 'trabajador' && vacante_id && empleadorId ? (
           <View style={[s.card, { backgroundColor: colors.surface }]}>
             <SectionHeader icon="star-half-outline" title="Calificar Empleador" colors={colors} />
             <Text style={[s.helpText, { color: colors.textSecondary }]}>
-              Ayuda a otros trabajadores compartiendo cómo fue trabajar con {nombrePropietario}.
+              Solo se mostrará tu puntuación de estrellas al público. Tu comentario es interno para revisión administrativa.
             </Text>
             <View style={{ marginVertical: SPACING.md }}>
-              <StarRating rating={estrellas} onChange={setEstrellas} size={36} />
+              <StarRating rating={estrellas} onRate={setEstrellas} size={36} />
             </View>
             <Input
               value={comentario}
               onChangeText={setComentario}
-              placeholder="Describe tu experiencia (opcional)..."
+              placeholder="Comentario interno (opcional)..."
               multiline
               numberOfLines={3}
               style={{ backgroundColor: colors.background }}
@@ -403,6 +418,31 @@ const s = StyleSheet.create({
     flexDirection: 'row', borderTopWidth: 1.5,
     marginTop: SPACING.lg, paddingTop: SPACING.md,
     justifyContent: 'space-around'
+  },
+  ratingPublicRow: {
+    marginTop: SPACING.sm,
+    borderTopWidth: 1,
+    paddingTop: SPACING.sm,
+  },
+  ratingPublicTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+  ratingPublicValueWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ratingPublicValue: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  ratingPublicCount: {
+    marginTop: 2,
+    fontSize: 12,
   },
   statItem: { alignItems: 'center', gap: 2 },
   statNum: { fontSize: 22, fontWeight: '800' },

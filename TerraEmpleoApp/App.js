@@ -57,6 +57,7 @@ const DetalleVacanteReferenciaScreen = lazyWeb(() => import('./src/screens/emple
 const MisPostulantesScreen           = lazyWeb(() => import('./src/screens/empleador/MisPostulantesScreen'));
 const TrabajadoresRecomendadosScreen = lazyWeb(() => import('./src/screens/empleador/TrabajadoresRecomendadosScreen'));
 const BuscarTrabajadoresScreen       = lazyWeb(() => import('./src/screens/empleador/BuscarTrabajadoresScreen'));
+const TrabajadoresMapaScreen         = lazyWeb(() => import('./src/screens/empleador/TrabajadoresMapaScreen'));
 
 // ── Admin — lazy en web ───────────────────────────────────────────────────
 const AdminDashboardScreen           = lazyWeb(() => import('./src/screens/admin/AdminDashboardScreen'));
@@ -324,6 +325,11 @@ function BuscarTrabajadoresStack() {
           name="TrabajadoresRecomendados"
           component={TrabajadoresRecomendadosScreen}
           options={{ title: 'Trabajadores recomendados', headerShown: false }}
+        />
+        <Stack.Screen
+          name="TrabajadoresMapa"
+          component={TrabajadoresMapaScreen}
+          options={{ title: 'Mapa de trabajadores' }}
         />
         <Stack.Screen
           name="PerfilPublicoTrabajador"

@@ -283,7 +283,31 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
 
     try {
       setEnviandoContactoId(Number(item.id));
-      await trabajadoresAPI.contactar(item.id, { vacante_id: vacanteContacto.id });
+      const res = await trabajadoresAPI.contactar(item.id, { vacante_id: vacanteContacto.id });
+      const estado = res?.data?.estado;
+      const chatId = Number(res?.data?.chat_id || 0);
+
+      if (estado === 'aceptada' && chatId) {
+        showAlert('Listo', 'Este trabajador ya aceptó contacto. Te llevamos al chat.');
+        navigation.navigate('Mensajes', {
+          screen: 'ChatDetalle',
+          params: {
+            chat: {
+              id: chatId,
+              otro_nombre: item.nombre_completo,
+              otro_foto: item.foto_selfie,
+              vacante_titulo: vacanteContacto.titulo,
+            },
+          },
+        });
+        return;
+      }
+
+      if (estado === 'contacto_solicitado') {
+        showAlert('En espera', `${item.nombre_completo} debe aceptar para habilitar el chat.`);
+        return;
+      }
+
       showAlert('Listo', `Se envió solicitud de contacto a ${item.nombre_completo}.`);
     } catch (err) {
       showAlert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
@@ -316,8 +340,19 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
             <Text style={styles.headerVacante} numberOfLines={1}>Vacante para contactar: {vacanteContacto.titulo}</Text>
           ) : null}
         </View>
-        <View style={styles.headerIcon}>
-          <Ionicons name="people" size={24} color={COLORS.primary} />
+        <View style={styles.headerActions}>
+          <View style={styles.headerIcon}>
+            <Ionicons name="people" size={24} color={COLORS.primary} />
+          </View>
+          <AnimatedPressable
+            style={styles.headerMapBtn}
+            onPress={() => navigation.navigate('TrabajadoresMapa', { search })}
+            scaleValue={0.95}
+            haptic
+          >
+            <Ionicons name="map-outline" size={16} color={COLORS.white} />
+            <Text style={styles.headerMapBtnTxt}>Mapa</Text>
+          </AnimatedPressable>
         </View>
       </View>
 
@@ -483,6 +518,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerMapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  headerMapBtnTxt: { color: COLORS.white, fontSize: 12, fontWeight: '700' },
 
   searchWrap: {
     flexDirection: 'row',
