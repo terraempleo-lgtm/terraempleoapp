@@ -4,8 +4,11 @@
       "type": "stdio",
       "command": "/usr/local/bin/node",
       "args": [
-        "/Users/admin/.vscode/extensions/vexp.vexp-vscode-1.3.11/dist/mcp-server.cjs"
-      ]
+        "/Users/admin/.vscode/extensions/vexp.vexp-vscode-2.0.12-darwin-x64/dist/mcp-server.cjs"
+      ],
+      "env": {
+        "VEXP_WORKSPACE": "/Users/admin/Desktop/terraempleoapp"
+      }
     }
   }
 }

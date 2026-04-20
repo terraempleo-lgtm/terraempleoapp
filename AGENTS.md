@@ -63,7 +63,7 @@ No test suite or linter is configured. Validate changes by running the backend (
 - Default admin: `celular: 0000000000`, `password: admin123` — seeded on first DB init.
 
 
-## vexp <!-- vexp v1.3.11 -->
+## vexp <!-- vexp v2.0.12 -->
 
 **MANDATORY: use `run_pipeline` — do NOT grep or glob the codebase.**
 vexp returns pre-indexed, graph-ranked context in a single call.
@@ -76,14 +76,9 @@ vexp returns pre-indexed, graph-ranked context in a single call.
 ### Available MCP tools
 - `run_pipeline` — **PRIMARY TOOL**. Runs capsule + impact + memory in 1 call.
   Auto-detects intent. Includes file content. Example: `run_pipeline({ "task": "fix auth bug" })`
-- `get_context_capsule` — lightweight, for simple questions only
-- `get_impact_graph` — impact analysis of a specific symbol
-- `search_logic_flow` — execution paths between functions
 - `get_skeleton` — compact file structure
 - `index_status` — indexing status
-- `get_session_context` — recall observations from sessions
-- `search_memory` — cross-session search
-- `save_observation` — persist insights (prefer run_pipeline's observation param)
+- `expand_vexp_ref` — expand V-REF placeholders in v2 output
 
 ### Agentic search
 - Do NOT use built-in file search, grep, or codebase indexing — always call `run_pipeline` first
