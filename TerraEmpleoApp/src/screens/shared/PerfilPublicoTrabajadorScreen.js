@@ -58,10 +58,14 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const [perfil, setPerfil] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [enviandoSolicitud, setEnviandoSolicitud] = useState(false);
+  const [estadoActual, setEstadoActual] = useState(postulacion_estado || null);
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
 
-  useEffect(() => { cargarPerfil(); }, []);
+  useEffect(() => {
+    cargarPerfil();
+    syncEstadoPostulacion();
+  }, [trabajador_id, vacante_id]);
 
   const cargarPerfil = async () => {
     try {
@@ -69,6 +73,20 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
       setPerfil(res.data.trabajador);
     } catch { showAlert('Error', 'No se pudo cargar el perfil'); }
     finally { setCargando(false); }
+  };
+
+  const syncEstadoPostulacion = async () => {
+    if (!vacante_id) {
+      setEstadoActual(postulacion_estado || null);
+      return;
+    }
+    try {
+      const res = await vacantesAPI.verPostulaciones(vacante_id);
+      const post = (res.data.postulaciones || []).find((p) => Number(p.trabajador_id) === Number(trabajador_id));
+      setEstadoActual(post?.estado || postulacion_estado || null);
+    } catch {
+      setEstadoActual(postulacion_estado || null);
+    }
   };
 
   const irAlChat = async () => {
@@ -85,6 +103,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
       const post = (res.data.postulaciones || []).find(p => Number(p.trabajador_id) === Number(trabajador_id));
       if (post) {
         await vacantesAPI.actualizarPostulacion(post.id, estado);
+        setEstadoActual(estado);
         showAlert('Listo', estado === 'aceptada' ? 'Candidato aceptado' : 'Candidato rechazado');
         navigation.goBack();
       }
@@ -95,7 +114,27 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     if (!vacante_id || enviandoSolicitud) return;
     try {
       setEnviandoSolicitud(true);
-      await trabajadoresAPI.contactar(trabajador_id, { vacante_id });
+      const res = await trabajadoresAPI.contactar(trabajador_id, { vacante_id });
+      const estado = res?.data?.estado;
+      const chatId = Number(res?.data?.chat_id || 0);
+
+      if (estado) setEstadoActual(estado);
+
+      if (estado === 'aceptada' && chatId) {
+        showAlert('Listo', 'El chat ya está habilitado con este trabajador.');
+        navigation.navigate('Mensajes', {
+          screen: 'ChatDetalle',
+          params: {
+            chat: {
+              id: chatId,
+              otro_nombre: perfil?.nombre_completo,
+              otro_foto: perfil?.foto_selfie,
+            },
+          },
+        });
+        return;
+      }
+
       showAlert('Listo', 'Solicitud de contacto enviada. Si el trabajador acepta, se habilitará el chat.');
     } catch (err) {
       showAlert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
@@ -135,8 +174,8 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const cultivos = (perfil.cultivos || []).map(c => c.cultivo);
   const habilidades = (perfil.habilidades || []).map(h => h.habilidad);
   const ubicacion = [perfil.municipio, perfil.departamento].filter(Boolean).join(', ');
-  const isPendiente = postulacion_estado === 'pendiente' || postulacion_estado === 'match_auto';
-  const isSolicitudContacto = postulacion_estado === 'contacto_solicitado';
+  const isPendiente = estadoActual === 'pendiente' || estadoActual === 'match_auto';
+  const isSolicitudContacto = estadoActual === 'contacto_solicitado';
   const acercaDe = perfil.acerca_de?.trim();
   const initials = (perfil.nombre_completo || 'T')
     .split(' ')
@@ -145,7 +184,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     .join('')
     .toUpperCase();
 
-  const hasFooter = isPendiente || postulacion_estado === 'aceptada' || (!postulacion_estado && !!vacante_id) || isSolicitudContacto;
+  const hasFooter = isPendiente || estadoActual === 'aceptada' || (!estadoActual && !!vacante_id) || isSolicitudContacto;
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
@@ -408,7 +447,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
           </AnimatedPressable>
         </View>
       )}
-      {postulacion_estado === 'aceptada' && (
+      {estadoActual === 'aceptada' && (
         <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <AnimatedPressable
             style={[s.primaryBtn, { backgroundColor: colors.primary }]}
@@ -419,7 +458,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
           </AnimatedPressable>
         </View>
       )}
-      {!postulacion_estado && !!vacante_id && (
+      {!estadoActual && !!vacante_id && (
         <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <AnimatedPressable
             style={[s.primaryBtn, { backgroundColor: colors.primary }]}

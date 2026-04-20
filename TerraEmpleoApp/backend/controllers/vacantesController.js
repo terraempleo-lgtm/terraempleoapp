@@ -249,6 +249,7 @@ async function detalleVacante(req, res) {
     const { id } = req.params;
     const vacantes = await query(`
       SELECT v.*, u.nombre_completo as nombre_empleador,
+        u.calificacion_promedio, u.total_calificaciones,
         pe.nombre_empresa_finca, pe.ofrece_alojamiento as pe_ofrece_alojamiento,
         pe.ofrece_alimentacion as pe_ofrece_alimentacion, pe.beneficios_extra, pe.foto_finca_fachada as foto_portada, u.foto_selfie as foto_empleador
       FROM vacantes v
@@ -267,6 +268,8 @@ async function detalleVacante(req, res) {
       vacante.monto_pago = Number(vacante.monto_pago);
     }
     vacante.urgente = Boolean(vacante.urgente);
+    vacante.calificacion_promedio = parseFloat(vacante.calificacion_promedio || 0);
+    vacante.total_calificaciones = Number(vacante.total_calificaciones || 0);
     // ofrece_alojamiento/alimentacion vienen de la vacante; si no existe aún (columna nueva), caer a perfil_empleador
     vacante.ofrece_alojamiento = vacante.ofrece_alojamiento != null
       ? Number(vacante.ofrece_alojamiento) === 1
@@ -500,9 +503,11 @@ async function misPostulaciones(req, res) {
     const trabajadorId = req.user.id;
     const postulaciones = await query(`
       SELECT p.*, v.titulo, v.departamento, v.municipio, v.tipo_pago, v.urgente, v.estado as estado_vacante,
-        pe.nombre_empresa_finca
+        v.empleador_id, pe.nombre_empresa_finca, u.nombre_completo as nombre_empleador,
+        u.calificacion_promedio as calificacion_empleador
       FROM postulaciones p
       JOIN vacantes v ON v.id = p.vacante_id
+      JOIN usuarios u ON u.id = v.empleador_id
       LEFT JOIN perfil_empleador pe ON pe.usuario_id = v.empleador_id
       WHERE p.trabajador_id = ?
       ORDER BY p.created_at DESC
@@ -511,6 +516,8 @@ async function misPostulaciones(req, res) {
     for (const p of postulaciones) {
       p.urgente = Number(p.urgente) === 1;
       p.es_match_automatico = Number(p.es_match_automatico) === 1;
+      p.empleador_id = Number(p.empleador_id);
+      p.calificacion_empleador = parseFloat(p.calificacion_empleador || 0);
     }
 
     res.json({ postulaciones });
