@@ -20,6 +20,7 @@
     "axios": "^1.13.5",
     "eas-cli": "^18.4.0",
     "expo": "54",
+    "expo-av": "~16.0.8",
     "expo-blur": "~15.0.8",
     "expo-camera": "~17.0.10",
     "expo-file-system": "~19.0.21",

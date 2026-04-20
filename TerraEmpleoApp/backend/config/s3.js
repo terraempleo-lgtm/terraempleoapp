@@ -58,6 +58,17 @@ const storageHojasVida = multerS3({
   },
 });
 
+const storageChat = multerS3({
+  s3,
+  bucket,
+  contentType: multerS3.AUTO_CONTENT_TYPE,
+  key: (req, file, cb) => {
+    const ext = file.originalname.split('.').pop().toLowerCase();
+    const tipo = file.mimetype.startsWith('audio') ? 'audios' : 'imagenes';
+    cb(null, `chat/${tipo}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`);
+  },
+});
+
 // ── Pre-signed URLs ──
 
 const URL_EXPIRY = 3600; // 1 hora
@@ -128,6 +139,7 @@ module.exports = {
   storage,
   storageVacantes,
   storageHojasVida,
+  storageChat,
   deleteFromS3,
   signUrl,
   signFields,

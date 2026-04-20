@@ -130,6 +130,16 @@ export const chatsAPI = {
   misChats: () => api.get('/chats'),
   getMensajes: (chatId, page = 1) => api.get(`/chats/${chatId}/mensajes`, { params: { page } }),
   enviarMensaje: (chatId, mensaje) => api.post(`/chats/${chatId}/mensajes`, { mensaje }),
+  enviarMedia: (chatId, uri, tipo, duracionAudio = null) => {
+    const form = new FormData();
+    const ext = uri.split('.').pop().toLowerCase();
+    const mimeTypes = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', m4a: 'audio/m4a', mp4: 'audio/mp4', wav: 'audio/wav', aac: 'audio/aac', webm: 'audio/webm', ogg: 'audio/ogg', caf: 'audio/x-caf', mp3: 'audio/mpeg' };
+    const mimeType = mimeTypes[ext] || (tipo === 'audio' ? 'audio/m4a' : 'image/jpeg');
+    form.append('archivo', { uri, name: `chat_${Date.now()}.${ext}`, type: mimeType });
+    form.append('tipo', tipo);
+    if (duracionAudio !== null) form.append('duracion_audio', String(duracionAudio));
+    return api.post(`/chats/${chatId}/mensajes/media`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
   marcarLeidos: (chatId) => api.put(`/chats/${chatId}/mensajes/leer`),
   contarNoLeidos: () => api.get('/chats/no-leidos'),
   chatPorVacanteTrabajador: (vacanteId, trabajadorId) => api.get(`/chats/vacante/${vacanteId}/trabajador/${trabajadorId}`),

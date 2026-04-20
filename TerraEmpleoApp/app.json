@@ -25,9 +25,12 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.terraempleo.app",
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "CAMERA",
         "READ_MEDIA_IMAGES",
+        "READ_MEDIA_AUDIO",
+        "RECORD_AUDIO",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "INTERNET",
@@ -48,6 +51,12 @@
       "expo-font",
       "expo-camera",
       "expo-image-picker",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "TerraEmpleo necesita acceso al micrófono para enviar notas de voz en el chat."
+        }
+      ],
       [
         "expo-location",
         {

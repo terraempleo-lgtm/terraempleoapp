@@ -232,6 +232,12 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Migraciones: soporte multimedia en mensajes de chat
+  try { await query("ALTER TABLE mensajes MODIFY COLUMN mensaje TEXT NULL DEFAULT NULL"); } catch (_) {}
+  try { await query("ALTER TABLE mensajes ADD COLUMN IF NOT EXISTS tipo ENUM('texto','imagen','audio') NOT NULL DEFAULT 'texto'"); } catch (_) {}
+  try { await query("ALTER TABLE mensajes ADD COLUMN IF NOT EXISTS archivo_url VARCHAR(512) DEFAULT NULL"); } catch (_) {}
+  try { await query("ALTER TABLE mensajes ADD COLUMN IF NOT EXISTS duracion_audio INT DEFAULT NULL"); } catch (_) {}
+
   // Notificaciones
   await query(`
     CREATE TABLE IF NOT EXISTS notificaciones (

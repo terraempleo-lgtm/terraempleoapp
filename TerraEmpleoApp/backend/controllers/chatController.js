@@ -1,5 +1,5 @@
 const { query } = require('../config/database');
-const { signArrayField } = require('../config/s3');
+const { signArrayField, signUrl } = require('../config/s3');
 
 // Listar mis chats con último mensaje y datos del otro usuario
 async function misChats(req, res) {
@@ -82,7 +82,7 @@ async function getMensajes(req, res) {
     }
 
     const mensajes = await query(`
-      SELECT m.id, m.emisor_id, m.mensaje, m.leido, m.created_at,
+      SELECT m.id, m.emisor_id, m.mensaje, m.tipo, m.archivo_url, m.duracion_audio, m.leido, m.created_at,
         u.nombre_completo as emisor_nombre
       FROM mensajes m
       JOIN usuarios u ON u.id = m.emisor_id
@@ -94,6 +94,11 @@ async function getMensajes(req, res) {
     // Retornar en orden cronológico
     mensajes.reverse();
 
+    // Firmar URLs de archivos multimedia
+    for (const m of mensajes) {
+      if (m.archivo_url) m.archivo_url = await signUrl(m.archivo_url);
+    }
+
     res.json({ mensajes });
   } catch (err) {
     console.error('Error obteniendo mensajes:', err);
@@ -101,7 +106,7 @@ async function getMensajes(req, res) {
   }
 }
 
-// Enviar mensaje
+// Enviar mensaje de texto
 async function enviarMensaje(req, res) {
   try {
     const userId = req.user.id;
@@ -112,7 +117,6 @@ async function enviarMensaje(req, res) {
       return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
     }
 
-    // Verificar que el usuario pertenece al chat
     const chats = await query(
       'SELECT id FROM chats WHERE id = ? AND (empleador_id = ? OR trabajador_id = ?) AND activo = 1',
       [id, userId, userId]
@@ -122,8 +126,8 @@ async function enviarMensaje(req, res) {
     }
 
     const result = await query(
-      'INSERT INTO mensajes (chat_id, emisor_id, mensaje) VALUES (?, ?, ?)',
-      [id, userId, mensaje.trim()]
+      'INSERT INTO mensajes (chat_id, emisor_id, mensaje, tipo) VALUES (?, ?, ?, ?)',
+      [id, userId, mensaje.trim(), 'texto']
     );
 
     const nuevoMensaje = {
@@ -131,6 +135,9 @@ async function enviarMensaje(req, res) {
       chat_id: Number(id),
       emisor_id: userId,
       mensaje: mensaje.trim(),
+      tipo: 'texto',
+      archivo_url: null,
+      duracion_audio: null,
       leido: 0,
       created_at: new Date().toISOString(),
     };
@@ -138,6 +145,57 @@ async function enviarMensaje(req, res) {
     res.status(201).json({ mensaje: nuevoMensaje });
   } catch (err) {
     console.error('Error enviando mensaje:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// Enviar mensaje multimedia (imagen o audio) — archivo subido via multer-s3
+async function enviarMedia(req, res) {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { tipo, duracion_audio } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se recibió ningún archivo' });
+    }
+    if (!['imagen', 'audio'].includes(tipo)) {
+      return res.status(400).json({ error: 'Tipo de media inválido' });
+    }
+
+    const chats = await query(
+      'SELECT id FROM chats WHERE id = ? AND (empleador_id = ? OR trabajador_id = ?) AND activo = 1',
+      [id, userId, userId]
+    );
+    if (!chats || chats.length === 0) {
+      return res.status(404).json({ error: 'Chat no encontrado' });
+    }
+
+    const archivoUrl = req.file.location; // URL de S3
+    const duracion = duracion_audio ? parseInt(duracion_audio) : null;
+
+    const result = await query(
+      'INSERT INTO mensajes (chat_id, emisor_id, mensaje, tipo, archivo_url, duracion_audio) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, userId, null, tipo, archivoUrl, duracion]
+    );
+
+    const archivoSigned = await signUrl(archivoUrl);
+
+    const nuevoMensaje = {
+      id: Number(result.insertId),
+      chat_id: Number(id),
+      emisor_id: userId,
+      mensaje: null,
+      tipo,
+      archivo_url: archivoSigned,
+      duracion_audio: duracion,
+      leido: 0,
+      created_at: new Date().toISOString(),
+    };
+
+    res.status(201).json({ mensaje: nuevoMensaje });
+  } catch (err) {
+    console.error('Error enviando media:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -235,4 +293,4 @@ async function contarNoLeidos(req, res) {
   }
 }
 
-module.exports = { misChats, getMensajes, enviarMensaje, marcarLeidos, crearChat, contarNoLeidos, obtenerChatPorVacanteTrabajador };
+module.exports = { misChats, getMensajes, enviarMensaje, enviarMedia, marcarLeidos, crearChat, contarNoLeidos, obtenerChatPorVacanteTrabajador };
