@@ -666,24 +666,27 @@ async function actualizarPasswordRecuperacion(req, res) {
     }
 
     const resets = await query(
-      'SELECT * FROM password_resets WHERE celular = ? AND token = ? AND usado = 0 ORDER BY created_at DESC LIMIT 1',
-      [celularDB, reset_token]
+      'SELECT * FROM password_resets WHERE token = ? AND usado = 0 ORDER BY created_at DESC LIMIT 1',
+      [reset_token]
     );
 
     if (!resets || resets.length === 0) {
+      console.log('[NUEVA PASSWORD] Token no encontrado en BD para celularDB:', celularDB);
       return res.status(400).json({ error: 'Token inválido o expirado. Solicita un nuevo código.' });
     }
 
     const expiraEn = new Date(resets[0].expira_en).getTime();
     if (Date.now() > expiraEn) {
+      console.log('[NUEVA PASSWORD] Token expirado. expira_en:', resets[0].expira_en, 'now:', new Date());
       return res.status(400).json({ error: 'Token inválido o expirado. Solicita un nuevo código.' });
     }
 
+    const celularReset = resets[0].celular;
     const hash = await bcrypt.hash(nueva_password, 10);
-    await query('UPDATE usuarios SET password_hash = ? WHERE celular = ?', [hash, celularDB]);
+    await query('UPDATE usuarios SET password_hash = ? WHERE celular = ?', [hash, celularReset]);
 
     // Invalidar todos los tokens OTP de este celular
-    await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celularDB]);
+    await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celularReset]);
 
     res.json({ message: 'Contraseña actualizada correctamente' });
   } catch (err) {
