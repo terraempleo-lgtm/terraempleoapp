@@ -728,7 +728,7 @@ async function solicitarRecuperacionEmail(req, res) {
     await query('UPDATE password_resets SET usado = 1 WHERE celular = ?', [celular]);
 
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-    const expira = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+    const expira = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
 
     await query(
       'INSERT INTO password_resets (celular, codigo, expira_en) VALUES (?, ?, ?)',
