@@ -628,7 +628,7 @@ async function verificarCodigoRecuperacion(req, res) {
       if (!resets || resets.length === 0) {
         return res.status(400).json({ error: 'Código inválido o expirado' });
       }
-      await query('UPDATE password_resets SET token = ? WHERE id = ?', [resetToken, resets[0].id]);
+      await query('UPDATE password_resets SET token = ? WHERE celular = ? AND codigo = ? AND usado = 0', [resetToken, celularDB, codigo.trim()]);
       return res.json({ message: 'Código verificado', reset_token: resetToken });
     }
 
