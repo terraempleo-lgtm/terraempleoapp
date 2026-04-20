@@ -303,6 +303,9 @@ async function initializeDatabase() {
       INDEX idx_celular (celular)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+  // Migración: columna token puede no existir si la tabla fue creada antes de agregarla
+  try { await query('ALTER TABLE password_resets ADD COLUMN IF NOT EXISTS token VARCHAR(64) DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE password_resets ADD INDEX IF NOT EXISTS idx_token (token)'); } catch (_) {}
 
   // Tabla para códigos de verificación SMS (funciona para usuarios registrados y no registrados)
   await query(`

@@ -621,14 +621,21 @@ async function verificarCodigoRecuperacion(req, res) {
 
     // Si fue por email, verificar contra la tabla password_resets
     if (metodo === 'email') {
+      console.log('[VERIFICAR CODIGO] Buscando: celularDB=', celularDB, 'codigo=', codigo.trim());
       const resets = await query(
         'SELECT * FROM password_resets WHERE celular = ? AND codigo = ? AND usado = 0 AND expira_en > NOW() ORDER BY created_at DESC LIMIT 1',
         [celularDB, codigo.trim()]
       );
+      console.log('[VERIFICAR CODIGO] Filas encontradas:', resets ? resets.length : 0);
       if (!resets || resets.length === 0) {
         return res.status(400).json({ error: 'Código inválido o expirado' });
       }
-      await query('UPDATE password_resets SET token = ? WHERE celular = ? AND codigo = ? AND usado = 0', [resetToken, celularDB, codigo.trim()]);
+      // Usar celular/codigo exactos del registro para evitar mismatch de formato
+      const updateResult = await query(
+        'UPDATE password_resets SET token = ? WHERE celular = ? AND codigo = ? AND usado = 0',
+        [resetToken, resets[0].celular, resets[0].codigo]
+      );
+      console.log('[VERIFICAR CODIGO] UPDATE affectedRows:', updateResult?.affectedRows, 'token:', resetToken.substring(0, 8) + '...');
       return res.json({ message: 'Código verificado', reset_token: resetToken });
     }
 
