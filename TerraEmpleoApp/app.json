@@ -52,6 +52,14 @@
       "expo-camera",
       "expo-image-picker",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/TerraEmpleo.png",
+          "color": "#2E7D32",
+          "sounds": []
+        }
+      ],
+      [
         "expo-av",
         {
           "microphonePermission": "TerraEmpleo necesita acceso al micrófono para enviar notas de voz en el chat."

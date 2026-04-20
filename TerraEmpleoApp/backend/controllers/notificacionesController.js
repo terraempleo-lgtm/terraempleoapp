@@ -1,4 +1,5 @@
 const { query } = require('../config/database');
+const { enviarPush } = require('../services/pushService');
 
 // Función interna para crear notificaciones (usada por otros controladores)
 // extra: { vacante_id, conversacion_id } — ambos opcionales
@@ -10,6 +11,8 @@ async function crearNotificacion(usuarioId, tipo, titulo, mensaje, extra = {}) {
       'INSERT INTO notificaciones (usuario_id, tipo, titulo, mensaje, vacante_id, conversacion_id, chat_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [usuarioId, tipo, titulo, mensaje, vacante_id, conversacion_id, conversacion_id]
     );
+    // Enviar push en paralelo — no bloquea si falla
+    enviarPush(usuarioId, titulo, mensaje, { tipo, vacante_id, conversacion_id });
   } catch (err) {
     console.error('Error creando notificación:', err);
   }
@@ -79,4 +82,17 @@ async function marcarTodasLeidas(req, res) {
   }
 }
 
-module.exports = { crearNotificacion, listar, contarNoLeidas, marcarLeida, marcarTodasLeidas };
+// PUT /api/notificaciones/push-token
+async function guardarPushToken(req, res) {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token requerido' });
+    await query('UPDATE usuarios SET push_token = ? WHERE id = ?', [token, req.user.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error guardando push token:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+module.exports = { crearNotificacion, listar, contarNoLeidas, marcarLeida, marcarTodasLeidas, guardarPushToken };

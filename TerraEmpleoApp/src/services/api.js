@@ -123,6 +123,7 @@ export const notificacionesAPI = {
   contarNoLeidas: () => api.get('/notificaciones/no-leidas'),
   marcarLeida: (id) => api.put(`/notificaciones/${id}/leer`),
   marcarTodasLeidas: () => api.put('/notificaciones/leer-todas'),
+  guardarPushToken: (token) => api.put('/notificaciones/push-token', { token }),
 };
 
 // Chats

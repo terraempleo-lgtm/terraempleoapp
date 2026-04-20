@@ -315,6 +315,9 @@ async function initializeDatabase() {
   // Eliminar ON UPDATE CURRENT_TIMESTAMP de expira_en — causaba que el UPDATE del token sobreescribiera la expiración
   try { await query('ALTER TABLE password_resets MODIFY COLUMN expira_en TIMESTAMP NOT NULL DEFAULT current_timestamp()'); } catch (_) {}
 
+  // Migración: push token para notificaciones móviles
+  try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS push_token VARCHAR(500) NULL'); } catch (_) {}
+
   // Tabla para códigos de verificación SMS (funciona para usuarios registrados y no registrados)
   await query(`
     CREATE TABLE IF NOT EXISTS codigos_verificacion (
