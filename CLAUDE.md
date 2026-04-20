@@ -154,6 +154,22 @@ aws ssm get-parameter --name "/terraempleo/production/DB_PASSWORD" --with-decryp
 aws ssm put-parameter --name "/terraempleo/production/DB_PASSWORD" --value 'nuevo_valor' --type SecureString --overwrite
 ```
 
+## Chat Multimedia
+
+El chat soporta tres tipos de mensaje: `texto`, `imagen`, `audio`.
+
+- **Backend**: tabla `mensajes` tiene columnas `tipo`, `archivo_url`, `duracion_audio`. Endpoint `POST /api/chats/:id/mensajes/media` recibe archivo via multer-s3 (límite 25 MB).
+- **S3**: archivos en `terraempleo-prod-images` bajo `chat/imagenes/` y `chat/audios/`. URLs firmadas (15 min) generadas en `getMensajes`.
+- **Frontend** ([ChatDetalleScreen.js](TerraEmpleoApp/src/screens/shared/ChatDetalleScreen.js)): botón imagen (galería/cámara), botón mic (press-hold graba con `expo-av`), modal de preview en pantalla completa.
+- **Teclado**: `KeyboardAvoidingView` con `behavior="padding"` + `useHeaderHeight()` de `@react-navigation/elements` — funciona igual que WhatsApp en Android e iOS.
+- **Nota**: grabación de audio requiere build nativo (EAS). En Expo Go solo funciona reproducción + imágenes.
+
+## Mapa de Trabajadores (compañera Vero)
+
+- **Pantalla**: [TrabajadoresMapaScreen.js](TerraEmpleoApp/src/screens/empleador/TrabajadoresMapaScreen.js) — mapa interactivo de trabajadores disponibles.
+- **Web fallback**: [TrabajadoresMapaScreen.web.js](TerraEmpleoApp/src/screens/empleador/TrabajadoresMapaScreen.web.js)
+- Integrado en `main` vía merge 2026-04-20 sin conflictos.
+
 ## Known Issues / Pending Work
 
 - **AWS keys**: `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` aún están en `backend/.env`. Pendiente rotar y migrar a IAM Role en la instancia.
@@ -164,7 +180,8 @@ aws ssm put-parameter --name "/terraempleo/production/DB_PASSWORD" --value 'nuev
 - **SMS verification flag**: `verificado_sms = 0` para todos los usuarios (SMS deshabilitado intencionalmente).
 - **Static IP Lightsail**: Confirmada `107.20.220.171`.
 - **Load balancer + autoscaling**: Pendiente para cuando el tráfico lo justifique.
-- **Chat / Notificaciones**: Funcionales pero no en tiempo real — requieren refresh manual. Sin WebSocket ni polling.
+- **Chat / Notificaciones**: Chat con polling cada 5s. Sin WebSocket en tiempo real.
+- **Audio en chat**: Grabación requiere EAS build nativo — no funciona en Expo Go.
 - **Foto de perfil pública**: El perfil público de trabajador solo muestra iniciales (no hay foto de perfil en la respuesta del endpoint).
 - **Matching score en recomendadas**: No se muestra en `VacantesRecomendadasScreen` (sí aparece en `BuscarTrabajadoresScreen`).
 - **Crear vacante como admin**: El endpoint `POST /api/admin/vacantes` existe pero no hay UI para accederlo desde el panel admin.
