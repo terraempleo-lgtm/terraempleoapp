@@ -14,7 +14,8 @@ import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS, FONTS } from './src/theme';
 import { AnimatedTabBar } from './src/components/animated';
-import { Toast, AppAlert } from './src/components/ui';
+import { Toast, AppAlert, OfflineBanner } from './src/components/ui';
+import { useNetworkStatus } from './src/hooks/useNetworkStatus';
 import { setGlobalToastRef } from './src/utils/toastService';
 import { setGlobalAlertRef } from './src/utils/alertService';
 
@@ -537,6 +538,7 @@ function RootNavigator() {
   const { user, loading } = useAuth();
   const { colors } = useAppTheme();
   usePushNotifications(!!user);
+  const { isOnline } = useNetworkStatus();
   const wasLoggedIn = useRef(false);
 
   useEffect(() => {
@@ -575,17 +577,20 @@ function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!user ? (
-        <Stack.Screen name="Auth" component={AuthStack} />
-      ) : user.rol === 'admin' ? (
-        <Stack.Screen name="AdminMain" component={AdminTabs} />
-      ) : user.rol === 'empleador' ? (
-        <Stack.Screen name="EmpleadorMain" component={EmpleadorTabs} />
-      ) : (
-        <Stack.Screen name="TrabajadorMain" component={TrabajadorTabs} />
-      )}
-    </Stack.Navigator>
+    <View style={{ flex: 1 }}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!user ? (
+          <Stack.Screen name="Auth" component={AuthStack} />
+        ) : user.rol === 'admin' ? (
+          <Stack.Screen name="AdminMain" component={AdminTabs} />
+        ) : user.rol === 'empleador' ? (
+          <Stack.Screen name="EmpleadorMain" component={EmpleadorTabs} />
+        ) : (
+          <Stack.Screen name="TrabajadorMain" component={TrabajadorTabs} />
+        )}
+      </Stack.Navigator>
+      <OfflineBanner isOnline={isOnline} />
+    </View>
   );
 }
 

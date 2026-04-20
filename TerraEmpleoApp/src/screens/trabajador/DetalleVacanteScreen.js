@@ -25,6 +25,8 @@ import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable, StaggeredItem } from '../../components/animated';
 import { showAlert } from '../../utils/alertService';
+import { encolarPostulacion } from '../../utils/postulacionesQueue';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 320;
@@ -35,6 +37,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
   const { vacante } = route.params;
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
+  const { isOnline } = useNetworkStatus();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [postulado, setPostulado] = useState(false);
@@ -84,9 +87,15 @@ export default function DetalleVacanteScreen({ route, navigation }) {
   }, [vacante.id, user?.rol]);
 
   const handlePostularse = async () => {
+    if (!isOnline) {
+      await encolarPostulacion(vacante.id, mensajePost || null);
+      setPostulado(true);
+      setPostExitosa(true);
+      return;
+    }
     setLoading(true);
     try {
-      await vacantesAPI.postularse({ vacante_id: vacante.id });
+      await vacantesAPI.postularse({ vacante_id: vacante.id, mensaje: mensajePost || null });
       setPostulado(true);
       setPostExitosa(true);
     } catch (err) {

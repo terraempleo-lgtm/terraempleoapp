@@ -27,6 +27,9 @@ import { DEPARTAMENTOS } from '../../data/colombia';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { showAlert } from '../../utils/alertService';
+import { guardarVacantesCache, leerVacantesCache } from '../../utils/offlineCache';
+import { encolarPostulacion, estaEnCola } from '../../utils/postulacionesQueue';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
 /* ── Helpers ── */
 
@@ -130,6 +133,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const [filterUrgente, setFilterUrgente] = useState(false);
   const [showCultivoModal, setShowCultivoModal] = useState(false);
   const [showDeptoModal, setShowDeptoModal] = useState(false);
+  const { isOnline } = useNetworkStatus();
 
   const firstName = (user?.nombre_completo || user?.nombre || 'Usuario').split(' ')[0];
   const estadoIdentidad = user?.validacion_identidad_estado || 'pendiente';
@@ -147,6 +151,10 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   }, []);
 
   const cargarVacantes = useCallback(async () => {
+    // Mostrar cache inmediatamente mientras carga
+    const cache = await leerVacantesCache();
+    if (cache && vacantes.length === 0) setVacantes(cache);
+
     try {
       const params = {};
       if (filterCultivo) params.cultivo = filterCultivo;
@@ -158,12 +166,17 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         vacantesAPI.misPostulaciones(),
       ]);
 
-      setVacantes(vacantesRes.data.vacantes || []);
+      const nuevasVacantes = vacantesRes.data.vacantes || [];
+      setVacantes(nuevasVacantes);
+      guardarVacantesCache(nuevasVacantes);
+
       const idsPostuladas = new Set(
         (postulacionesRes.data.postulaciones || []).map((p) => Number(p.vacante_id))
       );
       setVacantesPostuladas(idsPostuladas);
     } catch (err) {
+      // Sin internet: usar cache si existe
+      if (cache) setVacantes(cache);
       console.error('Error cargando vacantes:', err);
     } finally {
       setLoading(false);
@@ -180,6 +193,12 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const onRefresh = () => { setRefreshing(true); cargarVacantes(); };
 
   const manejarPostulacionRapida = async (item) => {
+    if (!isOnline) {
+      await encolarPostulacion(item.id);
+      setVacantesPostuladas((prev) => { const n = new Set(prev); n.add(Number(item.id)); return n; });
+      showAlert('Guardado', 'Sin conexión. Tu postulación se enviará automáticamente cuando vuelva el internet.');
+      return;
+    }
     try {
       await vacantesAPI.postularse({ vacante_id: item.id });
       setVacantesPostuladas((prev) => { const n = new Set(prev); n.add(Number(item.id)); return n; });
