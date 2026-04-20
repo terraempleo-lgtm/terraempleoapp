@@ -2,6 +2,7 @@ import React, { useEffect, useRef, Suspense } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, TouchableOpacity, Linking, Alert } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, CommonActions } from '@react-navigation/native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -606,6 +607,7 @@ function AppShell() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
       <AuthProvider>
         <NavigationContainer ref={navigationRef} theme={navigationTheme}>
           <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.primaryDark} />
@@ -614,6 +616,7 @@ function AppShell() {
           <AppAlert ref={alertRef} />
         </NavigationContainer>
       </AuthProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
