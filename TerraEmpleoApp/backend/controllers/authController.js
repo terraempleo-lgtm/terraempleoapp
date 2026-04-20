@@ -666,11 +666,16 @@ async function actualizarPasswordRecuperacion(req, res) {
     }
 
     const resets = await query(
-      'SELECT * FROM password_resets WHERE celular = ? AND token = ? AND usado = 0 AND expira_en > NOW() ORDER BY created_at DESC LIMIT 1',
+      'SELECT * FROM password_resets WHERE celular = ? AND token = ? AND usado = 0 ORDER BY created_at DESC LIMIT 1',
       [celularDB, reset_token]
     );
 
     if (!resets || resets.length === 0) {
+      return res.status(400).json({ error: 'Token inválido o expirado. Solicita un nuevo código.' });
+    }
+
+    const expiraEn = new Date(resets[0].expira_en).getTime();
+    if (Date.now() > expiraEn) {
       return res.status(400).json({ error: 'Token inválido o expirado. Solicita un nuevo código.' });
     }
 
