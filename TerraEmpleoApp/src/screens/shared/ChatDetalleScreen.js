@@ -7,6 +7,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { chatsAPI } from '../../services/api';
@@ -112,6 +113,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
   const { chat } = route.params;
   const { user } = useAuth();
   const { isDark, colors } = useAppTheme();
+  const headerHeight = useHeaderHeight();
 
   const [mensajes, setMensajes] = useState([]);
   const [texto, setTexto] = useState('');
@@ -437,8 +439,8 @@ export default function ChatDetalleScreen({ route, navigation }) {
     <>
       <KeyboardAvoidingView
         style={[styles.container, { backgroundColor: isDark ? colors.background : '#F0F4F1' }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        behavior="padding"
+        keyboardVerticalOffset={headerHeight}
       >
         <FlatList
           ref={flatListRef}
