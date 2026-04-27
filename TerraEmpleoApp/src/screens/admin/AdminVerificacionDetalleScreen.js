@@ -74,17 +74,30 @@ export default function AdminVerificacionDetalleScreen({ route, navigation }) {
     return () => { cancelled = true; };
   }, [item.id]);
 
-  const handleRevision = async (estado) => {
-    try {
-      setProcesando(true);
-      await adminAPI.revisarValidacionIdentidad(item.id, estado, null);
-      navigation.goBack();
-    } catch (err) {
-      const msg = err.response?.data?.error || 'No se pudo guardar la revisión';
-      Alert.alert('Error', msg);
-    } finally {
-      setProcesando(false);
-    }
+  const handleRevision = (estado) => {
+    const esAprobacion = estado === 'aprobada';
+    Alert.alert(
+      esAprobacion ? 'Aprobar identidad' : 'Rechazar identidad',
+      `¿Deseas ${esAprobacion ? 'aprobar' : 'rechazar'} la verificación de ${item.nombre_completo}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: esAprobacion ? 'Aprobar' : 'Rechazar',
+          style: esAprobacion ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              setProcesando(true);
+              await adminAPI.revisarValidacionIdentidad(item.id, estado, null);
+              navigation.goBack();
+            } catch (err) {
+              Alert.alert('Error', err.response?.data?.error || 'No se pudo guardar la revisión');
+            } finally {
+              setProcesando(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
