@@ -14,7 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MotiView } from 'moti';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { vacantesAPI, notificacionesAPI } from '../../services/api';
+import { vacantesAPI, notificacionesAPI, authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -189,7 +189,14 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 
   useEffect(() => { cargarVacantes(); cargarNoLeidas(); }, [cargarVacantes, cargarNoLeidas]);
   useEffect(() => {
-    const unsub = navigation.addListener('focus', () => { cargarVacantes(); cargarNoLeidas(); });
+    const unsub = navigation.addListener('focus', () => {
+      cargarVacantes();
+      cargarNoLeidas();
+      authAPI.getPerfil().then(res => {
+        const { validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at } = res.data.user;
+        updateUser({ validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at });
+      }).catch(() => {});
+    });
     return unsub;
   }, [navigation, cargarVacantes, cargarNoLeidas]);
 

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { vacantesAPI, notificacionesAPI } from '../../services/api';
+import { vacantesAPI, notificacionesAPI, authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import CamaraFoto from '../../components/CamaraFoto';
@@ -200,6 +200,10 @@ export default function EmpleadorVacantesScreen({ navigation }) {
     const unsub = navigation.addListener('focus', () => {
       cargar();
       cargarNoLeidas();
+      authAPI.getPerfil().then(res => {
+        const { validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at } = res.data.user;
+        updateUser({ validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at });
+      }).catch(() => {});
     });
     return unsub;
   }, [navigation]);
