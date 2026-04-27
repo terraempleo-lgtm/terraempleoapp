@@ -855,7 +855,7 @@ async function perfilPublicoTrabajador(req, res) {
 
     const users = await query(`
       SELECT u.id, u.nombre_completo, u.departamento, u.municipio, u.foto_selfie,
-        u.calificacion_promedio, u.total_calificaciones, u.verificado_sms,
+        u.calificacion_promedio, u.total_calificaciones, u.verificado_sms, u.validacion_identidad_estado,
         pt.acerca_de, pt.hoja_vida_url, pt.hoja_vida_nombre,
         pt.nivel_estudios, pt.titulo_estudio, pt.anios_experiencia, pt.disponibilidad,
         pt.id as perfil_id

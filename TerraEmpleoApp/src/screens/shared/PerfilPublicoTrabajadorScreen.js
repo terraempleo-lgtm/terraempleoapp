@@ -214,9 +214,11 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
                 <Text style={[s.initials, { color: colors.primary }]}>{initials}</Text>
               </View>
             )}
-            <View style={[s.verifiedBadge, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
-              <Ionicons name="checkmark" size={12} color="#fff" />
-            </View>
+            {perfil.validacion_identidad_estado === 'aprobada' && (
+              <View style={[s.verifiedBadge, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
+                <Ionicons name="checkmark" size={12} color="#fff" />
+              </View>
+            )}
           </View>
 
           {/* Nombre */}
