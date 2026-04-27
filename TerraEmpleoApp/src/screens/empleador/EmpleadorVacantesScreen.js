@@ -195,18 +195,22 @@ export default function EmpleadorVacantesScreen({ navigation }) {
     }
   }, []);
 
-  useEffect(() => { cargar(); cargarNoLeidas(); }, []);
+  const sincronizarVerificacion = useCallback(() => {
+    authAPI.getPerfil().then(res => {
+      const { validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at } = res.data.user;
+      updateUser({ validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at });
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => { cargar(); cargarNoLeidas(); sincronizarVerificacion(); }, []);
   useEffect(() => {
     const unsub = navigation.addListener('focus', () => {
       cargar();
       cargarNoLeidas();
-      authAPI.getPerfil().then(res => {
-        const { validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at } = res.data.user;
-        updateUser({ validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at });
-      }).catch(() => {});
+      sincronizarVerificacion();
     });
     return unsub;
-  }, [navigation]);
+  }, [navigation, sincronizarVerificacion]);
 
   const activas = vacantes.filter(v => v.estado === 'activa');
   const inactivas = vacantes.filter(v => v.estado !== 'activa');
@@ -341,11 +345,15 @@ export default function EmpleadorVacantesScreen({ navigation }) {
                   <Ionicons name="person" size={20} color={COLORS.primary} />
                 )}
               </View>
-              {identidadAprobada && (
+              {identidadAprobada ? (
                 <View style={styles.verificadoBadge}>
                   <Ionicons name="checkmark" size={11} color={COLORS.white} />
                 </View>
-              )}
+              ) : estadoIdentidad === 'rechazada' ? (
+                <View style={[styles.verificadoBadge, { backgroundColor: COLORS.error }]}>
+                  <Ionicons name="alert" size={11} color={COLORS.white} />
+                </View>
+              ) : null}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.greetingLabel, { color: colors.textSecondary }]}>Hola,</Text>

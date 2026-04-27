@@ -187,18 +187,22 @@ export default function TrabajadorVacantesScreen({ navigation }) {
     }
   }, [filterCultivo, filterDepto, filterUrgente]);
 
-  useEffect(() => { cargarVacantes(); cargarNoLeidas(); }, [cargarVacantes, cargarNoLeidas]);
+  const sincronizarVerificacion = useCallback(() => {
+    authAPI.getPerfil().then(res => {
+      const { validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at } = res.data.user;
+      updateUser({ validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at });
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => { cargarVacantes(); cargarNoLeidas(); sincronizarVerificacion(); }, [cargarVacantes, cargarNoLeidas]);
   useEffect(() => {
     const unsub = navigation.addListener('focus', () => {
       cargarVacantes();
       cargarNoLeidas();
-      authAPI.getPerfil().then(res => {
-        const { validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at } = res.data.user;
-        updateUser({ validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at });
-      }).catch(() => {});
+      sincronizarVerificacion();
     });
     return unsub;
-  }, [navigation, cargarVacantes, cargarNoLeidas]);
+  }, [navigation, cargarVacantes, cargarNoLeidas, sincronizarVerificacion]);
 
   const onRefresh = () => { setRefreshing(true); cargarVacantes(); };
 
@@ -386,11 +390,15 @@ export default function TrabajadorVacantesScreen({ navigation }) {
               ) : (
                 <Ionicons name="person" size={20} color={COLORS.primary} />
               )}
-              {identidadAprobada && (
+              {identidadAprobada ? (
                 <View style={s.verificadoBadge}>
                   <Ionicons name="checkmark" size={11} color={COLORS.white} />
                 </View>
-              )}
+              ) : estadoIdentidad === 'rechazada' ? (
+                <View style={[s.verificadoBadge, { backgroundColor: COLORS.error }]}>
+                  <Ionicons name="alert" size={11} color={COLORS.white} />
+                </View>
+              ) : null}
             </View>
             <View>
               <Text style={[s.greeting, { color: colors.textPrimary }]}>Hola, {firstName}</Text>
