@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -74,31 +74,17 @@ export default function AdminVerificacionDetalleScreen({ route, navigation }) {
     return () => { cancelled = true; };
   }, [item.id]);
 
-  const handleRevision = (estado) => {
-    const esAprobacion = estado === 'aprobada';
-    showAlert(
-      esAprobacion ? 'Aprobar identidad' : 'Rechazar identidad',
-      `¿Deseas ${esAprobacion ? 'aprobar' : 'rechazar'} la verificación de ${item.nombre_completo}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: esAprobacion ? 'Aprobar' : 'Rechazar',
-          style: esAprobacion ? 'default' : 'destructive',
-          onPress: async () => {
-            try {
-              setProcesando(true);
-              await adminAPI.revisarValidacionIdentidad(item.id, estado, null);
-              navigation.goBack();
-            } catch (err) {
-              const msg = err.response?.data?.error || 'No se pudo guardar la revisión';
-              showAlert('Error', msg);
-            } finally {
-              setProcesando(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleRevision = async (estado) => {
+    try {
+      setProcesando(true);
+      await adminAPI.revisarValidacionIdentidad(item.id, estado, null);
+      navigation.goBack();
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudo guardar la revisión';
+      Alert.alert('Error', msg);
+    } finally {
+      setProcesando(false);
+    }
   };
 
   if (loading) {

@@ -50,31 +50,17 @@ export default function AdminVerificacionCedulasScreen({ navigation }) {
     cargarPendientes();
   };
 
-  const revisarPendiente = (item, estado) => {
-    const accionLabel = estado === 'aprobada' ? 'aprobar' : 'rechazar';
-    showAlert(
-      estado === 'aprobada' ? 'Aprobar identidad' : 'Rechazar identidad',
-      `¿Deseas ${accionLabel} la cédula de ${item.nombre_completo}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: estado === 'aprobada' ? 'Aprobar' : 'Rechazar',
-          style: estado === 'aprobada' ? 'default' : 'destructive',
-          onPress: async () => {
-            try {
-              setProcesandoId(item.id);
-              await adminAPI.revisarValidacionIdentidad(item.id, estado, null);
-              setPendientes((prev) => prev.filter((p) => p.id !== item.id));
-            } catch (err) {
-              const msg = err.response?.data?.error || 'No se pudo guardar la revisión';
-              showAlert('Error', msg);
-            } finally {
-              setProcesandoId(null);
-            }
-          },
-        },
-      ]
-    );
+  const revisarPendiente = async (item, estado) => {
+    try {
+      setProcesandoId(item.id);
+      await adminAPI.revisarValidacionIdentidad(item.id, estado, null);
+      setPendientes((prev) => prev.filter((p) => p.id !== item.id));
+    } catch (err) {
+      const msg = err.response?.data?.error || 'No se pudo guardar la revisión';
+      Alert.alert('Error', msg);
+    } finally {
+      setProcesandoId(null);
+    }
   };
 
   const renderItem = ({ item }) => {
