@@ -138,12 +138,11 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const [fotosReVerif, setFotosReVerif] = useState({ selfie: false, selfie_cedula: false });
   const { isOnline } = useNetworkStatus();
 
+  const [estadoVerif, setEstadoVerif] = useState(user?.validacion_identidad_estado || 'pendiente');
+
   const firstName = (user?.nombre_completo || user?.nombre || 'Usuario').split(' ')[0];
-  const estadoIdentidad = user?.validacion_identidad_estado || 'pendiente';
+  const estadoIdentidad = estadoVerif;
   const identidadAprobada = estadoIdentidad === 'aprobada';
-  const necesitaSubirCedula = !user?.foto_cedula;
-  const yaEnvioCedula = Boolean(user?.validacion_identidad_enviado_at || user?.foto_cedula || user?.foto_selfie_cedula);
-  const mostrarAccionSubirCedula = estadoIdentidad === 'rechazada' || (!yaEnvioCedula && necesitaSubirCedula);
   const mostrarTarjetaVerificacion = !identidadAprobada;
 
   const cargarNoLeidas = useCallback(async () => {
@@ -190,6 +189,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const sincronizarVerificacion = useCallback(() => {
     authAPI.getPerfil().then(res => {
       const { validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at } = res.data.user;
+      setEstadoVerif(validacion_identidad_estado || 'pendiente');
       updateUser({ validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at });
     }).catch(() => {});
   }, []);
@@ -689,6 +689,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
                 style={s.reVerifEnviarBtn}
                 onPress={() => {
                   updateUser({ validacion_identidad_estado: 'pendiente' });
+                  setEstadoVerif('pendiente');
                   setModalReVerif(false);
                 }}
               >
