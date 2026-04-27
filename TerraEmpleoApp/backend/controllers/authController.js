@@ -557,6 +557,53 @@ async function subirFotos(req, res) {
   }
 }
 
+// POST /api/auth/fotos/cambiar-foto-perfil
+async function cambiarFotoPerfil(req, res) {
+  try {
+    const userId = req.user.id;
+    if (!req.file) return res.status(400).json({ error: 'Archivo de imagen requerido' });
+
+    const [rows] = await query(
+      'SELECT validacion_identidad_estado, foto_selfie_cambiada_at FROM usuarios WHERE id = ?',
+      [userId]
+    );
+    const user = rows[0];
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    if (user.validacion_identidad_estado !== 'aprobada') {
+      return res.status(403).json({ error: 'Debes estar verificado para cambiar tu foto de perfil.' });
+    }
+
+    if (user.foto_selfie_cambiada_at) {
+      const diasDesdeUltimoCambio = (Date.now() - new Date(user.foto_selfie_cambiada_at).getTime()) / 86400000;
+      if (diasDesdeUltimoCambio < 30) {
+        const diasRestantes = Math.ceil(30 - diasDesdeUltimoCambio);
+        return res.status(429).json({ error: `Solo puedes cambiar tu foto cada 30 días. Podrás cambiarla en ${diasRestantes} día(s).` });
+      }
+    }
+
+    const filePath = req.file.location;
+    await query(
+      `UPDATE usuarios
+       SET foto_selfie = ?,
+           foto_selfie_cambiada_at = NOW(),
+           validacion_identidad_estado = 'pendiente',
+           validacion_identidad_enviado_at = NOW(),
+           validacion_identidad_revisado_por = NULL,
+           validacion_identidad_revisado_at = NULL,
+           validacion_identidad_comentario = NULL
+       WHERE id = ?`,
+      [filePath, userId]
+    );
+
+    const signedPath = await signUrl(filePath);
+    res.json({ message: 'Foto de perfil actualizada. Tu verificación fue enviada a revisión.', path: signedPath });
+  } catch (err) {
+    console.error('Error cambiando foto de perfil:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 // ─── RECUPERACIÓN DE CONTRASEÑA ──────────────────────────────────────────────
 
 // POST /api/auth/recuperar/solicitar
@@ -798,6 +845,7 @@ module.exports = {
   getPerfil,
   actualizarPerfil,
   subirFotos,
+  cambiarFotoPerfil,
   subirHojaVida,
   solicitarRecuperacion,
   verificarCodigoRecuperacion,

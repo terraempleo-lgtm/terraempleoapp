@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Platform,
-  Image, Linking,
+  View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity,
+  Image, Linking, Modal, ActivityIndicator, Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,6 +18,7 @@ import Animated, {
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
 import DecorativeBackground from '../../components/ui/DecorativeBackground';
 import { showAlert } from '../../utils/alertService';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 const HERO_H = 260;
 
@@ -96,16 +97,87 @@ function PulsingDot({ color = COLORS.primary, size = 14, delay = 0 }) {
 }
 
 export default function PerfilScreen({ navigation }) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateUser } = useAuth();
   const { isDark, toggleMode, colors } = useAppTheme();
   const [perfil, setPerfil] = useState(null);
   const [userData, setUserData] = useState(null);
   const [fotoFincaPrincipal, setFotoFincaPrincipal] = useState(null);
   const insets = useSafeAreaInsets();
 
+  // Cambio de foto de perfil
+  const [modalCamara, setModalCamara] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const cameraRef = useRef(null);
+  const [permission, requestPermission] = useCameraPermissions();
+
   const u = userData || user;
   const esTrabajador = u?.rol === 'trabajador';
   const esEmpleador = u?.rol === 'empleador';
+  const identidadAprobada = u?.validacion_identidad_estado === 'aprobada';
+
+  const diasDesdeUltimoCambio = u?.foto_selfie_cambiada_at
+    ? (Date.now() - new Date(u.foto_selfie_cambiada_at).getTime()) / 86400000
+    : null;
+  const puedeCambiarFoto = identidadAprobada && (diasDesdeUltimoCambio === null || diasDesdeUltimoCambio >= 30);
+  const diasParaCambio = diasDesdeUltimoCambio !== null && diasDesdeUltimoCambio < 30
+    ? Math.ceil(30 - diasDesdeUltimoCambio)
+    : 0;
+
+  const abrirCamaraFoto = async () => {
+    if (!identidadAprobada) {
+      showAlert('No disponible', 'Solo puedes cambiar tu foto de perfil una vez verificado.');
+      return;
+    }
+    if (!puedeCambiarFoto) {
+      showAlert('Cambio no disponible', `Podrás cambiar tu foto en ${diasParaCambio} día(s).`);
+      return;
+    }
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        showAlert('Permiso requerido', 'Necesitamos acceso a la cámara.');
+        return;
+      }
+    }
+    setPreview(null);
+    setModalCamara(true);
+  };
+
+  const tomarFoto = async () => {
+    if (!cameraRef.current) return;
+    try {
+      const foto = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      setPreview(foto.uri);
+    } catch {
+      showAlert('Error', 'No se pudo tomar la foto. Intenta de nuevo.');
+    }
+  };
+
+  const confirmarCambioFoto = async () => {
+    if (!preview) return;
+    setSubiendoFoto(true);
+    try {
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        const response = await fetch(preview);
+        const blob = await response.blob();
+        formData.append('foto', blob, `selfie_${Date.now()}.jpg`);
+      } else {
+        formData.append('foto', { uri: preview, type: 'image/jpeg', name: `selfie_${Date.now()}.jpg` });
+      }
+      const res = await authAPI.cambiarFotoPerfil(formData);
+      setModalCamara(false);
+      setPreview(null);
+      updateUser({ foto_selfie: res.data.path, validacion_identidad_estado: 'pendiente', foto_selfie_cambiada_at: new Date().toISOString() });
+      setUserData(prev => prev ? { ...prev, foto_selfie: res.data.path, validacion_identidad_estado: 'pendiente', foto_selfie_cambiada_at: new Date().toISOString() } : prev);
+      showAlert('Foto actualizada', 'Tu foto fue cambiada. Tu verificación fue enviada a revisión.');
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'No se pudo actualizar la foto.');
+    } finally {
+      setSubiendoFoto(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -217,7 +289,7 @@ export default function PerfilScreen({ navigation }) {
                   ) : (
                     <View style={[s.empAvatarFallback, { borderColor: colors.surface, backgroundColor: isDark ? colors.surface : '#F3F4F6' }]}><Ionicons name="person" size={44} color={COLORS.textLight} /></View>
                   )}
-                  <View style={s.empBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>
+                  {identidadAprobada && <View style={s.empBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>}
                 </View>
               </View>
             </MotiView>
@@ -392,14 +464,21 @@ export default function PerfilScreen({ navigation }) {
             animate={{ scale: 1, opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 150 }}
           >
-            <View style={s.avatarWrap}>
-              {u?.foto_selfie && u.foto_selfie.startsWith('http') ? (
-                <Image source={{ uri: u.foto_selfie }} style={s.avatar} />
-              ) : (
-                <View style={s.avatarFallback}><Ionicons name="person" size={52} color={COLORS.textLight} /></View>
-              )}
-              <View style={s.verifiedBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>
-            </View>
+            <TouchableOpacity onPress={abrirCamaraFoto} activeOpacity={identidadAprobada ? 0.75 : 1}>
+              <View style={s.avatarWrap}>
+                {u?.foto_selfie && u.foto_selfie.startsWith('http') ? (
+                  <Image source={{ uri: u.foto_selfie }} style={s.avatar} />
+                ) : (
+                  <View style={s.avatarFallback}><Ionicons name="person" size={52} color={COLORS.textLight} /></View>
+                )}
+                {identidadAprobada && <View style={s.verifiedBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>}
+                {identidadAprobada && (
+                  <View style={s.camaraBadge}>
+                    <Ionicons name={puedeCambiarFoto ? 'camera' : 'time-outline'} size={12} color={COLORS.white} />
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
           </MotiView>
 
           <FadeInView delay={250}>
@@ -616,6 +695,53 @@ export default function PerfilScreen({ navigation }) {
           </View>
         </StaggeredItem>
       </ScrollView>
+
+      {/* Modal cámara para cambio de foto de perfil */}
+      <Modal visible={modalCamara} animationType="slide" statusBarTranslucent onRequestClose={() => setModalCamara(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+          <View style={s.camaraHeader}>
+            <TouchableOpacity onPress={() => { setModalCamara(false); setPreview(null); }}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+            <Text style={s.camaraHeaderTxt}>Nueva foto de perfil</Text>
+            <View style={{ width: 28 }} />
+          </View>
+
+          {!preview ? (
+            <View style={{ flex: 1 }}>
+              <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" />
+              <View style={[StyleSheet.absoluteFillObject, { justifyContent: 'center', alignItems: 'center' }]}>
+                <View style={s.camaraGuia} />
+                <Text style={s.camaraGuiaTxt}>Centra tu cara</Text>
+              </View>
+              <View style={s.camaraBar}>
+                <TouchableOpacity style={s.camaraBtn} onPress={tomarFoto}>
+                  <View style={s.camaraBtnInner} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={{ flex: 1 }}>
+              <Image source={{ uri: preview }} style={{ flex: 1 }} resizeMode="contain" />
+              <View style={s.camaraAcciones}>
+                <TouchableOpacity style={s.camaraBtnRepetir} onPress={() => setPreview(null)}>
+                  <Ionicons name="refresh" size={20} color="#fff" />
+                  <Text style={s.camaraBtnTxt}>Repetir</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.camaraBtnConfirmar, subiendoFoto && { opacity: 0.6 }]} onPress={confirmarCambioFoto} disabled={subiendoFoto}>
+                  {subiendoFoto ? <ActivityIndicator color="#fff" /> : (
+                    <>
+                      <Ionicons name="checkmark" size={20} color="#fff" />
+                      <Text style={s.camaraBtnTxt}>Usar esta foto</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -634,6 +760,18 @@ const s = StyleSheet.create({
   avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: COLORS.primarySoft },
   avatarFallback: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: COLORS.primarySoft, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   verifiedBadge: { position: 'absolute', bottom: 2, right: -4, width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.white },
+  camaraBadge: { position: 'absolute', bottom: 2, left: -4, width: 22, height: 22, borderRadius: 11, backgroundColor: '#555', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.white },
+  camaraHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: 'rgba(0,0,0,0.8)' },
+  camaraHeaderTxt: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  camaraGuia: { width: 220, height: 220, borderRadius: 110, borderWidth: 2, borderColor: '#fff', backgroundColor: 'transparent' },
+  camaraGuiaTxt: { color: '#fff', marginTop: 12, fontSize: 14, textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8 },
+  camaraBar: { paddingVertical: 32, alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' },
+  camaraBtn: { width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+  camaraBtnInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff' },
+  camaraAcciones: { flexDirection: 'row', padding: 20, gap: 12, backgroundColor: 'rgba(0,0,0,0.8)' },
+  camaraBtnRepetir: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 2, borderColor: '#fff' },
+  camaraBtnConfirmar: { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: COLORS.primary },
+  camaraBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '600' },
   fullName: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary, textAlign: 'center', marginBottom: 6 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
   ratingVal: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },

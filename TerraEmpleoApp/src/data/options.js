@@ -52,4 +52,5 @@ export const TIPO_PAGO_OPTIONS = [
   { label: 'Quincenal', value: 'quincenal' },
   { label: 'Mensual', value: 'mensual' },
   { label: 'Por tarea / Destajo', value: 'destajo' },
+  { label: 'Por kilo', value: 'por_kilo' },
 ];

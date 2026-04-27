@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList,
-  RefreshControl, Image, Modal, ActivityIndicator,
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  RefreshControl, Image, Modal, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
 import { vacantesAPI, notificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
+import CamaraFoto from '../../components/CamaraFoto';
 import { Ionicons } from '@expo/vector-icons';
 import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
@@ -128,7 +129,7 @@ function ResumenSemanaCard({ postulantesTotal, activasCount, isDark }) {
 }
 
 export default function EmpleadorVacantesScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { colors, isDark } = useAppTheme();
   const { contenedorMaxAncho } = useDisenoResponsive();
   const insets = useSafeAreaInsets();
@@ -138,6 +139,8 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   const [noLeidas, setNoLeidas] = useState(0);
   const [vacanteAArchivar, setVacanteAArchivar] = useState(null);
   const [archivandoId, setArchivandoId] = useState(null);
+  const [modalReVerif, setModalReVerif] = useState(false);
+  const [fotosReVerif, setFotosReVerif] = useState({ selfie: false, selfie_cedula: false });
 
   const firstName = (user?.nombre_completo || user?.nombre || 'Empleador').split(' ')[0];
   const nombreCompleto = user?.nombre_completo || user?.nombre || firstName;
@@ -375,13 +378,17 @@ export default function EmpleadorVacantesScreen({ navigation }) {
             </View>
             <Text style={[styles.verificacionText, { color: colors.textSecondary }]}>
               {estadoIdentidad === 'rechazada'
-                ? 'Tu verificación fue rechazada. ¿Quieres verificarte otra vez? Sube una nueva foto de cédula.'
+                ? 'Tu verificación fue rechazada. Vuelve a tomarte la selfie y la foto con cédula para reenviar.'
                 : 'Tu cédula está en proceso de verificación. Te avisaremos cuando sea aprobada.'}
             </Text>
-            {mostrarAccionSubirCedula && estadoIdentidad === 'rechazada' ? (
-              <Text style={styles.verificacionAyuda}>
-                Para volver a verificarte, sube una nueva cédula desde tu perfil.
-              </Text>
+            {estadoIdentidad === 'rechazada' ? (
+              <TouchableOpacity
+                style={styles.reVerifBtn}
+                onPress={() => { setFotosReVerif({ selfie: false, selfie_cedula: false }); setModalReVerif(true); }}
+              >
+                <Ionicons name="camera" size={16} color={COLORS.white} />
+                <Text style={styles.reVerifBtnText}>Volver a verificarme</Text>
+              </TouchableOpacity>
             ) : null}
           </View>
         </FadeInView>
@@ -564,6 +571,72 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           </View>
         }
       />
+
+      <Modal
+        visible={modalReVerif}
+        animationType="slide"
+        onRequestClose={() => setModalReVerif(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={styles.reVerifHeader}>
+            <TouchableOpacity onPress={() => setModalReVerif(false)}>
+              <Ionicons name="close" size={26} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={[styles.reVerifTitle, { color: colors.textPrimary }]}>Nueva verificación</Text>
+            <View style={{ width: 26 }} />
+          </View>
+          <ScrollView contentContainerStyle={styles.reVerifContent}>
+            <Text style={[styles.reVerifDesc, { color: colors.textSecondary }]}>
+              Toma las dos fotos para reenviar tu verificación de identidad. Solo se permite cámara.
+            </Text>
+
+            <Text style={[styles.reVerifSeccion, { color: colors.textPrimary }]}>1. Selfie (tu rostro)</Text>
+            {fotosReVerif.selfie ? (
+              <View style={styles.reVerifCheck}>
+                <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+                <Text style={{ color: COLORS.primary, fontWeight: '600' }}>Selfie enviada</Text>
+              </View>
+            ) : (
+              <CamaraFoto
+                tipo="selfie"
+                label="Tomar selfie"
+                modoLocal={false}
+                permitirGaleria={false}
+                onFotoGuardada={(tipo) => setFotosReVerif(prev => ({ ...prev, selfie: true }))}
+              />
+            )}
+
+            <Text style={[styles.reVerifSeccion, { color: colors.textPrimary }]}>2. Selfie con cédula</Text>
+            {fotosReVerif.selfie_cedula ? (
+              <View style={styles.reVerifCheck}>
+                <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+                <Text style={{ color: COLORS.primary, fontWeight: '600' }}>Foto con cédula enviada</Text>
+              </View>
+            ) : (
+              <CamaraFoto
+                tipo="selfie_cedula"
+                label="Tomar foto con cédula"
+                modoLocal={false}
+                permitirGaleria={false}
+                onFotoGuardada={(tipo) => setFotosReVerif(prev => ({ ...prev, selfie_cedula: true }))}
+              />
+            )}
+
+            {fotosReVerif.selfie && fotosReVerif.selfie_cedula && (
+              <TouchableOpacity
+                style={styles.reVerifEnviarBtn}
+                onPress={() => {
+                  updateUser({ validacion_identidad_estado: 'pendiente' });
+                  setModalReVerif(false);
+                }}
+              >
+                <Ionicons name="shield-checkmark" size={18} color={COLORS.white} />
+                <Text style={styles.reVerifEnviarText}>Listo, enviar a revisión</Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       <Modal
         visible={Boolean(vacanteAArchivar)}
@@ -751,6 +824,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  reVerifBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: COLORS.error, borderRadius: RADIUS.md,
+    paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  reVerifBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
+  reVerifHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
+  },
+  reVerifTitle: { fontSize: 17, fontWeight: '700' },
+  reVerifContent: { padding: SPACING.lg, gap: SPACING.sm },
+  reVerifDesc: { fontSize: 14, lineHeight: 20, marginBottom: SPACING.md },
+  reVerifSeccion: { fontSize: 15, fontWeight: '700', marginTop: SPACING.md, marginBottom: 4 },
+  reVerifCheck: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
+  reVerifEnviarBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: COLORS.primary, borderRadius: RADIUS.lg,
+    paddingVertical: 14, marginTop: SPACING.xl,
+  },
+  reVerifEnviarText: { color: COLORS.white, fontWeight: '700', fontSize: 16 },
 
   /* Header */
   header: {
