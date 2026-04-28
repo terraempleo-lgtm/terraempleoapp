@@ -333,37 +333,32 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
   const ListHeader = (
     <View>
-      {/* Greeting */}
-      <FadeInView delay={0}>
-        <View style={[styles.greetingSection, { backgroundColor: colors.surface }]}>
-          <View style={styles.greetingLeft}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatarWrap}>
-                {user?.foto_selfie ? (
-                  <Image source={{ uri: user.foto_selfie }} style={styles.avatarImg} />
-                ) : (
-                  <Ionicons name="person" size={20} color={COLORS.primary} />
-                )}
+      {/* Clean title header */}
+      <View style={styles.titleHeader}>
+        <View style={styles.titleHeaderLeft}>
+          <View style={styles.titleRow}>
+            <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Mis Vacantes</Text>
+            {vacantes.length > 0 && (
+              <View style={styles.titleBadge}>
+                <Text style={styles.titleBadgeText}>{vacantes.length}</Text>
               </View>
-              {identidadAprobada ? (
-                <View style={styles.verificadoBadge}>
-                  <Ionicons name="checkmark" size={11} color={COLORS.white} />
-                </View>
-              ) : estadoIdentidad === 'rechazada' ? (
-                <View style={[styles.verificadoBadge, { backgroundColor: COLORS.error }]}>
-                  <Ionicons name="alert" size={11} color={COLORS.white} />
-                </View>
-              ) : null}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.greetingLabel, { color: colors.textSecondary }]}>Hola,</Text>
-              <Text style={[styles.greetingName, { color: colors.textPrimary }]}>{firstName}</Text>
-            </View>
+            )}
           </View>
+          <Text style={[styles.screenSubtitle, { color: colors.textSecondary }]}>
+            {activas.length} activa{activas.length !== 1 ? 's' : ''} · {inactivas.length} inactiva{inactivas.length !== 1 ? 's' : ''}
+          </Text>
         </View>
-      </FadeInView>
+        <AnimatedPressable
+          style={styles.addBtnIcon}
+          onPress={() => navigation.navigate('CrearVacante')}
+          scaleValue={0.95}
+          haptic
+        >
+          <Ionicons name="add" size={20} color={COLORS.white} />
+        </AnimatedPressable>
+      </View>
 
-      {/* Verificacion Card moved right after Greeting, before Actions */}
+      {/* Verificacion Card */}
       {mostrarTarjetaVerificacion && (
         <FadeInView delay={50}>
           <View style={[styles.verificacionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -394,38 +389,6 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           </View>
         </FadeInView>
       )}
-
-      {/* Header row */}
-      <FadeInView delay={100}>
-        <View style={[styles.header, { backgroundColor: colors.surface }]}>
-          <View style={styles.headerTopRow}>
-            <View style={styles.headerLeft}>
-              <View style={styles.headerIcon}>
-                <Ionicons name="leaf" size={20} color={COLORS.primary} />
-              </View>
-              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Mis Vacantes</Text>
-              <MotiView
-                from={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 300 }}
-              >
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{vacantes.length}</Text>
-                </View>
-              </MotiView>
-            </View>
-            <AnimatedPressable
-              style={styles.addBtnIcon}
-              onPress={() => navigation.navigate('CrearVacante')}
-              scaleValue={0.95}
-              haptic
-            >
-              <Ionicons name="add" size={20} color={COLORS.white} />
-            </AnimatedPressable>
-          </View>
-
-        </View>
-      </FadeInView>
 
       {/* Filter chips */}
       <FadeInView delay={150}>
@@ -797,18 +760,21 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  /* Greeting */
-  greetingSection: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: SPACING.lg, paddingTop: SPACING.xs, paddingBottom: SPACING.sm,
-    backgroundColor: COLORS.white,
+  /* Clean title header */
+  titleHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, paddingBottom: SPACING.sm,
   },
-  greetingLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
+  titleHeaderLeft: { flex: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  screenTitle: { fontSize: 30, fontWeight: '800', letterSpacing: -0.8 },
+  titleBadge: {
+    minWidth: 26, height: 24, paddingHorizontal: 8,
+    borderRadius: 99, backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
   },
+  titleBadgeText: { fontSize: 12, fontWeight: '700', color: COLORS.white },
+  screenSubtitle: { fontSize: 13, marginTop: 3 },
   avatarContainer: {
     position: 'relative',
   },

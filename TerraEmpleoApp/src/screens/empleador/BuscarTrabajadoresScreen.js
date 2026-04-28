@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
   /* Title */
   titleRow: {
     paddingHorizontal: SPACING.md,
-    paddingTop: 4,
+    paddingTop: SPACING.md,
     paddingBottom: 12,
   },
   screenTitle: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
