@@ -816,6 +816,10 @@ const styles = StyleSheet.create({
   screenSubtitle: { fontSize: 13, marginTop: 3 },
   avatarContainer: {
     position: 'relative',
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatarWrap: {
     width: 48,
@@ -831,8 +835,8 @@ const styles = StyleSheet.create({
   avatarImg: { width: 48, height: 48, borderRadius: 24 },
   verificadoBadge: {
     position: 'absolute',
-    right: -2,
-    bottom: -2,
+    right: 0,
+    bottom: 0,
     width: 18,
     height: 18,
     borderRadius: 9,

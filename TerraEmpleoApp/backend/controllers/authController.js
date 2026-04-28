@@ -557,6 +557,26 @@ async function subirFotos(req, res) {
   }
 }
 
+// POST /api/auth/verificacion/reenviar
+async function reenviarVerificacion(req, res) {
+  try {
+    await query(
+      `UPDATE usuarios
+       SET validacion_identidad_estado = 'pendiente',
+           validacion_identidad_enviado_at = NOW(),
+           validacion_identidad_revisado_por = NULL,
+           validacion_identidad_revisado_at = NULL,
+           validacion_identidad_comentario = NULL
+       WHERE id = ?`,
+      [req.user.id]
+    );
+    res.json({ message: 'Verificación reenviada correctamente' });
+  } catch (err) {
+    console.error('Error reenviando verificación:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 // POST /api/auth/fotos/cambiar-foto-perfil
 async function cambiarFotoPerfil(req, res) {
   try {
@@ -845,6 +865,7 @@ module.exports = {
   getPerfil,
   actualizarPerfil,
   subirFotos,
+  reenviarVerificacion,
   cambiarFotoPerfil,
   subirHojaVida,
   solicitarRecuperacion,

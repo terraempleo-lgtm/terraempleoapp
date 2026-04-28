@@ -36,6 +36,7 @@ router.post('/recuperar/solicitar-email', authRecoveryLimiter, authController.so
 router.get('/perfil', authMiddleware, authController.getPerfil);
 router.put('/perfil', authMiddleware, authController.actualizarPerfil);
 router.post('/fotos/:tipo', authMiddleware, upload.single('foto'), authController.subirFotos);
+router.post('/verificacion/reenviar', authMiddleware, authController.reenviarVerificacion);
 router.post('/cambiar-foto-perfil', authMiddleware, upload.single('foto'), authController.cambiarFotoPerfil);
 router.post('/hoja-vida', authMiddleware, uploadHojaVida.single('hoja_vida'), authController.subirHojaVida);
 

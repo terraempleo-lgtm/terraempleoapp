@@ -69,6 +69,7 @@ export const authAPI = {
     transformRequest: [(data) => data],
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
+  reenviarVerificacion: () => api.post('/auth/verificacion/reenviar'),
 };
 
 // Cognito Auth

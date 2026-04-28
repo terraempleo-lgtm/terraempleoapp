@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Modal,
-  RefreshControl, Image, TextInput, ScrollView, Alert,
+  RefreshControl, Image, TextInput, ScrollView, Alert, Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -28,7 +28,7 @@ import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { showAlert } from '../../utils/alertService';
 import { guardarVacantesCache, leerVacantesCache } from '../../utils/offlineCache';
-import CamaraFoto from '../../components/CamaraFoto';
+import * as ImagePicker from 'expo-image-picker';
 import { encolarPostulacion, estaEnCola } from '../../utils/postulacionesQueue';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
@@ -136,6 +136,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const [showDeptoModal, setShowDeptoModal] = useState(false);
   const [modalReVerif, setModalReVerif] = useState(false);
   const [fotosReVerif, setFotosReVerif] = useState({ selfie: false, selfie_cedula: false });
+  const [loadingFoto, setLoadingFoto] = useState(null); // 'selfie' | 'selfie_cedula' | null
   const { isOnline } = useNetworkStatus();
 
   const [estadoVerif, setEstadoVerif] = useState(user?.validacion_identidad_estado || 'pendiente');
@@ -651,45 +652,81 @@ export default function TrabajadorVacantesScreen({ navigation }) {
           </View>
           <ScrollView contentContainerStyle={s.reVerifContent}>
             <Text style={[s.reVerifDesc, { color: colors.textSecondary }]}>
-              Toma las dos fotos para reenviar tu verificación de identidad. Solo se permite cámara.
+              Toma las dos fotos para reenviar tu verificación de identidad.
             </Text>
 
-            <Text style={[s.reVerifSeccion, { color: colors.textPrimary }]}>1. Selfie (tu rostro)</Text>
-            {fotosReVerif.selfie ? (
-              <View style={s.reVerifCheck}>
-                <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
-                <Text style={{ color: COLORS.primary, fontWeight: '600' }}>Selfie enviada</Text>
-              </View>
-            ) : (
-              <CamaraFoto
-                tipo="selfie"
-                label="Tomar selfie"
-                modoLocal={false}
-                permitirGaleria={false}
-                onFotoGuardada={() => setFotosReVerif(prev => ({ ...prev, selfie: true }))}
-              />
-            )}
+            {['selfie', 'selfie_cedula'].map((tipo) => {
+              const done = fotosReVerif[tipo];
+              const cargando = loadingFoto === tipo;
+              const label = tipo === 'selfie' ? 'Tomar selfie' : 'Tomar foto con cédula';
+              const titulo = tipo === 'selfie' ? '1. Selfie (tu rostro)' : '2. Selfie con cédula';
+              const doneLabel = tipo === 'selfie' ? 'Selfie enviada ✓' : 'Foto con cédula enviada ✓';
 
-            <Text style={[s.reVerifSeccion, { color: colors.textPrimary }]}>2. Selfie con cédula</Text>
-            {fotosReVerif.selfie_cedula ? (
-              <View style={s.reVerifCheck}>
-                <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
-                <Text style={{ color: COLORS.primary, fontWeight: '600' }}>Foto con cédula enviada</Text>
-              </View>
-            ) : (
-              <CamaraFoto
-                tipo="selfie_cedula"
-                label="Tomar foto con cédula"
-                modoLocal={false}
-                permitirGaleria={false}
-                onFotoGuardada={() => setFotosReVerif(prev => ({ ...prev, selfie_cedula: true }))}
-              />
-            )}
+              const tomarFoto = async () => {
+                if (cargando) return;
+                setLoadingFoto(tipo);
+                try {
+                  let uri = null;
+                  if (Platform.OS === 'web') {
+                    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+                    if (res.canceled) { setLoadingFoto(null); return; }
+                    uri = res.assets[0].uri;
+                  } else {
+                    const perm = await ImagePicker.requestCameraPermissionsAsync();
+                    if (!perm.granted) {
+                      showAlert('Permiso requerido', 'Necesitamos acceso a la cámara.');
+                      setLoadingFoto(null); return;
+                    }
+                    const res = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+                    if (res.canceled) { setLoadingFoto(null); return; }
+                    uri = res.assets[0].uri;
+                  }
+
+                  const formData = new FormData();
+                  if (Platform.OS === 'web') {
+                    const blob = await (await fetch(uri)).blob();
+                    formData.append('foto', blob, `${tipo}_${Date.now()}.jpg`);
+                  } else {
+                    formData.append('foto', { uri, type: 'image/jpeg', name: `${tipo}_${Date.now()}.jpg` });
+                  }
+                  await authAPI.subirFoto(tipo, formData);
+                  setFotosReVerif(prev => ({ ...prev, [tipo]: true }));
+                } catch (err) {
+                  showAlert('Error', err.response?.data?.error || 'No se pudo subir la foto. Intenta de nuevo.');
+                } finally {
+                  setLoadingFoto(null);
+                }
+              };
+
+              return (
+                <View key={tipo}>
+                  <Text style={[s.reVerifSeccion, { color: colors.textPrimary }]}>{titulo}</Text>
+                  {done ? (
+                    <View style={s.reVerifCheck}>
+                      <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+                      <Text style={{ color: COLORS.primary, fontWeight: '600' }}>{doneLabel}</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={s.reVerifFotoBtn} onPress={tomarFoto} disabled={cargando}>
+                      {cargando ? (
+                        <ActivityIndicator size="small" color={COLORS.primary} />
+                      ) : (
+                        <Ionicons name={Platform.OS === 'web' ? 'cloud-upload-outline' : 'camera-outline'} size={24} color={COLORS.primary} />
+                      )}
+                      <Text style={s.reVerifFotoBtnText}>{cargando ? 'Subiendo...' : label}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })}
 
             {fotosReVerif.selfie && fotosReVerif.selfie_cedula && (
               <TouchableOpacity
                 style={s.reVerifEnviarBtn}
-                onPress={() => {
+                onPress={async () => {
+                  try {
+                    await authAPI.reenviarVerificacion();
+                  } catch (_) {}
                   updateUser({ validacion_identidad_estado: 'pendiente' });
                   setEstadoVerif('pendiente');
                   setModalReVerif(false);
@@ -775,20 +812,21 @@ const s = StyleSheet.create({
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   avatarContainer: {
     position: 'relative',
-    width: 52,
-    height: 52,
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatarWrap: {
     width: 48, height: 48, borderRadius: 24,
     backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center',
     borderWidth: 2.5, borderColor: COLORS.primary, overflow: 'hidden',
-    position: 'relative',
   },
   avatarImg: { width: 48, height: 48, borderRadius: 24 },
   verificadoBadge: {
     position: 'absolute',
-    right: -2,
-    bottom: -2,
+    right: 0,
+    bottom: 0,
     width: 18,
     height: 18,
     borderRadius: 9,
@@ -859,6 +897,12 @@ const s = StyleSheet.create({
   reVerifDesc: { fontSize: 14, lineHeight: 20, marginBottom: SPACING.md },
   reVerifSeccion: { fontSize: 15, fontWeight: '700', marginTop: SPACING.md, marginBottom: 4 },
   reVerifCheck: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
+  reVerifFotoBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: RADIUS.lg,
+    paddingVertical: 14, backgroundColor: COLORS.white,
+  },
+  reVerifFotoBtnText: { color: COLORS.primary, fontWeight: '700', fontSize: 14 },
   reVerifEnviarBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     backgroundColor: COLORS.primary, borderRadius: RADIUS.lg,
