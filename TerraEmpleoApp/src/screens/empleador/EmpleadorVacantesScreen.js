@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, Image, Modal, ActivityIndicator, ScrollView,
+  RefreshControl, Image, Modal, ActivityIndicator, ScrollView, Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
@@ -202,6 +202,10 @@ export default function EmpleadorVacantesScreen({ navigation }) {
     }).catch(() => {});
   }, []);
 
+  const openWhatsAppSupport = () => {
+    Linking.openURL('https://wa.me/573108870800').catch(() => {});
+  };
+
   useEffect(() => { cargar(); cargarNoLeidas(); sincronizarVerificacion(); }, []);
   useEffect(() => {
     const unsub = navigation.addListener('focus', () => {
@@ -359,6 +363,25 @@ export default function EmpleadorVacantesScreen({ navigation }) {
               <Text style={[styles.greetingLabel, { color: colors.textSecondary }]}>Hola,</Text>
               <Text style={[styles.greetingName, { color: colors.textPrimary }]}>{firstName}</Text>
             </View>
+          </View>
+          <View style={styles.greetingRight}>
+            <AnimatedPressable
+              style={[styles.greetingIconBtn, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}
+              onPress={() => navigation.navigate('Notificaciones')}
+              scaleValue={0.9}
+              haptic
+            >
+              <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
+              {noLeidas > 0 && <PulsingBadge count={noLeidas} />}
+            </AnimatedPressable>
+            <AnimatedPressable
+              style={[styles.greetingIconBtn, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}
+              onPress={openWhatsAppSupport}
+              scaleValue={0.9}
+              haptic
+            >
+              <Ionicons name="headset-outline" size={20} color={colors.textPrimary} />
+            </AnimatedPressable>
           </View>
         </View>
       </FadeInView>
@@ -797,6 +820,13 @@ const styles = StyleSheet.create({
   },
   greetingLeft: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+  },
+  greetingRight: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+  },
+  greetingIconBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    justifyContent: 'center', alignItems: 'center',
   },
 
   /* Title header */
