@@ -333,7 +333,37 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
   const ListHeader = (
     <View>
-      {/* Clean title header */}
+      {/* Greeting */}
+      <FadeInView delay={0}>
+        <View style={[styles.greetingSection, { backgroundColor: colors.surface }]}>
+          <View style={styles.greetingLeft}>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatarWrap}>
+                {user?.foto_selfie ? (
+                  <Image source={{ uri: user.foto_selfie }} style={styles.avatarImg} />
+                ) : (
+                  <Ionicons name="person" size={20} color={COLORS.primary} />
+                )}
+              </View>
+              {identidadAprobada ? (
+                <View style={styles.verificadoBadge}>
+                  <Ionicons name="checkmark" size={11} color={COLORS.white} />
+                </View>
+              ) : estadoIdentidad === 'rechazada' ? (
+                <View style={[styles.verificadoBadge, { backgroundColor: COLORS.error }]}>
+                  <Ionicons name="alert" size={11} color={COLORS.white} />
+                </View>
+              ) : null}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.greetingLabel, { color: colors.textSecondary }]}>Hola,</Text>
+              <Text style={[styles.greetingName, { color: colors.textPrimary }]}>{firstName}</Text>
+            </View>
+          </View>
+        </View>
+      </FadeInView>
+
+      {/* Title row */}
       <View style={styles.titleHeader}>
         <View style={styles.titleHeaderLeft}>
           <View style={styles.titleRow}>
@@ -760,7 +790,16 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  /* Clean title header */
+  /* Greeting */
+  greetingSection: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: SPACING.xs,
+  },
+  greetingLeft: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+  },
+
+  /* Title header */
   titleHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, paddingBottom: SPACING.sm,

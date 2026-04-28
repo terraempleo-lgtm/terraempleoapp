@@ -376,24 +376,48 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   /* ── List Header ── */
   const ListHeader = (
     <View style={s.headerBlock}>
-      {/* Clean title header */}
-      <View style={s.titleHeader}>
-        <View style={s.titleHeaderLeft}>
-          <Text style={[s.screenTitle, { color: colors.textPrimary }]}>Vacantes</Text>
-          <Text style={[s.screenSubtitle, { color: colors.textSecondary }]}>Encuentra tu próximo empleo</Text>
-        </View>
-        <AnimatedPressable
-          style={s.bellBtn}
-          onPress={() => navigation.navigate('Notificaciones')}
-          scaleValue={0.9}
-          haptic={true}
-        >
-          <View style={[s.bellCircle, { backgroundColor: isDark ? '#1f332b' : '#F3F4F6' }]}>
-            <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
+      {/* Header greeting */}
+      <MotiView
+        from={{ opacity: 0, translateY: -10 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 400 }}
+      >
+        <View style={[s.header, { backgroundColor: colors.surface }]}>
+          <View style={s.headerLeft}>
+            <View style={s.avatarWrap}>
+              {user?.foto_selfie ? (
+                <Image source={{ uri: user.foto_selfie }} style={s.avatarImg} />
+              ) : (
+                <Ionicons name="person" size={20} color={COLORS.primary} />
+              )}
+              {identidadAprobada ? (
+                <View style={s.verificadoBadge}>
+                  <Ionicons name="checkmark" size={11} color={COLORS.white} />
+                </View>
+              ) : estadoIdentidad === 'rechazada' ? (
+                <View style={[s.verificadoBadge, { backgroundColor: COLORS.error }]}>
+                  <Ionicons name="alert" size={11} color={COLORS.white} />
+                </View>
+              ) : null}
+            </View>
+            <View>
+              <Text style={[s.greeting, { color: colors.textPrimary }]}>Hola, {firstName}</Text>
+              <Text style={[s.greetingSub, { color: colors.textSecondary }]}>Encuentra tu próximo empleo</Text>
+            </View>
           </View>
-          <PulsingBadge count={noLeidas} />
-        </AnimatedPressable>
-      </View>
+          <AnimatedPressable
+            style={s.bellBtn}
+            onPress={() => navigation.navigate('Notificaciones')}
+            scaleValue={0.9}
+            haptic={true}
+          >
+            <View style={[s.bellCircle, { backgroundColor: isDark ? '#1f332b' : '#F3F4F6' }]}>
+              <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
+            </View>
+            <PulsingBadge count={noLeidas} />
+          </AnimatedPressable>
+        </View>
+      </MotiView>
 
       {mostrarTarjetaVerificacion && (
         <View style={[s.verificacionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>

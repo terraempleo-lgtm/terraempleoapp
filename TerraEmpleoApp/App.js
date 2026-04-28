@@ -106,7 +106,7 @@ const openWhatsAppSupport = async () => {
 function SoporteHeaderButton() {
   return (
     <TouchableOpacity onPress={openWhatsAppSupport} style={{ marginRight: 14, padding: 4 }}>
-      <Ionicons name="headset-outline" size={22} color={COLORS.white} />
+      <Ionicons name="headset-outline" size={22} color={COLORS.textPrimary} />
     </TouchableOpacity>
   );
 }
@@ -136,9 +136,9 @@ const customTransition = {
 };
 
 const headerOptions = {
-  headerStyle: { backgroundColor: COLORS.primary },
-  headerTintColor: COLORS.white,
-  headerTitleStyle: { ...FONTS.subtitle, color: COLORS.white, fontWeight: FONTS.weight.bold },
+  headerStyle: { backgroundColor: COLORS.white, elevation: 0, shadowOpacity: 0, borderBottomWidth: 0 },
+  headerTintColor: COLORS.textPrimary,
+  headerTitleStyle: { ...FONTS.subtitle, color: COLORS.textPrimary, fontWeight: FONTS.weight.bold },
   headerBackTitleVisible: false,
   headerBackTitle: '',
   headerTruncatedBackTitle: '',
@@ -474,7 +474,7 @@ function AdminVacantesStack() {
         <Stack.Screen
           name="PerfilPublicoTrabajador"
           component={PerfilPublicoTrabajadorScreen}
-          options={{ title: 'Perfil del Trabajador' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="PerfilPublicoEmpleador"
