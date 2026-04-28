@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, RefreshControl,
-  Image, ScrollView, Alert,
+  Image, ScrollView, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,6 @@ import { vacantesAPI } from '../../services/api';
 import { useAppTheme } from '../../context/ThemeContext';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
-import DecorativeBackground from '../../components/ui/DecorativeBackground';
 import { showAlert } from '../../utils/alertService';
 
 const TIMELINE_STEPS = ['Postulado', 'En revisión', 'Resultado'];
@@ -136,14 +135,9 @@ export default function MisPostulacionesScreen({ navigation }) {
     try {
       const vacanteId = postulacion.vacante_id || postulacion.id;
       if (!vacanteId) return;
-
       const res = await vacantesAPI.detalle(vacanteId);
       const vacante = res.data?.vacante || { id: vacanteId };
-
-      navigation.navigate('Vacantes', {
-        screen: 'DetalleVacante',
-        params: { vacante },
-      });
+      navigation.navigate('Vacantes', { screen: 'DetalleVacante', params: { vacante } });
     } catch (err) {
       console.error('Error abriendo detalle de vacante:', err);
     }
@@ -164,28 +158,19 @@ export default function MisPostulacionesScreen({ navigation }) {
     const d = new Date(dateStr);
     const now = new Date();
     const diffDias = Math.floor((now - d) / (1000 * 60 * 60 * 24));
-
     if (diffDias === 0) return 'Hoy';
     if (diffDias === 1) return 'Hace 1 día';
     if (diffDias < 7) return `Hace ${diffDias} días`;
-
     const semanas = Math.floor(diffDias / 7);
     if (semanas === 1) return 'Hace 1 semana';
     if (semanas <= 4) return `Hace ${semanas} semanas`;
-
     return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
   };
 
   const getEstado = (estado) => {
-    if (estado === 'aceptada') {
-      return { label: 'ACEPTADA', bg: '#DCEFE4', color: COLORS.primary };
-    }
-    if (estado === 'contacto_solicitado') {
-      return { label: 'SOLICITUD DE CONTACTO', bg: '#E8F0FF', color: '#1D4ED8' };
-    }
-    if (estado === 'rechazada') {
-      return { label: 'RECHAZADA', bg: COLORS.errorSoft, color: COLORS.error };
-    }
+    if (estado === 'aceptada') return { label: 'ACEPTADA', bg: '#DCEFE4', color: COLORS.primary };
+    if (estado === 'contacto_solicitado') return { label: 'SOLICITUD DE CONTACTO', bg: '#E8F0FF', color: '#1D4ED8' };
+    if (estado === 'rechazada') return { label: 'RECHAZADA', bg: COLORS.errorSoft, color: COLORS.error };
     return { label: 'PENDIENTE', bg: '#FEF3C7', color: '#D97706' };
   };
 
@@ -196,11 +181,11 @@ export default function MisPostulacionesScreen({ navigation }) {
     rechazada: postulaciones.filter((p) => p.estado === 'rechazada').length,
   }), [postulaciones]);
 
-  const chips = [
-    { key: 'todas', label: `Todas (${counts.todas})` },
-    { key: 'pendiente', label: `Pendiente (${counts.pendiente})` },
-    { key: 'aceptada', label: `Aceptadas (${counts.aceptada})` },
-    { key: 'rechazada', label: `Rechazadas (${counts.rechazada})` },
+  const CHIPS = [
+    { key: 'todas', label: 'Todas', count: counts.todas, dotColor: COLORS.primary },
+    { key: 'pendiente', label: 'Pendiente', count: counts.pendiente, dotColor: '#D97706' },
+    { key: 'aceptada', label: 'Aceptadas', count: counts.aceptada, dotColor: COLORS.primary },
+    { key: 'rechazada', label: 'Rechazadas', count: counts.rechazada, dotColor: COLORS.error },
   ];
 
   const dataFiltrada = postulaciones.filter((p) => {
@@ -210,6 +195,84 @@ export default function MisPostulacionesScreen({ navigation }) {
     if (filtro === 'rechazada') return p.estado === 'rechazada';
     return true;
   });
+
+  const ListHeader = (
+    <View>
+      {/* App bar */}
+      <View style={[styles.appBar, { backgroundColor: colors.surface }]}>
+        <View style={styles.appBarLogo}>
+          <View style={styles.appBarLogoIcon}>
+            <Text style={styles.appBarLogoLetter}>T</Text>
+          </View>
+          <Text style={[styles.appBarLogoText, { color: colors.textPrimary }]}>TerraEmpleo</Text>
+        </View>
+        <TouchableOpacity style={[styles.appBarIconBtn, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}>
+          <Ionicons name="headset-outline" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Title */}
+      <View style={styles.titleRow}>
+        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Mis Postulaciones</Text>
+      </View>
+
+      {/* Stats row */}
+      <View style={styles.statsRow}>
+        <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.statNum, { color: colors.textPrimary }]}>{counts.todas}</Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total</Text>
+        </View>
+        <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.statNum, { color: '#D97706' }]}>{counts.pendiente}</Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Pendiente</Text>
+        </View>
+        <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.statNum, { color: COLORS.primary }]}>{counts.aceptada}</Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Aceptadas</Text>
+        </View>
+      </View>
+
+      {/* Filter chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsRow}
+        style={{ flexGrow: 0, marginBottom: 8 }}
+      >
+        {CHIPS.map((chip, index) => {
+          const activo = filtro === chip.key;
+          return (
+            <AnimatedPressable
+              key={chip.key}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor: activo ? '#1A1A1A' : (isDark ? colors.surface : COLORS.white),
+                  borderColor: activo ? '#1A1A1A' : (isDark ? colors.border : '#E5E7EB'),
+                  marginLeft: index === 0 ? SPACING.md : 0,
+                  marginRight: index === CHIPS.length - 1 ? SPACING.md : 0,
+                },
+              ]}
+              onPress={() => setFiltro(chip.key)}
+              scaleValue={0.95}
+              haptic
+              hapticStyle="light"
+            >
+              <View style={[styles.filterDot, { backgroundColor: activo ? chip.dotColor : (isDark ? colors.textMuted : chip.dotColor) }]} />
+              <Text style={[styles.filterText, { color: activo ? COLORS.white : colors.textSecondary }]}>
+                {chip.label}
+              </Text>
+              {chip.count > 0 && (
+                <Text style={[styles.filterCount, { color: activo ? 'rgba(255,255,255,0.7)' : colors.textMuted }]}>
+                  {chip.count}
+                </Text>
+              )}
+            </AnimatedPressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
 
   const renderItem = ({ item, index }) => {
     const estado = getEstado(item.estado);
@@ -245,6 +308,7 @@ export default function MisPostulacionesScreen({ navigation }) {
                   transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: index * 30 }}
                 >
                   <View style={[styles.estadoPill, { backgroundColor: estado.bg }]}>
+                    <View style={[styles.estadoDot, { backgroundColor: estado.color }]} />
                     <Text style={[styles.estadoPillText, { color: estado.color }]}>{estado.label}</Text>
                   </View>
                 </MotiView>
@@ -253,13 +317,16 @@ export default function MisPostulacionesScreen({ navigation }) {
 
               <Text style={[styles.vacanteTitle, { color: colors.textPrimary }]} numberOfLines={2}>{item.titulo}</Text>
 
-              <Text style={[styles.empresaText, { color: colors.textSecondary }]} numberOfLines={1}>
-                {item.nombre_empresa_finca || 'Finca sin nombre'}
-              </Text>
+              <View style={styles.empresaRow}>
+                <Ionicons name="business-outline" size={12} color={colors.textMuted} />
+                <Text style={[styles.empresaText, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {item.nombre_empresa_finca || 'Finca'}
+                </Text>
+              </View>
 
               <View style={styles.locationRow}>
                 <Ionicons name="location-sharp" size={13} color={colors.textMuted} />
-                <Text style={[styles.locationText, { color: colors.textMuted }]} numberOfLines={2}>
+                <Text style={[styles.locationText, { color: colors.textMuted }]} numberOfLines={1}>
                   {[item.municipio, item.departamento].filter(Boolean).join(', ') || 'Ubicación por confirmar'}
                 </Text>
               </View>
@@ -289,7 +356,7 @@ export default function MisPostulacionesScreen({ navigation }) {
               animate={{ opacity: 1, translateY: 0 }}
               transition={{ type: 'timing', duration: 300 }}
             >
-              <View style={[styles.okBox, { borderColor: isDark ? '#2b4b86' : '#BBD3FF', backgroundColor: isDark ? '#1A2A44' : '#ECF3FF' }]}> 
+              <View style={[styles.okBox, { borderColor: isDark ? '#2b4b86' : '#BBD3FF', backgroundColor: isDark ? '#1A2A44' : '#ECF3FF' }]}>
                 <Ionicons name="chatbubble-ellipses" size={16} color={isDark ? '#9CC3FF' : '#1D4ED8'} style={{ marginTop: 1 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.okBoxText, { color: colors.textSecondary }]}>Un empleador quiere contactarte para esta vacante.</Text>
@@ -316,14 +383,10 @@ export default function MisPostulacionesScreen({ navigation }) {
             </MotiView>
           ) : null}
 
-          <View style={[styles.cardFooter, { borderTopColor: colors.border }]}> 
-            <AnimatedPressable style={styles.detailBtn} onPress={() => handlePostulacionClick(item)} scaleValue={0.95} haptic={false}>
-              <Text style={[styles.detailBtnText, { color: colors.primary }]}>Ver detalle</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-            </AnimatedPressable>
+          <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
             {esAceptada && Number(item.empleador_id) > 0 ? (
               <AnimatedPressable
-                style={[styles.detailBtn, styles.rateBtn]}
+                style={styles.rateBtn}
                 onPress={() => navigation.navigate('PerfilPublicoEmpleador', {
                   vacante_id: item.vacante_id,
                   empleador_id: item.empleador_id,
@@ -334,7 +397,11 @@ export default function MisPostulacionesScreen({ navigation }) {
                 <Ionicons name="star-outline" size={15} color={COLORS.warning} />
                 <Text style={[styles.detailBtnText, { color: COLORS.warning }]}>Calificar empleador</Text>
               </AnimatedPressable>
-            ) : null}
+            ) : <View />}
+            <AnimatedPressable style={styles.detailBtn} onPress={() => handlePostulacionClick(item)} scaleValue={0.95} haptic={false}>
+              <Text style={[styles.detailBtnText, { color: colors.primary }]}>Ver detalle</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+            </AnimatedPressable>
           </View>
         </AnimatedPressable>
       </StaggeredItem>
@@ -342,49 +409,12 @@ export default function MisPostulacionesScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
-      <DecorativeBackground intensity="strong" />
-
-      <View style={{ paddingTop: SPACING.sm }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsRow}
-          style={{ flexGrow: 0, marginBottom: 8 }}
-        >
-          {chips.map((chip, index) => {
-            const activo = filtro === chip.key;
-            return (
-              <AnimatedPressable
-                key={chip.key}
-                style={[
-                  styles.filterChip,
-                  { 
-                    backgroundColor: activo ? COLORS.primarySoft : (isDark ? colors.surface : '#FFFFFF'),
-                    borderColor: activo ? COLORS.primary : (isDark ? colors.border : '#E5E7EB'),
-                    marginLeft: index === 0 ? SPACING.md : 0,
-                    marginRight: index === chips.length - 1 ? SPACING.md : 0,
-                  }
-                ]}
-                onPress={() => setFiltro(chip.key)}
-                scaleValue={0.95}
-                haptic
-                hapticStyle="light"
-              >
-                <View style={[styles.filterDot, { backgroundColor: activo ? COLORS.primary : (isDark ? colors.textMuted : '#EAB308') }]} />
-                <Text style={[styles.filterText, { color: activo ? COLORS.primaryDark : colors.textSecondary }]}>
-                  {chip.label}
-                </Text>
-              </AnimatedPressable>
-            );
-          })}
-        </ScrollView>
-      </View>
-
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <FlatList
         data={dataFiltrada}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
+        ListHeaderComponent={ListHeader}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
@@ -398,12 +428,7 @@ export default function MisPostulacionesScreen({ navigation }) {
             <MotiView
               from={{ translateY: 0 }}
               animate={{ translateY: -8 }}
-              transition={{
-                type: 'timing',
-                duration: 1500,
-                loop: true,
-                repeatReverse: true,
-              }}
+              transition={{ type: 'timing', duration: 1500, loop: true, repeatReverse: true }}
             >
               <View style={styles.emptyIconWrap}>
                 <Ionicons name="document-text-outline" size={48} color={colors.primary} />
@@ -436,32 +461,61 @@ export default function MisPostulacionesScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  headerRow: {
+  /* App bar */
+  appBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingTop: 6,
-    paddingBottom: 8,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xs,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
+  appBarLogo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  appBarLogoIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.small,
   },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 0.2,
+  appBarLogoLetter: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
+  appBarLogoText: { fontSize: 16, fontWeight: '700' },
+  appBarIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  headerSpacer: { width: 40 },
 
+  /* Title */
+  titleRow: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
+  screenTitle: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
+
+  /* Stats */
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: SPACING.md,
+    marginBottom: 14,
+  },
+  statBox: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    ...SHADOWS.light,
+  },
+  statNum: { fontSize: 22, fontWeight: '800' },
+  statLabel: { fontSize: 11, fontWeight: '500', marginTop: 2 },
+
+  /* Chips */
   chipsRow: {
     gap: 8,
     paddingVertical: 6,
@@ -471,27 +525,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     ...SHADOWS.light,
   },
-  filterDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  filterText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  filterDot: { width: 8, height: 8, borderRadius: 4 },
+  filterText: { fontSize: 13, fontWeight: '700' },
+  filterCount: { fontSize: 12, fontWeight: '600' },
 
+  /* List */
   list: {
     paddingHorizontal: SPACING.lg,
     paddingBottom: 88,
     paddingTop: 2,
   },
+
+  /* Card */
   card: {
     borderRadius: 18,
     marginBottom: 10,
@@ -506,7 +557,6 @@ const styles = StyleSheet.create({
     paddingTop: 11,
     paddingBottom: 9,
   },
-
   imageWrap: {
     width: 64,
     height: 64,
@@ -515,11 +565,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   image: { width: 64, height: 64, borderRadius: 14 },
-  imagePlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   cardInfo: { flex: 1 },
   cardTopRow: {
@@ -529,30 +575,34 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   estadoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     borderRadius: RADIUS.full,
     paddingHorizontal: 9,
     paddingVertical: 3,
   },
+  estadoDot: { width: 6, height: 6, borderRadius: 3 },
   estadoPillText: {
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
-  fechaText: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
+  fechaText: { fontSize: 11, fontWeight: '500' },
 
   vacanteTitle: {
     fontSize: 17,
     fontWeight: '800',
     lineHeight: 21,
+    marginBottom: 2,
+  },
+  empresaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     marginBottom: 1,
   },
-  empresaText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  empresaText: { fontSize: 13, fontWeight: '600', flex: 1 },
   locationRow: {
     marginTop: 2,
     flexDirection: 'row',
@@ -577,57 +627,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
   },
-  okBoxText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
-  },
-  contactActions: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  contactBtn: {
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  contactBtnGhost: {
-    borderWidth: 1,
-  },
-  contactBtnGhostText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  contactBtnPrimary: {
-    backgroundColor: COLORS.primary,
-  },
-  contactBtnPrimaryText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.white,
-  },
+  okBoxText: { flex: 1, fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  contactActions: { marginTop: 10, flexDirection: 'row', gap: 8 },
+  contactBtn: { borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 8 },
+  contactBtnGhost: { borderWidth: 1 },
+  contactBtnGhostText: { fontSize: 12, fontWeight: '700' },
+  contactBtnPrimary: { backgroundColor: COLORS.primary },
+  contactBtnPrimaryText: { fontSize: 12, fontWeight: '700', color: COLORS.white },
 
   cardFooter: {
     borderTopWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    alignItems: 'flex-end',
-  },
-  detailBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 1,
+    justifyContent: 'space-between',
   },
-  rateBtn: {
-    marginTop: 8,
-  },
-  detailBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.1,
-  },
+  detailBtn: { flexDirection: 'row', alignItems: 'center', gap: 1 },
+  rateBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  detailBtnText: { fontSize: 14, fontWeight: '700', letterSpacing: 0.1 },
 
   empty: {
     alignItems: 'center',
@@ -643,18 +661,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.lg,
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: SPACING.xs,
-    textAlign: 'center',
-  },
-  emptyText: {
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: SPACING.lg,
-  },
+  emptyTitle: { fontSize: 20, fontWeight: '700', marginBottom: SPACING.xs, textAlign: 'center' },
+  emptyText: { fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: SPACING.lg },
   emptyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -665,9 +673,5 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
     ...SHADOWS.button,
   },
-  emptyBtnText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  emptyBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
 });
