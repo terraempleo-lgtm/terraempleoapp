@@ -62,7 +62,7 @@ async function listarCedulasPendientes(req, res) {
        FROM usuarios u
        WHERE u.eliminado = 0
          AND u.rol IN ('trabajador', 'empleador')
-         AND u.foto_cedula IS NOT NULL
+         AND (u.foto_cedula IS NOT NULL OR u.foto_selfie_cedula IS NOT NULL)
          AND u.validacion_identidad_estado = 'pendiente'
        ORDER BY COALESCE(u.validacion_identidad_enviado_at, u.updated_at, u.created_at) ASC`
     );
@@ -227,8 +227,8 @@ async function revisarValidacionIdentidadUsuario(req, res) {
       return res.status(400).json({ error: 'No se revisa validación interna para usuarios admin' });
     }
 
-    if (!usuario.foto_cedula) {
-      return res.status(400).json({ error: 'El usuario no tiene una foto de cédula para revisión.' });
+    if (!usuario.foto_cedula && !usuario.foto_selfie_cedula) {
+      return res.status(400).json({ error: 'El usuario no tiene fotos de identificación para revisión.' });
     }
 
     await query(

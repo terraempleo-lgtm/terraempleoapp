@@ -135,7 +135,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const [showCultivoModal, setShowCultivoModal] = useState(false);
   const [showDeptoModal, setShowDeptoModal] = useState(false);
   const [modalReVerif, setModalReVerif] = useState(false);
-  const [fotosReVerif, setFotosReVerif] = useState({ selfie: false, selfie_cedula: false });
+  const [fotosReVerif, setFotosReVerif] = useState({ selfie: false, cedula: false, selfie_cedula: false });
   const [loadingFoto, setLoadingFoto] = useState(null); // 'selfie' | 'selfie_cedula' | null
   const { isOnline } = useNetworkStatus();
 
@@ -442,7 +442,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
           {estadoIdentidad === 'rechazada' ? (
             <TouchableOpacity
               style={s.reVerifBtn}
-              onPress={() => { setFotosReVerif({ selfie: false, selfie_cedula: false }); setModalReVerif(true); }}
+              onPress={() => { setFotosReVerif({ selfie: false, cedula: false, selfie_cedula: false }); setModalReVerif(true); }}
             >
               <Ionicons name="camera" size={16} color={COLORS.white} />
               <Text style={s.reVerifBtnText}>Volver a verificarme</Text>
@@ -655,12 +655,14 @@ export default function TrabajadorVacantesScreen({ navigation }) {
               Toma las dos fotos para reenviar tu verificación de identidad.
             </Text>
 
-            {['selfie', 'selfie_cedula'].map((tipo) => {
+            {[
+              { tipo: 'selfie', num: '1', titulo: 'Selfie (tu rostro)', label: 'Tomar selfie' },
+              { tipo: 'cedula', num: '2', titulo: 'Foto de tu cédula', label: 'Tomar foto de cédula' },
+              { tipo: 'selfie_cedula', num: '3', titulo: 'Selfie con cédula en mano', label: 'Tomar selfie con cédula' },
+            ].map(({ tipo, num, titulo: tituloItem, label }) => {
               const done = fotosReVerif[tipo];
               const cargando = loadingFoto === tipo;
-              const label = tipo === 'selfie' ? 'Tomar selfie' : 'Tomar foto con cédula';
-              const titulo = tipo === 'selfie' ? '1. Selfie (tu rostro)' : '2. Selfie con cédula';
-              const doneLabel = tipo === 'selfie' ? 'Selfie enviada ✓' : 'Foto con cédula enviada ✓';
+              const doneLabel = 'Foto enviada ✓';
 
               const tomarFoto = async () => {
                 if (cargando) return;
@@ -700,7 +702,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 
               return (
                 <View key={tipo}>
-                  <Text style={[s.reVerifSeccion, { color: colors.textPrimary }]}>{titulo}</Text>
+                  <Text style={[s.reVerifSeccion, { color: colors.textPrimary }]}>{num}. {tituloItem}</Text>
                   {done ? (
                     <View style={s.reVerifCheck}>
                       <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
@@ -720,7 +722,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
               );
             })}
 
-            {fotosReVerif.selfie && fotosReVerif.selfie_cedula && (
+            {fotosReVerif.selfie && (fotosReVerif.cedula || fotosReVerif.selfie_cedula) && (
               <TouchableOpacity
                 style={s.reVerifEnviarBtn}
                 onPress={async () => {

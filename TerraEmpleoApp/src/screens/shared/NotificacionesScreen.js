@@ -559,9 +559,9 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', marginTop: 10, gap: 8 },
   actionDark: {
     height: 30, paddingHorizontal: 12, borderRadius: 999,
-    backgroundColor: '#0E1410', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#c1ff72', alignItems: 'center', justifyContent: 'center',
   },
-  actionDarkText: { fontSize: 12.5, fontWeight: '600', color: COLORS.white },
+  actionDarkText: { fontSize: 12.5, fontWeight: '700', color: '#0E1410' },
   actionGreen: {
     height: 30, paddingHorizontal: 12, borderRadius: 999,
     backgroundColor: COLORS.primary, flexDirection: 'row',
