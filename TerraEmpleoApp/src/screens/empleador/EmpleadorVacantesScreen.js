@@ -470,7 +470,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
                 style={[
                   styles.filterChip,
                   isActive
-                    ? { backgroundColor: '#1A1A1A', borderColor: '#1A1A1A' }
+                    ? { backgroundColor: '#c1ff72', borderColor: '#c1ff72' }
                     : { backgroundColor: isDark ? colors.surface : COLORS.white, borderColor: isDark ? colors.border : '#E5E7EB' },
                 ]}
                 onPress={() => setTabActiva(tab.key)}
@@ -479,7 +479,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
                 hapticStyle="light"
               >
                 <View style={[styles.filterDot, { backgroundColor: isActive ? tab.dot : tab.dot }]} />
-                <Text style={[styles.filterChipText, { color: isActive ? COLORS.white : colors.textSecondary }]}>
+                <Text style={[styles.filterChipText, { color: isActive ? '#0E1410' : colors.textSecondary }]}>
                   {tab.label}
                 </Text>
                 <Text style={[styles.filterChipCount, { color: isActive ? 'rgba(255,255,255,0.65)' : colors.textMuted }]}>
@@ -516,7 +516,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
                 <Text style={styles.explorarSub}>Inspírate en otras vacantes del sector</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
+            <Ionicons name="chevron-forward" size={18} color="rgba(0,0,0,0.4)" />
           </View>
         </AnimatedPressable>
       </FadeInView>
@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    backgroundColor: '#0E1410',
+    backgroundColor: '#c1ff72',
     borderRadius: RADIUS.lg,
   },
   explorarLeft: {
@@ -797,19 +797,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: RADIUS.md,
-    backgroundColor: '#c1ff72',
+    backgroundColor: 'rgba(0,0,0,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   explorarTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFF',
+    color: '#0E1410',
     letterSpacing: -0.2,
   },
   explorarSub: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(0,0,0,0.55)',
     marginTop: 1,
   },
 
