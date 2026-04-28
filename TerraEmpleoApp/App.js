@@ -271,7 +271,7 @@ function ChatsStack() {
       <Stack.Screen name="ChatDetalle" component={ChatDetalleScreen}
         options={{ title: 'Chat' }} />
       <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
-        options={{ title: 'Perfil del Trabajador' }} />
+        options={{ headerShown: false }} />
       <Stack.Screen name="PerfilPublicoEmpleador" component={PerfilPublicoEmpleadorScreen}
         options={{ title: 'Perfil de la Finca' }} />
     </Stack.Navigator>
@@ -308,7 +308,7 @@ function ParaTiEmpleadorStack() {
         <Stack.Screen
           name="PerfilPublicoTrabajador"
           component={PerfilPublicoTrabajadorScreen}
-          options={{ title: 'Perfil del Trabajador' }}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </S>
@@ -337,7 +337,7 @@ function BuscarTrabajadoresStack() {
         <Stack.Screen
           name="PerfilPublicoTrabajador"
           component={PerfilPublicoTrabajadorScreen}
-          options={{ title: 'Perfil del Trabajador' }}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </S>
@@ -380,7 +380,7 @@ function EmpleadorVacantesStack() {
         <Stack.Screen name="MisPostulantes" component={MisPostulantesScreen}
           options={{ title: 'Mis Postulantes' }} />
         <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
-          options={{ title: 'Perfil del Trabajador' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="Notificaciones" component={NotificacionesScreen}
           options={{ headerShown: false }} />
         <Stack.Screen name="ExplorarVacantes" component={ExplorarVacantesScreen}
@@ -399,7 +399,7 @@ function TrabajadoresMapaTabStack() {
         <Stack.Screen name="TrabajadoresMapaHome" component={TrabajadoresMapaScreen}
           options={{ title: 'Mapa de trabajadores' }} />
         <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
-          options={{ title: 'Perfil del Trabajador' }} />
+          options={{ headerShown: false }} />
       </Stack.Navigator>
     </S>
   );

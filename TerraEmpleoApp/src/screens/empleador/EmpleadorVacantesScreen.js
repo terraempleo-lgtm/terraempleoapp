@@ -333,30 +333,6 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
   const ListHeader = (
     <View>
-      {/* App bar */}
-      <View style={[styles.appBar, { backgroundColor: colors.surface }]}>
-        <View style={styles.appBarLeft}>
-          <View style={styles.appBarLogoIcon}>
-            <Text style={styles.appBarLogoLetter}>T</Text>
-          </View>
-          <Text style={[styles.appBarLogoText, { color: colors.textPrimary }]}>TerraEmpleo</Text>
-        </View>
-        <View style={styles.appBarRight}>
-          <AnimatedPressable
-            style={[styles.appBarIconBtn, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}
-            onPress={() => navigation.navigate('Notificaciones')}
-            scaleValue={0.9}
-            haptic
-          >
-            <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
-            {noLeidas > 0 && <PulsingBadge count={noLeidas} />}
-          </AnimatedPressable>
-          <TouchableOpacity style={[styles.appBarIconBtn, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}>
-            <Ionicons name="headset-outline" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {/* Greeting */}
       <FadeInView delay={0}>
         <View style={[styles.greetingSection, { backgroundColor: colors.surface }]}>

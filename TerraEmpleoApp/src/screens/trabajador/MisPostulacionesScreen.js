@@ -198,19 +198,6 @@ export default function MisPostulacionesScreen({ navigation }) {
 
   const ListHeader = (
     <View>
-      {/* App bar */}
-      <View style={[styles.appBar, { backgroundColor: colors.surface }]}>
-        <View style={styles.appBarLogo}>
-          <View style={styles.appBarLogoIcon}>
-            <Text style={styles.appBarLogoLetter}>T</Text>
-          </View>
-          <Text style={[styles.appBarLogoText, { color: colors.textPrimary }]}>TerraEmpleo</Text>
-        </View>
-        <TouchableOpacity style={[styles.appBarIconBtn, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}>
-          <Ionicons name="headset-outline" size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
       {/* Title */}
       <View style={styles.titleRow}>
         <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Mis Postulaciones</Text>

@@ -85,19 +85,18 @@ function StarRating({ value }) {
   );
 }
 
-function MatchBadge({ matchNum, isDark, colors }) {
+function MatchPill({ matchNum }) {
   if (!matchNum) return null;
   const bg = matchNum >= 80 ? COLORS.primarySoft
     : matchNum >= 65 ? '#EEF8E0'
-    : isDark ? colors.border : '#F2F4F0';
+    : '#F2F4F0';
   const fg = matchNum >= 80 ? COLORS.primary
     : matchNum >= 65 ? '#3F7600'
-    : colors.textSecondary;
-  const label = matchNum >= 80 ? 'Excelente' : matchNum >= 65 ? 'Buen match' : 'Match parcial';
+    : '#666';
   return (
-    <View style={[styles.matchBadgeBox, { backgroundColor: bg }]}>
-      <Text style={[styles.matchBadgePct, { color: fg }]}>{matchNum}%</Text>
-      <Text style={[styles.matchBadgeLabel, { color: fg }]}>{label}</Text>
+    <View style={[styles.matchPill, { backgroundColor: bg }]}>
+      <Ionicons name="flash" size={11} color={fg} />
+      <Text style={[styles.matchPillText, { color: fg }]}>{matchNum}%</Text>
     </View>
   );
 }
@@ -122,7 +121,7 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isD
       scaleValue={0.98}
       haptic={false}
     >
-      {/* Card header: avatar + info + match badge */}
+      {/* Card header: avatar + info */}
       <View style={styles.cardTop}>
         <View style={[styles.avatarCircle, { backgroundColor: avatarBg }]}>
           {item.foto_selfie ? (
@@ -133,9 +132,12 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isD
         </View>
 
         <View style={styles.cardInfo}>
-          <Text style={[styles.nombre, { color: colors.textPrimary }]} numberOfLines={2}>
-            {item.nombre_completo}
-          </Text>
+          <View style={styles.nameRow}>
+            <Text style={[styles.nombre, { color: colors.textPrimary, flex: 1 }]} numberOfLines={1}>
+              {item.nombre_completo}
+            </Text>
+            <StarRating value={item.calificacion_promedio || 0} />
+          </View>
           {ubicacion ? (
             <View style={styles.row}>
               <Ionicons name="location-outline" size={12} color={colors.textMuted} />
@@ -147,9 +149,8 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isD
               ) : null}
             </View>
           ) : null}
+          <MatchPill matchNum={matchNum} />
         </View>
-
-        <MatchBadge matchNum={matchNum} isDark={isDark} colors={colors} />
       </View>
 
       {/* Divider */}
@@ -199,8 +200,8 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isD
           scaleValue={0.96}
           haptic
         >
-          <Ionicons name={loadingContacto ? 'hourglass-outline' : 'chatbubble-ellipses-outline'} size={14} color={colors.textSecondary} />
-          <Text style={[styles.btnContactarText, { color: colors.textPrimary }]}>{loadingContacto ? 'Enviando...' : 'Contactar'}</Text>
+          <Ionicons name={loadingContacto ? 'hourglass-outline' : 'chatbubble-ellipses-outline'} size={14} color={COLORS.white} />
+          <Text style={styles.btnContactarText}>{loadingContacto ? 'Enviando...' : 'Contactar'}</Text>
         </AnimatedPressable>
         <AnimatedPressable style={styles.btnPerfil} onPress={() => onPress(item)} scaleValue={0.96} haptic>
           <Text style={styles.btnPerfilText}>Ver perfil</Text>
@@ -321,19 +322,6 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
 
   const ListHeader = (
     <View>
-      {/* App header bar */}
-      <View style={[styles.appBar, { backgroundColor: colors.surface }]}>
-        <View style={styles.appBarLogo}>
-          <View style={styles.appBarLogoIcon}>
-            <Text style={styles.appBarLogoLetter}>T</Text>
-          </View>
-          <Text style={[styles.appBarLogoText, { color: colors.textPrimary }]}>TerraEmpleo</Text>
-        </View>
-        <TouchableOpacity style={[styles.appBarIconBtn, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}>
-          <Ionicons name="headset-outline" size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
       {/* Title row */}
       <View style={styles.titleRow}>
         <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Trabajadores</Text>
@@ -509,34 +497,6 @@ const styles = StyleSheet.create({
   },
   loadingText: { fontSize: 15 },
 
-  /* App bar */
-  appBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.xs,
-  },
-  appBarLogo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  appBarLogoIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  appBarLogoLetter: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
-  appBarLogoText: { fontSize: 16, fontWeight: '700' },
-  appBarIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
   /* Title */
   titleRow: {
     paddingHorizontal: SPACING.md,
@@ -651,17 +611,20 @@ const styles = StyleSheet.create({
   avatar: { width: 52, height: 52, borderRadius: 26 },
   avatarInitials: { fontSize: 18, fontWeight: '700', color: COLORS.white },
 
-  matchBadgeBox: {
-    alignItems: 'flex-end',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: RADIUS.md,
-    flexShrink: 0,
+  matchPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+    marginTop: 4,
   },
-  matchBadgePct: { fontSize: 16, fontWeight: '800', letterSpacing: -0.4 },
-  matchBadgeLabel: { fontSize: 9.5, fontWeight: '700', letterSpacing: 0.2 },
+  matchPillText: { fontSize: 12, fontWeight: '700' },
 
   cardInfo: { flex: 1, gap: 2 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   nombre: { fontSize: 15, fontWeight: '700', lineHeight: 20, letterSpacing: -0.2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
   ubicacion: { fontSize: 12 },
@@ -706,22 +669,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#F2F4F0',
+    backgroundColor: COLORS.primary,
     paddingVertical: 10,
     borderRadius: RADIUS.full,
   },
-  btnContactarText: { fontSize: 13.5, fontWeight: '700' },
+  btnContactarText: { fontSize: 13.5, fontWeight: '700', color: COLORS.white },
   btnPerfil: {
     flex: 1.4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    backgroundColor: COLORS.primary,
+    backgroundColor: 'transparent',
     paddingVertical: 10,
     borderRadius: RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
   },
-  btnPerfilText: { fontSize: 13.5, fontWeight: '700', color: COLORS.white },
+  btnPerfilText: { fontSize: 13.5, fontWeight: '700', color: COLORS.primary },
 
   empty: {
     alignItems: 'center',
