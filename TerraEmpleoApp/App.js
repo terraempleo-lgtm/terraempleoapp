@@ -213,7 +213,7 @@ function TrabajadorTabs() {
       <Tab.Screen name="ParaTi" component={VacantesRecomendadasStack}
         options={{ tabBarLabel: 'Para ti' }} />
       <Tab.Screen name="Postulaciones" component={MisPostulacionesTab}
-        options={{ tabBarLabel: 'Mis Postulaciones', headerShown: true, ...headerOptions, title: 'Mis Postulaciones' }} />
+        options={{ tabBarLabel: 'Mis Postulaciones' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
         options={{ tabBarLabel: 'Mensajes' }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
@@ -368,7 +368,7 @@ function EmpleadorVacantesStack() {
     <S>
       <Stack.Navigator screenOptions={stackScreenOptions}>
         <Stack.Screen name="EmpleadorHome" component={EmpleadorVacantesScreen}
-          options={{ title: 'Mis Vacantes' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="CrearVacante" component={CrearVacanteScreen}
           options={{ title: 'Nueva Vacante' }} />
         <Stack.Screen name="EditarVacante" component={EditarVacanteScreen}

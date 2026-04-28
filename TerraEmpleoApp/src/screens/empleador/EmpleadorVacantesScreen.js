@@ -333,6 +333,30 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
   const ListHeader = (
     <View>
+      {/* App bar */}
+      <View style={[styles.appBar, { backgroundColor: colors.surface }]}>
+        <View style={styles.appBarLeft}>
+          <View style={styles.appBarLogoIcon}>
+            <Text style={styles.appBarLogoLetter}>T</Text>
+          </View>
+          <Text style={[styles.appBarLogoText, { color: colors.textPrimary }]}>TerraEmpleo</Text>
+        </View>
+        <View style={styles.appBarRight}>
+          <AnimatedPressable
+            style={[styles.appBarIconBtn, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}
+            onPress={() => navigation.navigate('Notificaciones')}
+            scaleValue={0.9}
+            haptic
+          >
+            <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
+            {noLeidas > 0 && <PulsingBadge count={noLeidas} />}
+          </AnimatedPressable>
+          <TouchableOpacity style={[styles.appBarIconBtn, { backgroundColor: isDark ? colors.border : '#F3F4F6' }]}>
+            <Ionicons name="headset-outline" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Greeting */}
       <FadeInView delay={0}>
         <View style={[styles.greetingSection, { backgroundColor: colors.surface }]}>
@@ -359,17 +383,6 @@ export default function EmpleadorVacantesScreen({ navigation }) {
               <Text style={[styles.greetingLabel, { color: colors.textSecondary }]}>Hola,</Text>
               <Text style={[styles.greetingName, { color: colors.textPrimary }]}>{firstName}</Text>
             </View>
-          </View>
-          <View style={styles.headerActions}>
-            <AnimatedPressable
-              style={styles.notifBtn}
-              onPress={() => navigation.navigate('Notificaciones')}
-              scaleValue={0.9}
-              haptic
-            >
-              <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
-              {noLeidas > 0 && <PulsingBadge count={noLeidas} />}
-            </AnimatedPressable>
           </View>
         </View>
       </FadeInView>
@@ -435,48 +448,51 @@ export default function EmpleadorVacantesScreen({ navigation }) {
             </AnimatedPressable>
           </View>
 
-          <View style={styles.headerBottomRow}>
-            <AnimatedPressable
-              style={styles.postulantesBtn}
-              onPress={() => navigation.navigate('MisPostulantes')}
-              scaleValue={0.95}
-              haptic
-            >
-              <Ionicons name="people-outline" size={18} color={COLORS.primary} />
-              <Text style={styles.postulantesBtnText}>Postulantes</Text>
-              <View style={styles.postulantesCountBadge}>
-                <Text style={styles.postulantesCountText}>{postulantesCount}</Text>
-              </View>
-            </AnimatedPressable>
-          </View>
         </View>
       </FadeInView>
 
-      {/* Tabs — animated */}
+      {/* Filter chips */}
       <FadeInView delay={150}>
-        <View style={[styles.tabs, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={styles.chipsRow}>
+          {/* Postulantes chip → navega a pantalla */}
+          <AnimatedPressable
+            style={[styles.filterChip, { backgroundColor: isDark ? colors.surface : COLORS.white, borderColor: isDark ? colors.border : '#E5E7EB' }]}
+            onPress={() => navigation.navigate('MisPostulantes')}
+            scaleValue={0.95}
+            haptic
+            hapticStyle="light"
+          >
+            <View style={[styles.filterDot, { backgroundColor: COLORS.primary }]} />
+            <Text style={[styles.filterChipText, { color: colors.textSecondary }]}>Postulantes</Text>
+            <Text style={[styles.filterChipCount, { color: colors.textMuted }]}>{postulantesCount}</Text>
+          </AnimatedPressable>
+
           {[
-            { key: 'activa', label: 'Activas', count: activas.length },
-            { key: 'inactiva', label: 'Inactivas', count: inactivas.length },
-          ].map(tab => {
+            { key: 'activa', label: 'Activas', count: activas.length, dot: COLORS.primary },
+            { key: 'inactiva', label: 'Inactivas', count: inactivas.length, dot: COLORS.textLight },
+          ].map((tab) => {
             const isActive = tabActiva === tab.key;
             return (
               <AnimatedPressable
                 key={tab.key}
-                style={[styles.tab, { backgroundColor: isDark ? colors.surface : '#F3F4F6' }, isActive && styles.tabActive]}
+                style={[
+                  styles.filterChip,
+                  isActive
+                    ? { backgroundColor: '#1A1A1A', borderColor: '#1A1A1A' }
+                    : { backgroundColor: isDark ? colors.surface : COLORS.white, borderColor: isDark ? colors.border : '#E5E7EB' },
+                ]}
                 onPress={() => setTabActiva(tab.key)}
-                scaleValue={0.93}
+                scaleValue={0.95}
                 haptic
                 hapticStyle="light"
               >
-                <Text style={[styles.tabText, { color: colors.textSecondary }, isActive && styles.tabTextActive]}>
+                <View style={[styles.filterDot, { backgroundColor: isActive ? tab.dot : tab.dot }]} />
+                <Text style={[styles.filterChipText, { color: isActive ? COLORS.white : colors.textSecondary }]}>
                   {tab.label}
                 </Text>
-                <View style={[styles.tabCount, { backgroundColor: colors.border }, isActive && styles.tabCountActive]}>
-                  <Text style={[styles.tabCountText, { color: colors.textSecondary }, isActive && styles.tabCountTextActive]}>
-                    {tab.count}
-                  </Text>
-                </View>
+                <Text style={[styles.filterChipCount, { color: isActive ? 'rgba(255,255,255,0.65)' : colors.textMuted }]}>
+                  {tab.count}
+                </Text>
               </AnimatedPressable>
             );
           })}
@@ -519,7 +535,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.surface : '#F8FAF9' }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.surface : '#F8FAF9' }]} edges={['top', 'bottom']}>
       <FlatList
         data={lista}
         keyExtractor={(item) => item.id?.toString()}
@@ -715,6 +731,52 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAF9' },
 
+  /* App bar */
+  appBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xs,
+  },
+  appBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  appBarLogoIcon: {
+    width: 32, height: 32, borderRadius: 8,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  appBarLogoLetter: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
+  appBarLogoText: { fontSize: 16, fontWeight: '700' },
+  appBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  appBarIconBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    justifyContent: 'center', alignItems: 'center',
+    position: 'relative',
+  },
+
+  /* Filter chips */
+  chipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    flexWrap: 'wrap',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    ...SHADOWS.light,
+  },
+  filterDot: { width: 8, height: 8, borderRadius: 4 },
+  filterChipText: { fontSize: 13, fontWeight: '700' },
+  filterChipCount: { fontSize: 12, fontWeight: '600' },
+
   /* Explorar ofertas button */
   explorarBtn: {
     marginHorizontal: SPACING.lg,
@@ -751,7 +813,7 @@ const styles = StyleSheet.create({
   /* Greeting */
   greetingSection: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, paddingBottom: SPACING.sm,
+    paddingHorizontal: SPACING.lg, paddingTop: SPACING.xs, paddingBottom: SPACING.sm,
     backgroundColor: COLORS.white,
   },
   greetingLeft: {
@@ -794,8 +856,6 @@ const styles = StyleSheet.create({
   greetingName: {
     fontSize: 22, fontWeight: '800', color: COLORS.textPrimary, lineHeight: 28,
   },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  notifBtn: { position: 'relative', padding: 6 },
   notifBadge: {
     position: 'absolute', top: 2, right: 2,
     minWidth: 18, height: 18, borderRadius: 9,
