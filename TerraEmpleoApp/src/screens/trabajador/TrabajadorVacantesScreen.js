@@ -384,12 +384,14 @@ export default function TrabajadorVacantesScreen({ navigation }) {
       >
         <View style={[s.header, { backgroundColor: colors.surface }]}>
           <View style={s.headerLeft}>
-            <View style={s.avatarWrap}>
-              {user?.foto_selfie ? (
-                <Image source={{ uri: user.foto_selfie }} style={s.avatarImg} />
-              ) : (
-                <Ionicons name="person" size={20} color={COLORS.primary} />
-              )}
+            <View style={s.avatarContainer}>
+              <View style={s.avatarWrap}>
+                {user?.foto_selfie ? (
+                  <Image source={{ uri: user.foto_selfie }} style={s.avatarImg} />
+                ) : (
+                  <Ionicons name="person" size={20} color={COLORS.primary} />
+                )}
+              </View>
               {identidadAprobada ? (
                 <View style={s.verificadoBadge}>
                   <Ionicons name="checkmark" size={11} color={COLORS.white} />
@@ -771,6 +773,11 @@ const s = StyleSheet.create({
     paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: SPACING.md,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  avatarContainer: {
+    position: 'relative',
+    width: 52,
+    height: 52,
+  },
   avatarWrap: {
     width: 48, height: 48, borderRadius: 24,
     backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center',
