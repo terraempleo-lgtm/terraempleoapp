@@ -152,24 +152,28 @@ export default function ChatDetalleScreen({ route, navigation }) {
     navigation.setOptions({
       headerTitle: () => (
         <AnimatedPressable onPress={irAlPerfilRelacionado} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }}>
-            <Ionicons name="person" size={20} color={COLORS.white} />
-          </View>
+          {chat.otro_foto ? (
+            <Image source={{ uri: chat.otro_foto }} style={{ width: 38, height: 38, borderRadius: 19 }} />
+          ) : (
+            <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center' }}>
+              <Ionicons name="person" size={20} color={COLORS.primary} />
+            </View>
+          )}
           <View>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.white }}>{chat.otro_nombre}</Text>
-            {chat.vacante_titulo && <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }} numberOfLines={1}>{chat.vacante_titulo}</Text>}
+            <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.textPrimary }}>{chat.otro_nombre}</Text>
+            {chat.vacante_titulo && <Text style={{ fontSize: 12, color: COLORS.textSecondary }} numberOfLines={1}>{chat.vacante_titulo}</Text>}
           </View>
         </AnimatedPressable>
       ),
       headerTitleAlign: 'left',
       headerLeft: () => (
         <AnimatedPressable onPress={() => navigation.goBack()} style={{ marginLeft: 16 }} scaleValue={0.9} haptic>
-          <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </AnimatedPressable>
       ),
       headerRight: () => (
         <AnimatedPressable onPress={llamar} style={{ marginRight: 16 }} scaleValue={0.9} haptic>
-          <Ionicons name="call" size={22} color={COLORS.white} />
+          <Ionicons name="call" size={22} color={COLORS.textPrimary} />
         </AnimatedPressable>
       ),
     });
