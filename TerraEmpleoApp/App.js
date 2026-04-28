@@ -240,9 +240,9 @@ function TrabajadorVacantesStack() {
     <S>
       <Stack.Navigator screenOptions={stackScreenOptions}>
         <Stack.Screen name="VacantesHome" component={TrabajadorVacantesScreen}
-          options={{ title: 'Vacantes Disponibles' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
-          options={{ title: 'Detalle de Vacante' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="Notificaciones" component={NotificacionesScreen}
           options={{ headerShown: false }} />
       </Stack.Navigator>
