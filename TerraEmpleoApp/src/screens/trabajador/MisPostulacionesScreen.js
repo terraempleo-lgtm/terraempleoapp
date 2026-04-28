@@ -289,6 +289,9 @@ export default function MisPostulacionesScreen({ navigation }) {
           scaleValue={0.98}
           haptic={false}
         >
+          {/* Left status accent bar */}
+          <View style={[styles.statusBar, { backgroundColor: estado.color }]} />
+
           <View style={styles.cardMain}>
             <View style={[styles.imageWrap, { backgroundColor: isDark ? colors.surface : '#EAF2ED' }]}>
               {foto ? (
@@ -548,12 +551,21 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     overflow: 'hidden',
-    ...SHADOWS.small,
+    position: 'relative',
+    ...SHADOWS.card,
+  },
+  statusBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
   },
   cardMain: {
     flexDirection: 'row',
     gap: SPACING.sm,
     paddingHorizontal: 12,
+    paddingLeft: 18,
     paddingTop: 11,
     paddingBottom: 9,
   },

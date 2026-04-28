@@ -514,21 +514,18 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           scaleValue={0.97}
           haptic
         >
-          <LinearGradient
-            colors={['#FF8F00', '#F57C00']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.explorarGradient}
-          >
+          <View style={styles.explorarGradient}>
             <View style={styles.explorarLeft}>
-              <Ionicons name="search" size={22} color="#FFF" />
+              <View style={styles.explorarIconCircle}>
+                <Ionicons name="search" size={18} color="#1A1A1A" />
+              </View>
               <View>
                 <Text style={styles.explorarTitle}>Explorar ofertas</Text>
                 <Text style={styles.explorarSub}>Inspírate en otras vacantes del sector</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
-          </LinearGradient>
+            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
+          </View>
         </AnimatedPressable>
       </FadeInView>
     </View>
@@ -783,8 +780,11 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: SPACING.xs,
     borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-    ...SHADOWS.medium,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 22,
+    elevation: 4,
   },
   explorarGradient: {
     flexDirection: 'row',
@@ -792,6 +792,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
+    backgroundColor: '#0E1410',
+    borderRadius: RADIUS.lg,
   },
   explorarLeft: {
     flexDirection: 'row',
@@ -799,15 +801,24 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     flex: 1,
   },
+  explorarIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.md,
+    backgroundColor: '#c1ff72',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   explorarTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: '#FFF',
+    letterSpacing: -0.2,
   },
   explorarSub: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 2,
+    color: 'rgba(255,255,255,0.65)',
+    marginTop: 1,
   },
 
   /* Greeting */

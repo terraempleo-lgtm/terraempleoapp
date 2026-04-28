@@ -169,11 +169,18 @@ export const SHADOWS = {
     shadowRadius: 16,
     elevation: 8,
   },
+  light: {
+    shadowColor: '#0F1E14',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
   card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowColor: '#0F1E14',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.09,
+    shadowRadius: 24,
     elevation: 3,
   },
   button: {

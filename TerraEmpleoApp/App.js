@@ -244,7 +244,7 @@ function TrabajadorVacantesStack() {
         <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
           options={{ title: 'Detalle de Vacante' }} />
         <Stack.Screen name="Notificaciones" component={NotificacionesScreen}
-          options={{ title: 'Notificaciones' }} />
+          options={{ headerShown: false }} />
       </Stack.Navigator>
     </S>
   );
@@ -382,7 +382,7 @@ function EmpleadorVacantesStack() {
         <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
           options={{ title: 'Perfil del Trabajador' }} />
         <Stack.Screen name="Notificaciones" component={NotificacionesScreen}
-          options={{ title: 'Notificaciones' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="ExplorarVacantes" component={ExplorarVacantesScreen}
           options={{ title: 'Explorar ofertas' }} />
         <Stack.Screen name="DetalleVacanteReferencia" component={DetalleVacanteReferenciaScreen}

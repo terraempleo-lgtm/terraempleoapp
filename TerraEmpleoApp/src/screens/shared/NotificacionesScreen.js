@@ -1,27 +1,28 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, ActivityIndicator,
+  RefreshControl, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { SPACING, RADIUS } from '../../theme';
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { notificacionesAPI, vacantesAPI, chatsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
+import { AnimatedPressable } from '../../components/animated';
 
 const TIPO_CONFIG = {
-  match: { icon: 'flash', color: '#F57C00', bg: '#FFF3E0' },
-  nuevo_match: { icon: 'flash', color: '#F57C00', bg: '#FFF3E0' },
-  oferta_recomendada: { icon: 'briefcase', color: '#008d49', bg: '#e6f7ee' },
-  nueva_vacante: { icon: 'briefcase', color: '#008d49', bg: '#e6f7ee' },
-  postulacion: { icon: 'person-add', color: '#3B82F6', bg: '#EFF6FF' },
-  aceptado: { icon: 'checkmark-circle', color: '#008d49', bg: '#e6f7ee' },
-  postulacion_aceptada: { icon: 'checkmark-circle', color: '#008d49', bg: '#e6f7ee' },
-  chat_habilitado: { icon: 'chatbubbles', color: '#3B82F6', bg: '#EFF6FF' },
-  nuevo_mensaje: { icon: 'chatbubble-ellipses', color: '#3B82F6', bg: '#EFF6FF' },
-  rechazado: { icon: 'close-circle', color: '#DC2626', bg: '#FEF2F2' },
-  calificacion: { icon: 'star', color: '#7B1FA2', bg: '#F3E5F5' },
+  match:              { icon: 'flash',              color: '#F57C00', bg: '#FFF3E0' },
+  nuevo_match:        { icon: 'flash',              color: '#F57C00', bg: '#FFF3E0' },
+  oferta_recomendada: { icon: 'briefcase',          color: COLORS.primary, bg: '#E8F5EC' },
+  nueva_vacante:      { icon: 'briefcase',          color: COLORS.primary, bg: '#E8F5EC' },
+  postulacion:        { icon: 'person-add',         color: '#3B82F6', bg: '#EFF6FF' },
+  aceptado:           { icon: 'checkmark-circle',   color: COLORS.primary, bg: '#E8F5EC' },
+  postulacion_aceptada: { icon: 'checkmark-circle', color: COLORS.primary, bg: '#E8F5EC' },
+  chat_habilitado:    { icon: 'chatbubbles',        color: '#3B82F6', bg: '#EFF6FF' },
+  nuevo_mensaje:      { icon: 'chatbubble-ellipses',color: '#3B82F6', bg: '#EFF6FF' },
+  rechazado:          { icon: 'close-circle',       color: '#DC2626', bg: '#FEF2F2' },
+  calificacion:       { icon: 'star',               color: '#7B1FA2', bg: '#F3E5F5' },
 };
 
 function tiempoRelativo(dateStr) {
@@ -34,44 +35,35 @@ function tiempoRelativo(dateStr) {
   return new Date(dateStr).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
 }
 
+function getGroup(dateStr) {
+  if (!dateStr) return 'Más antiguas';
+  const now = new Date();
+  const d = new Date(dateStr);
+  const diffDays = Math.floor((now - d) / 86400000);
+  if (diffDays === 0) return 'Hoy';
+  if (diffDays === 1) return 'Ayer';
+  if (diffDays < 7) return 'Esta semana';
+  return 'Más antiguas';
+}
+
+const GROUP_ORDER = ['Hoy', 'Ayer', 'Esta semana', 'Más antiguas'];
+
 function normalizarNotificacion(raw) {
   const tipoRaw = String(raw?.type || raw?.tipo || '').toLowerCase();
   const payloadRaw = raw?.data || raw?.payload || {};
 
   let type = 'UNKNOWN';
   switch (tipoRaw) {
-    case 'postulacion_aceptada':
-    case 'aceptado':
-      type = 'POSTULACION_ACEPTADA';
-      break;
-    case 'chat_habilitado':
-      type = 'CHAT_HABILITADO';
-      break;
-    case 'nuevo_mensaje':
-      type = 'NUEVO_MENSAJE';
-      break;
-    case 'nuevo_match':
-    case 'match':
-      type = 'NUEVO_MATCH';
-      break;
-    case 'oferta_recomendada':
-    case 'nueva_vacante':
-      type = 'VACANTE_RECOMENDADA';
-      break;
-    case 'postulacion':
-      type = 'POSTULACION_ENVIADA';
-      break;
-    case 'vacante_editada':
-      type = 'VACANTE_EDITADA';
-      break;
-    case 'vacante_cerrada':
-      type = 'VACANTE_CERRADA';
-      break;
-    case 'vacante_activada':
-      type = 'VACANTE_ACTIVADA';
-      break;
-    default:
-      break;
+    case 'postulacion_aceptada': case 'aceptado': type = 'POSTULACION_ACEPTADA'; break;
+    case 'chat_habilitado': type = 'CHAT_HABILITADO'; break;
+    case 'nuevo_mensaje': type = 'NUEVO_MENSAJE'; break;
+    case 'nuevo_match': case 'match': type = 'NUEVO_MATCH'; break;
+    case 'oferta_recomendada': case 'nueva_vacante': type = 'VACANTE_RECOMENDADA'; break;
+    case 'postulacion': type = 'POSTULACION_ENVIADA'; break;
+    case 'vacante_editada': type = 'VACANTE_EDITADA'; break;
+    case 'vacante_cerrada': type = 'VACANTE_CERRADA'; break;
+    case 'vacante_activada': type = 'VACANTE_ACTIVADA'; break;
+    default: break;
   }
 
   if (type === 'UNKNOWN') {
@@ -103,6 +95,7 @@ export default function NotificacionesScreen({ navigation }) {
   const [notificaciones, setNotificaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [filtro, setFiltro] = useState('todas');
 
   const cargar = useCallback(async () => {
     try {
@@ -122,68 +115,37 @@ export default function NotificacionesScreen({ navigation }) {
     if (item.leida) return;
     try {
       await notificacionesAPI.marcarLeida(item.id);
-      setNotificaciones(prev =>
-        prev.map(n => n.id === item.id ? { ...n, leida: true } : n)
-      );
-    } catch (err) {
-      console.error('Error marcando notificación:', err);
-    }
+      setNotificaciones(prev => prev.map(n => n.id === item.id ? { ...n, leida: true } : n));
+    } catch (_) {}
   };
 
   const marcarTodasLeidas = async () => {
     try {
       await notificacionesAPI.marcarTodasLeidas();
       setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })));
-    } catch (err) {
-      console.error('Error marcando todas:', err);
-    }
+    } catch (_) {}
   };
 
-  const hayNoLeidas = notificaciones.some(n => !n.leida);
   const countNoLeidas = notificaciones.filter(n => !n.leida).length;
 
   const abrirDetalleVacante = async (vacanteId) => {
-    if (!vacanteId) return;
+    if (!vacanteId) return null;
     try {
       const res = await vacantesAPI.detalle(vacanteId);
       const vacante = res.data?.vacante || { id: vacanteId };
       if (user?.rol === 'empleador') {
         navigation.navigate('DetalleVacanteEmpleador', { vacante });
-        return;
+      } else {
+        navigation.navigate('DetalleVacante', { vacante });
       }
-      navigation.navigate('DetalleVacante', { vacante });
       return vacante;
-    } catch (err) {
-      console.error('Error abriendo detalle de vacante:', err);
-      return null;
-    }
+    } catch (_) { return null; }
   };
 
   const abrirOfertaRecomendada = async (notification) => {
     if (notification?.data?.vacancyId) {
       await abrirDetalleVacante(notification.data.vacancyId);
       return;
-    }
-    try {
-      const matchTitulo = notification?.mensaje?.match(/"([^"]+)"/);
-      const titulo = matchTitulo?.[1]?.trim();
-      if (!titulo) {
-        navigation.navigate('Vacantes');
-        return;
-      }
-      const res = await vacantesAPI.listar();
-      const vacantes = res.data?.vacantes || [];
-      const vacanteEncontrada = vacantes.find((v) =>
-        String(v.titulo || '').toLowerCase() === titulo.toLowerCase()
-      ) || vacantes.find((v) =>
-        String(v.titulo || '').toLowerCase().includes(titulo.toLowerCase())
-      );
-      if (vacanteEncontrada?.id) {
-        await abrirDetalleVacante(vacanteEncontrada.id);
-        return;
-      }
-    } catch (err) {
-      console.error('Error resolviendo oferta recomendada:', err);
     }
     navigation.navigate('Vacantes');
   };
@@ -204,25 +166,14 @@ export default function NotificacionesScreen({ navigation }) {
   const getOrCreateChatId = async ({ chatId, vacancyId, employerId, workerId }) => {
     if (chatId) return Number(chatId);
     try {
-      const resolvedChatId = await chatsAPI.getOrCreateChatId({
-        vacancyId,
-        employerId,
-        workerId,
-      });
+      const resolvedChatId = await chatsAPI.getOrCreateChatId({ vacancyId, employerId, workerId });
       return resolvedChatId ? Number(resolvedChatId) : null;
-    } catch (err) {
-      console.warn('[Notificaciones] No se pudo resolver chatId:', err?.message || err);
-      return null;
-    }
+    } catch (_) { return null; }
   };
 
   const abrirChat = async ({ chatId, vacancyId, employerId, workerId }) => {
     const resolvedChatId = await getOrCreateChatId({ chatId, vacancyId, employerId, workerId });
-    if (!resolvedChatId) {
-      console.warn('[Notificaciones] Falta chatId para navegar al chat');
-      navigation.navigate('Mensajes');
-      return;
-    }
+    if (!resolvedChatId) { navigation.navigate('Mensajes'); return; }
     navigation.navigate('Mensajes', {
       screen: 'ChatsHome',
       params: { abrirChatId: Number(resolvedChatId) },
@@ -232,20 +183,10 @@ export default function NotificacionesScreen({ navigation }) {
   const handleNotificacionClick = async (item) => {
     await marcarLeida(item);
     const notification = normalizarNotificacion(item);
-    console.log('[Notificaciones] click', notification.type, notification.data);
-
     switch (notification.type) {
-      case 'POSTULACION_ACEPTADA': {
-        await abrirChat({
-          chatId: notification.data.chatId,
-          vacancyId: notification.data.vacancyId,
-          employerId: notification.data.employerId,
-          workerId: notification.data.workerId,
-        });
-        break;
-      }
+      case 'POSTULACION_ACEPTADA':
       case 'CHAT_HABILITADO':
-      case 'NUEVO_MENSAJE': {
+      case 'NUEVO_MENSAJE':
         await abrirChat({
           chatId: notification.data.chatId,
           vacancyId: notification.data.vacancyId,
@@ -253,165 +194,258 @@ export default function NotificacionesScreen({ navigation }) {
           workerId: notification.data.workerId,
         });
         break;
-      }
       case 'NUEVO_MATCH':
-      case 'VACANTE_RECOMENDADA': {
-        await abrirOfertaRecomendada({
-          ...item,
-          data: notification.data,
-        });
+      case 'VACANTE_RECOMENDADA':
+        await abrirOfertaRecomendada({ ...item, data: notification.data });
         break;
-      }
-      case 'POSTULACION_ENVIADA': {
+      case 'POSTULACION_ENVIADA':
         await abrirPostulaciones(notification.data.vacancyId);
         break;
-      }
-      case 'VACANTE_EDITADA': {
-        if (notification.data.vacancyId && user?.rol === 'empleador') {
-          const vacante = await abrirDetalleVacante(notification.data.vacancyId);
-          if (vacante) navigation.navigate('EditarVacante', { vacante });
-          break;
-        }
-        await abrirDetalleVacante(notification.data.vacancyId);
-        break;
-      }
-      case 'VACANTE_CERRADA':
-      case 'VACANTE_ACTIVADA': {
-        await abrirDetalleVacante(notification.data.vacancyId);
-        break;
-      }
       default:
-        if (notification.data.vacancyId) {
-          await abrirDetalleVacante(notification.data.vacancyId);
-          break;
-        }
-        if (notification.data.chatId) {
-          await abrirChat({ chatId: notification.data.chatId });
-          break;
-        }
-        console.warn('[Notificaciones] Tipo desconocido o data insuficiente:', notification.type, notification.data);
+        if (notification.data.vacancyId) { await abrirDetalleVacante(notification.data.vacancyId); }
+        else if (notification.data.chatId) { await abrirChat({ chatId: notification.data.chatId }); }
         break;
     }
   };
 
-  const renderItem = ({ item }) => {
+  // Filtrar
+  const filtradas = useMemo(() => {
+    if (filtro === 'sin_leer') return notificaciones.filter(n => !n.leida);
+    if (filtro === 'postulaciones') return notificaciones.filter(n => {
+      const t = (n.tipo || '').toLowerCase();
+      return t.includes('postulacion') || t.includes('aceptado');
+    });
+    if (filtro === 'mensajes') return notificaciones.filter(n => {
+      const t = (n.tipo || '').toLowerCase();
+      return t.includes('chat') || t.includes('mensaje');
+    });
+    return notificaciones;
+  }, [notificaciones, filtro]);
+
+  // Agrupar por tiempo
+  const grouped = useMemo(() => {
+    const map = {};
+    filtradas.forEach(n => {
+      const g = getGroup(n.created_at);
+      if (!map[g]) map[g] = [];
+      map[g].push(n);
+    });
+    return map;
+  }, [filtradas]);
+
+  // Construir lista plana con separadores de grupo
+  const listData = useMemo(() => {
+    const result = [];
+    GROUP_ORDER.forEach(g => {
+      if (grouped[g]?.length) {
+        result.push({ type: 'header', group: g, count: grouped[g].length, id: `header-${g}` });
+        grouped[g].forEach(n => result.push({ type: 'item', item: n, id: n.id }));
+      }
+    });
+    return result;
+  }, [grouped]);
+
+  const CHIPS = [
+    { key: 'todas', label: 'Todas', count: notificaciones.length },
+    { key: 'sin_leer', label: 'Sin leer', count: countNoLeidas },
+    { key: 'postulaciones', label: 'Postulaciones', count: notificaciones.filter(n => { const t=(n.tipo||'').toLowerCase(); return t.includes('postulacion')||t.includes('aceptado'); }).length },
+    { key: 'mensajes', label: 'Mensajes', count: notificaciones.filter(n => { const t=(n.tipo||'').toLowerCase(); return t.includes('chat')||t.includes('mensaje'); }).length },
+  ];
+
+  const renderRow = ({ item: row }) => {
+    if (row.type === 'header') {
+      return (
+        <View style={styles.groupHeader}>
+          <Text style={[styles.groupLabel, { color: colors.textMuted }]}>{row.group}</Text>
+          <View style={[styles.groupRule, { backgroundColor: colors.border }]} />
+          <Text style={[styles.groupCount, { color: colors.textMuted }]}>{row.count}</Text>
+        </View>
+      );
+    }
+
+    const item = row.item;
     const tipoKey = (item.tipo || '').toLowerCase();
     const config = TIPO_CONFIG[tipoKey] || TIPO_CONFIG.match;
     const isUnread = !item.leida;
+    const iconBg = isDark ? config.color + '28' : config.bg;
+    const notification = normalizarNotificacion(item);
 
-    // Adapt icon bg/color for dark mode
-    const iconBg = isDark
-      ? config.color + '28'
-      : config.bg;
+    const showChatAction = ['POSTULACION_ACEPTADA', 'CHAT_HABILITADO', 'NUEVO_MENSAJE'].includes(notification.type);
+    const showVacanteAction = ['NUEVO_MATCH', 'VACANTE_RECOMENDADA'].includes(notification.type);
+    const showPostAction = notification.type === 'POSTULACION_ENVIADA';
 
     return (
       <TouchableOpacity
         style={[
           styles.card,
           {
-            backgroundColor: isUnread
-              ? (isDark ? colors.surface + 'ee' : '#f6fdf9')
-              : colors.surface,
-            borderColor: isUnread ? colors.primary + '30' : colors.border,
+            backgroundColor: colors.surface,
+            borderColor: isUnread ? COLORS.primary + '25' : colors.border,
           },
         ]}
         onPress={() => handleNotificacionClick(item)}
         activeOpacity={0.82}
       >
-        {/* Unread dot indicator */}
-        {isUnread && (
-          <View style={styles.unreadDotWrap}>
-            <View style={[styles.unreadDot, { backgroundColor: '#22c55e' }]} />
-          </View>
-        )}
+        {/* Unread left bar */}
+        {isUnread && <View style={styles.unreadBar} />}
 
-        {/* Icon circle */}
-        <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
-          <Ionicons name={config.icon} size={20} color={config.color} />
+        <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
+          <Ionicons name={config.icon} size={22} color={config.color} />
         </View>
 
-        {/* Text content */}
         <View style={styles.cardBody}>
-          <Text
-            style={[
-              styles.titulo,
-              { color: isUnread ? colors.textPrimary : colors.textSecondary },
-              isUnread && styles.tituloUnread,
-            ]}
-            numberOfLines={1}
-          >
-            {item.titulo}
-          </Text>
+          <View style={styles.cardTopRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+              <Text
+                style={[styles.titulo, { color: isUnread ? colors.textPrimary : colors.textSecondary, fontWeight: isUnread ? '700' : '500' }]}
+                numberOfLines={1}
+              >
+                {item.titulo}
+              </Text>
+              {isUnread && <View style={styles.unreadDot} />}
+            </View>
+            <Text style={[styles.tiempo, { color: colors.textMuted }]}>{tiempoRelativo(item.created_at)}</Text>
+          </View>
+
           <Text style={[styles.mensaje, { color: colors.textMuted }]} numberOfLines={2}>
             {item.mensaje}
           </Text>
-        </View>
 
-        {/* Time + chevron column */}
-        <View style={styles.rightCol}>
-          <Text style={[styles.tiempo, { color: colors.textMuted }]}>
-            {tiempoRelativo(item.created_at)}
-          </Text>
-          <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginTop: 6 }} />
+          {(showChatAction || showVacanteAction || showPostAction) && (
+            <View style={styles.actionRow}>
+              {showChatAction && (
+                <TouchableOpacity
+                  style={styles.actionDark}
+                  onPress={() => handleNotificacionClick(item)}
+                >
+                  <Text style={styles.actionDarkText}>Iniciar chat</Text>
+                </TouchableOpacity>
+              )}
+              {(showVacanteAction || showPostAction) && (
+                <TouchableOpacity
+                  style={styles.actionGreen}
+                  onPress={() => handleNotificacionClick(item)}
+                >
+                  <Text style={styles.actionGreenText}>
+                    {showPostAction ? 'Ver postulación' : 'Ver vacante'}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={11} color={COLORS.white} />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );
   };
 
+  const ListHeader = (
+    <View style={[styles.header, { backgroundColor: colors.surface }]}>
+      {/* Top row */}
+      <View style={styles.headerTopRow}>
+        <TouchableOpacity
+          style={[styles.backBtn, { backgroundColor: isDark ? colors.border : '#F2F4F0' }]}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />
+        </TouchableOpacity>
+        {countNoLeidas > 0 && (
+          <TouchableOpacity onPress={marcarTodasLeidas}>
+            <Text style={[styles.markAllText, { color: COLORS.primary }]}>Marcar todas</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Title + badge */}
+      <View style={styles.titleRow}>
+        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Notificaciones</Text>
+        {countNoLeidas > 0 && (
+          <View style={styles.titleBadge}>
+            <Text style={styles.titleBadgeText}>{countNoLeidas}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Subtitle */}
+      <View style={styles.subtitleRow}>
+        <View style={styles.greenDot} />
+        <Text style={[styles.subtitleStrong, { color: colors.textPrimary }]}>{countNoLeidas} sin leer</Text>
+        <Text style={[styles.subtitleDim, { color: colors.textMuted }]}> · {notificaciones.length} en total</Text>
+      </View>
+
+      {/* Filter chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsRow}
+        style={{ marginTop: 12 }}
+      >
+        {CHIPS.map((chip, index) => {
+          const active = filtro === chip.key;
+          return (
+            <AnimatedPressable
+              key={chip.key}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor: active ? '#1A1A1A' : (isDark ? colors.surface : COLORS.white),
+                  borderColor: active ? '#1A1A1A' : (isDark ? colors.border : '#E8EAE6'),
+                  marginLeft: index === 0 ? 0 : 0,
+                },
+              ]}
+              onPress={() => setFiltro(chip.key)}
+              scaleValue={0.95}
+              haptic
+            >
+              <View style={[styles.filterDot, { backgroundColor: active ? COLORS.primary : (isDark ? colors.textMuted : COLORS.primary) }]} />
+              <Text style={[styles.filterText, { color: active ? COLORS.white : colors.textSecondary }]}>
+                {chip.label}
+              </Text>
+              {chip.count > 0 && (
+                <View style={[styles.countBubble, { backgroundColor: active ? 'rgba(255,255,255,0.18)' : (isDark ? colors.border : '#F2F4F0') }]}>
+                  <Text style={[styles.countBubbleText, { color: active ? COLORS.white : colors.textMuted }]}>
+                    {chip.count}
+                  </Text>
+                </View>
+              )}
+            </AnimatedPressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View style={styles.headerLeft}>
-          <View style={[styles.headerIconWrap, { backgroundColor: colors.primary + '18' }]}>
-            <Ionicons name="notifications" size={20} color={colors.primary} />
-          </View>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Notificaciones</Text>
-          {countNoLeidas > 0 && (
-            <View style={[styles.headerBadge, { backgroundColor: colors.error }]}>
-              <Text style={styles.headerBadgeText}>{countNoLeidas}</Text>
-            </View>
-          )}
-        </View>
-        {hayNoLeidas && (
-          <TouchableOpacity
-            style={[styles.markAllBtn, { backgroundColor: colors.primary + '18' }]}
-            onPress={marcarTodasLeidas}
-          >
-            <Ionicons name="checkmark-done" size={15} color={colors.primary} />
-            <Text style={[styles.markAllText, { color: colors.primary }]}>Leer todas</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.background : '#F6F7F4' }]} edges={['top', 'bottom']}>
       <FlatList
-        data={notificaciones}
-        keyExtractor={item => item.id.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={[styles.list, notificaciones.length === 0 && styles.listEmpty]}
+        data={listData}
+        keyExtractor={row => row.id}
+        renderItem={renderRow}
+        ListHeaderComponent={ListHeader}
+        contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); cargar(); }}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
           />
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <View style={[styles.emptyIconWrap, { backgroundColor: colors.primary + '18' }]}>
-              <Ionicons name="notifications-off-outline" size={44} color={colors.primary} />
+            <View style={[styles.emptyIconWrap, { backgroundColor: COLORS.primarySoft }]}>
+              <Ionicons name="notifications-off-outline" size={44} color={COLORS.primary} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin notificaciones</Text>
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
@@ -430,92 +464,115 @@ const styles = StyleSheet.create({
 
   /* Header */
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  headerIconWrap: {
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  backBtn: {
     width: 38, height: 38, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  headerTitle: { fontSize: 20, fontWeight: '800' },
-  headerBadge: {
-    minWidth: 22, height: 22, borderRadius: 11,
-    justifyContent: 'center', alignItems: 'center',
-    paddingHorizontal: 6,
-  },
-  headerBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  markAllBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
   },
   markAllText: { fontSize: 13, fontWeight: '600' },
 
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  screenTitle: { fontSize: 30, fontWeight: '800', letterSpacing: -0.8 },
+  titleBadge: {
+    minWidth: 28, height: 26, paddingHorizontal: 9,
+    borderRadius: RADIUS.full, backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  titleBadgeText: { fontSize: 12.5, fontWeight: '700', color: COLORS.white },
+
+  subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  greenDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.primary },
+  subtitleStrong: { fontSize: 13.5, fontWeight: '600' },
+  subtitleDim: { fontSize: 13.5 },
+
+  chipsRow: { gap: 8, paddingVertical: 4, flexDirection: 'row' },
+  filterChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    height: 38, paddingHorizontal: 14,
+    borderRadius: RADIUS.full, borderWidth: 1,
+  },
+  filterDot: { width: 7, height: 7, borderRadius: 999 },
+  filterText: { fontSize: 13.5, fontWeight: '600' },
+  countBubble: {
+    height: 20, paddingHorizontal: 7,
+    borderRadius: 999, alignItems: 'center', justifyContent: 'center',
+  },
+  countBubbleText: { fontSize: 11.5, fontWeight: '700' },
+
+  /* Group header */
+  groupHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: SPACING.lg, paddingVertical: 6,
+    marginTop: 8,
+  },
+  groupLabel: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+  groupRule: { flex: 1, height: 1 },
+  groupCount: { fontSize: 11, fontWeight: '600' },
+
   /* List */
-  list: { padding: SPACING.md, paddingBottom: SPACING.xl * 2, gap: SPACING.sm },
-  listEmpty: { flex: 1 },
+  list: { paddingBottom: 100 },
 
   /* Card */
   card: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
+    alignItems: 'flex-start',
+    gap: 12,
+    marginHorizontal: SPACING.lg,
+    marginBottom: 10,
+    borderRadius: 18,
     borderWidth: 1,
+    padding: 14,
+    paddingLeft: 16,
+    position: 'relative',
     overflow: 'hidden',
+    ...SHADOWS.card,
   },
-
-  /* Unread dot */
-  unreadDotWrap: {
-    position: 'absolute',
-    left: 10,
-    top: '50%',
-    marginTop: -4,
+  unreadBar: {
+    position: 'absolute', left: 0, top: 14, bottom: 14,
+    width: 3, borderRadius: 999,
+    backgroundColor: COLORS.primary,
   },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-
-  /* Icon circle */
-  iconCircle: {
-    width: 44, height: 44, borderRadius: 22,
-    justifyContent: 'center', alignItems: 'center',
+  iconBox: {
+    width: 44, height: 44, borderRadius: RADIUS.lg,
+    alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
-    marginLeft: 6,
   },
-
-  /* Body */
   cardBody: { flex: 1 },
-  titulo: {
-    fontSize: 15,
-    fontWeight: '500',
-    marginBottom: 3,
+  cardTopRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', gap: 10,
   },
-  tituloUnread: { fontWeight: '700' },
-  mensaje: {
-    fontSize: 13,
-    fontWeight: '500',
-    lineHeight: 18,
-  },
+  titulo: { fontSize: 15, lineHeight: 20, flex: 1 },
+  unreadDot: { width: 7, height: 7, borderRadius: 999, backgroundColor: COLORS.primary },
+  tiempo: { fontSize: 11.5, fontWeight: '500' },
+  mensaje: { fontSize: 13.5, lineHeight: 19, marginTop: 4 },
 
-  /* Right column */
-  rightCol: {
-    alignItems: 'flex-end',
-    flexShrink: 0,
+  actionRow: { flexDirection: 'row', marginTop: 10, gap: 8 },
+  actionDark: {
+    height: 30, paddingHorizontal: 12, borderRadius: 999,
+    backgroundColor: '#0E1410', alignItems: 'center', justifyContent: 'center',
   },
-  tiempo: { fontSize: 11, fontWeight: '500' },
+  actionDarkText: { fontSize: 12.5, fontWeight: '600', color: COLORS.white },
+  actionGreen: {
+    height: 30, paddingHorizontal: 12, borderRadius: 999,
+    backgroundColor: COLORS.primary, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: 5,
+  },
+  actionGreenText: { fontSize: 12.5, fontWeight: '600', color: COLORS.white },
 
   /* Empty */
   empty: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: SPACING.xl * 3,
+    paddingTop: SPACING.xxl,
     paddingHorizontal: SPACING.xl,
   },
   emptyIconWrap: {
@@ -524,8 +581,5 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: SPACING.xs, textAlign: 'center' },
-  emptyText: {
-    fontSize: 14,
-    textAlign: 'center', lineHeight: 20,
-  },
+  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
 });
