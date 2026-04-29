@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-  ActivityIndicator, Linking, Pressable,
+  ActivityIndicator, Linking, Pressable, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -113,7 +113,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const solicitarContacto = async () => {
     if (enviandoSolicitud) return;
     if (!vacante_id) {
-      showAlert('Sin vacante activa', 'Necesitas tener una vacante activa para contactar a un trabajador. Crea una vacante primero.');
+      Alert.alert('Sin vacante activa', 'Necesitas publicar una vacante antes de poder contactar trabajadores.');
       return;
     }
     try {
