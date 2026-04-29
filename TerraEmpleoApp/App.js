@@ -16,6 +16,7 @@ import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS, FONTS } from './src/theme';
 import { AnimatedTabBar } from './src/components/animated';
 import { Toast, AppAlert, OfflineBanner } from './src/components/ui';
+import SplashAnimado from './src/components/ui/SplashAnimado';
 import { useNetworkStatus } from './src/hooks/useNetworkStatus';
 import { setGlobalToastRef } from './src/utils/toastService';
 import { setGlobalAlertRef } from './src/utils/alertService';
@@ -576,17 +577,7 @@ function RootNavigator() {
   }, [user]);
 
   if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <MotiView
-          from={{ scale: 0.8, opacity: 0.4 }}
-          animate={{ scale: 1.1, opacity: 1 }}
-          transition={{ loop: true, type: 'timing', duration: 800 }}
-        >
-          <Ionicons name="leaf" size={48} color={colors.primary} />
-        </MotiView>
-      </View>
-    );
+    return <SplashAnimado />;
   }
 
   return (
