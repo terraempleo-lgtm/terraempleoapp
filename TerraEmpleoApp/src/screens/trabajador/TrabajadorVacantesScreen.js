@@ -565,7 +565,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <SafeAreaView style={[s.root, { backgroundColor: colors.background }]} edges={['bottom']}>
+      <SafeAreaView style={[s.root, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <DecorativeBackground intensity="strong" />
       <FlatList
         data={filtered}

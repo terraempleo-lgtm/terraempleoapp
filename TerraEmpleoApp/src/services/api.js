@@ -144,7 +144,7 @@ export const chatsAPI = {
     form.append('archivo', { uri, name: `chat_${Date.now()}.${ext}`, type: mimeType });
     form.append('tipo', tipo);
     if (duracionAudio !== null) form.append('duracion_audio', String(duracionAudio));
-    return api.post(`/chats/${chatId}/mensajes/media`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return api.post(`/chats/${chatId}/mensajes/media`, form);
   },
   marcarLeidos: (chatId) => api.put(`/chats/${chatId}/mensajes/leer`),
   contarNoLeidos: () => api.get('/chats/no-leidos'),

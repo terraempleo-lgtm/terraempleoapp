@@ -193,7 +193,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
         contentContainerStyle={{ paddingBottom: hasFooter ? 110 : 32 }}
       >
         {/* Top bar */}
-              <View style={[s.topBar, { paddingTop: SPACING.sm, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+              <View style={[s.topBar, { paddingTop: insets.top + SPACING.sm, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
           <AnimatedPressable style={[s.iconBtn, { backgroundColor: colors.surface }]} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
           </AnimatedPressable>

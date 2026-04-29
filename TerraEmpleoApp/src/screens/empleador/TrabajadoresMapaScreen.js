@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TextInput, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ActivityIndicator, TextInput, Platform, TouchableOpacity } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -142,6 +142,7 @@ function normalizeCoordinates(item) {
 
 export default function TrabajadoresMapaScreen({ navigation, route }) {
   const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [region, setRegion] = useState(DEFAULT_REGION);
   const [trabajadores, setTrabajadores] = useState([]);
@@ -236,150 +237,116 @@ export default function TrabajadoresMapaScreen({ navigation, route }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.centerWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Cargando mapa de trabajadores...</Text>
-        </View>
-      </SafeAreaView>
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} style={{ flex: 1 }} />
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Mapa de trabajadores</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {filtrados.length} trabajador{filtrados.length !== 1 ? 'es' : ''} visible{filtrados.length !== 1 ? 's' : ''}
-        </Text>
-      </View>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {/* Fullscreen map */}
+      <MapView
+        style={StyleSheet.absoluteFillObject}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
+        initialRegion={region}
+        onRegionChangeComplete={setRegion}
+        showsUserLocation
+        showsMyLocationButton={false}
+        showsCompass={false}
+        toolbarEnabled={false}
+      >
+        {filtrados.map((t) => (
+          <Marker
+            key={String(t.id)}
+            coordinate={{ latitude: t.latitude, longitude: t.longitude }}
+            pinColor={Number(t.id) === Number(seleccionado?.id) ? COLORS.warning : COLORS.primary}
+            onPress={() => setSelectedId(Number(t.id))}
+          />
+        ))}
+      </MapView>
 
-      <View style={[styles.searchWrap, { backgroundColor: isDark ? colors.surface : '#F9FAFB', borderColor: colors.border }]}> 
-        <Ionicons name="search" size={17} color={colors.textMuted} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.textPrimary }]}
-          placeholder="Buscar por nombre, zona o habilidad"
-          placeholderTextColor={colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
+      {/* Top overlay — search bar */}
+      <SafeAreaView style={styles.topOverlay} edges={['top']}>
+        <View style={styles.searchWrap}>
+          <Ionicons name="search" size={17} color="#9E9E9E" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar por nombre, zona o habilidad"
+            placeholderTextColor="#9E9E9E"
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close-circle" size={17} color="#9E9E9E" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </SafeAreaView>
 
-      <View style={[styles.mapWrap, { borderColor: colors.border }]}> 
-        <MapView
-          style={styles.map}
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
-          initialRegion={region}
-          onRegionChangeComplete={setRegion}
-          showsUserLocation
-          showsMyLocationButton={false}
-        >
-          {filtrados.map((t) => (
-            <Marker
-              key={String(t.id)}
-              coordinate={{ latitude: t.latitude, longitude: t.longitude }}
-              pinColor={Number(t.id) === Number(seleccionado?.id) ? COLORS.warning : COLORS.primary}
-              onPress={() => setSelectedId(Number(t.id))}
-            />
-          ))}
-        </MapView>
-      </View>
-
-      {seleccionado ? (
-        <View style={[styles.footerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.workerName, { color: colors.textPrimary }]} numberOfLines={1}>{seleccionado.nombre_completo}</Text>
-            <Text style={[styles.workerMeta, { color: colors.textSecondary }]} numberOfLines={1}>
-              {[seleccionado.municipio, seleccionado.departamento].filter(Boolean).join(', ') || 'Ubicación sin detalle'}
-            </Text>
-            <View style={styles.ratingRow}>
-              <Ionicons name="star" size={14} color={COLORS.star} />
-              <Text style={[styles.workerMeta, { color: colors.textSecondary }]}> 
-                {seleccionado.calificacion_promedio > 0 ? seleccionado.calificacion_promedio.toFixed(1) : 'Sin calificación'}
+      {/* Bottom card */}
+      <View style={[styles.bottomCard, { paddingBottom: insets.bottom + SPACING.md }]}>
+        {seleccionado ? (
+          <View style={styles.workerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.workerName} numberOfLines={1}>{seleccionado.nombre_completo}</Text>
+              <Text style={styles.workerMeta} numberOfLines={1}>
+                {[seleccionado.municipio, seleccionado.departamento].filter(Boolean).join(', ') || 'Sin ubicación'}
               </Text>
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={13} color={COLORS.warning} />
+                <Text style={styles.workerMeta}>
+                  {seleccionado.calificacion_promedio > 0 ? seleccionado.calificacion_promedio.toFixed(1) : 'Sin calificación'}
+                </Text>
+              </View>
             </View>
+            <AnimatedPressable style={styles.btnPerfil} onPress={() => irPerfil(seleccionado)} scaleValue={0.96} haptic>
+              <Ionicons name="person-outline" size={14} color={COLORS.white} />
+              <Text style={styles.btnPerfilText}>Ver perfil</Text>
+            </AnimatedPressable>
           </View>
-
-          <AnimatedPressable
-            style={styles.btnPerfil}
-            onPress={() => irPerfil(seleccionado)}
-            scaleValue={0.96}
-            haptic
-          >
-            <Ionicons name="person-outline" size={14} color={COLORS.white} />
-            <Text style={styles.btnPerfilText}>Ver perfil</Text>
-          </AnimatedPressable>
-        </View>
-      ) : (
-        <View style={[styles.emptyWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-          <Ionicons name="map-outline" size={22} color={colors.textMuted} />
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No hay trabajadores para mostrar con ese filtro.</Text>
-        </View>
-      )}
-    </SafeAreaView>
+        ) : (
+          <View style={styles.emptyRow}>
+            <Ionicons name="map-outline" size={20} color="#9E9E9E" />
+            <Text style={styles.emptyText}>No hay trabajadores con ese filtro.</Text>
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.sm },
-  loadingText: { fontSize: 14 },
-  header: { paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: 8 },
-  title: { fontSize: 20, fontWeight: '800' },
-  subtitle: { fontSize: 12, marginTop: 2 },
+  root: { flex: 1 },
+  topOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, zIndex: 10,
+  },
   searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: SPACING.md,
-    borderWidth: 1,
-    borderRadius: RADIUS.lg,
-    paddingHorizontal: SPACING.sm,
-    marginBottom: SPACING.sm,
-    gap: 6,
-    height: 42,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#FFFFFF', borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md, height: 50,
+    borderWidth: 1, borderColor: '#E0E0E0',
+    ...SHADOWS.medium,
   },
-  searchInput: { flex: 1, fontSize: 14 },
-  mapWrap: {
-    flex: 1,
-    marginHorizontal: SPACING.md,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
+  searchInput: { flex: 1, fontSize: 14, color: '#212121', paddingVertical: 0 },
+  bottomCard: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingHorizontal: SPACING.lg, paddingTop: SPACING.md,
+    ...SHADOWS.large,
   },
-  map: { flex: 1 },
-  footerCard: {
-    margin: SPACING.md,
-    marginTop: SPACING.sm,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    padding: SPACING.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    ...SHADOWS.card,
-  },
-  workerName: { fontSize: 16, fontWeight: '700' },
-  workerMeta: { fontSize: 13 },
+  workerRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  workerName: { fontSize: 16, fontWeight: '700', color: '#212121' },
+  workerMeta: { fontSize: 13, color: '#757575', marginTop: 2 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   btnPerfil: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: COLORS.primary, paddingHorizontal: 14, paddingVertical: 10,
     borderRadius: RADIUS.full,
   },
   btnPerfilText: { color: COLORS.white, fontWeight: '700', fontSize: 13 },
-  emptyWrap: {
-    margin: SPACING.md,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    padding: SPACING.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  emptyText: { fontSize: 13 },
+  emptyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: SPACING.sm },
+  emptyText: { fontSize: 13, color: '#757575' },
 });

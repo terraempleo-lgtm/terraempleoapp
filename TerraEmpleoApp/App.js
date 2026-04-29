@@ -186,8 +186,20 @@ function PerfilStack() {
   );
 }
 
-// Wrappers para screens lazy usadas directamente en Tab.Screen (sin stack propio)
-const MisPostulacionesTab = (props) => <S><MisPostulacionesScreen {...props} /></S>;
+function MisPostulacionesStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="MisPostulacionesHome" component={MisPostulacionesScreen}
+          options={{ headerShown: false }} />
+        <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
+          options={{ headerShown: false }} />
+        <Stack.Screen name="PerfilPublicoEmpleador" component={PerfilPublicoEmpleadorScreen}
+          options={{ title: 'Perfil de la Finca' }} />
+      </Stack.Navigator>
+    </S>
+  );
+}
 
 function AdminVerificacionStack() {
   return (
@@ -212,7 +224,7 @@ function TrabajadorTabs() {
         options={{ tabBarLabel: 'Mapa' }} />
       <Tab.Screen name="ParaTi" component={VacantesRecomendadasStack}
         options={{ tabBarLabel: 'Para ti' }} />
-      <Tab.Screen name="Postulaciones" component={MisPostulacionesTab}
+      <Tab.Screen name="Postulaciones" component={MisPostulacionesStack}
         options={{ tabBarLabel: 'Mis Postulaciones' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
         options={{ tabBarLabel: 'Mensajes' }} />
@@ -255,7 +267,7 @@ function VacantesMapaStack() {
     <S>
       <Stack.Navigator screenOptions={stackScreenOptions}>
         <Stack.Screen name="VacantesMapaHome" component={VacantesMapaScreen}
-          options={{ title: 'Mapa de Vacantes' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
           options={{ title: 'Detalle de Vacante' }} />
       </Stack.Navigator>
@@ -332,7 +344,7 @@ function BuscarTrabajadoresStack() {
         <Stack.Screen
           name="TrabajadoresMapa"
           component={TrabajadoresMapaScreen}
-          options={{ title: 'Mapa de trabajadores' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="PerfilPublicoTrabajador"

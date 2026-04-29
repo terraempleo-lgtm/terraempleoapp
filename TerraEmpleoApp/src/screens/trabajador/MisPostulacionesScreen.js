@@ -137,7 +137,7 @@ export default function MisPostulacionesScreen({ navigation }) {
       if (!vacanteId) return;
       const res = await vacantesAPI.detalle(vacanteId);
       const vacante = res.data?.vacante || { id: vacanteId };
-      navigation.navigate('Vacantes', { screen: 'DetalleVacante', params: { vacante } });
+      navigation.navigate('DetalleVacante', { vacante });
     } catch (err) {
       console.error('Error abriendo detalle de vacante:', err);
     }
@@ -433,7 +433,7 @@ export default function MisPostulacionesScreen({ navigation }) {
             <FadeInView delay={400}>
               <AnimatedPressable
                 style={styles.emptyBtn}
-                onPress={() => navigation.navigate('Vacantes')}
+                onPress={() => navigation.getParent()?.navigate('Vacantes')}
                 scaleValue={0.96}
                 haptic
               >
