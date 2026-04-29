@@ -206,7 +206,7 @@ function TabFincas({ colors, isDark }) {
               : <View style={styles.placeholder}><Ionicons name="image-outline" size={28} color={COLORS.textLight} /><Text style={styles.placeholderText}>Sin foto de finca</Text></View>}
 
             {/* Documento de verificación */}
-            <Text style={[styles.docLabel, { color: colors.textSecondary, marginTop: 12 }]}>Registro empresarial (RUT / RNT / Factura):</Text>
+            <Text style={[styles.docLabel, { color: colors.textSecondary, marginTop: 12 }]}>Registro empresarial (RUT / RNT / Servicios públicos):</Text>
             {item.doc_verificacion_url
               ? <Image source={{ uri: item.doc_verificacion_url }} style={styles.docImg} resizeMode="contain" />
               : <View style={styles.placeholder}><Ionicons name="document-outline" size={28} color={COLORS.textLight} /><Text style={styles.placeholderText}>Sin documento</Text></View>}

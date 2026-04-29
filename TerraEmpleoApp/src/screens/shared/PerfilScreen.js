@@ -127,7 +127,7 @@ export default function PerfilScreen({ navigation }) {
         }
       );
     } else {
-      Alert.alert('Documento de verificación', 'Sube una foto del RUT, RNT o factura de servicio de tu finca.\n\n🔒 Esta información es confidencial y solo la usamos para verificar que todos en TerraEmpleo sean personas y empresas reales, garantizando la seguridad de nuestra comunidad.', [
+      Alert.alert('Documento de verificación', 'Sube una foto del RUT, RNT o factura de servicios públicos de tu finca.\n\n🔒 Esta información es confidencial y solo la usamos para verificar que todos en TerraEmpleo sean personas y empresas reales, garantizando la seguridad de nuestra comunidad.', [
         { text: 'Tomar foto', onPress: _capturarDocEmpresa },
         { text: 'Elegir de galería', onPress: _galeriaDocEmpresa },
         { text: 'Cancelar', style: 'cancel' },
@@ -359,7 +359,7 @@ export default function PerfilScreen({ navigation }) {
                     ? 'Tu documento está siendo revisado por el equipo de TerraEmpleo.'
                     : perfil?.verificacion_empresa_estado === 'rechazada'
                     ? `Motivo: ${perfil.verificacion_empresa_comentario || 'Documento no válido'}. Toca para reenviar.`
-                    : 'Por la seguridad de los trabajadores que visitan tu finca, sube tu RUT, RNT o factura de servicio. Esta información es confidencial y solo la usamos para verificar tu empresa. Toca para subir.'}
+                    : 'Por la seguridad de los trabajadores que visitan tu finca, sube tu RUT, RNT o factura de servicios públicos. Esta información es confidencial y solo la usamos para verificar tu empresa. Toca para subir.'}
                 </Text>
               </View>
               {perfil?.verificacion_empresa_estado !== 'pendiente' && (
@@ -525,7 +525,7 @@ export default function PerfilScreen({ navigation }) {
                           <Text style={[s.verText, { color: colors.textPrimary }]}>Registro Empresarial</Text>
                           {!veAprobada && (
                             <Text style={{ fontSize: 11, color: veColor, marginTop: 1 }}>
-                              {vePendiente ? 'En revisión...' : veRechazada ? `Rechazado: ${perfil.verificacion_empresa_comentario || 'Ver detalles'}` : 'Toca para subir RUT, RNT o factura'}
+                              {vePendiente ? 'En revisión...' : veRechazada ? `Rechazado: ${perfil.verificacion_empresa_comentario || 'Ver detalles'}` : 'Toca para subir RUT, RNT o factura de servicios públicos'}
                             </Text>
                           )}
                         </View>
