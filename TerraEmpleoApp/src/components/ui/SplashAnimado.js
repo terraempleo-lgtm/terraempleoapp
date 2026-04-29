@@ -16,16 +16,16 @@ function Particula({ delay, x, size, color }) {
 
   useEffect(() => {
     opacity.value = withDelay(delay, withSequence(
-      withTiming(0.7, { duration: 600 }),
+      withTiming(0.7, { duration: 300 }),
       withRepeat(withSequence(
-        withTiming(0.9, { duration: 1200 }),
-        withTiming(0.3, { duration: 1200 }),
+        withTiming(0.9, { duration: 600 }),
+        withTiming(0.3, { duration: 600 }),
       ), -1, true),
     ));
     translateY.value = withDelay(delay, withRepeat(
       withSequence(
-        withTiming(-30, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(-30, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
       ), -1, true,
     ));
   }, []);
@@ -61,16 +61,16 @@ export default function SplashAnimado() {
   const glowScale = useSharedValue(1);
 
   useEffect(() => {
-    stemH.value = withDelay(200, withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }));
-    leaf1Scale.value = withDelay(600, withSpring(1, { damping: 8, stiffness: 120 }));
-    leaf2Scale.value = withDelay(800, withSpring(1, { damping: 8, stiffness: 120 }));
-    leaf3Scale.value = withDelay(1000, withSpring(1, { damping: 8, stiffness: 120 }));
-    flowerScale.value = withDelay(1200, withSpring(1, { damping: 6, stiffness: 100 }));
-    flowerRotate.value = withDelay(1200, withTiming(360, { duration: 900, easing: Easing.out(Easing.back(1.5)) }));
-    titleOpacity.value = withDelay(1500, withTiming(1, { duration: 600 }));
-    titleY.value = withDelay(1500, withSpring(0, { damping: 12 }));
-    subOpacity.value = withDelay(1900, withTiming(1, { duration: 600 }));
-    glowScale.value = withDelay(1400, withRepeat(
+    stemH.value = withDelay(100, withTiming(1, { duration: 350, easing: Easing.out(Easing.cubic) }));
+    leaf1Scale.value = withDelay(300, withSpring(1, { damping: 8, stiffness: 180 }));
+    leaf2Scale.value = withDelay(400, withSpring(1, { damping: 8, stiffness: 180 }));
+    leaf3Scale.value = withDelay(500, withSpring(1, { damping: 8, stiffness: 180 }));
+    flowerScale.value = withDelay(550, withSpring(1, { damping: 6, stiffness: 150 }));
+    flowerRotate.value = withDelay(550, withTiming(360, { duration: 450, easing: Easing.out(Easing.back(1.5)) }));
+    titleOpacity.value = withDelay(700, withTiming(1, { duration: 300 }));
+    titleY.value = withDelay(700, withSpring(0, { damping: 12 }));
+    subOpacity.value = withDelay(900, withTiming(1, { duration: 300 }));
+    glowScale.value = withDelay(700, withRepeat(
       withSequence(
         withTiming(1.15, { duration: 800, easing: Easing.inOut(Easing.ease) }),
         withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),

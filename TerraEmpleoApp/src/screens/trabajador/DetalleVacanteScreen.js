@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert, Modal,
   Image, Dimensions, FlatList, ActivityIndicator,
-  Platform, TextInput,
+  Platform, TextInput, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -457,7 +457,9 @@ export default function DetalleVacanteScreen({ route, navigation }) {
       </View>
 
       {/* Modal: Confirmar postulación */}
-      <Modal visible={showPostModal} animationType="slide" transparent>
+      <Modal visible={showPostModal} animationType="slide" transparent onRequestClose={() => { Keyboard.dismiss(); setShowPostModal(false); }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.modalOverlay}>
           <MotiView
             from={{ translateY: 100, opacity: 0 }}
@@ -569,6 +571,8 @@ export default function DetalleVacanteScreen({ route, navigation }) {
             )}
           </MotiView>
         </View>
+        </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
