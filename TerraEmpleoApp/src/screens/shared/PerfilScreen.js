@@ -375,7 +375,7 @@ export default function PerfilScreen({ navigation }) {
                 >
                   <View style={s.heroLeaf}><Ionicons name="leaf" size={44} color={COLORS.primaryLight} /></View>
                 </MotiView>
-                <Text style={s.heroPlaceholderText}>Agrega fotos en tus vacantes para mostrar tu finca aqui.</Text>
+                <Text style={s.heroPlaceholderText}>Sube una foto de tu finca desde Editar Perfil para mostrarla aquí.</Text>
               </View>
             )}
             <View style={[s.heroBar, { top: insets.top + 8 }]}>

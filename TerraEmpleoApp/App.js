@@ -378,9 +378,9 @@ function EmpleadorVacantesStack() {
         <Stack.Screen name="EmpleadorHome" component={EmpleadorVacantesScreen}
           options={{ headerShown: false }} />
         <Stack.Screen name="CrearVacante" component={CrearVacanteScreen}
-          options={{ title: 'Nueva Vacante' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="EditarVacante" component={EditarVacanteScreen}
-          options={{ title: 'Editar Vacante' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="DetalleVacanteEmpleador" component={DetalleVacanteEmpleadorScreen}
           options={{ title: 'Detalle de Vacante' }} />
         <Stack.Screen name="VerPostulaciones" component={VerPostulacionesScreen}
