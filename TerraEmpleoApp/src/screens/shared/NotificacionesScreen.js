@@ -388,8 +388,8 @@ export default function NotificacionesScreen({ navigation }) {
               style={[
                 styles.filterChip,
                 {
-                  backgroundColor: active ? '#1A1A1A' : (isDark ? colors.surface : COLORS.white),
-                  borderColor: active ? '#1A1A1A' : (isDark ? colors.border : '#E8EAE6'),
+                  backgroundColor: active ? '#c1ff72' : (isDark ? colors.surface : COLORS.white),
+                  borderColor: active ? '#c1ff72' : (isDark ? colors.border : '#E8EAE6'),
                   marginLeft: index === 0 ? 0 : 0,
                 },
               ]}
@@ -397,13 +397,13 @@ export default function NotificacionesScreen({ navigation }) {
               scaleValue={0.95}
               haptic
             >
-              <View style={[styles.filterDot, { backgroundColor: active ? COLORS.primary : (isDark ? colors.textMuted : COLORS.primary) }]} />
-              <Text style={[styles.filterText, { color: active ? COLORS.white : colors.textSecondary }]}>
+              <View style={[styles.filterDot, { backgroundColor: active ? '#0E1410' : (isDark ? colors.textMuted : COLORS.primary) }]} />
+              <Text style={[styles.filterText, { color: active ? '#0E1410' : colors.textSecondary }]}>
                 {chip.label}
               </Text>
               {chip.count > 0 && (
                 <View style={[styles.countBubble, { backgroundColor: active ? 'rgba(255,255,255,0.18)' : (isDark ? colors.border : '#F2F4F0') }]}>
-                  <Text style={[styles.countBubbleText, { color: active ? COLORS.white : colors.textMuted }]}>
+                  <Text style={[styles.countBubbleText, { color: active ? '#0E1410' : colors.textMuted }]}>
                     {chip.count}
                   </Text>
                 </View>
