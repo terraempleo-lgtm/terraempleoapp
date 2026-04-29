@@ -22,6 +22,8 @@ router.delete('/vacantes/:id', adminController.eliminarVacante);
 router.get('/vacantes/:vacante_id/postulaciones', adminController.verPostulacionesAdmin);
 router.get('/empleadores', adminController.listarEmpleadores);
 router.delete('/empleadores/:id', adminController.eliminarEmpleador);
+router.get('/verificaciones-empresa/pendientes', adminController.listarEmpresasPendientes);
+router.put('/empleadores/:id/verificacion-empresa', adminController.revisarVerificacionEmpresa);
 router.get('/postulaciones', adminController.listarTodasPostulaciones);
 
 module.exports = router;

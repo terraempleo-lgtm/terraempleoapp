@@ -297,6 +297,13 @@ async function initializeDatabase() {
   // Compatibilidad hacia atrás con implementaciones previas
   try { await query('ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS chat_id INT NULL'); } catch (_) {}
 
+  // Migración: verificación de empresa/finca para empleadores
+  try { await query("ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS doc_verificacion_url VARCHAR(500) DEFAULT NULL"); } catch (_) {}
+  try { await query("ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS verificacion_empresa_estado ENUM('sin_enviar','pendiente','aprobada','rechazada') NOT NULL DEFAULT 'sin_enviar'"); } catch (_) {}
+  try { await query("ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS verificacion_empresa_revisado_por INT NULL"); } catch (_) {}
+  try { await query("ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS verificacion_empresa_revisado_at TIMESTAMP NULL"); } catch (_) {}
+  try { await query("ALTER TABLE perfil_empleador ADD COLUMN IF NOT EXISTS verificacion_empresa_comentario VARCHAR(400) NULL"); } catch (_) {}
+
   // Tabla password_resets para recuperación de contraseña
   await query(`
     CREATE TABLE IF NOT EXISTS password_resets (

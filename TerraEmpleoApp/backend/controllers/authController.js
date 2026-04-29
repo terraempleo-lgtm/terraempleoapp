@@ -523,6 +523,7 @@ async function subirFotos(req, res) {
     };
     const columnasEmpleador = {
       finca_fachada: 'foto_finca_fachada',
+      doc_empresa: 'doc_verificacion_url',
     };
 
     const filePath = req.file.location; // S3 URL
@@ -544,9 +545,18 @@ async function subirFotos(req, res) {
         await query(`UPDATE usuarios SET ${columnasUsuario[tipo]} = ? WHERE id = ?`, [filePath, userId]);
       }
     } else if (columnasEmpleador[tipo]) {
-      await query(`UPDATE perfil_empleador SET ${columnasEmpleador[tipo]} = ? WHERE usuario_id = ?`, [filePath, userId]);
+      if (tipo === 'doc_empresa') {
+        await query(
+          `UPDATE perfil_empleador SET doc_verificacion_url = ?, verificacion_empresa_estado = 'pendiente',
+           verificacion_empresa_revisado_por = NULL, verificacion_empresa_revisado_at = NULL, verificacion_empresa_comentario = NULL
+           WHERE usuario_id = ?`,
+          [filePath, userId]
+        );
+      } else {
+        await query(`UPDATE perfil_empleador SET ${columnasEmpleador[tipo]} = ? WHERE usuario_id = ?`, [filePath, userId]);
+      }
     } else {
-      return res.status(400).json({ error: 'Tipo de foto inválido. Use: selfie, cedula, selfie_cedula, finca_fachada' });
+      return res.status(400).json({ error: 'Tipo de foto inválido. Use: selfie, cedula, selfie_cedula, finca_fachada, doc_empresa' });
     }
 
     const signedPath = await signUrl(filePath);

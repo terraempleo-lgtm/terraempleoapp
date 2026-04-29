@@ -115,6 +115,63 @@ export default function PerfilScreen({ navigation }) {
   const u = userData || user;
   const esTrabajador = u?.rol === 'trabajador';
   const esEmpleador = u?.rol === 'empleador';
+  const [subiendoDocEmpresa, setSubiendoDocEmpresa] = useState(false);
+
+  const subirDocumentoEmpresa = async () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancelar', 'Tomar foto', 'Elegir de galería'], cancelButtonIndex: 0 },
+        async (idx) => {
+          if (idx === 1) await _capturarDocEmpresa();
+          else if (idx === 2) await _galeriaDocEmpresa();
+        }
+      );
+    } else {
+      Alert.alert('Documento de verificación', 'Sube una foto del NIT, RUT o factura de servicio de tu finca', [
+        { text: 'Tomar foto', onPress: _capturarDocEmpresa },
+        { text: 'Elegir de galería', onPress: _galeriaDocEmpresa },
+        { text: 'Cancelar', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const _galeriaDocEmpresa = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { showAlert('Permiso requerido', 'Necesitamos acceso a tu galería.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false, quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.length > 0) await _uploadDocEmpresa(result.assets[0].uri);
+  };
+
+  const _capturarDocEmpresa = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') { showAlert('Permiso requerido', 'Necesitamos acceso a la cámara.'); return; }
+    const result = await ImagePicker.launchCameraAsync({ allowsEditing: false, quality: 0.8 });
+    if (!result.canceled && result.assets?.length > 0) await _uploadDocEmpresa(result.assets[0].uri);
+  };
+
+  const _uploadDocEmpresa = async (uri) => {
+    setSubiendoDocEmpresa(true);
+    try {
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        formData.append('foto', blob, `doc_empresa_${Date.now()}.jpg`);
+      } else {
+        formData.append('foto', { uri, type: 'image/jpeg', name: `doc_empresa_${Date.now()}.jpg` });
+      }
+      await authAPI.subirFoto('doc_empresa', formData);
+      await loadPerfil();
+      showAlert('Documento enviado', 'Tu documento fue enviado. El equipo de TerraEmpleo lo revisará pronto.');
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'No se pudo enviar el documento.');
+    } finally {
+      setSubiendoDocEmpresa(false);
+    }
+  };
   const identidadAprobada = u?.validacion_identidad_estado === 'aprobada';
 
   const diasDesdeUltimoCambio = u?.foto_selfie_cambiada_at
@@ -387,11 +444,35 @@ export default function PerfilScreen({ navigation }) {
               <View style={s.secWrap}>
                 <Text style={[s.secTitle, { color: colors.textPrimary }]}>Información Verificada</Text>
                 <View style={s.verList}>
-                  <View style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
-                    <View style={s.verIcon}><Ionicons name="document-text-outline" size={18} color={COLORS.primary} /></View>
-                    <Text style={[s.verText, { color: colors.textPrimary }]}>Registro Empresarial</Text>
-                    <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-                  </View>
+                  {(() => {
+                    const ve = perfil?.verificacion_empresa_estado || 'sin_enviar';
+                    const veAprobada = ve === 'aprobada';
+                    const vePendiente = ve === 'pendiente';
+                    const veRechazada = ve === 'rechazada';
+                    const veIcon = veAprobada ? 'checkmark-circle' : vePendiente ? 'time-outline' : veRechazada ? 'close-circle' : 'cloud-upload-outline';
+                    const veColor = veAprobada ? COLORS.primary : vePendiente ? '#F59E0B' : veRechazada ? '#EF4444' : COLORS.textLight;
+                    return (
+                      <TouchableOpacity
+                        style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}
+                        onPress={!veAprobada && !vePendiente ? subirDocumentoEmpresa : undefined}
+                        activeOpacity={!veAprobada && !vePendiente ? 0.7 : 1}
+                        disabled={subiendoDocEmpresa}
+                      >
+                        <View style={s.verIcon}><Ionicons name="document-text-outline" size={18} color={COLORS.primary} /></View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[s.verText, { color: colors.textPrimary }]}>Registro Empresarial</Text>
+                          {!veAprobada && (
+                            <Text style={{ fontSize: 11, color: veColor, marginTop: 1 }}>
+                              {vePendiente ? 'En revisión...' : veRechazada ? `Rechazado: ${perfil.verificacion_empresa_comentario || 'Ver detalles'}` : 'Toca para subir NIT, RUT o factura'}
+                            </Text>
+                          )}
+                        </View>
+                        {subiendoDocEmpresa
+                          ? <ActivityIndicator size="small" color={COLORS.primary} />
+                          : <Ionicons name={veIcon} size={20} color={veColor} />}
+                      </TouchableOpacity>
+                    );
+                  })()}
                   <View style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
                     <View style={s.verIcon}><Ionicons name="call-outline" size={18} color={COLORS.primary} /></View>
                     <Text style={[s.verText, { color: colors.textPrimary }]}>Teléfono Verificado</Text>

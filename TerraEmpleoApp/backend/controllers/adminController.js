@@ -530,9 +530,54 @@ async function eliminarEmpleador(req, res) {
   }
 }
 
+async function listarEmpresasPendientes(req, res) {
+  try {
+    const pendientes = await query(
+      `SELECT u.id AS usuario_id, u.nombre_completo, u.celular, u.created_at,
+              pe.id AS perfil_id, pe.nombre_empresa_finca, pe.doc_verificacion_url,
+              pe.verificacion_empresa_estado, pe.verificacion_empresa_revisado_at,
+              pe.verificacion_empresa_comentario
+       FROM perfil_empleador pe
+       JOIN usuarios u ON u.id = pe.usuario_id
+       WHERE u.eliminado = 0
+         AND pe.doc_verificacion_url IS NOT NULL
+         AND pe.verificacion_empresa_estado = 'pendiente'
+       ORDER BY pe.updated_at ASC`
+    );
+    await signArrayField(pendientes, 'doc_verificacion_url');
+    return res.json({ pendientes, total: pendientes.length });
+  } catch (err) {
+    console.error('Error listando empresas pendientes:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+async function revisarVerificacionEmpresa(req, res) {
+  try {
+    const { id } = req.params; // usuario_id del empleador
+    const { estado, comentario } = req.body;
+    if (!['aprobada', 'rechazada'].includes(estado)) {
+      return res.status(400).json({ error: 'Estado inválido. Use: aprobada o rechazada.' });
+    }
+    await query(
+      `UPDATE perfil_empleador
+       SET verificacion_empresa_estado = ?,
+           verificacion_empresa_revisado_por = ?,
+           verificacion_empresa_revisado_at = NOW(),
+           verificacion_empresa_comentario = ?
+       WHERE usuario_id = ?`,
+      [estado, req.user.id, comentario || null, id]
+    );
+    return res.json({ message: estado === 'aprobada' ? 'Empresa verificada' : 'Empresa rechazada', estado });
+  } catch (err) {
+    console.error('Error revisando verificación empresa:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
   dashboard, listarUsuarios, listarCedulasPendientes, getUsuarioDetalle, getDocumentosIdentidadUsuario, revisarValidacionIdentidadUsuario, actualizarUsuario, toggleUsuario, eliminarUsuario,
   listarTodasVacantes, listarTodasPostulaciones, eliminarVacante,
   crearVacanteComoAdmin, listarEmpleadores, verPostulacionesAdmin, cambiarEstadoVacante, actualizarVacante,
-  eliminarEmpleador
+  eliminarEmpleador, listarEmpresasPendientes, revisarVerificacionEmpresa,
 };

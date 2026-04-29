@@ -213,6 +213,8 @@ export const adminAPI = {
   eliminarVacante: (id) => api.delete(`/admin/vacantes/${id}`),
   eliminarEmpleador: (id) => api.delete(`/admin/empleadores/${id}`),
   listarPostulaciones: () => api.get('/admin/postulaciones'),
+  getEmpresasPendientes: () => api.get('/admin/verificaciones-empresa/pendientes'),
+  revisarVerificacionEmpresa: (id, estado, comentario) => api.put(`/admin/empleadores/${id}/verificacion-empresa`, { estado, comentario }),
 };
 
 export default api;
