@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, Suspense } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, TouchableOpacity, Linking, Alert, Text, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, CommonActions } from '@react-navigation/native';
@@ -617,10 +617,46 @@ function AppShell() {
   );
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={ebStyles.container}>
+          <Text style={ebStyles.emoji}>🌿</Text>
+          <Text style={ebStyles.title}>Algo salió mal</Text>
+          <Text style={ebStyles.sub}>La app tuvo un error inesperado.{'\n'}Ciérrala y vuelve a abrirla.</Text>
+          <TouchableOpacity style={ebStyles.btn} onPress={() => this.setState({ hasError: false })}>
+            <Text style={ebStyles.btnText}>Intentar de nuevo</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const ebStyles = StyleSheet.create({
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0FDF4', padding: 32 },
+  emoji: { fontSize: 56, marginBottom: 16 },
+  title: { fontSize: 22, fontWeight: '800', color: '#14532D', marginBottom: 8 },
+  sub: { fontSize: 15, color: '#166534', textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+  btn: { backgroundColor: '#2E7D32', borderRadius: 24, paddingHorizontal: 32, paddingVertical: 14 },
+  btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+});
+
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppShell />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AppShell />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
