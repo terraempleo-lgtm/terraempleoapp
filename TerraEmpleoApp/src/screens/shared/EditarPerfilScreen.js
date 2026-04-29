@@ -135,7 +135,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
       updateUser({ foto_selfie: res.data.path, validacion_identidad_estado: 'pendiente', foto_selfie_cambiada_at: new Date().toISOString() });
       showAlert('Foto actualizada', 'Tu foto de perfil fue cambiada exitosamente.');
     } catch (err) {
-      showAlert('Error', err.response?.data?.error || 'No se pudo actualizar la foto.');
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo actualizar la foto.');
     } finally {
       setSubiendoFoto(false);
     }
@@ -643,40 +643,61 @@ export default function EditarPerfilScreen({ navigation, route }) {
       ) : null}
 
       {/* Modal cámara / preview foto */}
-      <Modal visible={modalCamara} animationType="slide" onRequestClose={() => setModalCamara(false)}>
-        <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <Modal visible={modalCamara} animationType="slide" statusBarTranslucent onRequestClose={() => { setModalCamara(false); setPreview(null); }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+          {/* Header con botón cerrar siempre visible */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 }}>
+            <TouchableOpacity
+              onPress={() => { setModalCamara(false); setPreview(null); }}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Ionicons name="close" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>
+              {preview ? 'Vista previa' : 'Nueva foto de perfil'}
+            </Text>
+            <View style={{ width: 40 }} />
+          </View>
+
           {!preview ? (
-            <>
+            <View style={{ flex: 1 }}>
               <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" />
-              <View style={{ position: 'absolute', bottom: 40, width: '100%', alignItems: 'center', gap: 16 }}>
+              <View style={{ position: 'absolute', inset: 0, justifyContent: 'center', alignItems: 'center', pointerEvents: 'none' }}>
+                <View style={{ width: 220, height: 220, borderRadius: 110, borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)' }} />
+                <Text style={{ color: 'rgba(255,255,255,0.7)', marginTop: 12, fontSize: 13 }}>Centra tu cara</Text>
+              </View>
+              <View style={{ paddingBottom: 40, alignItems: 'center' }}>
                 <TouchableOpacity
-                  style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: 'rgba(255,255,255,0.4)' }}
                   onPress={tomarFoto}
                 >
-                  <Ionicons name="camera" size={30} color="#000" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setModalCamara(false)}>
-                  <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>Cancelar</Text>
+                  <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFF', borderWidth: 2, borderColor: '#000' }} />
                 </TouchableOpacity>
               </View>
-            </>
+            </View>
           ) : (
-            <>
+            <View style={{ flex: 1 }}>
               <Image source={{ uri: preview }} style={{ flex: 1 }} resizeMode="contain" />
-              <View style={{ position: 'absolute', bottom: 40, width: '100%', flexDirection: 'row', justifyContent: 'space-evenly' }}>
-                <TouchableOpacity onPress={() => setPreview(null)} style={{ paddingHorizontal: 28, paddingVertical: 14, backgroundColor: '#333', borderRadius: 99 }}>
-                  <Text style={{ color: '#FFF', fontWeight: '700' }}>Repetir</Text>
+              <View style={{ paddingBottom: 40, paddingHorizontal: 32, flexDirection: 'row', gap: 16 }}>
+                <TouchableOpacity
+                  onPress={() => setPreview(null)}
+                  style={{ flex: 1, paddingVertical: 16, backgroundColor: '#333', borderRadius: 99, alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Repetir</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={confirmarFoto} disabled={subiendoFoto}
-                  style={{ paddingHorizontal: 28, paddingVertical: 14, backgroundColor: COLORS.primary, borderRadius: 99 }}>
+                <TouchableOpacity
+                  onPress={confirmarFoto}
+                  disabled={subiendoFoto}
+                  style={{ flex: 1, paddingVertical: 16, backgroundColor: COLORS.primary, borderRadius: 99, alignItems: 'center', opacity: subiendoFoto ? 0.7 : 1 }}
+                >
                   {subiendoFoto
                     ? <ActivityIndicator color="#FFF" />
-                    : <Text style={{ color: '#FFF', fontWeight: '700' }}>Usar foto</Text>}
+                    : <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Guardar foto</Text>}
                 </TouchableOpacity>
               </View>
-            </>
+            </View>
           )}
-        </View>
+        </SafeAreaView>
       </Modal>
 
       <PickerModal visible={showDeptPicker} onClose={() => setShowDeptPicker(false)}

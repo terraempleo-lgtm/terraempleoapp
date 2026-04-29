@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { authAPI, vacantesAPI } from '../../services/api';
+import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -231,7 +231,7 @@ export default function PerfilScreen({ navigation }) {
       setUserData(prev => prev ? { ...prev, foto_selfie: res.data.path, validacion_identidad_estado: 'pendiente', foto_selfie_cambiada_at: new Date().toISOString() } : prev);
       showAlert('Foto actualizada', 'Tu foto fue cambiada. Tu verificación fue enviada a revisión.');
     } catch (err) {
-      showAlert('Error', err.response?.data?.error || 'No se pudo actualizar la foto.');
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo actualizar la foto.');
     } finally {
       setSubiendoFoto(false);
     }
