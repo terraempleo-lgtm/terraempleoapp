@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, RefreshControl, Image,
-  Alert, TouchableOpacity, ScrollView,
+  Alert, TouchableOpacity, Modal, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -23,7 +23,7 @@ function formatearFecha(fecha) {
 
 // ─── Tab Cédulas ──────────────────────────────────────────────────────────────
 
-function TabCedulas({ navigation, colors, isDark }) {
+function TabCedulas({ navigation, colors, isDark, onZoom }) {
   const [pendientes, setPendientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -98,7 +98,10 @@ function TabCedulas({ navigation, colors, isDark }) {
             </View>
 
             {item.foto_cedula
-              ? <Image source={{ uri: item.foto_cedula }} style={styles.docImg} resizeMode="cover" />
+              ? <TouchableOpacity onPress={() => onZoom(item.foto_cedula)} activeOpacity={0.85}>
+                  <Image source={{ uri: item.foto_cedula }} style={styles.docImg} resizeMode="cover" />
+                  <View style={styles.zoomHint}><Ionicons name="expand-outline" size={14} color="#FFF" /><Text style={styles.zoomHintTxt}>Toca para ampliar</Text></View>
+                </TouchableOpacity>
               : <View style={styles.placeholder}><Ionicons name="image-outline" size={28} color={COLORS.textLight} /><Text style={styles.placeholderText}>Sin foto</Text></View>}
 
             <View style={styles.actions}>
@@ -122,7 +125,7 @@ function TabCedulas({ navigation, colors, isDark }) {
 
 // ─── Tab Fincas ───────────────────────────────────────────────────────────────
 
-function TabFincas({ colors, isDark }) {
+function TabFincas({ colors, isDark, onZoom }) {
   const [pendientes, setPendientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -202,13 +205,19 @@ function TabFincas({ colors, isDark }) {
             {/* Foto de la finca */}
             <Text style={[styles.docLabel, { color: colors.textSecondary }]}>Foto de la finca:</Text>
             {item.foto_finca_fachada
-              ? <Image source={{ uri: item.foto_finca_fachada }} style={styles.docImg} resizeMode="cover" />
+              ? <TouchableOpacity onPress={() => onZoom(item.foto_finca_fachada)} activeOpacity={0.85}>
+                  <Image source={{ uri: item.foto_finca_fachada }} style={styles.docImg} resizeMode="cover" />
+                  <View style={styles.zoomHint}><Ionicons name="expand-outline" size={14} color="#FFF" /><Text style={styles.zoomHintTxt}>Toca para ampliar</Text></View>
+                </TouchableOpacity>
               : <View style={styles.placeholder}><Ionicons name="image-outline" size={28} color={COLORS.textLight} /><Text style={styles.placeholderText}>Sin foto de finca</Text></View>}
 
             {/* Documento de verificación */}
             <Text style={[styles.docLabel, { color: colors.textSecondary, marginTop: 12 }]}>Registro empresarial (RUT / RNT / Servicios públicos):</Text>
             {item.doc_verificacion_url
-              ? <Image source={{ uri: item.doc_verificacion_url }} style={styles.docImg} resizeMode="contain" />
+              ? <TouchableOpacity onPress={() => onZoom(item.doc_verificacion_url)} activeOpacity={0.85}>
+                  <Image source={{ uri: item.doc_verificacion_url }} style={styles.docImg} resizeMode="contain" />
+                  <View style={styles.zoomHint}><Ionicons name="expand-outline" size={14} color="#FFF" /><Text style={styles.zoomHintTxt}>Toca para ampliar</Text></View>
+                </TouchableOpacity>
               : <View style={styles.placeholder}><Ionicons name="document-outline" size={28} color={COLORS.textLight} /><Text style={styles.placeholderText}>Sin documento</Text></View>}
 
             <View style={styles.actions}>
@@ -235,9 +244,20 @@ function TabFincas({ colors, isDark }) {
 export default function AdminVerificacionCedulasScreen({ navigation }) {
   const { colors, isDark } = useAppTheme();
   const [tab, setTab] = useState('cedulas');
+  const [fotoZoom, setFotoZoom] = useState(null);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Modal zoom foto */}
+      <Modal visible={!!fotoZoom} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setFotoZoom(null)}>
+        <StatusBar hidden />
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <TouchableOpacity onPress={() => setFotoZoom(null)} style={{ position: 'absolute', top: 48, right: 20, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: 8 }}>
+            <Ionicons name="close" size={26} color="#FFF" />
+          </TouchableOpacity>
+          {fotoZoom && <Image source={{ uri: fotoZoom }} style={{ flex: 1 }} resizeMode="contain" />}
+        </View>
+      </Modal>
       {/* Tabs */}
       <View style={[styles.tabRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
@@ -259,8 +279,8 @@ export default function AdminVerificacionCedulasScreen({ navigation }) {
       </View>
 
       {tab === 'cedulas'
-        ? <TabCedulas navigation={navigation} colors={colors} isDark={isDark} />
-        : <TabFincas colors={colors} isDark={isDark} />}
+        ? <TabCedulas navigation={navigation} colors={colors} isDark={isDark} onZoom={setFotoZoom} />
+        : <TabFincas colors={colors} isDark={isDark} onZoom={setFotoZoom} />}
     </SafeAreaView>
   );
 }
@@ -322,4 +342,11 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyTitle: { fontSize: 16, fontWeight: '700' },
   emptySub: { fontSize: 13, textAlign: 'center' },
+  zoomHint: {
+    position: 'absolute', bottom: 8, right: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12,
+    paddingHorizontal: 8, paddingVertical: 4,
+  },
+  zoomHintTxt: { color: '#FFF', fontSize: 11, fontWeight: '600' },
 });

@@ -202,7 +202,7 @@ function AdminVerificacionStack() {
     <S>
       <Stack.Navigator screenOptions={stackScreenOptions}>
         <Stack.Screen name="AdminVerificacionHome" component={AdminVerificacionCedulasScreen}
-          options={{ title: 'Cédulas Pendientes' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="AdminVerificacionDetalle" component={AdminVerificacionDetalleScreen}
           options={{ title: 'Verificar identidad' }} />
       </Stack.Navigator>
