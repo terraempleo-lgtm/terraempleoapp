@@ -59,7 +59,6 @@ export const authAPI = {
   actualizarPerfil: (data) => api.put('/auth/perfil', data),
   subirFoto: (tipo, formData) => api.post(`/auth/fotos/${tipo}`, formData, {
     transformRequest: [(data) => data],
-    headers: { 'Content-Type': 'multipart/form-data' },
   }),
   cambiarFotoPerfil: (formData) => api.post('/auth/cambiar-foto-perfil', formData, {
     transformRequest: [(data) => data],

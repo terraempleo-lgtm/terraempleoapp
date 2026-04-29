@@ -360,7 +360,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
               <View style={styles.fotoInfo}>
                 <Text style={[styles.fotoLabel, { color: colors.textPrimary }]}>Cambiar foto</Text>
                 <Text style={[styles.fotoSub, { color: colors.textSecondary }]}>
-                  {puedeCambiarFoto ? 'Toca para tomar una nueva foto o elegir de galería' : `Disponible en ${diasParaCambio} día(s)`}
+                  {puedeCambiarFoto ? 'Toca para tomar una nueva foto' : `Disponible en ${diasParaCambio} día(s)`}
                 </Text>
               </View>
             </View>
