@@ -111,7 +111,11 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   };
 
   const solicitarContacto = async () => {
-    if (!vacante_id || enviandoSolicitud) return;
+    if (enviandoSolicitud) return;
+    if (!vacante_id) {
+      showAlert('Sin vacante activa', 'Necesitas tener una vacante activa para contactar a un trabajador. Crea una vacante primero.');
+      return;
+    }
     try {
       setEnviandoSolicitud(true);
       const res = await trabajadoresAPI.contactar(trabajador_id, { vacante_id });
@@ -184,7 +188,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     .join('')
     .toUpperCase();
 
-  const hasFooter = isPendiente || estadoActual === 'aceptada' || (!estadoActual && !!vacante_id) || isSolicitudContacto;
+  const hasFooter = isPendiente || estadoActual === 'aceptada' || !estadoActual || isSolicitudContacto;
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
@@ -460,7 +464,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
           </AnimatedPressable>
         </View>
       )}
-      {!estadoActual && !!vacante_id && (
+      {!estadoActual && (
         <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <AnimatedPressable
             style={[s.primaryBtn, { backgroundColor: colors.primary }]}
@@ -468,7 +472,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
             disabled={enviandoSolicitud}
           >
             <Ionicons name={enviandoSolicitud ? 'hourglass-outline' : 'chatbubble-ellipses-outline'} size={20} color="#fff" />
-            <Text style={s.primaryBtnTxt}>{enviandoSolicitud ? 'Enviando...' : 'Solicitar contacto'}</Text>
+            <Text style={s.primaryBtnTxt}>{enviandoSolicitud ? 'Enviando...' : 'Contactar'}</Text>
           </AnimatedPressable>
         </View>
       )}
