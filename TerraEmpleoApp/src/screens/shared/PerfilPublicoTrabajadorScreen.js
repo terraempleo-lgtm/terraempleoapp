@@ -202,14 +202,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
             <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
           </AnimatedPressable>
           <Text style={[s.topBarTitle, { color: colors.textPrimary }]}>Perfil del Candidato</Text>
-          <AnimatedPressable style={s.iconBtn} onPress={() => {
-            Share.share({
-              message: `Mira el perfil de ${perfil?.nombre_completo || 'este trabajador'} en TerraEmpleo 🌱\nhttps://app.terrampleo.com`,
-              title: perfil?.nombre_completo,
-            });
-          }}>
-            <Ionicons name="share-social-outline" size={20} color={colors.textPrimary} />
-          </AnimatedPressable>
+          <View style={s.iconBtn} />
         </View>
 
         {/* HERO — avatar + identidad */}
