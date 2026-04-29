@@ -135,20 +135,16 @@ const customTransition = {
   },
 };
 
-const headerOptions = {
+const stackScreenOptions = ({ theme }) => ({
   headerStyle: { elevation: 0, shadowOpacity: 0, borderBottomWidth: 0 },
-  headerTintColor: undefined,
-  headerTitleStyle: { ...FONTS.subtitle, fontWeight: FONTS.weight.bold },
+  headerTintColor: theme.colors.text,
+  headerTitleStyle: { ...FONTS.subtitle, fontWeight: FONTS.weight.bold, color: theme.colors.text },
   headerBackTitleVisible: false,
   headerBackTitle: '',
   headerTruncatedBackTitle: '',
   headerRight: () => <SoporteHeaderButton />,
-};
-
-const stackScreenOptions = {
-  ...headerOptions,
   ...customTransition,
-};
+});
 
 const tabScreenOptions = ({ route }) => ({
   tabBarIcon: ({ focused, color, size }) => {
