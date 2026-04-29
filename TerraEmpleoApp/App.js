@@ -15,7 +15,7 @@ import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS, FONTS } from './src/theme';
 import { AnimatedTabBar } from './src/components/animated';
-import { Toast, AppAlert, OfflineBanner } from './src/components/ui';
+import { Toast, AppAlert } from './src/components/ui';
 import SplashAnimado from './src/components/ui/SplashAnimado';
 import { useNetworkStatus } from './src/hooks/useNetworkStatus';
 import { setGlobalToastRef } from './src/utils/toastService';
@@ -552,7 +552,6 @@ function RootNavigator() {
   const { user, loading } = useAuth();
   const { colors } = useAppTheme();
   usePushNotifications(!!user);
-  const { isOnline } = useNetworkStatus();
   const wasLoggedIn = useRef(false);
 
   useEffect(() => {
@@ -593,7 +592,6 @@ function RootNavigator() {
           <Stack.Screen name="TrabajadorMain" component={TrabajadorTabs} />
         )}
       </Stack.Navigator>
-      <OfflineBanner isOnline={isOnline} />
     </View>
   );
 }
