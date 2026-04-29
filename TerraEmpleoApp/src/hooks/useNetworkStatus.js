@@ -8,7 +8,7 @@ export function useNetworkStatus() {
   const verificar = useCallback(async () => {
     try {
       const state = await Network.getNetworkStateAsync();
-      const online = state.isConnected && state.isInternetReachable !== false;
+      const online = state.isConnected !== false;
       setIsOnline(online);
       if (online) {
         // Intentar sincronizar cola de postulaciones pendientes
