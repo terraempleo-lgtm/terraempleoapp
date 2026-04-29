@@ -93,7 +93,6 @@ export default function WelcomeScreen({ navigation }) {
       >
         {/* Overlay oscuro */}
         <View style={styles.overlay} />
-        <View style={[styles.overlayBottom, { height: height * 0.55 }]} />
 
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
           {/* Dots indicadores arriba - con animación de ancho */}
@@ -234,14 +233,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 25, 10, 0.45)',
-  },
-  overlayBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 20, 8, 0.35)',
+    backgroundColor: 'rgba(0, 25, 10, 0.35)',
   },
   safe: {
     flex: 1,
