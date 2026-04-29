@@ -57,7 +57,13 @@
       "expo-secure-store",
       "expo-font",
       "expo-camera",
-      "expo-image-picker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "TerraEmpleo necesita acceso a tu galería para cambiar tu foto de perfil.",
+          "cameraPermission": "TerraEmpleo necesita acceso a la cámara para tomar tu foto de perfil."
+        }
+      ],
       [
         "expo-notifications",
         {

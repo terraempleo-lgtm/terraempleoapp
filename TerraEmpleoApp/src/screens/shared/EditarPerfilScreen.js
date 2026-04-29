@@ -71,8 +71,12 @@ export default function EditarPerfilScreen({ navigation, route }) {
   const [errors, setErrors] = useState({});
   const successTimerRef = useRef(null);
 
-  // Foto de perfil
+  // Foto de perfil (selfie)
   const [fotoUri, setFotoUri] = useState(initUser?.foto_selfie || null);
+
+  // Foto de finca (empleador)
+  const [fotoFincaUri, setFotoFincaUri] = useState(initPerfil?.foto_finca_fachada || null);
+  const [subiendoFotoFinca, setSubiendoFotoFinca] = useState(false);
   const [modalCamara, setModalCamara] = useState(false);
   const [preview, setPreview] = useState(null);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
@@ -168,6 +172,68 @@ export default function EditarPerfilScreen({ navigation, route }) {
       }
     };
   }, []);
+
+  const abrirFotoFinca = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancelar', 'Tomar foto', 'Elegir de galería'], cancelButtonIndex: 0 },
+        async (idx) => {
+          if (idx === 1) await _capturarFotoFinca();
+          else if (idx === 2) await _galeriaFotoFinca();
+        }
+      );
+    } else {
+      Alert.alert('Foto de la finca', '', [
+        { text: 'Tomar foto', onPress: _capturarFotoFinca },
+        { text: 'Elegir de galería', onPress: _galeriaFotoFinca },
+        { text: 'Cancelar', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const _galeriaFotoFinca = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { showAlert('Permiso requerido', 'Necesitamos acceso a tu galería.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, aspect: [16, 9], quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.length > 0) {
+      await _subirFotoFinca(result.assets[0].uri);
+    }
+  };
+
+  const _capturarFotoFinca = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') { showAlert('Permiso requerido', 'Necesitamos acceso a la cámara.'); return; }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true, aspect: [16, 9], quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.length > 0) {
+      await _subirFotoFinca(result.assets[0].uri);
+    }
+  };
+
+  const _subirFotoFinca = async (uri) => {
+    setSubiendoFotoFinca(true);
+    try {
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        formData.append('foto', blob, `finca_${Date.now()}.jpg`);
+      } else {
+        formData.append('foto', { uri, type: 'image/jpeg', name: `finca_${Date.now()}.jpg` });
+      }
+      const res = await authAPI.subirFoto('finca_fachada', formData);
+      setFotoFincaUri(res.data.path);
+      showAlert('Foto actualizada', 'La foto de tu finca fue actualizada.');
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'No se pudo subir la foto.');
+    } finally {
+      setSubiendoFotoFinca(false);
+    }
+  };
 
   const abrirSelectorPdfWeb = () => {
     if (typeof document === 'undefined') return;
@@ -488,6 +554,31 @@ export default function EditarPerfilScreen({ navigation, route }) {
           {/* Campos empleador */}
           {rol === 'empleador' && (
             <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Foto de la finca</Text>
+
+              <TouchableOpacity onPress={abrirFotoFinca} activeOpacity={0.8} style={styles.fotoFincaWrap} disabled={subiendoFotoFinca}>
+                {fotoFincaUri && fotoFincaUri.startsWith('http') ? (
+                  <Image source={{ uri: fotoFincaUri }} style={styles.fotoFincaImg} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.fotoFincaPlaceholder, { backgroundColor: colors.background }]}>
+                    <Ionicons name="image-outline" size={36} color={COLORS.primary} />
+                    <Text style={[styles.fotoFincaPlaceholderText, { color: colors.textSecondary }]}>Toca para agregar foto de tu finca</Text>
+                  </View>
+                )}
+                <View style={styles.fotoFincaOverlay}>
+                  {subiendoFotoFinca
+                    ? <ActivityIndicator color="#FFF" />
+                    : <Ionicons name="camera" size={20} color="#FFF" />}
+                </View>
+              </TouchableOpacity>
+              <Text style={[styles.fotoFincaSub, { color: colors.textSecondary }]}>
+                Esta foto aparece en tu perfil público y en el mapa de empleadores
+              </Text>
+            </View>
+          )}
+
+          {rol === 'empleador' && (
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Perfil Empleador</Text>
 
               <Input
@@ -646,6 +737,21 @@ const styles = StyleSheet.create({
   fotoInfo: { flex: 1 },
   fotoLabel: { fontSize: 14, fontWeight: '700', marginBottom: 3 },
   fotoSub: { fontSize: 12, lineHeight: 17 },
+
+  fotoFincaWrap: { borderRadius: 12, overflow: 'hidden', height: 160, position: 'relative', marginBottom: 8 },
+  fotoFincaImg: { width: '100%', height: '100%' },
+  fotoFincaPlaceholder: {
+    width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', gap: 8,
+    borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.primary + '44', borderStyle: 'dashed',
+  },
+  fotoFincaPlaceholderText: { fontSize: 13, fontWeight: '500', textAlign: 'center' },
+  fotoFincaOverlay: {
+    position: 'absolute', bottom: 10, right: 10,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 4,
+  },
+  fotoFincaSub: { fontSize: 11, lineHeight: 16 },
   fieldLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: SPACING.xs },
   pickerButton: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
