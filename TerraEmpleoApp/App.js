@@ -136,9 +136,9 @@ const customTransition = {
 };
 
 const headerOptions = {
-  headerStyle: { backgroundColor: COLORS.white, elevation: 0, shadowOpacity: 0, borderBottomWidth: 0 },
-  headerTintColor: COLORS.textPrimary,
-  headerTitleStyle: { ...FONTS.subtitle, color: COLORS.textPrimary, fontWeight: FONTS.weight.bold },
+  headerStyle: { elevation: 0, shadowOpacity: 0, borderBottomWidth: 0 },
+  headerTintColor: undefined,
+  headerTitleStyle: { ...FONTS.subtitle, fontWeight: FONTS.weight.bold },
   headerBackTitleVisible: false,
   headerBackTitle: '',
   headerTruncatedBackTitle: '',
@@ -425,7 +425,7 @@ function AdminUsuariosStack() {
         <Stack.Screen
           name="AdminUsuariosHome"
           component={AdminUsuariosScreen}
-          options={{ title: 'Usuarios' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="AdminDetalleUsuario"
@@ -461,7 +461,7 @@ function AdminVacantesStack() {
         <Stack.Screen
           name="AdminVacantesHome"
           component={AdminVacantesScreen}
-          options={{ title: 'Vacantes' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="AdminVerPostulantes"
@@ -503,7 +503,7 @@ function AdminDashboardStack() {
     <S>
       <Stack.Navigator screenOptions={stackScreenOptions}>
         <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen}
-          options={{ title: 'Admin Dashboard' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="AdminUsuarios" component={AdminUsuariosStack}
           options={{ headerShown: false }} />
         <Stack.Screen
