@@ -1,28 +1,39 @@
-import { useState, useEffect, useCallback } from 'react';
-import * as Network from 'expo-network';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { sincronizarCola } from '../utils/postulacionesQueue';
+
+const PING_URL = 'https://api.terrampleo.com/api/health';
+const PING_INTERVAL = 15000;
+const PING_TIMEOUT = 5000;
+
+async function pingServer() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PING_TIMEOUT);
+  try {
+    const res = await fetch(PING_URL, { method: 'HEAD', signal: controller.signal });
+    return res.ok || res.status < 500;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export function useNetworkStatus() {
   const [isOnline, setIsOnline] = useState(true);
+  const prevOnline = useRef(true);
 
   const verificar = useCallback(async () => {
-    try {
-      const state = await Network.getNetworkStateAsync();
-      const online = state.isConnected !== false;
-      setIsOnline(online);
-      if (online) {
-        // Intentar sincronizar cola de postulaciones pendientes
-        sincronizarCola().catch(() => {});
-      }
-    } catch (_) {
-      setIsOnline(true); // si falla la verificación, asumir online
+    const online = await pingServer();
+    setIsOnline(online);
+    if (online && !prevOnline.current) {
+      sincronizarCola().catch(() => {});
     }
+    prevOnline.current = online;
   }, []);
 
   useEffect(() => {
     verificar();
-    // Verificar cada 10 segundos
-    const interval = setInterval(verificar, 10000);
+    const interval = setInterval(verificar, PING_INTERVAL);
     return () => clearInterval(interval);
   }, [verificar]);
 
