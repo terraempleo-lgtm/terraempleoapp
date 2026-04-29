@@ -199,10 +199,17 @@ function TabFincas({ colors, isDark }) {
               </View>
             </View>
 
-            <Text style={[styles.docLabel, { color: colors.textSecondary }]}>Documento (NIT / RUT / Factura):</Text>
+            {/* Foto de la finca */}
+            <Text style={[styles.docLabel, { color: colors.textSecondary }]}>Foto de la finca:</Text>
+            {item.foto_finca_fachada
+              ? <Image source={{ uri: item.foto_finca_fachada }} style={styles.docImg} resizeMode="cover" />
+              : <View style={styles.placeholder}><Ionicons name="image-outline" size={28} color={COLORS.textLight} /><Text style={styles.placeholderText}>Sin foto de finca</Text></View>}
+
+            {/* Documento de verificación */}
+            <Text style={[styles.docLabel, { color: colors.textSecondary, marginTop: 12 }]}>Registro empresarial (NIT / RUT / Factura):</Text>
             {item.doc_verificacion_url
               ? <Image source={{ uri: item.doc_verificacion_url }} style={styles.docImg} resizeMode="contain" />
-              : <View style={styles.placeholder}><Ionicons name="image-outline" size={28} color={COLORS.textLight} /><Text style={styles.placeholderText}>Sin documento</Text></View>}
+              : <View style={styles.placeholder}><Ionicons name="document-outline" size={28} color={COLORS.textLight} /><Text style={styles.placeholderText}>Sin documento</Text></View>}
 
             <View style={styles.actions}>
               <AnimatedPressable onPress={() => revisar(item, 'rechazada')}

@@ -535,8 +535,8 @@ async function listarEmpresasPendientes(req, res) {
     const pendientes = await query(
       `SELECT u.id AS usuario_id, u.nombre_completo, u.celular, u.created_at,
               pe.id AS perfil_id, pe.nombre_empresa_finca, pe.doc_verificacion_url,
-              pe.verificacion_empresa_estado, pe.verificacion_empresa_revisado_at,
-              pe.verificacion_empresa_comentario
+              pe.foto_finca_fachada, pe.verificacion_empresa_estado,
+              pe.verificacion_empresa_revisado_at, pe.verificacion_empresa_comentario
        FROM perfil_empleador pe
        JOIN usuarios u ON u.id = pe.usuario_id
        WHERE u.eliminado = 0
@@ -545,6 +545,7 @@ async function listarEmpresasPendientes(req, res) {
        ORDER BY pe.updated_at ASC`
     );
     await signArrayField(pendientes, 'doc_verificacion_url');
+    await signArrayField(pendientes, 'foto_finca_fachada');
     return res.json({ pendientes, total: pendientes.length });
   } catch (err) {
     console.error('Error listando empresas pendientes:', err);
