@@ -254,13 +254,7 @@ export default function PerfilScreen({ navigation }) {
       setPerfil(res.data.perfil);
 
       if (res.data?.user?.rol === 'empleador') {
-        try {
-          const vacantesRes = await vacantesAPI.misVacantes();
-          const primeraConFoto = (vacantesRes.data?.vacantes || []).find(v => !!v.foto_portada);
-          setFotoFincaPrincipal(primeraConFoto?.foto_portada || null);
-        } catch (_) {
-          setFotoFincaPrincipal(null);
-        }
+        setFotoFincaPrincipal(res.data?.perfil?.foto_finca_fachada || null);
       }
     } catch (err) { console.error(err); }
   };

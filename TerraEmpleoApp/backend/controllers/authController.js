@@ -594,13 +594,13 @@ async function cambiarFotoPerfil(req, res) {
     if (!req.file) return res.status(400).json({ error: 'Archivo de imagen requerido' });
 
     const [rows] = await query(
-      'SELECT validacion_identidad_estado, foto_selfie_cambiada_at FROM usuarios WHERE id = ?',
+      'SELECT validacion_identidad_estado, foto_selfie_cambiada_at, rol FROM usuarios WHERE id = ?',
       [userId]
     );
     const user = rows[0];
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    if (user.validacion_identidad_estado !== 'aprobada') {
+    if (user.rol === 'trabajador' && user.validacion_identidad_estado !== 'aprobada') {
       return res.status(403).json({ error: 'Debes estar verificado para cambiar tu foto de perfil.' });
     }
 

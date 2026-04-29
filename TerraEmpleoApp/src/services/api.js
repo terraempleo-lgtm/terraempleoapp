@@ -62,11 +62,9 @@ export const authAPI = {
   }),
   cambiarFotoPerfil: (formData) => api.post('/auth/cambiar-foto-perfil', formData, {
     transformRequest: [(data) => data],
-    headers: { 'Content-Type': 'multipart/form-data' },
   }),
   subirHojaVida: (formData) => api.post('/auth/hoja-vida', formData, {
     transformRequest: [(data) => data],
-    headers: { 'Content-Type': 'multipart/form-data' },
   }),
   reenviarVerificacion: () => api.post('/auth/verificacion/reenviar'),
 };
