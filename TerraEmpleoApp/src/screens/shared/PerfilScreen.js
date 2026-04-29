@@ -306,6 +306,68 @@ export default function PerfilScreen({ navigation }) {
       <View style={[s.root, { backgroundColor: colors.background }]}>
         <DecorativeBackground intensity="strong" />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+          {/* Banner verificación finca */}
+          {perfil?.verificacion_empresa_estado !== 'aprobada' && (
+            <AnimatedPressable
+              style={[
+                s.verBanner,
+                perfil?.verificacion_empresa_estado === 'pendiente'
+                  ? s.verBannerPendiente
+                  : perfil?.verificacion_empresa_estado === 'rechazada'
+                  ? s.verBannerRechazada
+                  : s.verBannerDefault,
+              ]}
+              onPress={perfil?.verificacion_empresa_estado !== 'pendiente' ? subirDocumentoEmpresa : undefined}
+              activeOpacity={0.85}
+              scaleValue={0.98}
+            >
+              <View style={s.verBannerIconWrap}>
+                <Ionicons
+                  name={
+                    perfil?.verificacion_empresa_estado === 'pendiente' ? 'time-outline'
+                    : perfil?.verificacion_empresa_estado === 'rechazada' ? 'alert-circle-outline'
+                    : 'shield-outline'
+                  }
+                  size={26}
+                  color={
+                    perfil?.verificacion_empresa_estado === 'pendiente' ? '#B45309'
+                    : perfil?.verificacion_empresa_estado === 'rechazada' ? '#B91C1C'
+                    : COLORS.primary
+                  }
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[
+                  s.verBannerTitle,
+                  { color: perfil?.verificacion_empresa_estado === 'pendiente' ? '#92400E'
+                    : perfil?.verificacion_empresa_estado === 'rechazada' ? '#991B1B'
+                    : '#14532D' }
+                ]}>
+                  {perfil?.verificacion_empresa_estado === 'pendiente'
+                    ? 'Verificación en revisión'
+                    : perfil?.verificacion_empresa_estado === 'rechazada'
+                    ? 'Verificación rechazada'
+                    : 'Verifica tu finca para contratar'}
+                </Text>
+                <Text style={[
+                  s.verBannerSub,
+                  { color: perfil?.verificacion_empresa_estado === 'pendiente' ? '#92400E'
+                    : perfil?.verificacion_empresa_estado === 'rechazada' ? '#991B1B'
+                    : '#166534' }
+                ]}>
+                  {perfil?.verificacion_empresa_estado === 'pendiente'
+                    ? 'Tu documento está siendo revisado por el equipo de TerraEmpleo.'
+                    : perfil?.verificacion_empresa_estado === 'rechazada'
+                    ? `Motivo: ${perfil.verificacion_empresa_comentario || 'Documento no válido'}. Toca para reenviar.`
+                    : 'Por la seguridad de los trabajadores que visitan tu finca, sube tu NIT, RUT o factura de servicio para verificar tu empresa. Toca para subir.'}
+                </Text>
+              </View>
+              {perfil?.verificacion_empresa_estado !== 'pendiente' && (
+                <Ionicons name="chevron-forward" size={18} color={perfil?.verificacion_empresa_estado === 'rechazada' ? '#B91C1C' : COLORS.primary} />
+              )}
+            </AnimatedPressable>
+          )}
+
           {/* Hero */}
           <View style={s.heroWrap}>
             {fotoFincaPrincipal ? (
@@ -936,6 +998,19 @@ const s = StyleSheet.create({
   logoutTxt: { fontSize: 14, fontWeight: '600', color: COLORS.error },
 
   /* ── EMPLEADOR ── */
+  verBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    marginHorizontal: SPACING.md, marginTop: SPACING.md, marginBottom: 4,
+    borderRadius: RADIUS.lg, padding: SPACING.md,
+    borderWidth: 1.5,
+  },
+  verBannerDefault: { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' },
+  verBannerPendiente: { backgroundColor: '#FFFBEB', borderColor: '#FCD34D' },
+  verBannerRechazada: { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' },
+  verBannerIconWrap: { paddingTop: 2 },
+  verBannerTitle: { fontSize: 14, fontWeight: '700', marginBottom: 3 },
+  verBannerSub: { fontSize: 12, lineHeight: 17 },
+
   heroWrap: { width: '100%', height: HERO_H, position: 'relative' },
   heroImg: { width: '100%', height: HERO_H },
   heroPlaceholder: { width: '100%', height: HERO_H, backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.lg },
