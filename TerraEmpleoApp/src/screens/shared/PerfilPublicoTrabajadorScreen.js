@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-  ActivityIndicator, Linking, Pressable, Alert,
+  ActivityIndicator, Linking, Pressable, Alert, Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -202,7 +202,12 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
             <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
           </AnimatedPressable>
           <Text style={[s.topBarTitle, { color: colors.textPrimary }]}>Perfil del Candidato</Text>
-          <AnimatedPressable style={s.iconBtn} onPress={() => {}}>
+          <AnimatedPressable style={s.iconBtn} onPress={() => {
+            Share.share({
+              message: `Mira el perfil de ${perfil?.nombre_completo || 'este trabajador'} en TerraEmpleo 🌱\nhttps://app.terrampleo.com`,
+              title: perfil?.nombre_completo,
+            });
+          }}>
             <Ionicons name="share-social-outline" size={20} color={colors.textPrimary} />
           </AnimatedPressable>
         </View>
