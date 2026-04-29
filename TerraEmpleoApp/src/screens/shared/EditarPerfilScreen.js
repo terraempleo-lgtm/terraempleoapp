@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Alert,
-  KeyboardAvoidingView, Platform, Switch, Linking,
+  View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Image,
+  KeyboardAvoidingView, Platform, Switch, Linking, ActionSheetIOS, Modal, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input, ChipSelector, PickerModal } from '../../components/ui';
 import { DEPARTAMENTOS, getMunicipios } from '../../data/colombia';
@@ -68,6 +70,96 @@ export default function EditarPerfilScreen({ navigation, route }) {
   const [guardadoExitoso, setGuardadoExitoso] = useState(false);
   const [errors, setErrors] = useState({});
   const successTimerRef = useRef(null);
+
+  // Foto de perfil
+  const [fotoUri, setFotoUri] = useState(initUser?.foto_selfie || null);
+  const [modalCamara, setModalCamara] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const cameraRef = useRef(null);
+  const [permission, requestPermission] = useCameraPermissions();
+
+  const diasDesdeUltimoCambio = initUser?.foto_selfie_cambiada_at
+    ? (Date.now() - new Date(initUser.foto_selfie_cambiada_at).getTime()) / 86400000
+    : null;
+  const puedeCambiarFoto = diasDesdeUltimoCambio === null || diasDesdeUltimoCambio >= 30;
+  const diasParaCambio = diasDesdeUltimoCambio !== null && diasDesdeUltimoCambio < 30
+    ? Math.ceil(30 - diasDesdeUltimoCambio)
+    : 0;
+
+  const _abrirGaleria = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { showAlert('Permiso requerido', 'Necesitamos acceso a tu galería.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, aspect: [1, 1], quality: 0.7,
+    });
+    if (!result.canceled && result.assets?.length > 0) {
+      setPreview(result.assets[0].uri);
+      setModalCamara(true);
+    }
+  };
+
+  const _abrirCamara = async () => {
+    if (!permission?.granted) {
+      const res = await requestPermission();
+      if (!res.granted) { showAlert('Permiso requerido', 'Necesitamos acceso a la cámara.'); return; }
+    }
+    setPreview(null);
+    setModalCamara(true);
+  };
+
+  const abrirSelectorFoto = () => {
+    if (!puedeCambiarFoto) {
+      showAlert('Cambio no disponible', `Podrás cambiar tu foto en ${diasParaCambio} día(s).`);
+      return;
+    }
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancelar', 'Tomar foto', 'Elegir de galería'], cancelButtonIndex: 0 },
+        (idx) => { if (idx === 1) _abrirCamara(); else if (idx === 2) _abrirGaleria(); }
+      );
+    } else {
+      Alert.alert('Cambiar foto', '', [
+        { text: 'Tomar foto', onPress: _abrirCamara },
+        { text: 'Elegir de galería', onPress: _abrirGaleria },
+        { text: 'Cancelar', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const tomarFoto = async () => {
+    if (!cameraRef.current) return;
+    try {
+      const foto = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      setPreview(foto.uri);
+    } catch { showAlert('Error', 'No se pudo tomar la foto.'); }
+  };
+
+  const confirmarFoto = async () => {
+    if (!preview) return;
+    setSubiendoFoto(true);
+    try {
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        const response = await fetch(preview);
+        const blob = await response.blob();
+        formData.append('foto', blob, `selfie_${Date.now()}.jpg`);
+      } else {
+        formData.append('foto', { uri: preview, type: 'image/jpeg', name: `selfie_${Date.now()}.jpg` });
+      }
+      const res = await authAPI.cambiarFotoPerfil(formData);
+      setFotoUri(res.data.path);
+      setModalCamara(false);
+      setPreview(null);
+      updateUser({ foto_selfie: res.data.path, validacion_identidad_estado: 'pendiente', foto_selfie_cambiada_at: new Date().toISOString() });
+      showAlert('Foto actualizada', 'Tu foto de perfil fue cambiada exitosamente.');
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'No se pudo actualizar la foto.');
+    } finally {
+      setSubiendoFoto(false);
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -206,6 +298,31 @@ export default function EditarPerfilScreen({ navigation, route }) {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+
+          {/* Foto de perfil */}
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Foto de perfil</Text>
+            <View style={styles.fotoRow}>
+              <TouchableOpacity onPress={abrirSelectorFoto} activeOpacity={0.8} style={styles.avatarWrap}>
+                {fotoUri && fotoUri.startsWith('http') ? (
+                  <Image source={{ uri: fotoUri }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatarFallback, { backgroundColor: COLORS.primary + '22' }]}>
+                    <Ionicons name="person" size={36} color={COLORS.primary} />
+                  </View>
+                )}
+                <View style={styles.camaraBadge}>
+                  <Ionicons name="camera" size={14} color="#FFF" />
+                </View>
+              </TouchableOpacity>
+              <View style={styles.fotoInfo}>
+                <Text style={[styles.fotoLabel, { color: colors.textPrimary }]}>Cambiar foto</Text>
+                <Text style={[styles.fotoSub, { color: colors.textSecondary }]}>
+                  {puedeCambiarFoto ? 'Toca para tomar una nueva foto o elegir de galería' : `Disponible en ${diasParaCambio} día(s)`}
+                </Text>
+              </View>
+            </View>
+          </View>
 
           {/* Datos personales */}
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -458,6 +575,43 @@ export default function EditarPerfilScreen({ navigation, route }) {
         </View>
       ) : null}
 
+      {/* Modal cámara / preview foto */}
+      <Modal visible={modalCamara} animationType="slide" onRequestClose={() => setModalCamara(false)}>
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          {!preview ? (
+            <>
+              <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" />
+              <View style={{ position: 'absolute', bottom: 40, width: '100%', alignItems: 'center', gap: 16 }}>
+                <TouchableOpacity
+                  style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center' }}
+                  onPress={tomarFoto}
+                >
+                  <Ionicons name="camera" size={30} color="#000" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setModalCamara(false)}>
+                  <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <>
+              <Image source={{ uri: preview }} style={{ flex: 1 }} resizeMode="contain" />
+              <View style={{ position: 'absolute', bottom: 40, width: '100%', flexDirection: 'row', justifyContent: 'space-evenly' }}>
+                <TouchableOpacity onPress={() => setPreview(null)} style={{ paddingHorizontal: 28, paddingVertical: 14, backgroundColor: '#333', borderRadius: 99 }}>
+                  <Text style={{ color: '#FFF', fontWeight: '700' }}>Repetir</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={confirmarFoto} disabled={subiendoFoto}
+                  style={{ paddingHorizontal: 28, paddingVertical: 14, backgroundColor: COLORS.primary, borderRadius: 99 }}>
+                  {subiendoFoto
+                    ? <ActivityIndicator color="#FFF" />
+                    : <Text style={{ color: '#FFF', fontWeight: '700' }}>Usar foto</Text>}
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+      </Modal>
+
       <PickerModal visible={showDeptPicker} onClose={() => setShowDeptPicker(false)}
         title="Departamento" options={DEPARTAMENTOS} selectedValue={departamento}
         onSelect={(v) => { setDepartamento(v); setMunicipio(''); }} />
@@ -479,6 +633,19 @@ const styles = StyleSheet.create({
     padding: SPACING.lg, marginBottom: SPACING.md, ...SHADOWS.small,
   },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.md },
+  fotoRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  avatarWrap: { position: 'relative', width: 72, height: 72 },
+  avatar: { width: 72, height: 72, borderRadius: 36, borderWidth: 2.5, borderColor: COLORS.primary + '55' },
+  avatarFallback: { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center' },
+  camaraBadge: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: '#FFF',
+  },
+  fotoInfo: { flex: 1 },
+  fotoLabel: { fontSize: 14, fontWeight: '700', marginBottom: 3 },
+  fotoSub: { fontSize: 12, lineHeight: 17 },
   fieldLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: SPACING.xs },
   pickerButton: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
