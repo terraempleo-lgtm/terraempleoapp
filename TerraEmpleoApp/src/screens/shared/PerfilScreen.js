@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity,
-  Image, Linking, Modal, ActivityIndicator,
+  Image, Linking, Modal, ActivityIndicator, ActionSheetIOS, Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
@@ -119,20 +120,30 @@ export default function PerfilScreen({ navigation }) {
   const diasDesdeUltimoCambio = u?.foto_selfie_cambiada_at
     ? (Date.now() - new Date(u.foto_selfie_cambiada_at).getTime()) / 86400000
     : null;
-  const puedeCambiarFoto = identidadAprobada && (diasDesdeUltimoCambio === null || diasDesdeUltimoCambio >= 30);
+  const puedeCambiarFoto = diasDesdeUltimoCambio === null || diasDesdeUltimoCambio >= 30;
   const diasParaCambio = diasDesdeUltimoCambio !== null && diasDesdeUltimoCambio < 30
     ? Math.ceil(30 - diasDesdeUltimoCambio)
     : 0;
 
-  const abrirCamaraFoto = async () => {
-    if (!identidadAprobada) {
-      showAlert('No disponible', 'Solo puedes cambiar tu foto de perfil una vez verificado.');
+  const _abrirGaleria = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert('Permiso requerido', 'Necesitamos acceso a tu galería.');
       return;
     }
-    if (!puedeCambiarFoto) {
-      showAlert('Cambio no disponible', `Podrás cambiar tu foto en ${diasParaCambio} día(s).`);
-      return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets?.length > 0) {
+      setPreview(result.assets[0].uri);
+      setModalCamara(true);
     }
+  };
+
+  const _abrirCamara = async () => {
     if (!permission?.granted) {
       const result = await requestPermission();
       if (!result.granted) {
@@ -142,6 +153,25 @@ export default function PerfilScreen({ navigation }) {
     }
     setPreview(null);
     setModalCamara(true);
+  };
+
+  const abrirCamaraFoto = () => {
+    if (!puedeCambiarFoto) {
+      showAlert('Cambio no disponible', `Podrás cambiar tu foto en ${diasParaCambio} día(s).`);
+      return;
+    }
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancelar', 'Tomar foto', 'Elegir de galería'], cancelButtonIndex: 0 },
+        (idx) => { if (idx === 1) _abrirCamara(); else if (idx === 2) _abrirGaleria(); }
+      );
+    } else {
+      Alert.alert('Cambiar foto', '', [
+        { text: 'Tomar foto', onPress: _abrirCamara },
+        { text: 'Elegir de galería', onPress: _abrirGaleria },
+        { text: 'Cancelar', style: 'cancel' },
+      ]);
+    }
   };
 
   const tomarFoto = async () => {
@@ -464,7 +494,7 @@ export default function PerfilScreen({ navigation }) {
             animate={{ scale: 1, opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 150 }}
           >
-            <TouchableOpacity onPress={abrirCamaraFoto} activeOpacity={identidadAprobada ? 0.75 : 1}>
+            <TouchableOpacity onPress={abrirCamaraFoto} activeOpacity={0.75}>
               <View style={s.avatarWrap}>
                 {u?.foto_selfie && u.foto_selfie.startsWith('http') ? (
                   <Image source={{ uri: u.foto_selfie }} style={s.avatar} />
@@ -472,11 +502,9 @@ export default function PerfilScreen({ navigation }) {
                   <View style={s.avatarFallback}><Ionicons name="person" size={52} color={COLORS.textLight} /></View>
                 )}
                 {identidadAprobada && <View style={s.verifiedBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>}
-                {identidadAprobada && (
-                  <View style={s.camaraBadge}>
-                    <Ionicons name={puedeCambiarFoto ? 'camera' : 'time-outline'} size={12} color={COLORS.white} />
-                  </View>
-                )}
+                <View style={s.camaraBadge}>
+                  <Ionicons name={puedeCambiarFoto ? 'camera' : 'time-outline'} size={12} color={COLORS.white} />
+                </View>
               </View>
             </TouchableOpacity>
           </MotiView>

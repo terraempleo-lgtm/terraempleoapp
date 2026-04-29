@@ -17,7 +17,6 @@ import { COLORS, FONTS } from './src/theme';
 import { AnimatedTabBar } from './src/components/animated';
 import { Toast, AppAlert } from './src/components/ui';
 import SplashAnimado from './src/components/ui/SplashAnimado';
-import { useNetworkStatus } from './src/hooks/useNetworkStatus';
 import { setGlobalToastRef } from './src/utils/toastService';
 import { setGlobalAlertRef } from './src/utils/alertService';
 

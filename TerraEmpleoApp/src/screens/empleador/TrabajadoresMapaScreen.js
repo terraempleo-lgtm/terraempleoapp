@@ -10,7 +10,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
 import { trabajadoresAPI, vacantesAPI } from '../../services/api';
-import { AnimatedPressable } from '../../components/animated';
 import { showAlert } from '../../utils/alertService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -24,7 +23,7 @@ const DEFAULT_REGION = {
   longitudeDelta: 9,
 };
 
-// ─── Coordinate helpers (same strategy as VacantesMapaScreen) ─────────────────
+// ─── Coordinate helpers ───────────────────────────────────────────────────────
 
 const MUNICIPIO_COORDS = {
   'Chinchiná': { latitude: 5.0037, longitude: -75.6097 },
@@ -54,7 +53,6 @@ const MUNICIPIO_COORDS = {
   'Villavicencio': { latitude: 4.142, longitude: -73.6266 },
   'Barranquilla': { latitude: 10.9639, longitude: -74.7964 },
   'Cartagena': { latitude: 10.391, longitude: -75.4794 },
-  'Manizales': { latitude: 5.07, longitude: -75.5174 },
 };
 
 const DEPT_COORDS = {
@@ -172,7 +170,7 @@ function WorkerCard({ worker, selected, onPress }) {
         {worker.foto_selfie ? (
           <Image source={{ uri: worker.foto_selfie }} style={wcStyles.avatar} />
         ) : (
-          <View style={[wcStyles.avatarFallback]}>
+          <View style={wcStyles.avatarFallback}>
             <Text style={wcStyles.initials}>{initials}</Text>
           </View>
         )}
@@ -258,6 +256,38 @@ const fmcStyles = StyleSheet.create({
   btnAccent: { backgroundColor: COLORS.primary },
 });
 
+// ─── FilterChip ───────────────────────────────────────────────────────────────
+
+function FilterChip({ label, icon, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      style={[chipStyles.chip, active && chipStyles.chipActive]}
+    >
+      {icon && <Ionicons name={icon} size={12} color={active ? '#0E1410' : '#555'} style={{ marginRight: 3 }} />}
+      <Text style={[chipStyles.label, active && chipStyles.labelActive]}>{label}</Text>
+      {active && (
+        <Ionicons name="close" size={12} color="#0E1410" style={{ marginLeft: 2 }} />
+      )}
+    </TouchableOpacity>
+  );
+}
+
+const chipStyles = StyleSheet.create({
+  chip: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 99, paddingHorizontal: 11, paddingVertical: 6,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1, shadowRadius: 2, elevation: 2,
+  },
+  chipActive: { backgroundColor: '#c1ff72', borderColor: '#a3d95e' },
+  label: { fontSize: 12, fontWeight: '600', color: '#424242' },
+  labelActive: { color: '#0E1410' },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function TrabajadoresMapaScreen({ navigation, route }) {
@@ -273,6 +303,12 @@ export default function TrabajadoresMapaScreen({ navigation, route }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [search, setSearch] = useState(route?.params?.search || '');
   const [userLocation, setUserLocation] = useState(null);
+
+  // Active filters
+  const [filterCultivo, setFilterCultivo] = useState(null);
+  const [filterEducacion, setFilterEducacion] = useState(false);
+  const [filterDept, setFilterDept] = useState(null);
+  const [filterMunicipio, setFilterMunicipio] = useState(null);
 
   const cargarVacante = useCallback(async () => {
     try {
@@ -316,17 +352,72 @@ export default function TrabajadoresMapaScreen({ navigation, route }) {
     return () => { active = false; };
   }, [cargarTrabajadores, cargarVacante]);
 
+  // Derive available filter options from data
+  const cultivoOptions = useMemo(() => {
+    const freq = {};
+    rawWorkers.forEach(w => {
+      (w.cultivos || []).forEach(c => {
+        const name = c.cultivo || c;
+        if (name) freq[name] = (freq[name] || 0) + 1;
+      });
+    });
+    return Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([name]) => name);
+  }, [rawWorkers]);
+
+  const deptOptions = useMemo(() => {
+    const depts = new Set();
+    rawWorkers.forEach(w => { if (w.departamento) depts.add(w.departamento); });
+    return [...depts].sort();
+  }, [rawWorkers]);
+
+  const municipioOptions = useMemo(() => {
+    const muns = new Set();
+    rawWorkers
+      .filter(w => !filterDept || w.departamento === filterDept)
+      .forEach(w => { if (w.municipio) muns.add(w.municipio); });
+    return [...muns].sort();
+  }, [rawWorkers, filterDept]);
+
+  const hasEducTecnico = useMemo(() =>
+    rawWorkers.some(w => w.nivel_estudios === 'tecnico' || w.nivel_estudios === 'tecnico_tecnologo'),
+    [rawWorkers]
+  );
+
   const filtered = useMemo(() => {
+    let list = rawWorkers;
     const q = search.trim().toLowerCase();
-    if (!q) return rawWorkers;
-    return rawWorkers.filter(t =>
-      String(t.nombre_completo || '').toLowerCase().includes(q) ||
-      String(t.municipio || '').toLowerCase().includes(q) ||
-      String(t.departamento || '').toLowerCase().includes(q) ||
-      (t.cultivos || []).some(c => String(c.cultivo || c).toLowerCase().includes(q)) ||
-      (t.habilidades || []).some(h => String(h).toLowerCase().includes(q))
-    );
-  }, [rawWorkers, search]);
+    if (q) {
+      list = list.filter(t =>
+        String(t.nombre_completo || '').toLowerCase().includes(q) ||
+        String(t.municipio || '').toLowerCase().includes(q) ||
+        String(t.departamento || '').toLowerCase().includes(q) ||
+        (t.cultivos || []).some(c => String(c.cultivo || c).toLowerCase().includes(q)) ||
+        (t.habilidades || []).some(h => String(h).toLowerCase().includes(q))
+      );
+    }
+    if (filterCultivo) {
+      list = list.filter(t =>
+        (t.cultivos || []).some(c => (c.cultivo || c) === filterCultivo)
+      );
+    }
+    if (filterEducacion) {
+      list = list.filter(t =>
+        t.nivel_estudios === 'tecnico' || t.nivel_estudios === 'tecnico_tecnologo'
+      );
+    }
+    if (filterDept) {
+      list = list.filter(t => t.departamento === filterDept);
+    }
+    if (filterMunicipio) {
+      list = list.filter(t => t.municipio === filterMunicipio);
+    }
+    return list;
+  }, [rawWorkers, search, filterCultivo, filterEducacion, filterDept, filterMunicipio]);
+
+  const activeFilterCount = (filterCultivo ? 1 : 0) + (filterEducacion ? 1 : 0) + (filterDept ? 1 : 0) + (filterMunicipio ? 1 : 0);
 
   // Pan map when selection changes
   useEffect(() => {
@@ -345,7 +436,7 @@ export default function TrabajadoresMapaScreen({ navigation, route }) {
         { latitude: w.latitude, longitude: w.longitude, latitudeDelta: 0.5, longitudeDelta: 0.5 }, 400,
       );
     }
-  }, [search]);
+  }, [search, filterCultivo, filterEducacion, filterDept]);
 
   const handleMarkerPress = useCallback((index) => {
     setSelectedIndex(index);
@@ -420,29 +511,95 @@ export default function TrabajadoresMapaScreen({ navigation, route }) {
         ))}
       </MapView>
 
-      {/* Search bar overlay */}
+      {/* Search bar + filters overlay */}
       <SafeAreaView style={styles.topOverlay} edges={['top']}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color="#9E9E9E" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar por nombre, zona o habilidad..."
-            placeholderTextColor="#9E9E9E"
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close-circle" size={18} color="#9E9E9E" />
+        {/* Search row */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={16} color="#9E9E9E" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar trabajador, zona..."
+              placeholderTextColor="#9E9E9E"
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
+            />
+            {search.length > 0 ? (
+              <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={16} color="#9E9E9E" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.countBadge}>
+                <Text style={styles.countText}>{filtered.length}</Text>
+              </View>
+            )}
+          </View>
+          {activeFilterCount > 0 && (
+            <TouchableOpacity
+              style={styles.clearBtn}
+              onPress={() => { setFilterCultivo(null); setFilterEducacion(false); setFilterDept(null); setFilterMunicipio(null); }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close" size={14} color="#0E1410" />
             </TouchableOpacity>
           )}
-          {filtered.length > 0 && search.length === 0 && (
-            <View style={styles.countBadge}>
-              <Text style={styles.countText}>{filtered.length}</Text>
-            </View>
-          )}
         </View>
+
+        {/* Filter chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersContent}
+          style={styles.filtersRow}
+        >
+          {/* Cultivos */}
+          {cultivoOptions.map(cultivo => (
+            <FilterChip
+              key={cultivo}
+              label={cultivo}
+              icon="leaf-outline"
+              active={filterCultivo === cultivo}
+              onPress={() => setFilterCultivo(filterCultivo === cultivo ? null : cultivo)}
+            />
+          ))}
+
+          {/* Educación técnico */}
+          {hasEducTecnico && (
+            <FilterChip
+              label="Técnico / Tecnólogo"
+              icon="school-outline"
+              active={filterEducacion}
+              onPress={() => setFilterEducacion(v => !v)}
+            />
+          )}
+
+          {/* Departamentos */}
+          {deptOptions.map(dept => (
+            <FilterChip
+              key={dept}
+              label={dept}
+              icon="map-outline"
+              active={filterDept === dept}
+              onPress={() => {
+                const next = filterDept === dept ? null : dept;
+                setFilterDept(next);
+                setFilterMunicipio(null);
+              }}
+            />
+          ))}
+
+          {/* Municipios — shown when no dept filter or after dept selected */}
+          {municipioOptions.map(mun => (
+            <FilterChip
+              key={mun}
+              label={mun}
+              icon="location-outline"
+              active={filterMunicipio === mun}
+              onPress={() => setFilterMunicipio(filterMunicipio === mun ? null : mun)}
+            />
+          ))}
+        </ScrollView>
       </SafeAreaView>
 
       {/* Zoom + locate controls */}
@@ -481,8 +638,18 @@ export default function TrabajadoresMapaScreen({ navigation, route }) {
             <Ionicons name="people-outline" size={34} color={COLORS.primary} />
             <Text style={styles.emptyTitle}>Sin resultados</Text>
             <Text style={styles.emptySub}>
-              {search ? `No hay trabajadores para "${search}"` : 'No hay trabajadores disponibles en el mapa.'}
+              {search || activeFilterCount > 0
+                ? 'No hay trabajadores con estos filtros.'
+                : 'No hay trabajadores disponibles en el mapa.'}
             </Text>
+            {activeFilterCount > 0 && (
+              <TouchableOpacity
+                onPress={() => { setFilterCultivo(null); setFilterEducacion(false); setFilterDept(null); setFilterMunicipio(null); }}
+                style={styles.clearFiltersBtn}
+              >
+                <Text style={styles.clearFiltersText}>Limpiar filtros</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}
@@ -495,18 +662,34 @@ const styles = StyleSheet.create({
 
   topOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0,
-    paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, zIndex: 10,
+    zIndex: 10,
+  },
+  searchRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: SPACING.md, paddingTop: SPACING.xs, paddingBottom: 6,
   },
   searchBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: '#FFF', borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md, height: 50,
-    borderWidth: 1, borderColor: '#E0E0E0',
-    ...SHADOWS.medium,
+    paddingHorizontal: 14, height: 46,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12, shadowRadius: 6, elevation: 5,
   },
-  searchInput: { flex: 1, fontSize: 14, color: '#212121', paddingVertical: 0 },
+  searchInput: { flex: 1, fontSize: 13, color: '#212121', paddingVertical: 0 },
   countBadge: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
   countText: { fontSize: 11, fontWeight: '700', color: '#FFF' },
+  clearBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#c1ff72', justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15, shadowRadius: 3, elevation: 3,
+  },
+
+  filtersRow: { maxHeight: 44 },
+  filtersContent: {
+    paddingHorizontal: SPACING.md, paddingBottom: 8, gap: 8, flexDirection: 'row', alignItems: 'center',
+  },
 
   fabColumn: {
     position: 'absolute', right: SPACING.md, bottom: 210, zIndex: 10,
@@ -531,4 +714,9 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 15, fontWeight: '700', color: '#212121' },
   emptySub: { fontSize: 12, color: '#757575', textAlign: 'center' },
+  clearFiltersBtn: {
+    marginTop: 4, paddingHorizontal: 16, paddingVertical: 7,
+    backgroundColor: COLORS.primary, borderRadius: 99,
+  },
+  clearFiltersText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
 });
