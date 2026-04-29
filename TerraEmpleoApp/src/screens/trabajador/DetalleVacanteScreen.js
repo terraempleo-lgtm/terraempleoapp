@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert, Modal,
   Image, Dimensions, FlatList, ActivityIndicator,
-  Platform, TextInput, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback,
+  Platform, TextInput, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback, Share,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -225,7 +225,15 @@ export default function DetalleVacanteScreen({ route, navigation }) {
               <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
             </AnimatedPressable>
             <View style={styles.heroBtnRight}>
-              <AnimatedPressable style={styles.heroBtn} scaleValue={0.9} haptic={true}>
+              <AnimatedPressable style={styles.heroBtn} scaleValue={0.9} haptic={true} onPress={() => {
+                const titulo = vacante?.titulo || 'Vacante';
+                const finca = vacante?.nombre_empresa_finca || '';
+                const ubicacion = [vacante?.municipio, vacante?.departamento].filter(Boolean).join(', ');
+                Share.share({
+                  message: `🌱 ${titulo}${finca ? ` en ${finca}` : ''}${ubicacion ? ` — ${ubicacion}` : ''}\nEncuéntrala en TerraEmpleo: https://app.terrampleo.com`,
+                  title: titulo,
+                });
+              }}>
                 <Ionicons name="share-social-outline" size={20} color={COLORS.textPrimary} />
               </AnimatedPressable>
               <AnimatedPressable style={styles.heroBtn} onPress={toggleLike} scaleValue={0.9} haptic={false}>
