@@ -172,6 +172,57 @@ export default function PerfilScreen({ navigation }) {
       setSubiendoDocEmpresa(false);
     }
   };
+
+  const [subiendoFotoFinca, setSubiendoFotoFinca] = useState(false);
+
+  const subirFotoFinca = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancelar', 'Tomar foto', 'Elegir de galería'], cancelButtonIndex: 0 },
+        async (idx) => {
+          if (idx === 1) {
+            const r = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.8 });
+            if (!r.canceled && r.assets?.[0]) await _uploadFotoFinca(r.assets[0].uri);
+          } else if (idx === 2) {
+            const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.8 });
+            if (!r.canceled && r.assets?.[0]) await _uploadFotoFinca(r.assets[0].uri);
+          }
+        }
+      );
+    } else {
+      Alert.alert('Foto de la finca', 'Elige cómo subir la foto de tu finca', [
+        { text: 'Tomar foto', onPress: async () => {
+          const r = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.8 });
+          if (!r.canceled && r.assets?.[0]) await _uploadFotoFinca(r.assets[0].uri);
+        }},
+        { text: 'Elegir de galería', onPress: async () => {
+          const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.8 });
+          if (!r.canceled && r.assets?.[0]) await _uploadFotoFinca(r.assets[0].uri);
+        }},
+        { text: 'Cancelar', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const _uploadFotoFinca = async (uri) => {
+    setSubiendoFotoFinca(true);
+    try {
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        const blob = await (await fetch(uri)).blob();
+        formData.append('foto', blob, `finca_${Date.now()}.jpg`);
+      } else {
+        formData.append('foto', { uri, type: 'image/jpeg', name: `finca_${Date.now()}.jpg` });
+      }
+      const res = await authAPI.subirFoto('finca_fachada', formData);
+      setFotoFincaPrincipal(res.data.path);
+      showAlert('Foto actualizada', 'La foto de tu finca fue guardada.');
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'No se pudo subir la foto.');
+    } finally {
+      setSubiendoFotoFinca(false);
+    }
+  };
   const identidadAprobada = u?.validacion_identidad_estado === 'aprobada';
 
   const diasDesdeUltimoCambio = u?.foto_selfie_cambiada_at
@@ -375,8 +426,19 @@ export default function PerfilScreen({ navigation }) {
                 >
                   <View style={s.heroLeaf}><Ionicons name="leaf" size={44} color={COLORS.primaryLight} /></View>
                 </MotiView>
-                <Text style={s.heroPlaceholderText}>Sube una foto de tu finca desde Editar Perfil para mostrarla aquí.</Text>
+                <Text style={s.heroPlaceholderText}>Toca el botón de cámara para subir la foto de tu finca.</Text>
               </View>
+            )}
+            {esEmpleador && (
+              <TouchableOpacity
+                onPress={subirFotoFinca}
+                disabled={subiendoFotoFinca}
+                style={s.heroFotoBtn}
+              >
+                {subiendoFotoFinca
+                  ? <ActivityIndicator size="small" color="#FFF" />
+                  : <Ionicons name="camera" size={18} color="#FFF" />}
+              </TouchableOpacity>
             )}
             <View style={[s.heroBar, { top: insets.top + 8 }]}>
               <View style={{ width: 40 }} />
@@ -1010,6 +1072,7 @@ const s = StyleSheet.create({
   heroPlaceholder: { width: '100%', height: HERO_H, backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.lg },
   heroLeaf: { width: 100, height: 100, borderRadius: 50, backgroundColor: COLORS.primaryMuted, justifyContent: 'center', alignItems: 'center' },
   heroPlaceholderText: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center' },
+  heroFotoBtn: { position: 'absolute', bottom: 12, right: 12, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   heroBar: { position: 'absolute', left: SPACING.md, right: SPACING.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroBarTitle: { fontSize: 17, fontWeight: '700', color: COLORS.white },
   heroCircleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.95)', justifyContent: 'center', alignItems: 'center', ...SHADOWS.medium },
