@@ -91,19 +91,6 @@ export default function EditarPerfilScreen({ navigation, route }) {
     ? Math.ceil(30 - diasDesdeUltimoCambio)
     : 0;
 
-  const _abrirGaleria = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') { showAlert('Permiso requerido', 'Necesitamos acceso a tu galería.'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, aspect: [1, 1], quality: 0.7,
-    });
-    if (!result.canceled && result.assets?.length > 0) {
-      setPreview(result.assets[0].uri);
-      setModalCamara(true);
-    }
-  };
-
   const _abrirCamara = async () => {
     if (!permission?.granted) {
       const res = await requestPermission();
@@ -118,18 +105,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
       showAlert('Cambio no disponible', `Podrás cambiar tu foto en ${diasParaCambio} día(s).`);
       return;
     }
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Cancelar', 'Tomar foto', 'Elegir de galería'], cancelButtonIndex: 0 },
-        (idx) => { if (idx === 1) _abrirCamara(); else if (idx === 2) _abrirGaleria(); }
-      );
-    } else {
-      Alert.alert('Cambiar foto', '', [
-        { text: 'Tomar foto', onPress: _abrirCamara },
-        { text: 'Elegir de galería', onPress: _abrirGaleria },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
-    }
+    _abrirCamara();
   };
 
   const tomarFoto = async () => {
