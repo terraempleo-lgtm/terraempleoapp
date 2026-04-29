@@ -1,5 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TextInput, Platform, TouchableOpacity } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  View, Text, StyleSheet, ActivityIndicator, TextInput, Platform,
+  TouchableOpacity, FlatList, Image, Dimensions, ScrollView,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -10,6 +13,10 @@ import { trabajadoresAPI, vacantesAPI } from '../../services/api';
 import { AnimatedPressable } from '../../components/animated';
 import { showAlert } from '../../utils/alertService';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = SCREEN_WIDTH * 0.72;
+const CARD_GAP = 12;
+
 const DEFAULT_REGION = {
   latitude: 5.5,
   longitude: -74.5,
@@ -17,336 +24,511 @@ const DEFAULT_REGION = {
   longitudeDelta: 9,
 };
 
-// Coordenadas por municipio (más precisas) - misma estrategia usada en VacantesMapa.
+// ─── Coordinate helpers (same strategy as VacantesMapaScreen) ─────────────────
+
 const MUNICIPIO_COORDS = {
-  Chinchina: { latitude: 5.0037, longitude: -75.6097 },
   'Chinchiná': { latitude: 5.0037, longitude: -75.6097 },
-  Manizales: { latitude: 5.07, longitude: -75.5174 },
-  Anserma: { latitude: 5.2167, longitude: -75.7833 },
-  Riosucio: { latitude: 5.42, longitude: -75.71 },
-  'Ríosucio': { latitude: 5.42, longitude: -75.71 },
-  Supia: { latitude: 5.455, longitude: -75.638 },
+  'Manizales': { latitude: 5.07, longitude: -75.5174 },
+  'Anserma': { latitude: 5.2167, longitude: -75.7833 },
+  'Riosucio': { latitude: 5.42, longitude: -75.71 },
   'Supía': { latitude: 5.455, longitude: -75.638 },
-  Salamina: { latitude: 5.4029, longitude: -75.4828 },
-  Armenia: { latitude: 4.5339, longitude: -75.6811 },
-  Salento: { latitude: 4.6369, longitude: -75.5736 },
-  Montenegro: { latitude: 4.566, longitude: -75.7479 },
-  Calarca: { latitude: 4.517, longitude: -75.643 },
+  'Salamina': { latitude: 5.4029, longitude: -75.4828 },
+  'Armenia': { latitude: 4.5339, longitude: -75.6811 },
+  'Salento': { latitude: 4.6369, longitude: -75.5736 },
+  'Montenegro': { latitude: 4.566, longitude: -75.7479 },
   'Calarcá': { latitude: 4.517, longitude: -75.643 },
-  Pereira: { latitude: 4.8087, longitude: -75.6906 },
-  Medellin: { latitude: 6.2442, longitude: -75.5812 },
+  'Pereira': { latitude: 4.8087, longitude: -75.6906 },
   'Medellín': { latitude: 6.2442, longitude: -75.5812 },
-  Rionegro: { latitude: 6.1547, longitude: -75.3741 },
+  'Rionegro': { latitude: 6.1547, longitude: -75.3741 },
+  'Jardín': { latitude: 5.5997, longitude: -75.8236 },
+  'Andes': { latitude: 5.6561, longitude: -75.8808 },
+  'Fredonia': { latitude: 5.9352, longitude: -75.6734 },
   'Ibagué': { latitude: 4.4389, longitude: -75.2322 },
-  Ibague: { latitude: 4.4389, longitude: -75.2322 },
-  Cali: { latitude: 3.4516, longitude: -76.532 },
-  Neiva: { latitude: 2.9273, longitude: -75.2819 },
-  Pasto: { latitude: 1.2136, longitude: -77.2811 },
-  Popayan: { latitude: 2.4448, longitude: -76.6147 },
+  'Cali': { latitude: 3.4516, longitude: -76.532 },
+  'Neiva': { latitude: 2.9273, longitude: -75.2819 },
+  'Pasto': { latitude: 1.2136, longitude: -77.2811 },
   'Popayán': { latitude: 2.4448, longitude: -76.6147 },
-  Bogota: { latitude: 4.711, longitude: -74.0721 },
   'Bogotá': { latitude: 4.711, longitude: -74.0721 },
-  Tunja: { latitude: 5.5353, longitude: -73.3678 },
-  Bucaramanga: { latitude: 7.1194, longitude: -73.1227 },
-  Villavicencio: { latitude: 4.142, longitude: -73.6266 },
-  Barranquilla: { latitude: 10.9639, longitude: -74.7964 },
-  Cartagena: { latitude: 10.391, longitude: -75.4794 },
+  'Tunja': { latitude: 5.5353, longitude: -73.3678 },
+  'Bucaramanga': { latitude: 7.1194, longitude: -73.1227 },
+  'Villavicencio': { latitude: 4.142, longitude: -73.6266 },
+  'Barranquilla': { latitude: 10.9639, longitude: -74.7964 },
+  'Cartagena': { latitude: 10.391, longitude: -75.4794 },
+  'Manizales': { latitude: 5.07, longitude: -75.5174 },
 };
 
 const DEPT_COORDS = {
-  Amazonas: { latitude: -1.4429, longitude: -71.5724 },
-  Antioquia: { latitude: 6.701, longitude: -75.5873 },
-  Arauca: { latitude: 6.5477, longitude: -71.002 },
-  Atlantico: { latitude: 10.6966, longitude: -74.8741 },
-  'Atlantico': { latitude: 10.6966, longitude: -74.8741 },
+  'Antioquia': { latitude: 6.701, longitude: -75.5873 },
   'Atlántico': { latitude: 10.6966, longitude: -74.8741 },
-  Bolivar: { latitude: 8.6704, longitude: -74.03 },
   'Bolívar': { latitude: 8.6704, longitude: -74.03 },
-  Boyaca: { latitude: 5.4545, longitude: -73.362 },
   'Boyacá': { latitude: 5.4545, longitude: -73.362 },
-  Caldas: { latitude: 5.098, longitude: -75.62 },
-  Caqueta: { latitude: 1.0144, longitude: -74.8125 },
-  'Caquetá': { latitude: 1.0144, longitude: -74.8125 },
-  Casanare: { latitude: 5.7589, longitude: -71.5724 },
-  Cauca: { latitude: 2.7097, longitude: -76.6413 },
-  Cesar: { latitude: 9.3373, longitude: -73.6536 },
-  Choco: { latitude: 5.6917, longitude: -76.6583 },
-  'Chocó': { latitude: 5.6917, longitude: -76.6583 },
-  Cordoba: { latitude: 8.3491, longitude: -75.8873 },
-  'Córdoba': { latitude: 8.3491, longitude: -75.8873 },
-  Cundinamarca: { latitude: 4.5981, longitude: -74.0758 },
-  Guainia: { latitude: 2.5854, longitude: -68.5247 },
-  'Guainía': { latitude: 2.5854, longitude: -68.5247 },
-  Guaviare: { latitude: 2.0408, longitude: -72.3356 },
-  Huila: { latitude: 2.5359, longitude: -75.5277 },
-  Guajira: { latitude: 11.3548, longitude: -72.5205 },
+  'Caldas': { latitude: 5.098, longitude: -75.62 },
+  'Cauca': { latitude: 2.7097, longitude: -76.6413 },
+  'Cundinamarca': { latitude: 4.5981, longitude: -74.0758 },
+  'Huila': { latitude: 2.5359, longitude: -75.5277 },
   'La Guajira': { latitude: 11.3548, longitude: -72.5205 },
-  Magdalena: { latitude: 10.4113, longitude: -74.4057 },
-  Meta: { latitude: 3.9928, longitude: -73.2667 },
-  Narino: { latitude: 1.2892, longitude: -77.3579 },
+  'Meta': { latitude: 3.9928, longitude: -73.2667 },
   'Nariño': { latitude: 1.2892, longitude: -77.3579 },
   'Norte de Santander': { latitude: 7.9463, longitude: -72.8988 },
-  Putumayo: { latitude: 0.436, longitude: -76.6413 },
-  Quindio: { latitude: 4.5339, longitude: -75.6811 },
   'Quindío': { latitude: 4.5339, longitude: -75.6811 },
-  Risaralda: { latitude: 4.983, longitude: -75.741 },
-  Santander: { latitude: 6.6437, longitude: -73.6536 },
-  Sucre: { latitude: 8.8109, longitude: -74.7233 },
-  Tolima: { latitude: 4.0925, longitude: -75.1545 },
+  'Risaralda': { latitude: 4.983, longitude: -75.741 },
+  'Santander': { latitude: 6.6437, longitude: -73.6536 },
+  'Tolima': { latitude: 4.0925, longitude: -75.1545 },
   'Valle del Cauca': { latitude: 3.8009, longitude: -76.6413 },
-  Vaupes: { latitude: 0.8554, longitude: -70.8119 },
-  'Vaupés': { latitude: 0.8554, longitude: -70.8119 },
-  Vichada: { latitude: 4.4233, longitude: -69.2878 },
 };
 
-function hashNum(input) {
-  const txt = String(input || '0');
-  let hash = 0;
-  for (let i = 0; i < txt.length; i += 1) {
-    hash = ((hash << 5) - hash) + txt.charCodeAt(i);
-    hash |= 0;
+const coordOffsets = new Map();
+function getOrCreateOffset(id) {
+  if (!coordOffsets.has(id)) {
+    coordOffsets.set(id, {
+      dLat: (Math.random() - 0.5) * 0.12,
+      dLon: (Math.random() - 0.5) * 0.12,
+    });
   }
-  return Math.abs(hash);
+  return coordOffsets.get(id);
 }
 
-function normalizeCoordinates(item) {
-  const lat = Number(item.latitud);
-  const lng = Number(item.longitud);
-  if (Number.isFinite(lat) && Number.isFinite(lng) && (Math.abs(lat) > 0.0001 || Math.abs(lng) > 0.0001)) {
-    return { latitude: lat, longitude: lng };
+function resolveCoords(item) {
+  const lat = parseFloat(item.latitud);
+  const lon = parseFloat(item.longitud);
+  if (Number.isFinite(lat) && Number.isFinite(lon) && (Math.abs(lat) > 0.001 || Math.abs(lon) > 0.001)) {
+    return { latitude: lat, longitude: lon };
   }
-
   const mun = item.municipio ? MUNICIPIO_COORDS[item.municipio] : null;
   if (mun) {
-    const seed = hashNum(item.id);
-    const dLat = ((seed % 100) / 100 - 0.5) * 0.08;
-    const dLng = ((((seed / 100) | 0) % 100) / 100 - 0.5) * 0.08;
-    return {
-      latitude: mun.latitude + dLat,
-      longitude: mun.longitude + dLng,
-    };
+    const { dLat, dLon } = getOrCreateOffset(String(item.id));
+    return { latitude: mun.latitude + dLat * 0.5, longitude: mun.longitude + dLon * 0.5 };
   }
-
-  const dept = DEPT_COORDS[item.departamento] || null;
+  const dept = DEPT_COORDS[item.departamento];
   if (!dept) return null;
-
-  const seed = hashNum(item.id);
-  const dLat = ((seed % 100) / 100 - 0.5) * 0.22;
-  const dLng = ((((seed / 100) | 0) % 100) / 100 - 0.5) * 0.22;
-
-  return {
-    latitude: dept.latitude + dLat,
-    longitude: dept.longitude + dLng,
-  };
+  const { dLat, dLon } = getOrCreateOffset(String(item.id));
+  return { latitude: dept.latitude + dLat, longitude: dept.longitude + dLon };
 }
 
+// ─── CustomMarker ─────────────────────────────────────────────────────────────
+
+function CustomMarker({ selected, foto, nombre }) {
+  const initials = (nombre || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  return (
+    <View style={mkStyles.wrap}>
+      {selected && (
+        <View style={mkStyles.callout}>
+          <Text style={mkStyles.calloutText} numberOfLines={1}>{(nombre || '').split(' ')[0]}</Text>
+        </View>
+      )}
+      <View style={[mkStyles.bubble, selected && mkStyles.bubbleSelected]}>
+        {foto ? (
+          <Image source={{ uri: foto }} style={mkStyles.foto} />
+        ) : (
+          <Text style={mkStyles.initials}>{initials}</Text>
+        )}
+      </View>
+      <View style={[mkStyles.tail, { borderTopColor: selected ? COLORS.primary : '#546E7A' }]} />
+    </View>
+  );
+}
+
+const mkStyles = StyleSheet.create({
+  wrap: { alignItems: 'center' },
+  callout: {
+    backgroundColor: '#FFF', paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 10, marginBottom: 5,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18, shadowRadius: 4, elevation: 5, maxWidth: 140,
+  },
+  calloutText: { fontSize: 11, fontWeight: '700', color: '#212121' },
+  bubble: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: '#546E7A',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2.5, borderColor: '#FFF',
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25, shadowRadius: 4, elevation: 5,
+  },
+  bubbleSelected: { width: 46, height: 46, borderRadius: 23, borderColor: COLORS.primary, backgroundColor: COLORS.primary },
+  foto: { width: '100%', height: '100%' },
+  initials: { fontSize: 13, fontWeight: '700', color: '#FFF' },
+  tail: {
+    width: 0, height: 0,
+    borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8,
+    borderLeftColor: 'transparent', borderRightColor: 'transparent',
+    marginTop: -1,
+  },
+});
+
+// ─── WorkerCard ───────────────────────────────────────────────────────────────
+
+function WorkerCard({ worker, selected, onPress }) {
+  const initials = (worker.nombre_completo || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  const cal = Number(worker.calificacion_promedio || 0);
+  const cultivos = (worker.cultivos || []).slice(0, 3);
+  const ubicacion = [worker.municipio, worker.departamento].filter(Boolean).join(', ');
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.88}
+      style={[wcStyles.card, selected && wcStyles.cardSelected]}>
+      <View style={wcStyles.avatarWrap}>
+        {worker.foto_selfie ? (
+          <Image source={{ uri: worker.foto_selfie }} style={wcStyles.avatar} />
+        ) : (
+          <View style={[wcStyles.avatarFallback]}>
+            <Text style={wcStyles.initials}>{initials}</Text>
+          </View>
+        )}
+      </View>
+      <View style={wcStyles.info}>
+        <Text style={wcStyles.name} numberOfLines={1}>{worker.nombre_completo}</Text>
+        <View style={wcStyles.locationRow}>
+          <Ionicons name="location-outline" size={11} color="#9E9E9E" />
+          <Text style={wcStyles.locationText} numberOfLines={1}>{ubicacion || 'Sin ubicación'}</Text>
+        </View>
+        {cal > 0 && (
+          <View style={wcStyles.ratingRow}>
+            <Ionicons name="star" size={12} color="#F59E0B" />
+            <Text style={wcStyles.ratingText}>{cal.toFixed(1)}</Text>
+          </View>
+        )}
+        {cultivos.length > 0 && (
+          <View style={wcStyles.chipsRow}>
+            {cultivos.map((c, i) => (
+              <View key={i} style={wcStyles.chip}>
+                <Text style={wcStyles.chipText}>{c.cultivo || c}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const wcStyles = StyleSheet.create({
+  card: {
+    width: CARD_WIDTH, flexDirection: 'row',
+    backgroundColor: '#FFF', borderRadius: 18,
+    overflow: 'hidden', ...SHADOWS.large, padding: 12, gap: 10,
+  },
+  cardSelected: { borderWidth: 2, borderColor: COLORS.primary },
+  avatarWrap: { width: 70, height: 70, borderRadius: 35, overflow: 'hidden' },
+  avatar: { width: '100%', height: '100%' },
+  avatarFallback: {
+    width: 70, height: 70, borderRadius: 35,
+    backgroundColor: COLORS.primary + '22',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  initials: { fontSize: 22, fontWeight: '700', color: COLORS.primary },
+  info: { flex: 1, justifyContent: 'center', gap: 3 },
+  name: { fontSize: 14, fontWeight: '700', color: '#212121' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  locationText: { fontSize: 11, color: '#9E9E9E', flex: 1 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  ratingText: { fontSize: 12, fontWeight: '600', color: '#212121' },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 },
+  chip: { backgroundColor: COLORS.primary + '15', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 2 },
+  chipText: { fontSize: 10, fontWeight: '600', color: COLORS.primary },
+});
+
+// ─── FloatingMapControls ──────────────────────────────────────────────────────
+
+function FloatingMapControls({ onZoomIn, onZoomOut, onLocate }) {
+  return (
+    <View style={fmcStyles.wrap}>
+      <TouchableOpacity onPress={onZoomIn} style={fmcStyles.btn} activeOpacity={0.8}>
+        <Ionicons name="add" size={22} color="#424242" />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onZoomOut} style={fmcStyles.btn} activeOpacity={0.8}>
+        <Ionicons name="remove" size={22} color="#424242" />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onLocate} style={[fmcStyles.btn, fmcStyles.btnAccent]} activeOpacity={0.8}>
+        <Ionicons name="locate" size={20} color="#FFF" />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const fmcStyles = StyleSheet.create({
+  wrap: { gap: 10 },
+  btn: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18, shadowRadius: 4, elevation: 5,
+  },
+  btnAccent: { backgroundColor: COLORS.primary },
+});
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
 export default function TrabajadoresMapaScreen({ navigation, route }) {
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const mapRef = useRef(null);
+  const carouselRef = useRef(null);
+
   const [loading, setLoading] = useState(true);
   const [region, setRegion] = useState(DEFAULT_REGION);
-  const [trabajadores, setTrabajadores] = useState([]);
+  const [rawWorkers, setRawWorkers] = useState([]);
   const [vacanteContacto, setVacanteContacto] = useState(null);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [search, setSearch] = useState(route?.params?.search || '');
+  const [userLocation, setUserLocation] = useState(null);
 
   const cargarVacante = useCallback(async () => {
     try {
       const res = await vacantesAPI.misVacantes();
       const vacantes = res.data?.vacantes || [];
-      const activa = vacantes.find((v) => v.estado === 'activa') || vacantes[0] || null;
+      const activa = vacantes.find(v => v.estado === 'activa') || vacantes[0] || null;
       setVacanteContacto(activa ? { id: Number(activa.id), titulo: activa.titulo } : null);
-    } catch (_) {
-      setVacanteContacto(null);
-    }
+    } catch (_) {}
   }, []);
 
   const cargarTrabajadores = useCallback(async () => {
     try {
       const res = await trabajadoresAPI.listar({ orden: 'match' });
       const lista = (res.data?.trabajadores || [])
-        .map((item) => {
-          const coords = normalizeCoordinates(item);
+        .map(item => {
+          const coords = resolveCoords(item);
           if (!coords) return null;
-          return {
-            ...item,
-            ...coords,
-            calificacion_promedio: Number(item.calificacion_promedio || 0),
-          };
+          return { ...item, ...coords, calificacion_promedio: Number(item.calificacion_promedio || 0) };
         })
         .filter(Boolean);
-
-      setTrabajadores(lista);
-      if (lista.length > 0) {
-        setSelectedId(Number(lista[0].id));
-      }
+      setRawWorkers(lista);
     } catch (err) {
       showAlert('Error', err.response?.data?.error || 'No se pudo cargar el mapa de trabajadores');
-    }
-  }, []);
-
-  const centrarEnUsuario = useCallback(async () => {
-    try {
-      const permisos = await Location.requestForegroundPermissionsAsync();
-      if (permisos.status !== 'granted') return;
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setRegion((prev) => ({
-        ...prev,
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-      }));
-    } catch (_) {
-      // No bloqueamos mapa si geolocalizacion falla.
     }
   }, []);
 
   useEffect(() => {
     let active = true;
     const init = async () => {
-      await Promise.all([cargarTrabajadores(), cargarVacante(), centrarEnUsuario()]);
+      await Promise.all([cargarTrabajadores(), cargarVacante()]);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          if (active) setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        }
+      } catch (_) {}
       if (active) setLoading(false);
     };
     init();
     return () => { active = false; };
-  }, [cargarTrabajadores, cargarVacante, centrarEnUsuario]);
+  }, [cargarTrabajadores, cargarVacante]);
 
-  const filtrados = useMemo(() => {
+  const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return trabajadores;
-    return trabajadores.filter((t) =>
+    if (!q) return rawWorkers;
+    return rawWorkers.filter(t =>
       String(t.nombre_completo || '').toLowerCase().includes(q) ||
       String(t.municipio || '').toLowerCase().includes(q) ||
       String(t.departamento || '').toLowerCase().includes(q) ||
-      (t.cultivos || []).some((c) => String(c).toLowerCase().includes(q)) ||
-      (t.habilidades || []).some((h) => String(h).toLowerCase().includes(q))
+      (t.cultivos || []).some(c => String(c.cultivo || c).toLowerCase().includes(q)) ||
+      (t.habilidades || []).some(h => String(h).toLowerCase().includes(q))
     );
-  }, [trabajadores, search]);
+  }, [rawWorkers, search]);
 
-  const seleccionado = useMemo(
-    () => filtrados.find((t) => Number(t.id) === Number(selectedId)) || filtrados[0] || null,
-    [filtrados, selectedId]
-  );
+  // Pan map when selection changes
+  useEffect(() => {
+    const w = filtered[selectedIndex];
+    if (!w) return;
+    mapRef.current?.animateToRegion(
+      { latitude: w.latitude, longitude: w.longitude, latitudeDelta: 0.5, longitudeDelta: 0.5 }, 400,
+    );
+  }, [selectedIndex]);
 
-  const irPerfil = (item) => {
+  useEffect(() => {
+    setSelectedIndex(0);
+    const w = filtered[0];
+    if (w) {
+      mapRef.current?.animateToRegion(
+        { latitude: w.latitude, longitude: w.longitude, latitudeDelta: 0.5, longitudeDelta: 0.5 }, 400,
+      );
+    }
+  }, [search]);
+
+  const handleMarkerPress = useCallback((index) => {
+    setSelectedIndex(index);
+    carouselRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+  }, []);
+
+  const onCarouselScroll = useCallback((e) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / (CARD_WIDTH + CARD_GAP));
+    const clamped = Math.max(0, Math.min(idx, filtered.length - 1));
+    if (clamped !== selectedIndex) setSelectedIndex(clamped);
+  }, [selectedIndex, filtered.length]);
+
+  const zoomIn = useCallback(() => {
+    const next = { ...region, latitudeDelta: Math.max(region.latitudeDelta / 2, 0.002), longitudeDelta: Math.max(region.longitudeDelta / 2, 0.002) };
+    mapRef.current?.animateToRegion(next, 300);
+  }, [region]);
+
+  const zoomOut = useCallback(() => {
+    const next = { ...region, latitudeDelta: Math.min(region.latitudeDelta * 2, 60), longitudeDelta: Math.min(region.longitudeDelta * 2, 60) };
+    mapRef.current?.animateToRegion(next, 300);
+  }, [region]);
+
+  const locateMe = useCallback(() => {
+    if (userLocation) {
+      mapRef.current?.animateToRegion({ ...userLocation, latitudeDelta: 1.5, longitudeDelta: 1.5 }, 400);
+    } else {
+      showAlert('Ubicación no disponible', 'Activa el permiso de ubicación para centrar el mapa.');
+    }
+  }, [userLocation]);
+
+  const irPerfil = useCallback((item) => {
     if (!item?.id) return;
-    navigation.navigate('PerfilPublicoTrabajador', {
-      trabajador_id: item.id,
-      vacante_id: vacanteContacto?.id,
-    });
-  };
+    navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.id, vacante_id: vacanteContacto?.id });
+  }, [navigation, vacanteContacto]);
 
   if (loading) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} style={{ flex: 1 }} />
+        <ActivityIndicator size="large" color={COLORS.primary} style={{ flex: 1 }} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View style={styles.root}>
       {/* Fullscreen map */}
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFillObject}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
-        initialRegion={region}
+        initialRegion={DEFAULT_REGION}
         onRegionChangeComplete={setRegion}
-        showsUserLocation
+        showsUserLocation={!!userLocation}
         showsMyLocationButton={false}
         showsCompass={false}
         toolbarEnabled={false}
       >
-        {filtrados.map((t) => (
+        {filtered.map((w, index) => (
           <Marker
-            key={String(t.id)}
-            coordinate={{ latitude: t.latitude, longitude: t.longitude }}
-            pinColor={Number(t.id) === Number(seleccionado?.id) ? COLORS.warning : COLORS.primary}
-            onPress={() => setSelectedId(Number(t.id))}
-          />
+            key={String(w.id)}
+            coordinate={{ latitude: w.latitude, longitude: w.longitude }}
+            anchor={{ x: 0.5, y: 1 }}
+            tracksViewChanges={false}
+            onPress={() => index === selectedIndex ? irPerfil(w) : handleMarkerPress(index)}
+          >
+            <CustomMarker
+              selected={index === selectedIndex}
+              foto={w.foto_selfie}
+              nombre={w.nombre_completo}
+            />
+          </Marker>
         ))}
       </MapView>
 
-      {/* Top overlay — search bar */}
+      {/* Search bar overlay */}
       <SafeAreaView style={styles.topOverlay} edges={['top']}>
-        <View style={styles.searchWrap}>
-          <Ionicons name="search" size={17} color="#9E9E9E" />
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={18} color="#9E9E9E" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar por nombre, zona o habilidad"
+            placeholder="Buscar por nombre, zona o habilidad..."
             placeholderTextColor="#9E9E9E"
             value={search}
             onChangeText={setSearch}
+            returnKeyType="search"
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close-circle" size={17} color="#9E9E9E" />
+              <Ionicons name="close-circle" size={18} color="#9E9E9E" />
             </TouchableOpacity>
+          )}
+          {filtered.length > 0 && search.length === 0 && (
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{filtered.length}</Text>
+            </View>
           )}
         </View>
       </SafeAreaView>
 
-      {/* Bottom card */}
-      <View style={[styles.bottomCard, { paddingBottom: insets.bottom + SPACING.md }]}>
-        {seleccionado ? (
-          <View style={styles.workerRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.workerName} numberOfLines={1}>{seleccionado.nombre_completo}</Text>
-              <Text style={styles.workerMeta} numberOfLines={1}>
-                {[seleccionado.municipio, seleccionado.departamento].filter(Boolean).join(', ') || 'Sin ubicación'}
-              </Text>
-              <View style={styles.ratingRow}>
-                <Ionicons name="star" size={13} color={COLORS.warning} />
-                <Text style={styles.workerMeta}>
-                  {seleccionado.calificacion_promedio > 0 ? seleccionado.calificacion_promedio.toFixed(1) : 'Sin calificación'}
-                </Text>
-              </View>
-            </View>
-            <AnimatedPressable style={styles.btnPerfil} onPress={() => irPerfil(seleccionado)} scaleValue={0.96} haptic>
-              <Ionicons name="person-outline" size={14} color={COLORS.white} />
-              <Text style={styles.btnPerfilText}>Ver perfil</Text>
-            </AnimatedPressable>
-          </View>
-        ) : (
-          <View style={styles.emptyRow}>
-            <Ionicons name="map-outline" size={20} color="#9E9E9E" />
-            <Text style={styles.emptyText}>No hay trabajadores con ese filtro.</Text>
-          </View>
-        )}
+      {/* Zoom + locate controls */}
+      <View style={styles.fabColumn}>
+        <FloatingMapControls onZoomIn={zoomIn} onZoomOut={zoomOut} onLocate={locateMe} />
       </View>
+
+      {/* Carousel */}
+      {filtered.length > 0 ? (
+        <View style={styles.carouselWrap}>
+          <FlatList
+            ref={carouselRef}
+            data={filtered}
+            keyExtractor={item => String(item.id)}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={CARD_WIDTH + CARD_GAP}
+            snapToAlignment="center"
+            decelerationRate="fast"
+            contentContainerStyle={styles.carouselContent}
+            onMomentumScrollEnd={onCarouselScroll}
+            onScrollEndDrag={onCarouselScroll}
+            getItemLayout={(_, index) => ({ length: CARD_WIDTH + CARD_GAP, offset: (CARD_WIDTH + CARD_GAP) * index, index })}
+            renderItem={({ item, index }) => (
+              <WorkerCard
+                worker={item}
+                selected={index === selectedIndex}
+                onPress={() => index === selectedIndex ? irPerfil(item) : handleMarkerPress(index)}
+              />
+            )}
+          />
+        </View>
+      ) : (
+        <View style={[styles.emptyWrap, { paddingBottom: insets.bottom + SPACING.md }]}>
+          <View style={styles.emptyCard}>
+            <Ionicons name="people-outline" size={34} color={COLORS.primary} />
+            <Text style={styles.emptyTitle}>Sin resultados</Text>
+            <Text style={styles.emptySub}>
+              {search ? `No hay trabajadores para "${search}"` : 'No hay trabajadores disponibles en el mapa.'}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+
   topOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0,
     paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, zIndex: 10,
   },
-  searchWrap: {
+  searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#FFFFFF', borderRadius: RADIUS.full,
+    backgroundColor: '#FFF', borderRadius: RADIUS.full,
     paddingHorizontal: SPACING.md, height: 50,
     borderWidth: 1, borderColor: '#E0E0E0',
     ...SHADOWS.medium,
   },
   searchInput: { flex: 1, fontSize: 14, color: '#212121', paddingVertical: 0 },
-  bottomCard: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingHorizontal: SPACING.lg, paddingTop: SPACING.md,
-    ...SHADOWS.large,
+  countBadge: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
+  countText: { fontSize: 11, fontWeight: '700', color: '#FFF' },
+
+  fabColumn: {
+    position: 'absolute', right: SPACING.md, bottom: 210, zIndex: 10,
   },
-  workerRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  workerName: { fontSize: 16, fontWeight: '700', color: '#212121' },
-  workerMeta: { fontSize: 13, color: '#757575', marginTop: 2 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  btnPerfil: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: COLORS.primary, paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: RADIUS.full,
+
+  carouselWrap: {
+    position: 'absolute', bottom: 16, left: 0, right: 0, zIndex: 10,
   },
-  btnPerfilText: { color: COLORS.white, fontWeight: '700', fontSize: 13 },
-  emptyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: SPACING.sm },
-  emptyText: { fontSize: 13, color: '#757575' },
+  carouselContent: {
+    paddingHorizontal: (SCREEN_WIDTH - CARD_WIDTH) / 2,
+    gap: CARD_GAP,
+  },
+
+  emptyWrap: {
+    position: 'absolute', bottom: 24, left: 0, right: 0,
+    alignItems: 'center', zIndex: 10,
+  },
+  emptyCard: {
+    backgroundColor: '#FFF', borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB',
+    padding: SPACING.lg, alignItems: 'center', gap: 6,
+    marginHorizontal: SPACING.xl, ...SHADOWS.large,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#212121' },
+  emptySub: { fontSize: 12, color: '#757575', textAlign: 'center' },
 });

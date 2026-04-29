@@ -154,9 +154,11 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   }, []);
 
   const cargarVacantes = useCallback(async () => {
-    // Mostrar cache inmediatamente mientras carga
+    // Mostrar cache sin fotos (las URLs firmadas expiran)
     const cache = await leerVacantesCache();
-    if (cache && vacantes.length === 0) setVacantes(cache);
+    if (cache && vacantes.length === 0) {
+      setVacantes(cache.map(v => ({ ...v, foto_portada: null })));
+    }
 
     try {
       const params = {};
