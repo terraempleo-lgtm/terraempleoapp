@@ -526,7 +526,7 @@ function AuthStack() {
     <Stack.Navigator screenOptions={{ ...stackScreenOptions, headerShown: false, headerRight: undefined }}>
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen}
-        options={{ headerShown: true, title: 'Iniciar sesión' }} />
+        options={{ headerShown: false }} />
       <Stack.Screen name="RoleSelect" component={RoleSelectScreen}
         options={{ headerShown: true, title: 'Tipo de cuenta' }} />
       <Stack.Screen name="RegisterTrabajador" component={RegisterTrabajadorScreen}

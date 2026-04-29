@@ -6,8 +6,10 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { MotiView, AnimatePresence } from 'moti';
 import { COLORS, SPACING, RADIUS } from '../../theme';
 import { Button, Input, TerraFooter } from '../../components/ui';
@@ -23,7 +25,8 @@ function isEmail(value) {
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const { contenedorMaxAncho } = useDisenoResponsive();
   const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
@@ -90,6 +93,27 @@ export default function LoginScreen({ navigation }) {
     <View style={[styles.gradientBg, { backgroundColor: colors.background }]}>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
 
+        {/* Custom header */}
+        <View style={[styles.customHeader, { paddingTop: insets.top + SPACING.sm, backgroundColor: colors.background }]}>
+          <View style={styles.headerTopRow}>
+            <TouchableOpacity
+              style={[styles.backBtn, { backgroundColor: isDark ? colors.border : '#F2F4F0' }]}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <FadeInView delay={80}>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Inicio de sesión</Text>
+          </FadeInView>
+          <FadeInView delay={160}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Ingresa a tu cuenta de TerraEmpleo
+            </Text>
+          </FadeInView>
+        </View>
+
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView
             contentContainerStyle={[
@@ -99,16 +123,6 @@ export default function LoginScreen({ navigation }) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          <View style={styles.headerSection}>
-            <FadeInView delay={100} translateY={-10}>
-              <Text style={[styles.title, { color: colors.textPrimary }]}>Bienvenido de nuevo</Text>
-            </FadeInView>
-            <FadeInView delay={200} translateY={-8}>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                Ingresa a tu cuenta de TerraEmpleo
-              </Text>
-            </FadeInView>
-          </View>
 
           <View style={styles.form}>
             <StaggeredItem index={0}>
@@ -208,25 +222,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  customHeader: {
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.lg,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  backBtn: {
+    width: 38, height: 38, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.xl,
-  },
-  headerSection: {
-    marginBottom: SPACING.xl + SPACING.sm,
+    paddingTop: SPACING.sm,
   },
   title: {
     fontSize: 30,
     fontWeight: '800',
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.textSecondary,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   form: {
     gap: SPACING.xs,
