@@ -4,7 +4,7 @@
     "slug": "TerraEmpleoApp",
     "owner": "rendonv",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/Logos 2 TerraEmpleo.png",
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -31,8 +31,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.terraempleo.app",
-      "versionCode": 1,
-      "softwareKeyboardLayoutMode": "resize",
+      "versionCode": 2,
+      "softwareKeyboardLayoutMode": "pan",
+      "allowBackup": false,
+      "edgeToEdgeLayoutEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
