@@ -37,7 +37,6 @@
       "edgeToEdgeLayoutEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_AUDIO",
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_FINE_LOCATION",

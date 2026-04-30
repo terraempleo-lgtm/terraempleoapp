@@ -119,11 +119,6 @@ export default function EditarVacanteScreen({ navigation, route }) {
       showAlert('Límite alcanzado', `Máximo ${MAX_FOTOS} fotos por vacante.`);
       return;
     }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showAlert('Permiso requerido', 'Necesitamos acceso a tu galería.');
-      return;
-    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,

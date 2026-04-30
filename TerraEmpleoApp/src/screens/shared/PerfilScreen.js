@@ -136,12 +136,7 @@ export default function PerfilScreen({ navigation }) {
   };
 
   const _galeriaDocEmpresa = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') { showAlert('Permiso requerido', 'Necesitamos acceso a tu galería.'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false, quality: 0.8,
-    });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.8 });
     if (!result.canceled && result.assets?.length > 0) await _uploadDocEmpresa(result.assets[0].uri);
   };
 

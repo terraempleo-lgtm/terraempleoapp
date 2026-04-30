@@ -168,12 +168,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
   };
 
   const _galeriaFotoFinca = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') { showAlert('Permiso requerido', 'Necesitamos acceso a tu galería.'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, aspect: [16, 9], quality: 0.8,
-    });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [16, 9], quality: 0.8 });
     if (!result.canceled && result.assets?.length > 0) {
       await _subirFotoFinca(result.assets[0].uri);
     }

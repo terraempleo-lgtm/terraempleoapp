@@ -249,8 +249,6 @@ export default function ChatDetalleScreen({ route, navigation }) {
         if (status !== 'granted') { showAlert('Permiso requerido', 'Necesitamos acceso a la cámara.'); return; }
         result = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.7 });
       } else {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') { showAlert('Permiso requerido', 'Necesitamos acceso a la galería.'); return; }
         result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.7 });
       }
       if (result.canceled || !result.assets?.[0]) return;
