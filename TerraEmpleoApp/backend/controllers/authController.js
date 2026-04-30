@@ -867,6 +867,26 @@ async function solicitarRecuperacionEmail(req, res) {
   }
 }
 
+async function eliminarCuenta(req, res) {
+  try {
+    const userId = req.user.id;
+    // Eliminar en cascada: postulaciones, chats, notificaciones, perfil, usuario
+    await query('DELETE FROM postulaciones WHERE usuario_id = ?', [userId]);
+    await query('DELETE FROM calificaciones WHERE calificador_id = ? OR calificado_id = ?', [userId, userId]);
+    await query('DELETE FROM notificaciones WHERE usuario_id = ?', [userId]);
+    await query('DELETE FROM mensajes WHERE remitente_id = ?', [userId]);
+    await query('DELETE FROM chats WHERE usuario1_id = ? OR usuario2_id = ?', [userId, userId]);
+    await query('DELETE FROM perfil_trabajador WHERE usuario_id = ?', [userId]);
+    await query('DELETE FROM perfil_empleador WHERE usuario_id = ?', [userId]);
+    await query('DELETE FROM vacantes WHERE empleador_id = ?', [userId]);
+    await query('DELETE FROM usuarios WHERE id = ?', [userId]);
+    res.json({ message: 'Cuenta eliminada exitosamente' });
+  } catch (err) {
+    console.error('Error eliminando cuenta:', err);
+    res.status(500).json({ error: 'No se pudo eliminar la cuenta. Intenta de nuevo.' });
+  }
+}
+
 module.exports = {
   register,
   login,
@@ -882,4 +902,5 @@ module.exports = {
   verificarCodigoRecuperacion,
   actualizarPasswordRecuperacion,
   solicitarRecuperacionEmail,
+  eliminarCuenta,
 };

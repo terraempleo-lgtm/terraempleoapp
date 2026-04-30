@@ -67,6 +67,7 @@ export const authAPI = {
     transformRequest: [(data) => data],
   }),
   reenviarVerificacion: () => api.post('/auth/verificacion/reenviar'),
+  eliminarCuenta: () => api.delete('/auth/cuenta'),
 };
 
 // Cognito Auth

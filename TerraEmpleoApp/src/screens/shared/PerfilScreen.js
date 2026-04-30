@@ -305,8 +305,28 @@ export default function PerfilScreen({ navigation }) {
     } catch (err) { console.error(err); }
   };
 
-  const handleLogout = () => {
-    signOut();
+  const handleLogout = () => { signOut(); };
+
+  const handleEliminarCuenta = () => {
+    Alert.alert(
+      'Eliminar cuenta',
+      '¿Estás seguro? Esta acción es permanente y eliminará todos tus datos, vacantes y postulaciones. No se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar mi cuenta',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authAPI.eliminarCuenta();
+              signOut();
+            } catch (err) {
+              Alert.alert('Error', err.response?.data?.error || 'No se pudo eliminar la cuenta.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const calificacion = parseFloat(u?.calificacion_promedio || 0);
@@ -623,6 +643,9 @@ export default function PerfilScreen({ navigation }) {
               <AnimatedPressable style={s.logoutRow} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
                 <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
               </AnimatedPressable>
+              <AnimatedPressable style={s.deleteRow} onPress={handleEliminarCuenta} scaleValue={0.97} haptic hapticStyle="light">
+                <Ionicons name="trash-outline" size={16} color={colors.textMuted} /><Text style={s.deleteTxt}>Eliminar cuenta</Text>
+              </AnimatedPressable>
             </StaggeredItem>
           </View>
         </ScrollView>
@@ -885,6 +908,9 @@ export default function PerfilScreen({ navigation }) {
             <AnimatedPressable style={[s.logoutRow, { backgroundColor: isDark ? '#2a1717' : 'transparent' }]} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
               <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
             </AnimatedPressable>
+            <AnimatedPressable style={s.deleteRow} onPress={handleEliminarCuenta} scaleValue={0.97} haptic hapticStyle="light">
+              <Ionicons name="trash-outline" size={16} color={colors.textMuted} /><Text style={s.deleteTxt}>Eliminar cuenta</Text>
+            </AnimatedPressable>
           </View>
         </StaggeredItem>
       </ScrollView>
@@ -1047,6 +1073,8 @@ const s = StyleSheet.create({
   },
   logoutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, marginTop: SPACING.sm, borderWidth: 1.5, borderColor: COLORS.error, borderRadius: RADIUS.full },
   logoutTxt: { fontSize: 14, fontWeight: '600', color: COLORS.error },
+  deleteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginTop: SPACING.xs },
+  deleteTxt: { fontSize: 13, color: COLORS.textLight },
 
   /* ── EMPLEADOR ── */
   verBanner: {

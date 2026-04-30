@@ -39,5 +39,6 @@ router.post('/fotos/:tipo', authMiddleware, upload.single('foto'), authControlle
 router.post('/verificacion/reenviar', authMiddleware, authController.reenviarVerificacion);
 router.post('/cambiar-foto-perfil', authMiddleware, upload.single('foto'), authController.cambiarFotoPerfil);
 router.post('/hoja-vida', authMiddleware, uploadHojaVida.single('hoja_vida'), authController.subirHojaVida);
+router.delete('/cuenta', authMiddleware, authController.eliminarCuenta);
 
 module.exports = router;
