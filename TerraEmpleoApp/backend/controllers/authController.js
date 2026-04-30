@@ -870,16 +870,12 @@ async function solicitarRecuperacionEmail(req, res) {
 async function eliminarCuenta(req, res) {
   try {
     const userId = req.user.id;
-    // Eliminar en cascada: postulaciones, chats, notificaciones, perfil, usuario
-    await query('DELETE FROM postulaciones WHERE usuario_id = ?', [userId]);
-    await query('DELETE FROM calificaciones WHERE calificador_id = ? OR calificado_id = ?', [userId, userId]);
-    await query('DELETE FROM notificaciones WHERE usuario_id = ?', [userId]);
-    await query('DELETE FROM mensajes WHERE remitente_id = ?', [userId]);
-    await query('DELETE FROM chats WHERE usuario1_id = ? OR usuario2_id = ?', [userId, userId]);
-    await query('DELETE FROM perfil_trabajador WHERE usuario_id = ?', [userId]);
-    await query('DELETE FROM perfil_empleador WHERE usuario_id = ?', [userId]);
-    await query('DELETE FROM vacantes WHERE empleador_id = ?', [userId]);
-    await query('DELETE FROM usuarios WHERE id = ?', [userId]);
+    const { motivo } = req.body;
+    // Soft-delete: marca la cuenta como eliminada, los datos se conservan 30 días
+    await query(
+      `UPDATE usuarios SET eliminado = 1, activo = 0, eliminado_at = NOW(), eliminado_motivo = ? WHERE id = ?`,
+      [motivo || null, userId]
+    );
     res.json({ message: 'Cuenta eliminada exitosamente' });
   } catch (err) {
     console.error('Error eliminando cuenta:', err);

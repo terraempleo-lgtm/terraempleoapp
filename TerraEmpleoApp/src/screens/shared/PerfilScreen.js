@@ -307,21 +307,40 @@ export default function PerfilScreen({ navigation }) {
 
   const handleLogout = () => { signOut(); };
 
-  const handleEliminarCuenta = () => {
+  const [modalEliminar, setModalEliminar] = useState(false);
+  const [motivoEliminar, setMotivoEliminar] = useState('');
+  const [eliminando, setEliminando] = useState(false);
+
+  const MOTIVOS = [
+    'Ya encontré trabajo',
+    'No encuentro lo que busco',
+    'La app no funciona bien',
+    'Privacidad y datos personales',
+    'Prefiero no decirlo',
+    'Otro motivo',
+  ];
+
+  const handleEliminarCuenta = () => setModalEliminar(true);
+
+  const confirmarEliminacion = () => {
     Alert.alert(
-      'Eliminar cuenta',
-      '¿Estás seguro? Esta acción es permanente y eliminará todos tus datos, vacantes y postulaciones. No se puede deshacer.',
+      '¿Eliminar cuenta definitivamente?',
+      'Tus datos se conservarán por 30 días y luego serán eliminados permanentemente.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Eliminar mi cuenta',
+          text: 'Sí, eliminar',
           style: 'destructive',
           onPress: async () => {
+            setEliminando(true);
             try {
-              await authAPI.eliminarCuenta();
+              await authAPI.eliminarCuenta(motivoEliminar);
+              setModalEliminar(false);
               signOut();
             } catch (err) {
               Alert.alert('Error', err.response?.data?.error || 'No se pudo eliminar la cuenta.');
+            } finally {
+              setEliminando(false);
             }
           },
         },
@@ -914,6 +933,60 @@ export default function PerfilScreen({ navigation }) {
           </View>
         </StaggeredItem>
       </ScrollView>
+
+      {/* Modal eliminar cuenta */}
+      <Modal visible={modalEliminar} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalEliminar(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <TouchableOpacity onPress={() => setModalEliminar(false)}>
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>Eliminar cuenta</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }}>
+            <Text style={{ fontSize: 22, fontWeight: '800', color: colors.textPrimary, textAlign: 'center' }}>😔 Cuéntanos</Text>
+            <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 }}>
+              ¿Por qué deseas eliminar tu cuenta?{'\n'}Esperamos verte de vuelta pronto.
+            </Text>
+
+            <View style={{ gap: 10, marginTop: 8 }}>
+              {MOTIVOS.map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  onPress={() => setMotivoEliminar(m)}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 12,
+                    padding: 14, borderRadius: 12, borderWidth: 1.5,
+                    borderColor: motivoEliminar === m ? COLORS.primary : colors.border,
+                    backgroundColor: motivoEliminar === m ? COLORS.primary + '10' : colors.surface,
+                  }}
+                >
+                  <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: motivoEliminar === m ? COLORS.primary : colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                    {motivoEliminar === m && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary }} />}
+                  </View>
+                  <Text style={{ fontSize: 14, color: colors.textPrimary, flex: 1 }}>{m}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              onPress={confirmarEliminacion}
+              disabled={!motivoEliminar || eliminando}
+              style={{ marginTop: 16, paddingVertical: 16, borderRadius: 99, backgroundColor: motivoEliminar ? COLORS.error : colors.border, alignItems: 'center', opacity: eliminando ? 0.7 : 1 }}
+            >
+              {eliminando
+                ? <ActivityIndicator color="#FFF" />
+                : <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Continuar</Text>}
+            </TouchableOpacity>
+
+            <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'center', lineHeight: 18 }}>
+              Tus datos se conservarán 30 días antes de eliminarse permanentemente.
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       {/* Modal cámara para cambio de foto de perfil */}
       <Modal visible={modalCamara} animationType="slide" statusBarTranslucent onRequestClose={() => setModalCamara(false)}>

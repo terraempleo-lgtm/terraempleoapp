@@ -259,6 +259,8 @@ async function initializeDatabase() {
   // Migración: soft delete
   try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS eliminado TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS eliminado TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
+  try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS eliminado_at DATETIME DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS eliminado_motivo VARCHAR(255) DEFAULT NULL'); } catch (_) {}
 
   // Migración: agregar columnas a vacantes si no existen
   try { await query('ALTER TABLE vacantes ADD COLUMN IF NOT EXISTS ofrece_alojamiento TINYINT(1) DEFAULT 0'); } catch (_) {}
