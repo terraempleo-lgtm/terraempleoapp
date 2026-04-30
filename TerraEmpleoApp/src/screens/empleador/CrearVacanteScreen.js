@@ -147,6 +147,13 @@ export default function CrearVacanteScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
+          <Ionicons name="chevron-back" size={26} color={COLORS.textPrimary} />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: COLORS.textPrimary }}>Nueva Vacante</Text>
+        <View style={{ width: 34 }} />
+      </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.card}>

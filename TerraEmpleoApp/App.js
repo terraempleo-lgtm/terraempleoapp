@@ -177,7 +177,7 @@ function PerfilStack() {
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="PerfilHome" component={PerfilScreen} options={{ title: 'Mi Perfil' }} />
-      <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ title: 'Editar Perfil' }} />
+      <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -508,7 +508,7 @@ function AdminDashboardStack() {
           options={{ headerShown: false }}
         />
         <Stack.Screen name="AdminCrearVacante" component={CrearVacanteScreen}
-          options={{ title: 'Crear Vacante (Admin)' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="AdminVistas" component={AdminUsuariosScreen}
           options={{ title: 'Vista Previa de Usuarios' }} />
       </Stack.Navigator>
