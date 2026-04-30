@@ -418,7 +418,7 @@ export default function VerPostulacionesScreen({ route, navigation }) {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.background, borderColor: colors.border }]}>
         <AnimatedPressable

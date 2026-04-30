@@ -275,7 +275,7 @@ export default function MisPostulantesScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
       <View style={[styles.header, { borderColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Mis Postulantes</Text>
