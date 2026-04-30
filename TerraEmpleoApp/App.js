@@ -405,7 +405,7 @@ function TrabajadoresMapaTabStack() {
     <S>
       <Stack.Navigator screenOptions={stackScreenOptions}>
         <Stack.Screen name="TrabajadoresMapaHome" component={TrabajadoresMapaScreen}
-          options={{ title: 'Mapa de trabajadores' }} />
+          options={{ headerShown: false }} />
         <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
           options={{ headerShown: false }} />
       </Stack.Navigator>
