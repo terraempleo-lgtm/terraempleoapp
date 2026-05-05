@@ -384,7 +384,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
           <View style={[styles.burbuja, esMio ? styles.burbujaPropia : [styles.burbujaOtra, { backgroundColor: colors.surface }]]}>
 
             {tipo === 'imagen' && item.archivo_url && (
-              <TouchableOpacity onPress={() => setImagenPreview(item.archivo_url)} activeOpacity={0.9}>
+              <TouchableOpacity onPress={() => setImagenPreview(item.archivo_url)} activeOpacity={0.9} style={styles.imagenWrapper}>
                 <Image source={{ uri: item.archivo_url }} style={styles.imagenBurbuja} resizeMode="cover" />
               </TouchableOpacity>
             )}
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   mensajeRowOtro: { justifyContent: 'flex-start' },
   burbuja: {
     maxWidth: '75%', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6,
-    borderRadius: RADIUS.xl, elevation: 1,
+    borderRadius: RADIUS.xl, elevation: 1, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 1,
   },
   burbujaPropia: { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 },
@@ -594,7 +594,8 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 4 },
   horaTexto: { fontSize: 11 },
   horaMio: { color: 'rgba(255,255,255,0.75)' },
-  imagenBurbuja: { width: SCREEN_W * 0.55, height: SCREEN_W * 0.55, borderRadius: RADIUS.md, marginBottom: 4 },
+  imagenWrapper: { margin: -12, marginBottom: 0 },
+  imagenBurbuja: { width: SCREEN_W * 0.62, height: SCREEN_W * 0.62, borderRadius: RADIUS.xl },
   audioRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 180, paddingVertical: 4 },
   playBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   audioInfo: { flex: 1, gap: 4 },
