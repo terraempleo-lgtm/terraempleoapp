@@ -373,13 +373,24 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
               </View>
             ) : null}
             {estudios ? (
-              <View style={[s.infoRow, { borderBottomColor: 'transparent' }]}>
+              <View style={[s.infoRow, { borderBottomColor: perfil.titulo_estudio ? colors.border : 'transparent' }]}>
                 <View style={[s.infoIconBox, { backgroundColor: colors.primary + '15' }]}>
                   <Ionicons name="school-outline" size={18} color={colors.primary} />
                 </View>
                 <View style={s.infoContent}>
                   <Text style={[s.infoLabel, { color: colors.textMuted }]}>Nivel de estudios</Text>
                   <Text style={[s.infoValue, { color: colors.textPrimary }]}>{estudios}</Text>
+                </View>
+              </View>
+            ) : null}
+            {perfil.titulo_estudio ? (
+              <View style={[s.infoRow, { borderBottomColor: 'transparent' }]}>
+                <View style={[s.infoIconBox, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="ribbon-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={s.infoContent}>
+                  <Text style={[s.infoLabel, { color: colors.textMuted }]}>Título</Text>
+                  <Text style={[s.infoValue, { color: colors.textPrimary }]}>{perfil.titulo_estudio}</Text>
                 </View>
               </View>
             ) : null}
