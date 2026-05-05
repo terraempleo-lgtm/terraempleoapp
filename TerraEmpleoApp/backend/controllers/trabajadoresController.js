@@ -200,7 +200,7 @@ async function listarTrabajadores(req, res) {
         AND u.id NOT IN (SELECT bloqueado_id FROM usuarios_bloqueados WHERE bloqueador_id = ?)
         AND u.id NOT IN (SELECT bloqueador_id FROM usuarios_bloqueados WHERE bloqueado_id = ?)
         ${whereExtra}
-    `, [userId, userId, ...params]);
+    `, [empleadorId, empleadorId, ...params]);
 
     if (!trabajadores || trabajadores.length === 0) {
       return res.json({ trabajadores: [] });
