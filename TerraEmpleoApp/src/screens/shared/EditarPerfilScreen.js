@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Image,
-  KeyboardAvoidingView, Platform, Switch, Linking, ActionSheetIOS, Modal, ActivityIndicator,
+  KeyboardAvoidingView, Platform, Switch, Linking, ActionSheetIOS, Modal, ActivityIndicator, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -463,16 +463,35 @@ export default function EditarPerfilScreen({ navigation, route }) {
 
               {(nivelEstudios === 'tecnico_tecnologo' || nivelEstudios === 'universitario') && (
                 <View style={{ marginTop: SPACING.sm }}>
-                  <AnimatedPressable style={[styles.pickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setShowTituloPicker(true)} scaleValue={0.97}>
-                    <Ionicons name="school-outline" size={20} color={COLORS.primary} />
-                    <Text style={[styles.pickerText, { color: colors.textPrimary }, !tituloEstudio && { color: colors.textMuted }]}>
-                      {tituloEstudio || 'Seleccione su título'}
-                    </Text>
-                    <Ionicons name="chevron-down" size={20} color={colors.textLight} />
-                  </AnimatedPressable>
-                  <PickerModal visible={showTituloPicker} onClose={() => setShowTituloPicker(false)}
-                    title="Título obtenido" options={TITULOS_SUGERIDOS} selectedValue={tituloEstudio}
-                    onSelect={setTituloEstudio} />
+                  <Text style={[styles.fieldLabel, { marginBottom: 6 }]}>Título obtenido <Text style={{ color: colors.textMuted, fontWeight: '400' }}>(opcional)</Text></Text>
+                  <View style={[styles.pickerButton, { backgroundColor: colors.surface, borderColor: colors.border, paddingVertical: 0 }]}>
+                    <Ionicons name="school-outline" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
+                    <TextInput
+                      style={{ flex: 1, fontSize: 15, color: colors.textPrimary, paddingVertical: 14 }}
+                      placeholder="Ej: Ingeniería Agronómica"
+                      placeholderTextColor={colors.textMuted}
+                      value={tituloEstudio}
+                      onChangeText={setTituloEstudio}
+                      returnKeyType="done"
+                      maxLength={100}
+                    />
+                    {tituloEstudio ? (
+                      <TouchableOpacity onPress={() => setTituloEstudio('')}>
+                        <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }} contentContainerStyle={{ gap: 8 }}>
+                    {TITULOS_SUGERIDOS.slice(0, 8).map(t => (
+                      <TouchableOpacity
+                        key={t}
+                        onPress={() => setTituloEstudio(t)}
+                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: tituloEstudio === t ? COLORS.primarySoft : colors.surface, borderWidth: 1, borderColor: tituloEstudio === t ? COLORS.primary : colors.border }}
+                      >
+                        <Text style={{ fontSize: 12, color: tituloEstudio === t ? COLORS.primary : colors.textSecondary }}>{t}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
 
