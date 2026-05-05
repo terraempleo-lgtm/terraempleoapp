@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
-  Linking, Alert, Image, Modal, Pressable, Dimensions,
+  Linking, Alert, Image, Modal, Pressable, Dimensions, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -128,6 +128,10 @@ export default function ChatDetalleScreen({ route, navigation }) {
   const [imagenPreview, setImagenPreview] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [bloqueado, setBloqueado] = useState(false);
+  const [reporteModal, setReporteModal] = useState(null); // { mensaje_id?, usuario_id }
+  const [reporteMotivo, setReporteMotivo] = useState('');
+  const [reporteDesc, setReporteDesc] = useState('');
+  const [enviandoReporte, setEnviandoReporte] = useState(false);
 
   const flatListRef = useRef(null);
   const pollingRef = useRef(null);
@@ -151,19 +155,28 @@ export default function ChatDetalleScreen({ route, navigation }) {
   }, [chat]);
 
   const reportarMensaje = useCallback((mensaje) => {
-    const MOTIVOS = ['Contenido inapropiado', 'Acoso o amenazas', 'Spam', 'Lenguaje ofensivo', 'Otro'];
-    Alert.alert('Reportar mensaje', '¿Por qué deseas reportar este mensaje?', [
-      ...MOTIVOS.map(m => ({
-        text: m, onPress: async () => {
-          try {
-            await reportesAPI.reportar({ usuario_reportado: mensaje.emisor_id, mensaje_id: mensaje.id, chat_id: chat.id, motivo: m });
-            showAlert('Reporte enviado', 'Nuestro equipo revisará este contenido en las próximas 24 horas.');
-          } catch { showAlert('Error', 'No se pudo enviar el reporte.'); }
-        }
-      })),
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  }, [chat]);
+    setReporteMotivo('');
+    setReporteDesc('');
+    setReporteModal({ mensaje_id: mensaje.id, usuario_id: mensaje.emisor_id });
+  }, []);
+
+  const enviarReporte = useCallback(async () => {
+    if (!reporteMotivo) { Alert.alert('Selecciona un motivo', 'Elige el motivo del reporte.'); return; }
+    try {
+      setEnviandoReporte(true);
+      const payload = {
+        usuario_reportado: reporteModal.usuario_id,
+        chat_id: chat.id,
+        motivo: reporteMotivo,
+        descripcion: reporteDesc.trim() || undefined,
+      };
+      if (reporteModal.mensaje_id) payload.mensaje_id = reporteModal.mensaje_id;
+      await reportesAPI.reportar(payload);
+      setReporteModal(null);
+      Alert.alert('Reporte enviado', 'Nuestro equipo revisará este contenido en las próximas 24 horas.');
+    } catch { Alert.alert('Error', 'No se pudo enviar el reporte.'); }
+    finally { setEnviandoReporte(false); }
+  }, [reporteModal, reporteMotivo, reporteDesc, chat]);
 
   const handleBloquear = useCallback(() => {
     const otroId = chat?.otro_usuario_id;
@@ -544,23 +557,71 @@ export default function ChatDetalleScreen({ route, navigation }) {
               style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 }}
               onPress={() => {
                 setMenuVisible(false);
-                Alert.alert('Reportar usuario', '¿Por qué deseas reportar a este usuario?', [
-                  ...['Acoso o amenazas', 'Contenido inapropiado', 'Spam o fraude', 'Lenguaje ofensivo', 'Otro'].map(m => ({
-                    text: m, onPress: async () => {
-                      try {
-                        await reportesAPI.reportar({ usuario_reportado: chat.otro_usuario_id, chat_id: chat.id, motivo: m });
-                        showAlert('Reporte enviado', 'Nuestro equipo revisará este caso en las próximas 24 horas.');
-                      } catch { showAlert('Error', 'No se pudo enviar el reporte.'); }
-                    }
-                  })),
-                  { text: 'Cancelar', style: 'cancel' },
-                ]);
+                setReporteMotivo('');
+                setReporteDesc('');
+                setReporteModal({ usuario_id: chat.otro_usuario_id });
               }}
             >
               <Ionicons name="flag-outline" size={20} color={COLORS.warning} />
               <Text style={{ fontSize: 15, color: COLORS.warning }}>Reportar usuario</Text>
             </TouchableOpacity>
           </View>
+        </Pressable>
+      </Modal>
+
+      {/* Modal reporte con motivo + descripción */}
+      <Modal visible={!!reporteModal} transparent animationType="slide" onRequestClose={() => setReporteModal(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }} onPress={() => setReporteModal(null)}>
+          <Pressable onPress={() => {}}>
+            <View style={styles.reporteCard}>
+              <View style={styles.reporteHeader}>
+                <Text style={styles.reporteTitulo}>
+                  {reporteModal?.mensaje_id ? 'Reportar mensaje' : 'Reportar usuario'}
+                </Text>
+                <TouchableOpacity onPress={() => setReporteModal(null)}>
+                  <Ionicons name="close" size={22} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.reporteLabel}>Motivo</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+                {['Contenido inapropiado', 'Acoso o amenazas', 'Spam o fraude', 'Lenguaje ofensivo', 'Información falsa', 'Otro'].map(m => (
+                  <TouchableOpacity
+                    key={m}
+                    onPress={() => setReporteMotivo(m)}
+                    style={[styles.motivoChip, reporteMotivo === m && styles.motivoChipActivo]}
+                  >
+                    <Text style={[styles.motivoChipText, reporteMotivo === m && styles.motivoChipTextActivo]}>{m}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <Text style={styles.reporteLabel}>¿Puedes contarnos más? <Text style={{ color: COLORS.textSecondary, fontWeight: '400' }}>(opcional)</Text></Text>
+              <TextInput
+                style={styles.reporteInput}
+                placeholder="Describe lo que ocurrió..."
+                placeholderTextColor={COLORS.textSecondary}
+                value={reporteDesc}
+                onChangeText={setReporteDesc}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                maxLength={500}
+              />
+
+              <TouchableOpacity
+                style={[styles.reporteBtn, { opacity: enviandoReporte || !reporteMotivo ? 0.6 : 1 }]}
+                onPress={enviarReporte}
+                disabled={enviandoReporte || !reporteMotivo}
+                activeOpacity={0.85}
+              >
+                {enviandoReporte
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.reporteBtnText}>Enviar reporte</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </>
@@ -624,4 +685,15 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' },
   imagenFullscreen: { width: SCREEN_W, height: SCREEN_W * 1.2 },
   modalClose: { position: 'absolute', top: 48, right: 16 },
+  reporteCard: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36, gap: 10 },
+  reporteHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  reporteTitulo: { fontSize: 17, fontWeight: '700', color: '#111' },
+  reporteLabel: { fontSize: 13, fontWeight: '700', color: '#333', marginBottom: 4 },
+  motivoChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: '#DDD', backgroundColor: '#F5F5F5' },
+  motivoChipActivo: { borderColor: COLORS.error, backgroundColor: COLORS.error + '15' },
+  motivoChipText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
+  motivoChipTextActivo: { color: COLORS.error, fontWeight: '700' },
+  reporteInput: { borderWidth: 1, borderColor: '#DDD', borderRadius: 10, padding: 12, fontSize: 14, color: '#111', minHeight: 80, backgroundColor: '#FAFAFA' },
+  reporteBtn: { backgroundColor: COLORS.error, borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
+  reporteBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
