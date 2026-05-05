@@ -26,4 +26,9 @@ router.get('/verificaciones-empresa/pendientes', adminController.listarEmpresasP
 router.put('/empleadores/:id/verificacion-empresa', adminController.revisarVerificacionEmpresa);
 router.get('/postulaciones', adminController.listarTodasPostulaciones);
 
+// Reportes
+const reportesController = require('../controllers/reportesController');
+router.get('/reportes', reportesController.listarReportes);
+router.put('/reportes/:id', reportesController.resolverReporte);
+
 module.exports = router;

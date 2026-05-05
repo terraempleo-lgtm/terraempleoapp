@@ -10,7 +10,7 @@ import { Audio } from 'expo-av';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
-import { chatsAPI } from '../../services/api';
+import { chatsAPI, reportesAPI } from '../../services/api';
 import { COLORS, RADIUS, SPACING } from '../../theme';
 import { showAlert } from '../../utils/alertService';
 import { AnimatedPressable } from '../../components/animated';
@@ -126,6 +126,8 @@ export default function ChatDetalleScreen({ route, navigation }) {
   const timerRef = useRef(null);
 
   const [imagenPreview, setImagenPreview] = useState(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [bloqueado, setBloqueado] = useState(false);
 
   const flatListRef = useRef(null);
   const pollingRef = useRef(null);
@@ -147,6 +149,46 @@ export default function ChatDetalleScreen({ route, navigation }) {
     const numero = String(chat.otro_celular).replace(/\D/g, '');
     Linking.openURL(`tel:+57${numero}`).catch(() => showAlert('Error', 'No se pudo abrir el marcador.'));
   }, [chat]);
+
+  const reportarMensaje = useCallback((mensaje) => {
+    const MOTIVOS = ['Contenido inapropiado', 'Acoso o amenazas', 'Spam', 'Lenguaje ofensivo', 'Otro'];
+    Alert.alert('Reportar mensaje', '¿Por qué deseas reportar este mensaje?', [
+      ...MOTIVOS.map(m => ({
+        text: m, onPress: async () => {
+          try {
+            await reportesAPI.reportar({ usuario_reportado: mensaje.emisor_id, mensaje_id: mensaje.id, chat_id: chat.id, motivo: m });
+            showAlert('Reporte enviado', 'Nuestro equipo revisará este contenido en las próximas 24 horas.');
+          } catch { showAlert('Error', 'No se pudo enviar el reporte.'); }
+        }
+      })),
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  }, [chat]);
+
+  const handleBloquear = useCallback(() => {
+    const otroId = chat?.otro_usuario_id;
+    const nombre = chat?.otro_nombre || 'este usuario';
+    setMenuVisible(false);
+    Alert.alert(
+      bloqueado ? 'Desbloquear usuario' : 'Bloquear usuario',
+      bloqueado
+        ? `¿Deseas desbloquear a ${nombre}?`
+        : `¿Deseas bloquear a ${nombre}? Ya no podrán enviarse mensajes mutuamente.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: bloqueado ? 'Desbloquear' : 'Bloquear',
+          style: bloqueado ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              if (bloqueado) { await reportesAPI.desbloquear(otroId); setBloqueado(false); }
+              else { await reportesAPI.bloquear(otroId); setBloqueado(true); }
+            } catch { showAlert('Error', 'No se pudo completar la acción.'); }
+          }
+        },
+      ]
+    );
+  }, [chat, bloqueado]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -172,9 +214,14 @@ export default function ChatDetalleScreen({ route, navigation }) {
         </AnimatedPressable>
       ),
       headerRight: () => (
-        <AnimatedPressable onPress={llamar} style={{ marginRight: 16 }} scaleValue={0.9} haptic>
-          <Ionicons name="call" size={22} color={COLORS.textPrimary} />
-        </AnimatedPressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 8 }}>
+          <AnimatedPressable onPress={llamar} style={{ padding: 8 }} scaleValue={0.9} haptic>
+            <Ionicons name="call" size={22} color={COLORS.textPrimary} />
+          </AnimatedPressable>
+          <AnimatedPressable onPress={() => setMenuVisible(v => !v)} style={{ padding: 8 }} scaleValue={0.9} haptic>
+            <Ionicons name="ellipsis-vertical" size={22} color={COLORS.textPrimary} />
+          </AnimatedPressable>
+        </View>
       ),
     });
   }, [navigation, chat, irAlPerfilRelacionado, llamar]);
@@ -323,6 +370,11 @@ export default function ChatDetalleScreen({ route, navigation }) {
           </View>
         )}
         <View style={[styles.mensajeRow, esMio ? styles.mensajeRowMio : styles.mensajeRowOtro]}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onLongPress={!esMio ? () => reportarMensaje(item) : undefined}
+            delayLongPress={500}
+          >
           <View style={[styles.burbuja, esMio ? styles.burbujaPropia : [styles.burbujaOtra, { backgroundColor: colors.surface }]]}>
 
             {tipo === 'imagen' && item.archivo_url && (
@@ -355,6 +407,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
               )}
             </View>
           </View>
+          </TouchableOpacity>
         </View>
       </>
     );
@@ -467,6 +520,41 @@ export default function ChatDetalleScreen({ route, navigation }) {
           <TouchableOpacity style={styles.modalClose} onPress={() => setImagenPreview(null)}>
             <Ionicons name="close-circle" size={36} color={COLORS.white} />
           </TouchableOpacity>
+        </Pressable>
+      </Modal>
+
+      {/* Menú contextual — reportar / bloquear */}
+      <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
+        <Pressable style={{ flex: 1 }} onPress={() => setMenuVisible(false)}>
+          <View style={{ position: 'absolute', top: 60, right: 12, backgroundColor: '#fff', borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, elevation: 8, overflow: 'hidden', minWidth: 200 }}>
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}
+              onPress={handleBloquear}
+            >
+              <Ionicons name={bloqueado ? 'lock-open-outline' : 'ban-outline'} size={20} color={bloqueado ? COLORS.primary : COLORS.error} />
+              <Text style={{ fontSize: 15, color: bloqueado ? COLORS.primary : COLORS.error }}>{bloqueado ? 'Desbloquear usuario' : 'Bloquear usuario'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 }}
+              onPress={() => {
+                setMenuVisible(false);
+                Alert.alert('Reportar usuario', '¿Por qué deseas reportar a este usuario?', [
+                  ...['Acoso o amenazas', 'Contenido inapropiado', 'Spam o fraude', 'Lenguaje ofensivo', 'Otro'].map(m => ({
+                    text: m, onPress: async () => {
+                      try {
+                        await reportesAPI.reportar({ usuario_reportado: chat.otro_usuario_id, chat_id: chat.id, motivo: m });
+                        showAlert('Reporte enviado', 'Nuestro equipo revisará este caso en las próximas 24 horas.');
+                      } catch { showAlert('Error', 'No se pudo enviar el reporte.'); }
+                    }
+                  })),
+                  { text: 'Cancelar', style: 'cancel' },
+                ]);
+              }}
+            >
+              <Ionicons name="flag-outline" size={20} color={COLORS.warning} />
+              <Text style={{ fontSize: 15, color: COLORS.warning }}>Reportar usuario</Text>
+            </TouchableOpacity>
+          </View>
         </Pressable>
       </Modal>
     </>

@@ -328,6 +328,46 @@ async function initializeDatabase() {
   // Migración: push token para notificaciones móviles
   try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS push_token VARCHAR(500) NULL'); } catch (_) {}
 
+  // Tabla de reportes de contenido / usuarios
+  await query(`
+    CREATE TABLE IF NOT EXISTS reportes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      reportado_por INT NOT NULL,
+      usuario_reportado INT NOT NULL,
+      mensaje_id INT DEFAULT NULL,
+      chat_id INT DEFAULT NULL,
+      motivo VARCHAR(100) NOT NULL,
+      descripcion TEXT DEFAULT NULL,
+      estado ENUM('pendiente','revisado','resuelto') NOT NULL DEFAULT 'pendiente',
+      accion_tomada VARCHAR(255) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      revisado_at TIMESTAMP NULL DEFAULT NULL,
+      revisado_por INT DEFAULT NULL,
+      FOREIGN KEY (reportado_por) REFERENCES usuarios(id) ON DELETE CASCADE,
+      FOREIGN KEY (usuario_reportado) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Tabla de usuarios bloqueados
+  await query(`
+    CREATE TABLE IF NOT EXISTS usuarios_bloqueados (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      bloqueador_id INT NOT NULL,
+      bloqueado_id INT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_bloqueo (bloqueador_id, bloqueado_id),
+      FOREIGN KEY (bloqueador_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+      FOREIGN KEY (bloqueado_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Migración: campo baneado en usuarios
+  try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS baneado TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
+  try { await query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS baneado_motivo VARCHAR(255) DEFAULT NULL'); } catch (_) {}
+
+  // Migración: campo reportado en mensajes
+  try { await query('ALTER TABLE mensajes ADD COLUMN IF NOT EXISTS reportado TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
+
   // Tabla para códigos de verificación SMS (funciona para usuarios registrados y no registrados)
   await query(`
     CREATE TABLE IF NOT EXISTS codigos_verificacion (

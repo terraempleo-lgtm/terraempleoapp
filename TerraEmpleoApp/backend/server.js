@@ -16,6 +16,7 @@ const trabajadoresRoutes = require('./routes/trabajadores');
 const notificacionesRoutes = require('./routes/notificaciones');
 const chatsRoutes = require('./routes/chats');
 const cognitoAuthRoutes = require('./routes/cognitoAuth');
+const reportesRoutes = require('./routes/reportes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -70,6 +71,7 @@ app.use('/api/trabajadores', trabajadoresRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
 app.use('/api/chats', chatsRoutes);
 app.use('/api/auth/cognito', cognitoAuthRoutes);
+app.use('/api/reportes', reportesRoutes);
 
 // Endpoint base de API para diagnóstico rápido
 app.get('/api', (req, res) => {

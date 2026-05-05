@@ -70,6 +70,7 @@ const AdminVerificacionCedulasScreen  = lazyWeb(() => import('./src/screens/admi
 const AdminVerificacionDetalleScreen  = lazyWeb(() => import('./src/screens/admin/AdminVerificacionDetalleScreen'));
 const AdminVacantesScreen            = lazyWeb(() => import('./src/screens/admin/AdminVacantesScreen'));
 const AdminPostulantesVacanteScreen  = lazyWeb(() => import('./src/screens/admin/AdminPostulantesVacanteScreen'));
+const AdminReportesScreen            = lazyWeb(() => import('./src/screens/admin/AdminReportesScreen'));
 
 // Fallback mientras carga un chunk lazy
 const LazyFallback = () => (
@@ -433,6 +434,17 @@ function AdminUsuariosStack() {
   );
 }
 
+function AdminReportesStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="AdminReportesHome" component={AdminReportesScreen}
+          options={{ headerShown: false }} />
+      </Stack.Navigator>
+    </S>
+  );
+}
+
 function AdminTabs() {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
@@ -444,6 +456,8 @@ function AdminTabs() {
         options={{ tabBarLabel: 'Verificación' }} />
       <Tab.Screen name="AdminVacantes" component={AdminVacantesStack}
         options={{ tabBarLabel: 'Vacantes' }} />
+      <Tab.Screen name="AdminReportes" component={AdminReportesStack}
+        options={{ tabBarLabel: 'Reportes' }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
         options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
@@ -472,12 +486,12 @@ function AdminVacantesStack() {
         <Stack.Screen
           name="EditarVacante"
           component={EditarVacanteScreen}
-          options={{ title: 'Editar Vacante' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="VerPostulaciones"
           component={AdminPostulantesVacanteScreen}
-          options={{ title: 'Postulantes' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="PerfilPublicoTrabajador"
