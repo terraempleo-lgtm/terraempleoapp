@@ -215,12 +215,19 @@ export const adminAPI = {
   revisarVerificacionEmpresa: (id, estado, comentario) => api.put(`/admin/empleadores/${id}/verificacion-empresa`, { estado, comentario }),
   getReportes: (estado) => api.get('/admin/reportes', { params: estado ? { estado } : {} }),
   resolverReporte: (id, data) => api.put(`/admin/reportes/${id}`, data),
+  getPqrs: (estado) => api.get('/admin/pqrs', { params: estado ? { estado } : {} }),
+  responderPqrs: (id, data) => api.put(`/admin/pqrs/${id}`, data),
 };
 
 export const reportesAPI = {
   reportar: (data) => api.post('/reportes', data),
   bloquear: (usuario_id) => api.post('/reportes/bloquear', { usuario_id }),
   desbloquear: (usuario_id) => api.delete(`/reportes/bloquear/${usuario_id}`),
+};
+
+export const pqrsAPI = {
+  enviar: (data) => api.post('/pqrs', data),
+  misPqrs: () => api.get('/pqrs'),
 };
 
 export default api;

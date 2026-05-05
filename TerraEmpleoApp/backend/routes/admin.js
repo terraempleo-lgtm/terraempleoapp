@@ -31,4 +31,9 @@ const reportesController = require('../controllers/reportesController');
 router.get('/reportes', reportesController.listarReportes);
 router.put('/reportes/:id', reportesController.resolverReporte);
 
+// PQRS
+const pqrsController = require('../controllers/pqrsController');
+router.get('/pqrs', pqrsController.listarPqrs);
+router.put('/pqrs/:id', pqrsController.responderPqrs);
+
 module.exports = router;

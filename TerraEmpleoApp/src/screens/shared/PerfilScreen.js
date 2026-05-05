@@ -618,6 +618,11 @@ export default function PerfilScreen({ navigation }) {
                 </Text>
                 <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
               </AnimatedPressable>
+              <AnimatedPressable style={s.pqrsRow} onPress={() => navigation.navigate('Pqrs')} scaleValue={0.97} haptic>
+                <Ionicons name="chatbox-ellipses-outline" size={16} color={COLORS.textSecondary} />
+                <Text style={s.pqrsRowTxt}>Peticiones, Quejas y Sugerencias</Text>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
+              </AnimatedPressable>
               <AnimatedPressable style={s.logoutRow} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
                 <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
               </AnimatedPressable>
@@ -880,6 +885,11 @@ export default function PerfilScreen({ navigation }) {
               </Text>
               <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
             </AnimatedPressable>
+            <AnimatedPressable style={s.pqrsRow} onPress={() => navigation.navigate('Pqrs')} scaleValue={0.97} haptic>
+              <Ionicons name="chatbox-ellipses-outline" size={16} color={COLORS.textSecondary} />
+              <Text style={s.pqrsRowTxt}>Peticiones, Quejas y Sugerencias</Text>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
+            </AnimatedPressable>
             <AnimatedPressable style={[s.logoutRow, { backgroundColor: isDark ? '#2a1717' : 'transparent' }]} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
               <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
             </AnimatedPressable>
@@ -1043,6 +1053,8 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  pqrsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: SPACING.md, marginTop: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.full, backgroundColor: 'transparent' },
+  pqrsRowTxt: { flex: 1, fontSize: 15, fontWeight: '500', color: COLORS.textSecondary },
   logoutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, marginTop: SPACING.sm, borderWidth: 1.5, borderColor: COLORS.error, borderRadius: RADIUS.full },
   logoutTxt: { fontSize: 14, fontWeight: '600', color: COLORS.error },
 

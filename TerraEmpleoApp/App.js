@@ -41,6 +41,7 @@ import ChatsScreen from './src/screens/shared/ChatsScreen';
 import ChatDetalleScreen from './src/screens/shared/ChatDetalleScreen';
 import PerfilPublicoTrabajadorScreen from './src/screens/shared/PerfilPublicoTrabajadorScreen';
 import PerfilPublicoEmpleadorScreen from './src/screens/shared/PerfilPublicoEmpleadorScreen';
+import PqrsScreen from './src/screens/shared/PqrsScreen';
 
 // ── Trabajador — lazy en web ──────────────────────────────────────────────
 const TrabajadorVacantesScreen    = lazyWeb(() => import('./src/screens/trabajador/TrabajadorVacantesScreen'));
@@ -71,6 +72,7 @@ const AdminVerificacionDetalleScreen  = lazyWeb(() => import('./src/screens/admi
 const AdminVacantesScreen            = lazyWeb(() => import('./src/screens/admin/AdminVacantesScreen'));
 const AdminPostulantesVacanteScreen  = lazyWeb(() => import('./src/screens/admin/AdminPostulantesVacanteScreen'));
 const AdminReportesScreen            = lazyWeb(() => import('./src/screens/admin/AdminReportesScreen'));
+const AdminPqrsScreen                = lazyWeb(() => import('./src/screens/admin/AdminPqrsScreen'));
 
 // Fallback mientras carga un chunk lazy
 const LazyFallback = () => (
@@ -159,6 +161,7 @@ const tabScreenOptions = ({ route }) => ({
       case 'Usuarios': iconName = focused ? 'people' : 'people-outline'; break;
       case 'Verificacion': iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline'; break;
       case 'AdminVacantes': iconName = focused ? 'briefcase' : 'briefcase-outline'; break;
+      case 'AdminPqrs': iconName = focused ? 'chatbox-ellipses' : 'chatbox-ellipses-outline'; break;
       case 'Trabajadores': iconName = focused ? 'people' : 'people-outline'; break;
       case 'ParaTi': iconName = focused ? 'sparkles' : 'sparkles-outline'; break;
       case 'Mapa': iconName = focused ? 'map' : 'map-outline'; break;
@@ -179,6 +182,7 @@ function PerfilStack() {
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="PerfilHome" component={PerfilScreen} options={{ headerShown: false }} />
       <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Pqrs" component={PqrsScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -445,6 +449,17 @@ function AdminReportesStack() {
   );
 }
 
+function AdminPqrsStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="AdminPqrsHome" component={AdminPqrsScreen}
+          options={{ headerShown: false }} />
+      </Stack.Navigator>
+    </S>
+  );
+}
+
 function AdminTabs() {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
@@ -458,6 +473,8 @@ function AdminTabs() {
         options={{ tabBarLabel: 'Vacantes' }} />
       <Tab.Screen name="AdminReportes" component={AdminReportesStack}
         options={{ tabBarLabel: 'Reportes' }} />
+      <Tab.Screen name="AdminPqrs" component={AdminPqrsStack}
+        options={{ tabBarLabel: 'PQRS' }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
         options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, Pressable,
-  ActivityIndicator, Animated, Dimensions
+  ActivityIndicator, Animated, Dimensions, Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -105,11 +105,11 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
 
   const enviarCalificacion = async () => {
     if (!vacante_id || !empleadorId) {
-      showAlert('No disponible', 'No hay contexto suficiente para calificar a este empleador.');
+      Alert.alert('No disponible', 'No hay contexto suficiente para calificar a este empleador.');
       return;
     }
     if (estrellas < 1 || estrellas > 5) {
-      showAlert('Calificación', 'Selecciona de 1 a 5 estrellas.');
+      Alert.alert('Calificación', 'Selecciona de 1 a 5 estrellas.');
       return;
     }
 
@@ -121,11 +121,11 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
         estrellas,
         comentario,
       });
-      showAlert('Gracias', 'Calificación enviada correctamente.');
+      Alert.alert('¡Gracias!', 'Calificación enviada correctamente.');
       setEstrellas(0);
       setComentario('');
     } catch (err) {
-      showAlert('Error', err.response?.data?.error || 'No se pudo enviar la calificación.');
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la calificación.');
     } finally {
       setEnviandoCalificacion(false);
     }

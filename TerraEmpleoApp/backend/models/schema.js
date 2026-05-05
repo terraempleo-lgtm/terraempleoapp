@@ -368,6 +368,23 @@ async function initializeDatabase() {
   // Migración: campo reportado en mensajes
   try { await query('ALTER TABLE mensajes ADD COLUMN IF NOT EXISTS reportado TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
 
+  // Tabla PQRS
+  await query(`
+    CREATE TABLE IF NOT EXISTS pqrs (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      usuario_id INT NOT NULL,
+      tipo ENUM('peticion','queja','reclamo','sugerencia') NOT NULL,
+      asunto VARCHAR(200) NOT NULL,
+      descripcion TEXT NOT NULL,
+      estado ENUM('recibido','en_proceso','resuelto','cerrado') NOT NULL DEFAULT 'recibido',
+      respuesta TEXT DEFAULT NULL,
+      respondido_por INT DEFAULT NULL,
+      respondido_at TIMESTAMP NULL DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Tabla para códigos de verificación SMS (funciona para usuarios registrados y no registrados)
   await query(`
     CREATE TABLE IF NOT EXISTS codigos_verificacion (
