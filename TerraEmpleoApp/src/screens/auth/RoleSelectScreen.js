@@ -108,11 +108,11 @@ export default function RoleSelectScreen({ navigation }) {
         </Text>
         <Text style={styles.termsNote}>
           Al continuar, aceptas nuestros{' '}
-          <Text style={styles.termsLink} onPress={() => Linking.openURL('https://app.terrampleo.com/terminos')}>
+          <Text style={styles.termsLink} onPress={() => Linking.openURL('https://app.terrampleo.com/terminos.html')}>
             Términos y Condiciones
           </Text>
           {' '}y nuestra{' '}
-          <Text style={styles.termsLink} onPress={() => Linking.openURL('https://app.terrampleo.com/privacidad')}>
+          <Text style={styles.termsLink} onPress={() => Linking.openURL('https://app.terrampleo.com/privacidad.html')}>
             Política de Privacidad
           </Text>
           . No toleramos contenido inapropiado ni comportamiento abusivo.
