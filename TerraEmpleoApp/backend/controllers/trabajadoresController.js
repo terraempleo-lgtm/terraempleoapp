@@ -197,8 +197,10 @@ async function listarTrabajadores(req, res) {
       JOIN perfil_trabajador pt ON pt.usuario_id = u.id
       WHERE u.rol = 'trabajador' AND u.activo = 1
         AND (u.eliminado IS NULL OR u.eliminado = 0)
+        AND u.id NOT IN (SELECT bloqueado_id FROM usuarios_bloqueados WHERE bloqueador_id = ?)
+        AND u.id NOT IN (SELECT bloqueador_id FROM usuarios_bloqueados WHERE bloqueado_id = ?)
         ${whereExtra}
-    `, params);
+    `, [userId, userId, ...params]);
 
     if (!trabajadores || trabajadores.length === 0) {
       return res.json({ trabajadores: [] });
@@ -317,7 +319,9 @@ async function trabajadoresRecomendados(req, res) {
       JOIN perfil_trabajador pt ON pt.usuario_id = u.id
       WHERE u.rol = 'trabajador' AND u.activo = 1
         AND (u.eliminado IS NULL OR u.eliminado = 0)
-    `);
+        AND u.id NOT IN (SELECT bloqueado_id FROM usuarios_bloqueados WHERE bloqueador_id = ?)
+        AND u.id NOT IN (SELECT bloqueador_id FROM usuarios_bloqueados WHERE bloqueado_id = ?)
+    `, [empleadorId, empleadorId]);
 
     const resultados = await Promise.all(
       (trabajadores || []).map(async (t) => {

@@ -25,9 +25,11 @@ async function misChats(req, res) {
         JOIN vacantes v ON v.id = c.vacante_id
         JOIN usuarios u ON u.id = c.trabajador_id
         WHERE c.empleador_id = ? AND c.activo = 1
+          AND u.id NOT IN (SELECT bloqueado_id FROM usuarios_bloqueados WHERE bloqueador_id = ?)
+          AND u.id NOT IN (SELECT bloqueador_id FROM usuarios_bloqueados WHERE bloqueado_id = ?)
         ORDER BY ultimo_mensaje_at DESC
       `;
-      params = [userId, userId];
+      params = [userId, userId, userId, userId];
     } else {
       sql = `
         SELECT c.id, c.vacante_id, c.activo, c.created_at,
@@ -43,9 +45,11 @@ async function misChats(req, res) {
         JOIN vacantes v ON v.id = c.vacante_id
         JOIN usuarios u ON u.id = c.empleador_id
         WHERE c.trabajador_id = ? AND c.activo = 1
+          AND u.id NOT IN (SELECT bloqueado_id FROM usuarios_bloqueados WHERE bloqueador_id = ?)
+          AND u.id NOT IN (SELECT bloqueador_id FROM usuarios_bloqueados WHERE bloqueado_id = ?)
         ORDER BY ultimo_mensaje_at DESC
       `;
-      params = [userId, userId];
+      params = [userId, userId, userId, userId];
     }
 
     const chats = await query(sql, params);

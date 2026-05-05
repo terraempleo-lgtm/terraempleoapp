@@ -181,8 +181,14 @@ export default function ChatDetalleScreen({ route, navigation }) {
           style: bloqueado ? 'default' : 'destructive',
           onPress: async () => {
             try {
-              if (bloqueado) { await reportesAPI.desbloquear(otroId); setBloqueado(false); }
-              else { await reportesAPI.bloquear(otroId); setBloqueado(true); }
+              if (bloqueado) {
+                await reportesAPI.desbloquear(otroId);
+                setBloqueado(false);
+              } else {
+                await reportesAPI.bloquear(otroId);
+                setBloqueado(true);
+                navigation.goBack();
+              }
             } catch { showAlert('Error', 'No se pudo completar la acción.'); }
           }
         },
