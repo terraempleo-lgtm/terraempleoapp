@@ -177,7 +177,7 @@ const tabScreenOptions = ({ route }) => ({
 function PerfilStack() {
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
-      <Stack.Screen name="PerfilHome" component={PerfilScreen} options={{ title: 'Mi Perfil' }} />
+      <Stack.Screen name="PerfilHome" component={PerfilScreen} options={{ headerShown: false }} />
       <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
@@ -476,7 +476,7 @@ function AdminVacantesStack() {
         <Stack.Screen
           name="AdminVerPostulantes"
           component={AdminPostulantesVacanteScreen}
-          options={{ title: 'Postulantes' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="AdminDetalleVacante"
