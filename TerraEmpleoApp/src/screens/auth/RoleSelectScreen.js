@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -106,6 +106,17 @@ export default function RoleSelectScreen({ navigation }) {
         <Text style={styles.footerNote}>
           Podrás cambiar tu elección más tarde en la configuración.
         </Text>
+        <Text style={styles.termsNote}>
+          Al continuar, aceptas nuestros{' '}
+          <Text style={styles.termsLink} onPress={() => Linking.openURL('https://app.terrampleo.com/terminos')}>
+            Términos y Condiciones
+          </Text>
+          {' '}y nuestra{' '}
+          <Text style={styles.termsLink} onPress={() => Linking.openURL('https://app.terrampleo.com/privacidad')}>
+            Política de Privacidad
+          </Text>
+          . No toleramos contenido inapropiado ni comportamiento abusivo.
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -198,5 +209,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.md,
     lineHeight: 18,
+  },
+  termsNote: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+    lineHeight: 16,
+    paddingHorizontal: SPACING.sm,
+  },
+  termsLink: {
+    color: COLORS.primary,
+    textDecorationLine: 'underline',
   },
 });
