@@ -46,9 +46,12 @@ export default function AdminReportesScreen() {
   useEffect(() => { setLoading(true); cargar(); }, [cargar]);
 
   const resolver = (reporte) => {
+    const detalleMsg = reporte.mensaje_texto
+      ? `\n\nMensaje reportado:\n"${reporte.mensaje_texto}"`
+      : '';
     Alert.alert(
       'Gestionar reporte',
-      `Reporte de "${reporte.motivo}" contra ${reporte.usuario_reportado_nombre}`,
+      `Reporte de "${reporte.motivo}" contra ${reporte.usuario_reportado_nombre}${detalleMsg}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -114,6 +117,12 @@ export default function AdminReportesScreen() {
             </Text>
             {item.descripcion ? (
               <Text style={[styles.descripcion, { color: colors.textSecondary }]} numberOfLines={2}>{item.descripcion}</Text>
+            ) : null}
+            {item.mensaje_texto ? (
+              <View style={styles.mensajeBox}>
+                <Ionicons name="chatbubble" size={11} color={COLORS.error} />
+                <Text style={styles.mensajeTexto} numberOfLines={3}>{item.mensaje_texto}</Text>
+              </View>
             ) : null}
           </View>
           <View style={{ alignItems: 'flex-end', gap: 6 }}>
@@ -207,6 +216,8 @@ const styles = StyleSheet.create({
   msgBadge: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   msgBadgeText: { fontSize: 10, color: COLORS.textSecondary },
   accion: { fontSize: 12, fontStyle: 'italic', borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 6 },
+  mensajeBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginTop: 4, backgroundColor: '#FFF0F0', borderRadius: 6, padding: 6 },
+  mensajeTexto: { flex: 1, fontSize: 12, color: COLORS.error, fontStyle: 'italic' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
   emptyText: { fontSize: 15, textAlign: 'center' },
 });

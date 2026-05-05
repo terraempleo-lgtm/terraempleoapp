@@ -73,10 +73,12 @@ async function listarReportes(req, res) {
       SELECT r.id, r.motivo, r.descripcion, r.estado, r.accion_tomada, r.created_at, r.revisado_at,
              u1.nombre_completo AS reportado_por_nombre, u1.id AS reportado_por_id,
              u2.nombre_completo AS usuario_reportado_nombre, u2.id AS usuario_reportado_id,
-             u2.baneado, r.mensaje_id, r.chat_id
+             u2.baneado, r.mensaje_id, r.chat_id,
+             m.mensaje AS mensaje_texto, m.tipo AS mensaje_tipo
       FROM reportes r
       JOIN usuarios u1 ON r.reportado_por = u1.id
       JOIN usuarios u2 ON r.usuario_reportado = u2.id
+      LEFT JOIN mensajes m ON m.id = r.mensaje_id
     `;
     const params = [];
     if (estado) { sql += ' WHERE r.estado = ?'; params.push(estado); }
