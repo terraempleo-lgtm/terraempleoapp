@@ -524,7 +524,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.surface : '#F8FAF9' }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.surface : '#F8FAF9' }]} edges={['top']}>
       <FlatList
         data={lista}
         keyExtractor={(item) => item.id?.toString()}
