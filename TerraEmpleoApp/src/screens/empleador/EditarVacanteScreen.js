@@ -12,7 +12,7 @@ import { CULTIVOS, LABORES, TIPO_PAGO_OPTIONS } from '../../data/options';
 import { DEPARTAMENTOS, getMunicipios } from '../../data/colombia';
 import { getFechaInicioInputValue, getFechaInicioPayload } from '../../utils/vacantesFecha';
 import { formatearMontoInput, normalizarMontoPayload } from '../../utils/vacantesPago';
-import { vacantesAPI } from '../../services/api';
+import { vacantesAPI, adminAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../utils/alertService';
 
@@ -51,7 +51,7 @@ async function construirArchivoFoto(foto, indice) {
 }
 
 export default function EditarVacanteScreen({ navigation, route }) {
-  const { vacante } = route.params;
+  const { vacante, isAdmin } = route.params;
 
   const [titulo, setTitulo] = useState(vacante.titulo || '');
   const [descripcion, setDescripcion] = useState(vacante.descripcion || '');
@@ -198,7 +198,8 @@ export default function EditarVacanteScreen({ navigation, route }) {
     setErrors({});
     setIsSaving(true);
     try {
-      await vacantesAPI.actualizar(vacante.id, {
+      const actualizarFn = isAdmin ? adminAPI.updateVacante : vacantesAPI.actualizar;
+      await actualizarFn(vacante.id, {
         titulo,
         descripcion: descripcion || null,
         cultivos: cultivosV,

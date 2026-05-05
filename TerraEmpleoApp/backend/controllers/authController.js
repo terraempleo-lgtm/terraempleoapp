@@ -593,7 +593,7 @@ async function cambiarFotoPerfil(req, res) {
     const userId = req.user.id;
     if (!req.file) return res.status(400).json({ error: 'Archivo de imagen requerido' });
 
-    const [rows] = await query(
+    const rows = await query(
       'SELECT validacion_identidad_estado, foto_selfie_cambiada_at, rol FROM usuarios WHERE id = ?',
       [userId]
     );

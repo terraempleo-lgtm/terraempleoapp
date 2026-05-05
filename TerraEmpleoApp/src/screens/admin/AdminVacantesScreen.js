@@ -59,7 +59,7 @@ export default function AdminVacantesScreen({ navigation }) {
   };
 
   const abrirDetalleVacante = (item) => {
-    navigation.navigate('AdminDetalleVacante', { vacante: item });
+    navigation.navigate('AdminDetalleVacante', { vacante: item, isAdmin: true });
   };
 
   const abrirDetalleEmpleador = (item) => {

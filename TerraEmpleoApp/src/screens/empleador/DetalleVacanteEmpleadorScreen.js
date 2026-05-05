@@ -65,7 +65,7 @@ function BeneficioRow({ icon, iconColor, text, colors, muted }) {
 
 export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
   const { colors } = useAppTheme();
-  const { vacante: vacanteParam } = route.params;
+  const { vacante: vacanteParam, isAdmin } = route.params;
   const [vacante, setVacante] = useState(vacanteParam);
   const [stats, setStats] = useState({ total: 0, pendientes: 0, aceptadas: 0 });
   const [refreshing, setRefreshing] = useState(false);
@@ -212,7 +212,7 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
           <View style={styles.heroActionBtns}>
             <AnimatedPressable
               style={styles.heroActionBtn}
-              onPress={() => navigation.navigate('EditarVacante', { vacante })}
+              onPress={() => navigation.navigate('EditarVacante', { vacante, isAdmin })}
               hapticStyle="Light"
             >
               <Ionicons name="pencil" size={16} color={COLORS.white} />
@@ -304,7 +304,7 @@ export default function DetalleVacanteEmpleadorScreen({ route, navigation }) {
             </AnimatedPressable>
             <AnimatedPressable
               style={[styles.ctaEditBtn, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '40' }]}
-              onPress={() => navigation.navigate('EditarVacante', { vacante })}
+              onPress={() => navigation.navigate('EditarVacante', { vacante, isAdmin })}
               scaleValue={0.95}
             >
               <Ionicons name="pencil-outline" size={18} color={colors.primary} />
