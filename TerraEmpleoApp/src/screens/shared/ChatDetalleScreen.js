@@ -214,7 +214,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
       headerTitle: () => (
         <AnimatedPressable onPress={irAlPerfilRelacionado} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           {chat.otro_foto ? (
-            <Image source={{ uri: chat.otro_foto }} style={{ width: 38, height: 38, borderRadius: 19 }} />
+            <Image source={{ uri: chat.otro_foto }} style={{ width: 38, height: 38, borderRadius: 19, overflow: 'hidden' }} />
           ) : (
             <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center' }}>
               <Ionicons name="person" size={20} color={COLORS.primary} />
@@ -393,6 +393,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
             activeOpacity={0.85}
             onLongPress={!esMio ? () => reportarMensaje(item) : undefined}
             delayLongPress={500}
+            style={styles.burbujaTouch}
           >
           <View style={[styles.burbuja, esMio ? styles.burbujaPropia : [styles.burbujaOtra, { backgroundColor: colors.surface }]]}>
 
@@ -643,8 +644,9 @@ const styles = StyleSheet.create({
   mensajeRow: { marginVertical: 2, flexDirection: 'row' },
   mensajeRowMio: { justifyContent: 'flex-end' },
   mensajeRowOtro: { justifyContent: 'flex-start' },
+  burbujaTouch: { maxWidth: '75%' },
   burbuja: {
-    maxWidth: '75%', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6,
+    paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6,
     borderRadius: RADIUS.xl, elevation: 1, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 1,
   },
