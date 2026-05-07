@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, Suspense } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import * as Updates from 'expo-updates';
 import { View, TouchableOpacity, Linking, Alert, Text, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -625,6 +626,19 @@ function AppShell() {
   React.useEffect(() => {
     setGlobalToastRef(toastRef.current);
     setGlobalAlertRef(alertRef.current);
+  }, []);
+
+  React.useEffect(() => {
+    if (__DEV__) return;
+    (async () => {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (_) {}
+    })();
   }, []);
 
   return (
