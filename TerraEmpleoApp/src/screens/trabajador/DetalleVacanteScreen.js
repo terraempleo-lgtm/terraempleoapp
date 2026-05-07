@@ -34,7 +34,7 @@ const HERO_HEIGHT = 320;
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 export default function DetalleVacanteScreen({ route, navigation }) {
-  const { vacante } = route.params;
+  const { vacante: vacanteParam } = route.params;
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
   const { isOnline } = useNetworkStatus();
@@ -44,6 +44,9 @@ export default function DetalleVacanteScreen({ route, navigation }) {
   const [fotos, setFotos] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [liked, setLiked] = useState(false);
+  const [vacanteDetalle, setVacanteDetalle] = useState(null);
+  // Usar datos completos del API cuando estén disponibles, sino el objeto parcial del param
+  const vacante = vacanteDetalle || vacanteParam;
   const flatListRef = useRef(null);
 
   // Modal de postulación
@@ -69,14 +72,16 @@ export default function DetalleVacanteScreen({ route, navigation }) {
     const cargarDetalle = async () => {
       try {
         const [detalleRes, postulacionesRes] = await Promise.all([
-          vacantesAPI.detalle(vacante.id),
+          vacantesAPI.detalle(vacanteParam.id),
           user?.rol === 'trabajador'
             ? vacantesAPI.misPostulaciones()
             : Promise.resolve({ data: { postulaciones: [] } }),
         ]);
-        setFotos(detalleRes.data.vacante?.fotos || []);
+        const detalle = detalleRes.data.vacante;
+        if (detalle) setVacanteDetalle(detalle);
+        setFotos(detalle?.fotos || []);
         const yaPostulado = (postulacionesRes.data.postulaciones || []).some(
-          (p) => Number(p.vacante_id) === Number(vacante.id)
+          (p) => Number(p.vacante_id) === Number(vacanteParam.id)
         );
         setPostulado(yaPostulado);
       } catch (err) {
@@ -84,7 +89,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
       }
     };
     cargarDetalle();
-  }, [vacante.id, user?.rol]);
+  }, [vacanteParam.id, user?.rol]);
 
   const handlePostularse = async () => {
     if (!isOnline) {
