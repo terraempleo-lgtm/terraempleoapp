@@ -268,7 +268,10 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
         {vacante?.titulo && (
           <View style={[s.card, { backgroundColor: colors.surface }]}>
             <SectionHeader icon="briefcase-outline" title="Vacante Publicada" colors={colors} />
-            <View style={[s.vacanteItem, { borderColor: colors.border, backgroundColor: isDark ? colors.background : '#F8FAFC' }]}>
+            <AnimatedPressable
+              onPress={() => navigation.navigate('DetalleVacante', { vacante: { id: vacante.id, titulo: vacante.titulo } })}
+              style={[s.vacanteItem, { borderColor: colors.border, backgroundColor: isDark ? colors.background : '#F8FAFC' }]}
+            >
               <View style={s.vacanteLeft}>
                 <View style={[s.dotContainer, { backgroundColor: vacante.activa ? '#E8F5E9' : '#FFEBEE' }]}>
                   <View style={[s.dotStatus, { backgroundColor: vacante.activa ? COLORS.success : COLORS.error }]} />
@@ -282,7 +285,8 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
                   {vacante.activa ? 'Activa' : 'Cerrada'}
                 </Text>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={{ marginLeft: 4 }} />
+            </AnimatedPressable>
           </View>
         )}
 
