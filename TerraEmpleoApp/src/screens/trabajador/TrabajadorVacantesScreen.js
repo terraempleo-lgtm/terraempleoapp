@@ -577,7 +577,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         ListHeaderComponent={ListHeader}
         contentContainerStyle={[
           s.list,
-          { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center', paddingBottom: insets.bottom + 80 },
+          { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center', paddingBottom: 140 },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

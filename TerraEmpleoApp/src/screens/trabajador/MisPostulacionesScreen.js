@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   /* List */
   list: {
     paddingHorizontal: SPACING.lg,
-    paddingBottom: 88,
+    paddingBottom: 140,
     paddingTop: 2,
   },
 
