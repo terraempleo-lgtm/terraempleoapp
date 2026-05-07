@@ -16,7 +16,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.terraempleo.app",
       "associatedDomains": [
-        "webcredentials:app.terrampleo.com",
         "webcredentials:app.terrampleo.com"
       ],
       "infoPlist": {
