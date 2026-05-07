@@ -126,8 +126,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
       // break;
       case 8:
         if (!fotoSelfie) errs.selfie = 'La selfie es obligatoria';
-        if (!fotoCedula) errs.cedFoto = 'La foto de cédula es obligatoria';
-        if (!fotoSelfieCedula) errs.selfieCed = 'La foto con cédula es obligatoria';
+        if (!fotoSelfieCedula) errs.selfieCed = 'La selfie con cédula es obligatoria';
         break;
     }
     setErrors(errs);
@@ -629,7 +628,7 @@ export default function RegisterTrabajadorScreen({ navigation }) {
             </View>
             {errors.selfie && <Text style={styles.errorText}>{errors.selfie}</Text>}
 
-            {/* Foto cedula */}
+            {/* Foto cedula — opcional */}
             <View style={[styles.fotoCard, { backgroundColor: colors.surface, borderColor: colors.border }, fotoCedula && styles.fotoCardDone]}>
               <View style={styles.fotoCardTop}>
                 <View style={[styles.fotoIconCircle, fotoCedula && styles.fotoIconCircleDone]}>
@@ -640,12 +639,15 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.fotoLabel, { color: colors.textPrimary }]}>Foto de Cédula</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.fotoLabel, { color: colors.textPrimary }]}>Foto de Cédula</Text>
+                    <Text style={{ fontSize: 11, color: COLORS.textSecondary, fontStyle: 'italic' }}>(opcional)</Text>
+                  </View>
                   <Text style={[styles.fotoDesc, { color: colors.textMuted }]}>Foto frontal de tu documento de identidad</Text>
                 </View>
               </View>
               {!fotoCedula ? (
-                <CamaraFoto tipo="cedula" label="Foto de Cédula" onFotoGuardada={handleFotoGuardada} modoLocal={true} />
+                <CamaraFoto tipo="cedula" label="Foto de Cédula (opcional)" onFotoGuardada={handleFotoGuardada} modoLocal={true} />
               ) : (
                 <View style={styles.fotoOkBadge}>
                   <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
@@ -653,7 +655,6 @@ export default function RegisterTrabajadorScreen({ navigation }) {
                 </View>
               )}
             </View>
-            {errors.cedFoto && <Text style={styles.errorText}>{errors.cedFoto}</Text>}
 
             {/* Selfie con cedula */}
             <View style={[styles.fotoCard, { backgroundColor: colors.surface, borderColor: colors.border }, fotoSelfieCedula && styles.fotoCardDone]}>

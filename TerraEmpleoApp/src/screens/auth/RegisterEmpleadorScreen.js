@@ -126,7 +126,6 @@ export default function RegisterEmpleadorScreen({ navigation }) {
       // break;
       case 6:
         if (!fotoSelfie) errs.selfie = 'Obligatoria';
-        if (!fotoCedula) errs.cedFoto = 'Obligatoria';
         if (!fotoSelfieCedula) errs.selfieCed = 'Obligatoria';
         break;
       case 8:
@@ -562,7 +561,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.fotoCardTitle, { color: colors.textPrimary }]}>Foto de la cédula</Text>
+                  <Text style={[styles.fotoCardTitle, { color: colors.textPrimary }]}>Foto de la cédula <Text style={{ fontSize: 11, color: COLORS.textLight }}>(opcional)</Text></Text>
                   <Text style={[styles.fotoCardDesc, { color: colors.textSecondary }]}>Frente de tu documento de identidad</Text>
                 </View>
                 <Text style={[styles.estadoFotoText, fotoCedula && styles.estadoFotoOk]}>{fotoCedula ? 'Cargada' : 'Pendiente'}</Text>
@@ -572,7 +571,6 @@ export default function RegisterEmpleadorScreen({ navigation }) {
               ) : null}
               <CamaraFoto tipo="cedula" label={getLabelCarga(fotoCedula, false)} onFotoGuardada={handleFotoGuardada} modoLocal={true} permitirGaleria={false} />
             </View>
-            {errors.cedFoto && <Text style={styles.errorTextFoto}>{errors.cedFoto}</Text>}
 
             <View style={[styles.fotoCard, { backgroundColor: colors.surface, borderColor: colors.border }, fotoSelfieCedula && styles.fotoCardDone]}>
               <View style={styles.fotoCardRow}>
