@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, ActivityIndicator, ScrollView,
+  RefreshControl, ActivityIndicator, ScrollView, Modal, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,6 +60,7 @@ function normalizarNotificacion(raw) {
     case 'nuevo_match': case 'match': type = 'NUEVO_MATCH'; break;
     case 'oferta_recomendada': case 'nueva_vacante': type = 'VACANTE_RECOMENDADA'; break;
     case 'postulacion': type = 'POSTULACION_ENVIADA'; break;
+    case 'contacto_solicitado': type = 'SOLICITUD_CONTACTO'; break;
     case 'vacante_editada': type = 'VACANTE_EDITADA'; break;
     case 'vacante_cerrada': type = 'VACANTE_CERRADA'; break;
     case 'vacante_activada': type = 'VACANTE_ACTIVADA'; break;
@@ -72,6 +73,7 @@ function normalizarNotificacion(raw) {
     else if (txt.includes('chat') && txt.includes('habilit')) type = 'CHAT_HABILITADO';
     else if (txt.includes('nuevo match') || txt.includes('coincide con la vacante')) type = 'NUEVO_MATCH';
     else if (txt.includes('recomendad')) type = 'VACANTE_RECOMENDADA';
+    else if (txt.includes('solicitud de contacto') || txt.includes('quiere contactarte')) type = 'SOLICITUD_CONTACTO';
   }
 
   return {
@@ -80,7 +82,7 @@ function normalizarNotificacion(raw) {
     createdAt: raw?.createdAt || raw?.created_at,
     data: {
       vacancyId: payloadRaw.vacancyId || raw?.vacancyId || raw?.vacante_id || null,
-      applicationId: payloadRaw.applicationId || raw?.applicationId || raw?.postulacion_id || null,
+      applicationId: payloadRaw.applicationId || raw?.applicationId || raw?.postulacion_id || payloadRaw.postulacion_id || null,
       matchId: payloadRaw.matchId || raw?.matchId || null,
       chatId: payloadRaw.chatId || raw?.chatId || raw?.conversacion_id || raw?.chat_id || null,
       employerId: payloadRaw.employerId || raw?.employerId || raw?.empleador_id || null,
@@ -96,6 +98,8 @@ export default function NotificacionesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filtro, setFiltro] = useState('todas');
+  const [solicitudModal, setSolicitudModal] = useState(null); // { notif, postulacionId, vacancyId, titulo }
+  const [respondiendo, setRespondiendo] = useState(false);
 
   const cargar = useCallback(async () => {
     try {
@@ -201,10 +205,41 @@ export default function NotificacionesScreen({ navigation }) {
       case 'POSTULACION_ENVIADA':
         await abrirPostulaciones(notification.data.vacancyId);
         break;
+      case 'SOLICITUD_CONTACTO':
+        setSolicitudModal({
+          notif: item,
+          postulacionId: notification.data.applicationId,
+          vacancyId: notification.data.vacancyId,
+          titulo: item.titulo || 'Solicitud de contacto',
+          mensaje: item.mensaje || '',
+        });
+        break;
       default:
         if (notification.data.vacancyId) { await abrirDetalleVacante(notification.data.vacancyId); }
         else if (notification.data.chatId) { await abrirChat({ chatId: notification.data.chatId }); }
         break;
+    }
+  };
+
+  const responderSolicitud = async (accion) => {
+    if (!solicitudModal?.postulacionId) {
+      Alert.alert('Error', 'No se pudo identificar la solicitud. Busca la vacante en "Mis Postulaciones".');
+      return;
+    }
+    try {
+      setRespondiendo(true);
+      const res = await vacantesAPI.responderContacto(solicitudModal.postulacionId, accion);
+      setSolicitudModal(null);
+      cargar();
+      if (accion === 'aceptar' && res.data?.chat_id) {
+        await abrirChat({ chatId: res.data.chat_id, vacancyId: solicitudModal.vacancyId });
+      } else if (accion === 'rechazar') {
+        Alert.alert('Solicitud rechazada', 'Le hemos notificado al empleador.');
+      }
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo procesar la solicitud.');
+    } finally {
+      setRespondiendo(false);
     }
   };
 
@@ -273,6 +308,7 @@ export default function NotificacionesScreen({ navigation }) {
     const showChatAction = ['POSTULACION_ACEPTADA', 'CHAT_HABILITADO', 'NUEVO_MENSAJE'].includes(notification.type);
     const showVacanteAction = ['NUEVO_MATCH', 'VACANTE_RECOMENDADA'].includes(notification.type);
     const showPostAction = notification.type === 'POSTULACION_ENVIADA';
+    const showContactoAction = notification.type === 'SOLICITUD_CONTACTO';
 
     return (
       <TouchableOpacity
@@ -311,25 +347,23 @@ export default function NotificacionesScreen({ navigation }) {
             {item.mensaje}
           </Text>
 
-          {(showChatAction || showVacanteAction || showPostAction) && (
+          {(showChatAction || showVacanteAction || showPostAction || showContactoAction) && (
             <View style={styles.actionRow}>
               {showChatAction && (
-                <TouchableOpacity
-                  style={styles.actionDark}
-                  onPress={() => handleNotificacionClick(item)}
-                >
+                <TouchableOpacity style={styles.actionDark} onPress={() => handleNotificacionClick(item)}>
                   <Text style={styles.actionDarkText}>Iniciar chat</Text>
                 </TouchableOpacity>
               )}
               {(showVacanteAction || showPostAction) && (
-                <TouchableOpacity
-                  style={styles.actionGreen}
-                  onPress={() => handleNotificacionClick(item)}
-                >
-                  <Text style={styles.actionGreenText}>
-                    {showPostAction ? 'Ver postulación' : 'Ver vacante'}
-                  </Text>
+                <TouchableOpacity style={styles.actionGreen} onPress={() => handleNotificacionClick(item)}>
+                  <Text style={styles.actionGreenText}>{showPostAction ? 'Ver postulación' : 'Ver vacante'}</Text>
                   <Ionicons name="chevron-forward" size={11} color={COLORS.white} />
+                </TouchableOpacity>
+              )}
+              {showContactoAction && (
+                <TouchableOpacity style={styles.actionGreen} onPress={() => handleNotificacionClick(item)}>
+                  <Ionicons name="person-add-outline" size={13} color={COLORS.white} />
+                  <Text style={styles.actionGreenText}>Aceptar o rechazar</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -454,6 +488,53 @@ export default function NotificacionesScreen({ navigation }) {
           </View>
         }
       />
+
+      {/* Modal aceptar/rechazar solicitud de contacto */}
+      <Modal visible={!!solicitudModal} transparent animationType="slide" onRequestClose={() => setSolicitudModal(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={[styles.solicitudCard, { backgroundColor: colors.surface }]}>
+            <View style={styles.solicitudHeader}>
+              <View style={[styles.solicitudIconWrap, { backgroundColor: '#FFF3E0' }]}>
+                <Ionicons name="person-add" size={28} color="#F57C00" />
+              </View>
+              <Text style={[styles.solicitudTitulo, { color: colors.textPrimary }]}>Solicitud de contacto</Text>
+              <Text style={[styles.solicitudMensaje, { color: colors.textSecondary }]}>
+                {solicitudModal?.mensaje || 'Un empleador quiere contactarte para una vacante.'}
+              </Text>
+            </View>
+
+            <Text style={[styles.solicitudInfo, { color: colors.textSecondary }]}>
+              Si aceptas, se habilitará un chat directo con el empleador para coordinar los detalles del trabajo.
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.btnAceptar, { opacity: respondiendo ? 0.7 : 1 }]}
+              onPress={() => responderSolicitud('aceptar')}
+              disabled={respondiendo}
+              activeOpacity={0.85}
+            >
+              {respondiendo
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <><Ionicons name="checkmark-circle" size={20} color="#fff" /><Text style={styles.btnAceptarText}>Aceptar y abrir chat</Text></>
+              }
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.btnRechazar, { borderColor: colors.border, opacity: respondiendo ? 0.5 : 1 }]}
+              onPress={() => responderSolicitud('rechazar')}
+              disabled={respondiendo}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="close-circle-outline" size={18} color={COLORS.error} />
+              <Text style={styles.btnRechazarText}>Rechazar solicitud</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setSolicitudModal(null)} style={styles.btnCancelar}>
+              <Text style={[styles.btnCancelarText, { color: colors.textSecondary }]}>Decidir más tarde</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -582,4 +663,16 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: SPACING.xs, textAlign: 'center' },
   emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  solicitudCard: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, gap: 14 },
+  solicitudHeader: { alignItems: 'center', gap: 10 },
+  solicitudIconWrap: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
+  solicitudTitulo: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  solicitudMensaje: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  solicitudInfo: { fontSize: 13, textAlign: 'center', lineHeight: 19, paddingHorizontal: 8 },
+  btnAceptar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.primary, borderRadius: 16, paddingVertical: 15 },
+  btnAceptarText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnRechazar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderRadius: 16, paddingVertical: 13 },
+  btnRechazarText: { color: COLORS.error, fontSize: 15, fontWeight: '600' },
+  btnCancelar: { alignItems: 'center', paddingVertical: 8 },
+  btnCancelarText: { fontSize: 14 },
 });
