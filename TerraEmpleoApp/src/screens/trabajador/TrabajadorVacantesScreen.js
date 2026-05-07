@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Modal,
   RefreshControl, Image, TextInput, ScrollView, Alert, Platform, ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -123,6 +123,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const { user, updateUser } = useAuth();
   const { colors, isDark } = useAppTheme();
   const { contenedorMaxAncho } = useDisenoResponsive();
+  const insets = useSafeAreaInsets();
   const [vacantes, setVacantes] = useState([]);
   const [vacantesPostuladas, setVacantesPostuladas] = useState(new Set());
   const [refreshing, setRefreshing] = useState(false);
@@ -565,7 +566,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         ListHeaderComponent={ListHeader}
         contentContainerStyle={[
           s.list,
-          { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center' },
+          { maxWidth: contenedorMaxAncho, width: '100%', alignSelf: 'center', paddingBottom: insets.bottom + 80 },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
