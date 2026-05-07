@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input, ChipSelector, PickerModal } from '../../components/ui';
@@ -278,12 +279,44 @@ export default function EditarPerfilScreen({ navigation, route }) {
     input.click();
   };
 
-  const manejarSubidaHojaVida = () => {
-    if (Platform.OS !== 'web') {
-      showAlert('Función disponible en web', 'La carga de hoja de vida en PDF está habilitada en web.');
-      return;
+  const manejarSubidaHojaVidaNativa = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+
+      const formData = new FormData();
+      formData.append('hoja_vida', {
+        uri: asset.uri,
+        name: asset.name || 'hoja_vida.pdf',
+        type: asset.mimeType || 'application/pdf',
+      });
+
+      setSubiendoHojaVida(true);
+      try {
+        const res = await authAPI.subirHojaVida(formData);
+        setHojaVidaUrl(res.data?.hoja_vida_url || '');
+        setHojaVidaNombre(res.data?.hoja_vida_nombre || asset.name || 'hoja_vida.pdf');
+        Alert.alert('Éxito', 'Hoja de vida cargada correctamente.');
+      } catch (err) {
+        Alert.alert('Error', err.response?.data?.error || 'No se pudo subir la hoja de vida');
+      } finally {
+        setSubiendoHojaVida(false);
+      }
+    } catch (err) {
+      Alert.alert('Error', 'No se pudo seleccionar el archivo.');
     }
-    abrirSelectorPdfWeb();
+  };
+
+  const manejarSubidaHojaVida = () => {
+    if (Platform.OS === 'web') {
+      abrirSelectorPdfWeb();
+    } else {
+      manejarSubidaHojaVidaNativa();
+    }
   };
 
   const verHojaVida = async () => {

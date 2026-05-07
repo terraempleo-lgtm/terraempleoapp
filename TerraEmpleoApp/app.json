@@ -57,6 +57,7 @@
     },
     "plugins": [
       "expo-secure-store",
+      "expo-document-picker",
       "expo-font",
       "expo-camera",
       [

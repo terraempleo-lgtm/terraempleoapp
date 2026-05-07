@@ -95,14 +95,9 @@ const WHATSAPP_MESSAGE = 'Hola, necesito ayuda con TerraEmpleo.';
 const openWhatsAppSupport = async () => {
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
   try {
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
-    } else {
-      Alert.alert('WhatsApp no disponible', 'No se pudo abrir WhatsApp. Verifica que esté instalado.');
-    }
+    await Linking.openURL(url);
   } catch {
-    Alert.alert('Error', 'No se pudo abrir el enlace de soporte.');
+    Alert.alert('WhatsApp no disponible', 'No se pudo abrir WhatsApp. Verifica que esté instalado o visita wa.me');
   }
 };
 

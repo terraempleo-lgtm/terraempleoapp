@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, TextInput, Image, ScrollView,
+  RefreshControl, TextInput, Image, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +9,6 @@ import { AnimatedPressable } from '../../components/animated';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
 import { trabajadoresAPI, vacantesAPI } from '../../services/api';
-import { showAlert } from '../../utils/alertService';
 
 const LIME = '#C8F056';
 const LIME_TEXT = '#2A5C00';
@@ -284,7 +283,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
 
   const solicitarContacto = async (item) => {
     if (!vacanteContacto?.id) {
-      showAlert('Sin vacante', 'Primero crea o activa una vacante para poder contactar trabajadores.');
+      Alert.alert('Sin vacante', 'Primero crea o activa una vacante para poder contactar trabajadores.');
       return;
     }
     try {
@@ -294,7 +293,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
       const chatId = Number(res?.data?.chat_id || 0);
 
       if (estado === 'aceptada' && chatId) {
-        showAlert('Listo', 'Este trabajador ya aceptó contacto. Te llevamos al chat.');
+        Alert.alert('Listo', 'Este trabajador ya aceptó contacto. Te llevamos al chat.');
         navigation.navigate('Mensajes', {
           screen: 'ChatDetalle',
           params: {
@@ -309,12 +308,12 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
         return;
       }
       if (estado === 'contacto_solicitado') {
-        showAlert('En espera', `${item.nombre_completo} debe aceptar para habilitar el chat.`);
+        Alert.alert('En espera', `${item.nombre_completo} debe aceptar para habilitar el chat.`);
         return;
       }
-      showAlert('Listo', `Se envió solicitud de contacto a ${item.nombre_completo}.`);
+      Alert.alert('Listo', `Se envió solicitud de contacto a ${item.nombre_completo}.`);
     } catch (err) {
-      showAlert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
     } finally {
       setEnviandoContactoId(null);
     }
