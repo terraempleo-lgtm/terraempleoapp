@@ -507,6 +507,18 @@ export default function NotificacionesScreen({ navigation }) {
               Si aceptas, se habilitará un chat directo con el empleador para coordinar los detalles del trabajo.
             </Text>
 
+            {solicitudModal?.vacancyId && (
+              <TouchableOpacity
+                style={[styles.btnVerVacante, { borderColor: COLORS.primary + '40', backgroundColor: COLORS.primary + '10' }]}
+                onPress={() => { setSolicitudModal(null); navigation.navigate('DetalleVacante', { vacante: { id: solicitudModal.vacancyId, titulo: solicitudModal.titulo || 'Vacante' } }); }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="briefcase-outline" size={16} color={COLORS.primary} />
+                <Text style={[styles.btnVerVacanteText, { color: COLORS.primary }]}>Ver detalle de la vacante</Text>
+                <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={[styles.btnAceptar, { opacity: respondiendo ? 0.7 : 1 }]}
               onPress={() => responderSolicitud('aceptar')}
@@ -674,5 +686,7 @@ const styles = StyleSheet.create({
   btnRechazar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderRadius: 16, paddingVertical: 13 },
   btnRechazarText: { color: COLORS.error, fontSize: 15, fontWeight: '600' },
   btnCancelar: { alignItems: 'center', paddingVertical: 8 },
+  btnVerVacante: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, marginBottom: 10 },
+  btnVerVacanteText: { flex: 1, fontSize: 14, fontWeight: '600' },
   btnCancelarText: { fontSize: 14 },
 });
