@@ -425,32 +425,21 @@ export default function TrabajadorVacantesScreen({ navigation }) {
       </MotiView>
 
       {mostrarTarjetaVerificacion && (
-        <View style={[s.verificacionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={s.verificacionHeader}>
-            <Ionicons
-              name={estadoIdentidad === 'rechazada' ? 'alert-circle' : 'shield-outline'}
-              size={18}
-              color={estadoIdentidad === 'rechazada' ? COLORS.error : COLORS.primary}
-            />
-            <Text style={[s.verificacionTitle, { color: colors.textPrimary }]}>
-              {estadoIdentidad === 'rechazada' ? 'Verificación rechazada' : 'Verificación de identidad'}
-            </Text>
-          </View>
-          <Text style={[s.verificacionText, { color: colors.textSecondary }]}>
-            {estadoIdentidad === 'rechazada'
-              ? 'Tu verificación fue rechazada. Vuelve a tomarte la selfie y la foto con cédula para reenviar.'
-              : 'Tu cédula está en proceso de verificación. Te avisaremos cuando sea aprobada.'}
+        <TouchableOpacity
+          activeOpacity={estadoIdentidad === 'rechazada' ? 0.8 : 1}
+          onPress={estadoIdentidad === 'rechazada' ? () => { setFotosReVerif({ selfie: false, cedula: false, selfie_cedula: false }); setModalReVerif(true); } : undefined}
+          style={[s.verificacionBanner, { backgroundColor: estadoIdentidad === 'rechazada' ? '#FFF0F0' : '#F0F7FF', borderColor: estadoIdentidad === 'rechazada' ? COLORS.error + '40' : COLORS.primary + '40' }]}
+        >
+          <Ionicons
+            name={estadoIdentidad === 'rechazada' ? 'alert-circle' : 'shield-outline'}
+            size={16}
+            color={estadoIdentidad === 'rechazada' ? COLORS.error : COLORS.primary}
+          />
+          <Text style={[s.verificacionBannerText, { color: estadoIdentidad === 'rechazada' ? COLORS.error : COLORS.primary }]} numberOfLines={1}>
+            {estadoIdentidad === 'rechazada' ? 'Verificación rechazada — Toca para reenviar fotos' : 'Verificación en proceso…'}
           </Text>
-          {estadoIdentidad === 'rechazada' ? (
-            <TouchableOpacity
-              style={s.reVerifBtn}
-              onPress={() => { setFotosReVerif({ selfie: false, cedula: false, selfie_cedula: false }); setModalReVerif(true); }}
-            >
-              <Ionicons name="camera" size={16} color={COLORS.white} />
-              <Text style={s.reVerifBtnText}>Volver a verificarme</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
+          {estadoIdentidad === 'rechazada' && <Ionicons name="chevron-forward" size={14} color={COLORS.error} />}
+        </TouchableOpacity>
       )}
 
       {/* Search bar */}
@@ -855,6 +844,22 @@ const s = StyleSheet.create({
   },
   bellBadgeTxt: { fontSize: 10, fontWeight: '700', color: COLORS.white },
 
+  verificacionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.sm,
+    borderRadius: RADIUS.md,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+  },
+  verificacionBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   verificacionCard: {
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.md,
