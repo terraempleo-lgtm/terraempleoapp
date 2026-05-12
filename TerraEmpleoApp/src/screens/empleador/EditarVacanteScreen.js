@@ -14,7 +14,6 @@ import { getFechaInicioInputValue, getFechaInicioPayload } from '../../utils/vac
 import { formatearMontoInput, normalizarMontoPayload } from '../../utils/vacantesPago';
 import { vacantesAPI, adminAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
-import { showAlert } from '../../utils/alertService';
 
 const MAX_FOTOS = 5;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -116,7 +115,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
 
   const pickImage = async () => {
     if (totalFotos >= MAX_FOTOS) {
-      showAlert('Límite alcanzado', `Máximo ${MAX_FOTOS} fotos por vacante.`);
+      Alert.alert('Límite alcanzado', `Máximo ${MAX_FOTOS} fotos por vacante.`);
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -139,7 +138,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
   };
 
   const eliminarFotoExistente = (foto) => {
-    showAlert('Eliminar foto', '¿Eliminar esta foto?', [
+    Alert.alert('Eliminar foto', '¿Eliminar esta foto?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar',
@@ -149,7 +148,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
             await vacantesAPI.eliminarFoto(vacante.id, foto.id);
             setFotosExistentes(prev => prev.filter(f => f.id !== foto.id));
           } catch {
-            showAlert('Error', 'No se pudo eliminar la foto');
+            Alert.alert('Error', 'No se pudo eliminar la foto');
           }
         },
       },
@@ -257,7 +256,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
         navigation.replace('DetalleVacanteEmpleador', { vacante: vacanteActualizada });
       }, 1100);
     } catch (err) {
-      showAlert('Error', err.response?.data?.error || err.message || 'Error al actualizar');
+      Alert.alert('Error', err.response?.data?.error || err.message || 'Error al actualizar');
     } finally {
       setIsSaving(false);
     }
