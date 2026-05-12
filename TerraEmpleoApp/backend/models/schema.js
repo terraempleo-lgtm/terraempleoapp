@@ -79,7 +79,7 @@ async function initializeDatabase() {
       usuario_id INT NOT NULL UNIQUE,
       nombre_empresa_finca VARCHAR(250) NOT NULL,
       acerca_de TEXT DEFAULT NULL,
-      tipo_pago ENUM('jornal','semanal','quincenal','mensual','destajo') DEFAULT NULL,
+      tipo_pago ENUM('jornal','semanal','quincenal','mensual','destajo','por_kilo') DEFAULT NULL,
       ofrece_alojamiento TINYINT(1) DEFAULT 0,
       ofrece_alimentacion TINYINT(1) DEFAULT 0,
       beneficios_extra TEXT DEFAULT NULL,
@@ -118,7 +118,7 @@ async function initializeDatabase() {
       empleador_id INT NOT NULL,
       titulo VARCHAR(250) NOT NULL,
       descripcion TEXT DEFAULT NULL,
-      tipo_pago ENUM('jornal','semanal','quincenal','mensual','destajo') DEFAULT NULL,
+      tipo_pago ENUM('jornal','semanal','quincenal','mensual','destajo','por_kilo') DEFAULT NULL,
       monto_pago DECIMAL(12,2) DEFAULT NULL,
       duracion VARCHAR(120) DEFAULT NULL,
       requisitos TEXT DEFAULT NULL,
@@ -421,6 +421,15 @@ async function initializeDatabase() {
     console.log('[Migration] Columna respuesta_usuario agregada a pqrs.');
   } catch (e) {
     if (!e.message.includes('Duplicate column')) console.warn('[Migration] pqrs.respuesta_usuario:', e.message);
+  }
+
+  // Migración: agregar 'por_kilo' al ENUM tipo_pago en perfil_empleador y vacantes
+  try {
+    await query("ALTER TABLE perfil_empleador MODIFY tipo_pago ENUM('jornal','semanal','quincenal','mensual','destajo','por_kilo') DEFAULT NULL");
+    await query("ALTER TABLE vacantes MODIFY tipo_pago ENUM('jornal','semanal','quincenal','mensual','destajo','por_kilo') DEFAULT NULL");
+    console.log('[Migration] ENUM tipo_pago actualizado con por_kilo.');
+  } catch (e) {
+    console.warn('[Migration] tipo_pago ENUM:', e.message);
   }
 
   console.log('Base de datos inicializada correctamente.');
