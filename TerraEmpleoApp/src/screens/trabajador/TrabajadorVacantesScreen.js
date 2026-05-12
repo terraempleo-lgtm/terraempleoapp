@@ -980,7 +980,7 @@ const s = StyleSheet.create({
   secBadgeTxt: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
 
   /* List */
-  list: { paddingBottom: 24, paddingTop: 4 },
+  list: { paddingBottom: 140, paddingTop: 4 },
 
   /* Card */
   card: {

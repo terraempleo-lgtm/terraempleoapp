@@ -9,7 +9,6 @@ import { adminAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
-import { showAlert } from '../../utils/alertService';
 import { useAppTheme } from '../../context/ThemeContext';
 
 const LABELS_PAGO = {
@@ -46,11 +45,11 @@ export default function AdminVacantesScreen({ navigation }) {
     const siguienteEstado = item.estado === 'activa' ? 'pausada' : 'activa';
     try {
       await adminAPI.updateVacante(item.id, { estado: siguienteEstado });
-      showAlert('Listo', `Vacante ${siguienteEstado === 'activa' ? 'activada' : 'pausada'} correctamente`);
+      Alert.alert('Listo', `Vacante ${siguienteEstado === 'activa' ? 'activada' : 'pausada'} correctamente`);
       load();
     } catch (err) {
       const msg = err.response?.data?.error || 'No se pudo actualizar el estado de la vacante';
-      showAlert('Error', msg);
+      Alert.alert('Error', msg);
     }
   };
 
@@ -70,7 +69,7 @@ export default function AdminVacantesScreen({ navigation }) {
   const eliminar = async (vacante) => {
     const ok = Platform.OS === 'web'
       ? window.confirm(`¿Eliminar la vacante "${vacante.titulo}"?`)
-      : await new Promise(resolve => showAlert(
+      : await new Promise(resolve => Alert.alert(
           'Confirmar eliminación',
           `¿Estás seguro de que deseas eliminar la vacante "${vacante.titulo}"?`,
           [{ text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
@@ -80,10 +79,10 @@ export default function AdminVacantesScreen({ navigation }) {
     try {
       await adminAPI.eliminarVacante(vacante.id);
       await load();
-      showAlert('Listo', 'Vacante eliminada correctamente');
+      Alert.alert('Listo', 'Vacante eliminada correctamente');
     } catch (err) {
       const msg = err.response?.data?.error || 'No se pudo eliminar la vacante';
-      showAlert('Error', msg);
+      Alert.alert('Error', msg);
     }
   };
 
