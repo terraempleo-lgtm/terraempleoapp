@@ -72,6 +72,7 @@ const AdminVerificacionCedulasScreen  = lazyWeb(() => import('./src/screens/admi
 const AdminVerificacionDetalleScreen  = lazyWeb(() => import('./src/screens/admin/AdminVerificacionDetalleScreen'));
 const AdminVacantesScreen            = lazyWeb(() => import('./src/screens/admin/AdminVacantesScreen'));
 const AdminPostulantesVacanteScreen  = lazyWeb(() => import('./src/screens/admin/AdminPostulantesVacanteScreen'));
+const AdminMatchesScreen             = lazyWeb(() => import('./src/screens/admin/AdminMatchesScreen'));
 const AdminReportesScreen            = lazyWeb(() => import('./src/screens/admin/AdminReportesScreen'));
 const AdminPqrsScreen                = lazyWeb(() => import('./src/screens/admin/AdminPqrsScreen'));
 
@@ -489,6 +490,11 @@ function AdminVacantesStack() {
         <Stack.Screen
           name="AdminVerPostulantes"
           component={AdminPostulantesVacanteScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AdminMatches"
+          component={AdminMatchesScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

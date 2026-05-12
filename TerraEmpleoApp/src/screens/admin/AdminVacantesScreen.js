@@ -139,7 +139,11 @@ export default function AdminVacantesScreen({ navigation }) {
             <View style={styles.actions}>
               <AnimatedPressable onPress={() => verPostulantes(item)} style={[styles.actionBtn, { backgroundColor: colors.background }]} scaleValue={0.9} haptic hapticStyle="light">
                 <Ionicons name="people-outline" size={16} color={COLORS.primary} />
-                <Text style={[styles.actionText, { color: COLORS.primary }]}>Ver postulantes</Text>
+                <Text style={[styles.actionText, { color: COLORS.primary }]}>Postulantes</Text>
+              </AnimatedPressable>
+              <AnimatedPressable onPress={() => navigation.navigate('AdminMatches', { vacante: item })} style={[styles.actionBtn, { backgroundColor: colors.background }]} scaleValue={0.9} haptic hapticStyle="light">
+                <Ionicons name="checkmark-done-circle-outline" size={16} color="#7C3AED" />
+                <Text style={[styles.actionText, { color: '#7C3AED' }]}>Matches</Text>
               </AnimatedPressable>
               <AnimatedPressable onPress={() => cambiarEstado(item)} style={[styles.actionBtn, { backgroundColor: colors.background }]} scaleValue={0.9} haptic hapticStyle="light">
                 <Ionicons
