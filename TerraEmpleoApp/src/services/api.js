@@ -99,8 +99,7 @@ export const vacantesAPI = {
   actualizar: (id, data) => api.put(`/vacantes/${id}`, data),
   cerrar: (id) => api.put(`/vacantes/${id}/cerrar`),
   subirFotos: (vacanteId, formData) => api.post(`/vacantes/${vacanteId}/fotos`, formData, {
-    transformRequest: [(data) => data],
-    headers: { 'Content-Type': 'multipart/form-data' },
+    transformRequest: [(data, headers) => { delete headers['Content-Type']; return data; }],
   }),
   eliminarFoto: (vacanteId, fotoId) => api.delete(`/vacantes/${vacanteId}/fotos/${fotoId}`),
   eliminar: (id) => api.delete(`/vacantes/${id}`),
