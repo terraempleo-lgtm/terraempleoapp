@@ -16,7 +16,6 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 import CamaraFoto from '../../components/CamaraFoto';
-import { showAlert } from '../../utils/alertService';
 
 const TOTAL_STEPS = 9;
 const STEP_LABELS = [
@@ -147,7 +146,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
       return true;
     } catch (err) {
       const msg = err.response?.data?.error || 'Código incorrecto';
-      showAlert('Error', msg);
+      Alert.alert('Error', msg);
       return false;
     }
   };
@@ -198,10 +197,10 @@ export default function RegisterEmpleadorScreen({ navigation }) {
         await cognitoAPI.resendCode(celular);
       }
       setCodigoEnviado(true);
-      showAlert('Código enviado', `Se envió un código de verificación por SMS al ${celular}`);
+      Alert.alert('Código enviado', `Se envió un código de verificación por SMS al ${celular}`);
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'No se pudo enviar el código';
-      showAlert('Error', msg);
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
@@ -305,7 +304,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
       } else if (err.message) {
         msg = err.message;
       }
-      showAlert('Error', msg);
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
