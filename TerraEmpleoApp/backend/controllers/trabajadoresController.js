@@ -207,20 +207,22 @@ async function listarTrabajadores(req, res) {
     }
 
     // Cargar estados de contacto del empleador con todos los trabajadores
-    const postulaciones = await query(`
-      SELECT p.trabajador_id, p.estado, p.vacante_id, p.id as postulacion_id,
-        ch.id as chat_id
-      FROM postulaciones p
-      JOIN vacantes v ON v.id = p.vacante_id
-      LEFT JOIN chats ch ON ch.postulacion_id = p.id
-      WHERE v.empleador_id = ?
-      ORDER BY p.created_at DESC
-    `, [empleadorId]);
-    const contactoMap = {};
-    for (const p of postulaciones) {
-      if (!contactoMap[p.trabajador_id]) {
-        contactoMap[p.trabajador_id] = { estado: p.estado, chat_id: p.chat_id };
+    let contactoMap = {};
+    try {
+      const postulaciones = await query(`
+        SELECT p.trabajador_id, p.estado
+        FROM postulaciones p
+        JOIN vacantes v ON v.id = p.vacante_id
+        WHERE v.empleador_id = ?
+        ORDER BY p.created_at DESC
+      `, [empleadorId]);
+      for (const p of postulaciones) {
+        if (!contactoMap[p.trabajador_id]) {
+          contactoMap[p.trabajador_id] = { estado: p.estado, chat_id: null };
+        }
       }
+    } catch (e) {
+      console.error('contactoMap query failed:', e);
     }
 
     // Por cada trabajador: cargar habilidades/cultivos, aplicar filtros y calcular score
