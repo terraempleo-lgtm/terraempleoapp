@@ -36,12 +36,34 @@ async function misPqrs(req, res) {
   try {
     const usuarioId = req.user.id;
     const rows = await query(
-      'SELECT id, tipo, asunto, estado, respuesta, created_at, respondido_at FROM pqrs WHERE usuario_id = ? ORDER BY created_at DESC',
+      'SELECT id, tipo, asunto, estado, respuesta, respuesta_usuario, created_at, respondido_at FROM pqrs WHERE usuario_id = ? ORDER BY created_at DESC',
       [usuarioId]
     );
     res.json({ pqrs: rows });
   } catch (err) {
     console.error('Error obteniendo PQRS:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// PUT /api/pqrs/:id/responder — Usuario responde al admin
+async function responderUsuarioPqrs(req, res) {
+  try {
+    const usuarioId = req.user.id;
+    const { id } = req.params;
+    const { respuesta_usuario } = req.body;
+
+    if (!respuesta_usuario || respuesta_usuario.trim().length < 2) {
+      return res.status(400).json({ error: 'La respuesta debe tener al menos 2 caracteres' });
+    }
+
+    const rows = await query('SELECT id FROM pqrs WHERE id = ? AND usuario_id = ?', [id, usuarioId]);
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'PQRS no encontrada' });
+
+    await query('UPDATE pqrs SET respuesta_usuario = ? WHERE id = ?', [respuesta_usuario.trim(), id]);
+    res.json({ message: 'Respuesta enviada' });
+  } catch (err) {
+    console.error('Error respondiendo PQRS usuario:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -93,4 +115,4 @@ async function responderPqrs(req, res) {
   }
 }
 
-module.exports = { crearPqrs, misPqrs, listarPqrs, responderPqrs };
+module.exports = { crearPqrs, misPqrs, responderUsuarioPqrs, listarPqrs, responderPqrs };

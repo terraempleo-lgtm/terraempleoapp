@@ -235,6 +235,7 @@ export const reportesAPI = {
 export const pqrsAPI = {
   enviar: (data) => api.post('/pqrs', data),
   misPqrs: () => api.get('/pqrs'),
+  responderUsuario: (id, respuesta_usuario) => api.put(`/pqrs/${id}/responder`, { respuesta_usuario }),
 };
 
 export default api;

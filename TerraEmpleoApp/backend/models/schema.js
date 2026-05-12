@@ -378,6 +378,7 @@ async function initializeDatabase() {
       descripcion TEXT NOT NULL,
       estado ENUM('recibido','en_proceso','resuelto','cerrado') NOT NULL DEFAULT 'recibido',
       respuesta TEXT DEFAULT NULL,
+      respuesta_usuario TEXT DEFAULT NULL,
       respondido_por INT DEFAULT NULL,
       respondido_at TIMESTAMP NULL DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -15,7 +15,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 
 const TAB_BAR_HEIGHT = 65;
 
-const TabItem = ({ route, isFocused, onPress, onLongPress, iconName, label, colors }) => {
+const TabItem = ({ route, isFocused, onPress, onLongPress, iconName, label, colors, badge }) => {
   const scale = useSharedValue(1);
   const translateY = useSharedValue(0);
 
@@ -47,13 +47,20 @@ const TabItem = ({ route, isFocused, onPress, onLongPress, iconName, label, colo
       scaleValue={0.92}
       style={styles.tabItem}
     >
-      <Animated.View style={iconStyle}>
-        <Ionicons
-          name={iconName}
-          size={24}
-          color={isFocused ? colors.primary : colors.textMuted}
-        />
-      </Animated.View>
+      <View style={{ position: 'relative' }}>
+        <Animated.View style={iconStyle}>
+          <Ionicons
+            name={iconName}
+            size={24}
+            color={isFocused ? colors.primary : colors.textMuted}
+          />
+        </Animated.View>
+        {badge ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+          </View>
+        ) : null}
+      </View>
       <Animated.Text
         style={[
           styles.tabLabel,
@@ -116,6 +123,8 @@ const AnimatedTabBar = ({ state, descriptors, navigation }) => {
             iconName = 'ellipse';
           }
 
+          const badge = options.tabBarBadge;
+
           return (
             <TabItem
               key={route.key}
@@ -126,6 +135,7 @@ const AnimatedTabBar = ({ state, descriptors, navigation }) => {
               iconName={iconName}
               label={label}
               colors={colors}
+              badge={badge}
             />
           );
         })}
@@ -180,6 +190,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     marginTop: 2,
   },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: '#E53935',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
 });
 
 export default AnimatedTabBar;

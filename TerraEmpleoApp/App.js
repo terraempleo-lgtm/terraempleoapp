@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, Suspense } from 'react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import { View, TouchableOpacity, Linking, Alert, Text, StyleSheet } from 'react-native';
@@ -16,6 +16,7 @@ import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS, FONTS } from './src/theme';
 import { AnimatedTabBar } from './src/components/animated';
+import { chatsAPI } from './src/services/api';
 import { Toast, AppAlert } from './src/components/ui';
 import SplashAnimado from './src/components/ui/SplashAnimado';
 import { setGlobalToastRef } from './src/utils/toastService';
@@ -212,8 +213,26 @@ function AdminVerificacionStack() {
   );
 }
 
+function useChatUnread() {
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await chatsAPI.contarNoLeidos();
+        if (!cancelled) setUnread(res.data?.no_leidos || 0);
+      } catch (_) {}
+    };
+    poll();
+    const id = setInterval(poll, 10000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+  return unread;
+}
+
 // ── Trabajador Tabs ──
 function TrabajadorTabs() {
+  const unread = useChatUnread();
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="Vacantes" component={TrabajadorVacantesStack}
@@ -225,7 +244,7 @@ function TrabajadorTabs() {
       <Tab.Screen name="Postulaciones" component={MisPostulacionesStack}
         options={{ tabBarLabel: 'Mis Postulaciones' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
-        options={{ tabBarLabel: 'Mensajes' }} />
+        options={{ tabBarLabel: 'Mensajes', tabBarBadge: unread > 0 ? unread : undefined }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
         options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
@@ -290,6 +309,7 @@ function ChatsStack() {
 
 // ── Empleador Tabs ──
 function EmpleadorTabs() {
+  const unread = useChatUnread();
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="MisVacantes" component={EmpleadorVacantesStack}
@@ -299,7 +319,7 @@ function EmpleadorTabs() {
       <Tab.Screen name="Mapa" component={TrabajadoresMapaTabStack}
         options={{ tabBarLabel: 'Mapa' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
-        options={{ tabBarLabel: 'Mensajes' }} />
+        options={{ tabBarLabel: 'Mensajes', tabBarBadge: unread > 0 ? unread : undefined }} />
       <Tab.Screen name="Perfil" component={PerfilStack}
         options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>

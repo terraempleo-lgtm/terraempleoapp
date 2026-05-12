@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, RefreshControl,
+  Alert, ActivityIndicator, RefreshControl, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +48,8 @@ export default function PqrsScreen({ navigation }) {
   const [misPqrs, setMisPqrs] = useState([]);
   const [loadingPqrs, setLoadingPqrs] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [respuestaTextos, setRespuestaTextos] = useState({}); // { [id]: texto }
+  const [enviandoRespuesta, setEnviandoRespuesta] = useState(null); // id en proceso
 
   const cargarMisPqrs = useCallback(async () => {
     try {
@@ -83,6 +85,21 @@ export default function PqrsScreen({ navigation }) {
       Alert.alert('Error', e.response?.data?.error || 'No se pudo enviar la solicitud.');
     } finally {
       setEnviando(false);
+    }
+  };
+
+  const enviarRespuestaUsuario = async (pqrsId) => {
+    const texto = (respuestaTextos[pqrsId] || '').trim();
+    if (texto.length < 2) { Alert.alert('Escribe tu respuesta antes de enviar.'); return; }
+    try {
+      setEnviandoRespuesta(pqrsId);
+      await pqrsAPI.responderUsuario(pqrsId, texto);
+      setRespuestaTextos(prev => ({ ...prev, [pqrsId]: '' }));
+      await cargarMisPqrs();
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo enviar la respuesta.');
+    } finally {
+      setEnviandoRespuesta(null);
     }
   };
 
@@ -191,6 +208,8 @@ export default function PqrsScreen({ navigation }) {
           ) : misPqrs.map(item => {
             const t = TIPOS.find(x => x.key === item.tipo);
             const estadoColor = ESTADO_COLORS[item.estado] || COLORS.textSecondary;
+            const textoRespuesta = respuestaTextos[item.id] || '';
+            const estaEnviando = enviandoRespuesta === item.id;
             return (
               <View key={item.id} style={[s.card, { backgroundColor: colors.surface }, SHADOWS.sm]}>
                 <View style={[s.cardBar, { backgroundColor: t?.color || COLORS.primary }]} />
@@ -205,10 +224,43 @@ export default function PqrsScreen({ navigation }) {
                   </View>
                   <Text style={[s.cardAsunto, { color: colors.textPrimary }]}>{item.asunto}</Text>
                   <Text style={[s.cardFecha, { color: colors.textSecondary }]}>{timeAgo(item.created_at)}</Text>
+
+                  {/* Respuesta del admin */}
                   {item.respuesta ? (
                     <View style={[s.respuestaBox, { backgroundColor: COLORS.primarySoft }]}>
                       <Ionicons name="chatbubble-ellipses" size={14} color={COLORS.primary} />
                       <Text style={s.respuestaText}>{item.respuesta}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Respuesta previa del usuario */}
+                  {item.respuesta_usuario ? (
+                    <View style={[s.respuestaBox, { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }]}>
+                      <Ionicons name="person-circle-outline" size={14} color={colors.textSecondary} />
+                      <Text style={[s.respuestaText, { color: colors.textPrimary }]}>{item.respuesta_usuario}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Input para responder (solo si hay respuesta del admin) */}
+                  {item.respuesta ? (
+                    <View style={s.replyRow}>
+                      <TextInput
+                        style={[s.replyInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
+                        placeholder="Escribe tu respuesta..."
+                        placeholderTextColor={colors.textSecondary}
+                        value={textoRespuesta}
+                        onChangeText={txt => setRespuestaTextos(prev => ({ ...prev, [item.id]: txt }))}
+                        multiline
+                      />
+                      <TouchableOpacity
+                        style={[s.replyBtn, { backgroundColor: COLORS.primary, opacity: estaEnviando ? 0.6 : 1 }]}
+                        onPress={() => enviarRespuestaUsuario(item.id)}
+                        disabled={estaEnviando}
+                      >
+                        {estaEnviando
+                          ? <ActivityIndicator color="#fff" size="small" />
+                          : <Ionicons name="send" size={16} color="#fff" />}
+                      </TouchableOpacity>
                     </View>
                   ) : null}
                 </View>
@@ -258,4 +310,7 @@ const s = StyleSheet.create({
   cardFecha: { fontSize: 12 },
   respuestaBox: { flexDirection: 'row', gap: 6, padding: 10, borderRadius: RADIUS.md, marginTop: 6 },
   respuestaText: { flex: 1, fontSize: 13, color: COLORS.primary, lineHeight: 18 },
+  replyRow: { flexDirection: 'row', gap: 8, marginTop: 8, alignItems: 'flex-end' },
+  replyInput: { flex: 1, borderWidth: 1, borderRadius: RADIUS.md, paddingHorizontal: 12, paddingVertical: 8, fontSize: 13, minHeight: 40, maxHeight: 100 },
+  replyBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });
