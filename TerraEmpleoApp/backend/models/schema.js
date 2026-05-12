@@ -415,6 +415,14 @@ async function initializeDatabase() {
     }
   }
 
+  // Migraciones de columnas (ALTER TABLE IF NOT EXISTS no es soportado en MariaDB, se usa try/catch)
+  try {
+    await query('ALTER TABLE pqrs ADD COLUMN respuesta_usuario TEXT DEFAULT NULL');
+    console.log('[Migration] Columna respuesta_usuario agregada a pqrs.');
+  } catch (e) {
+    if (!e.message.includes('Duplicate column')) console.warn('[Migration] pqrs.respuesta_usuario:', e.message);
+  }
+
   console.log('Base de datos inicializada correctamente.');
 }
 
