@@ -9,7 +9,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { authAPI } from '../services/api';
 import { COLORS, SPACING, RADIUS } from '../theme';
-import { showAlert } from '../utils/alertService';
 
 const useNative = Platform.OS !== 'web';
 
@@ -72,7 +71,7 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
     if (!permission?.granted) {
       const result = await requestPermission();
       if (!result.granted) {
-        showAlert('Permiso requerido', 'Necesitamos acceso a tu cámara para verificar tu identidad.');
+        Alert.alert('Permiso requerido', 'Necesitamos acceso a tu cámara para verificar tu identidad.');
         return;
       }
     }
@@ -93,7 +92,7 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
         setModalVisible(true);
       }
     } catch {
-      showAlert('Error', 'No se pudo abrir la galeria. Intenta de nuevo.');
+      Alert.alert('Error', 'No se pudo abrir la galeria. Intenta de nuevo.');
     }
   };
 
@@ -108,7 +107,7 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
       return;
     }
 
-    showAlert('Cargar foto', 'Elige como deseas continuar', [
+    Alert.alert('Cargar foto', 'Elige como deseas continuar', [
       { text: 'Tomar foto', onPress: abrirCamara },
       { text: 'Subir desde galeria', onPress: abrirGaleria },
       { text: 'Cancelar', style: 'cancel' },
@@ -121,7 +120,7 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
       const foto = await cameraRef.current.takePictureAsync({ quality: 0.7 });
       setPreview(foto.uri);
     } catch (err) {
-      showAlert('Error', 'No se pudo tomar la foto. Intenta de nuevo.');
+      Alert.alert('Error', 'No se pudo tomar la foto. Intenta de nuevo.');
     }
   };
 
@@ -157,7 +156,7 @@ export default function CamaraFoto({ tipo, onFotoGuardada, label, modoLocal = fa
       });
     } catch (err) {
       const msg = err.response?.data?.error || 'No se pudo guardar la foto. Verifica tu conexión.';
-      showAlert('Error', msg);
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
