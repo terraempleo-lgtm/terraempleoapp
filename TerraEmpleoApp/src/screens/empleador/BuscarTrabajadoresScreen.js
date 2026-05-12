@@ -100,7 +100,7 @@ function MatchPill({ matchNum }) {
   );
 }
 
-function TrabajadorCard({ item, onPress, onContact, loadingContacto, estadoContacto, colors, isDark }) {
+function TrabajadorCard({ item, onPress, onContact, onChat, loadingContacto, estadoContacto, colors, isDark }) {
   const proxConfig = PROXIMIDAD_CONFIG[item.proximidad] || PROXIMIDAD_CONFIG.lejano;
   const dispLabel = DISPONIBILIDAD_LABELS[item.disponibilidad];
   const expLabel = EXPERIENCIA_LABELS[item.anios_experiencia];
@@ -193,10 +193,10 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, estadoConta
       {/* CTA */}
       <View style={styles.cardFooter}>
         {estadoContacto === 'aceptada' ? (
-          <View style={[styles.btnContactar, { backgroundColor: COLORS.success }]}>
-            <Ionicons name="checkmark-circle" size={14} color={COLORS.white} />
-            <Text style={styles.btnContactarText}>Chat habilitado</Text>
-          </View>
+          <AnimatedPressable style={[styles.btnContactar, { backgroundColor: COLORS.success }]} onPress={() => onChat(item)} scaleValue={0.96} haptic>
+            <Ionicons name="chatbubble-ellipses" size={14} color={COLORS.white} />
+            <Text style={styles.btnContactarText}>Ir al chat</Text>
+          </AnimatedPressable>
         ) : estadoContacto === 'contacto_solicitado' ? (
           <View style={[styles.btnContactar, { backgroundColor: '#F59E0B' }]}>
             <Ionicons name="hourglass-outline" size={14} color={COLORS.white} />
@@ -240,7 +240,12 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
       const params = { orden: ord };
       if (disp) params.disponibilidad = disp;
       const res = await trabajadoresAPI.listar(params);
-      setTrabajadores(res.data?.trabajadores || []);
+      const lista = res.data?.trabajadores || [];
+      setTrabajadores(lista);
+      // Inicializar estados de contacto desde el servidor
+      const estadosIniciales = {};
+      lista.forEach(t => { if (t.estado_contacto) estadosIniciales[t.id] = t.estado_contacto; });
+      setContactosEstado(estadosIniciales);
     } catch (err) {
       console.error('Error cargando trabajadores:', err);
     } finally {
@@ -292,6 +297,28 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
       trabajador_id: item.id,
       vacante_id: vacanteContacto?.id,
     });
+  };
+
+  const irAlChat = async (item) => {
+    try {
+      const chatId = item.chat_id;
+      if (chatId) {
+        navigation.navigate('Mensajes', {
+          screen: 'ChatDetalle',
+          params: { chat: { id: chatId, otro_nombre: item.nombre_completo, otro_foto: item.foto_selfie, vacante_titulo: vacanteContacto?.titulo } },
+        });
+      } else {
+        const res = await trabajadoresAPI.contactar(item.id, { vacante_id: vacanteContacto?.id });
+        if (res?.data?.chat_id) {
+          navigation.navigate('Mensajes', {
+            screen: 'ChatDetalle',
+            params: { chat: { id: res.data.chat_id, otro_nombre: item.nombre_completo, otro_foto: item.foto_selfie, vacante_titulo: vacanteContacto?.titulo } },
+          });
+        }
+      }
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo abrir el chat');
+    }
   };
 
   const solicitarContacto = async (item) => {
@@ -473,6 +500,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
             item={item}
             onPress={irPerfil}
             onContact={solicitarContacto}
+            onChat={irAlChat}
             loadingContacto={Number(enviandoContactoId) === Number(item.id)}
             estadoContacto={contactosEstado[item.id] || null}
             colors={colors}
