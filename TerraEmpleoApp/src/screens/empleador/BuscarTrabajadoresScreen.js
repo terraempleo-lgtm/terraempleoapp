@@ -100,7 +100,7 @@ function MatchPill({ matchNum }) {
   );
 }
 
-function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isDark }) {
+function TrabajadorCard({ item, onPress, onContact, loadingContacto, estadoContacto, colors, isDark }) {
   const proxConfig = PROXIMIDAD_CONFIG[item.proximidad] || PROXIMIDAD_CONFIG.lejano;
   const dispLabel = DISPONIBILIDAD_LABELS[item.disponibilidad];
   const expLabel = EXPERIENCIA_LABELS[item.anios_experiencia];
@@ -192,16 +192,28 @@ function TrabajadorCard({ item, onPress, onContact, loadingContacto, colors, isD
 
       {/* CTA */}
       <View style={styles.cardFooter}>
-        <AnimatedPressable
-          style={[styles.btnContactar, loadingContacto && { opacity: 0.7 }]}
-          onPress={() => onContact(item)}
-          disabled={loadingContacto}
-          scaleValue={0.96}
-          haptic
-        >
-          <Ionicons name={loadingContacto ? 'hourglass-outline' : 'chatbubble-ellipses-outline'} size={14} color={COLORS.white} />
-          <Text style={styles.btnContactarText}>{loadingContacto ? 'Enviando...' : 'Contactar'}</Text>
-        </AnimatedPressable>
+        {estadoContacto === 'aceptada' ? (
+          <View style={[styles.btnContactar, { backgroundColor: COLORS.success }]}>
+            <Ionicons name="checkmark-circle" size={14} color={COLORS.white} />
+            <Text style={styles.btnContactarText}>Chat habilitado</Text>
+          </View>
+        ) : estadoContacto === 'contacto_solicitado' ? (
+          <View style={[styles.btnContactar, { backgroundColor: '#F59E0B' }]}>
+            <Ionicons name="hourglass-outline" size={14} color={COLORS.white} />
+            <Text style={styles.btnContactarText}>En espera</Text>
+          </View>
+        ) : (
+          <AnimatedPressable
+            style={[styles.btnContactar, loadingContacto && { opacity: 0.7 }]}
+            onPress={() => onContact(item)}
+            disabled={loadingContacto}
+            scaleValue={0.96}
+            haptic
+          >
+            <Ionicons name={loadingContacto ? 'hourglass-outline' : 'chatbubble-ellipses-outline'} size={14} color={COLORS.white} />
+            <Text style={styles.btnContactarText}>{loadingContacto ? 'Enviando...' : 'Contactar'}</Text>
+          </AnimatedPressable>
+        )}
         <AnimatedPressable style={styles.btnPerfil} onPress={() => onPress(item)} scaleValue={0.96} haptic>
           <Text style={styles.btnPerfilText}>Ver perfil</Text>
           <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
@@ -217,6 +229,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [enviandoContactoId, setEnviandoContactoId] = useState(null);
+  const [contactosEstado, setContactosEstado] = useState({});
   const [vacanteContacto, setVacanteContacto] = useState(null);
   const [orden, setOrden] = useState('match');
   const [disponibilidad, setDisponibilidad] = useState('');
@@ -293,6 +306,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
       const chatId = Number(res?.data?.chat_id || 0);
 
       if (estado === 'aceptada' && chatId) {
+        setContactosEstado(prev => ({ ...prev, [item.id]: 'aceptada' }));
         Alert.alert('Listo', 'Este trabajador ya aceptó contacto. Te llevamos al chat.');
         navigation.navigate('Mensajes', {
           screen: 'ChatDetalle',
@@ -308,9 +322,11 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
         return;
       }
       if (estado === 'contacto_solicitado') {
+        setContactosEstado(prev => ({ ...prev, [item.id]: 'contacto_solicitado' }));
         Alert.alert('En espera', `${item.nombre_completo} debe aceptar para habilitar el chat.`);
         return;
       }
+      setContactosEstado(prev => ({ ...prev, [item.id]: 'contacto_solicitado' }));
       Alert.alert('Listo', `Se envió solicitud de contacto a ${item.nombre_completo}.`);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
@@ -458,6 +474,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
             onPress={irPerfil}
             onContact={solicitarContacto}
             loadingContacto={Number(enviandoContactoId) === Number(item.id)}
+            estadoContacto={contactosEstado[item.id] || null}
             colors={colors}
             isDark={isDark}
           />
