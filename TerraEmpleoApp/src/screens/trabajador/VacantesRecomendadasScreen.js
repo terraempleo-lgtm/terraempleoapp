@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   statNum: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
   statLabel: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
 
-  list: { paddingBottom: 24 },
+  list: { paddingBottom: 140 },
 
   card: {
     backgroundColor: COLORS.white,

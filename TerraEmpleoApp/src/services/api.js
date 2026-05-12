@@ -98,9 +98,17 @@ export const vacantesAPI = {
   actualizarPostulacion: (id, estado) => api.put(`/vacantes/postulaciones/${id}/estado`, { estado }),
   actualizar: (id, data) => api.put(`/vacantes/${id}`, data),
   cerrar: (id) => api.put(`/vacantes/${id}/cerrar`),
-  subirFotos: (vacanteId, formData) => api.post(`/vacantes/${vacanteId}/fotos`, formData, {
-    transformRequest: [(data, headers) => { delete headers['Content-Type']; return data; }],
-  }),
+  subirFotos: async (vacanteId, formData) => {
+    // fetch handles FormData+multipart boundary correctly on iOS/Android (Axios no lo hace bien)
+    const res = await fetch(`${api.defaults.baseURL}/vacantes/${vacanteId}/fotos`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authToken}` },
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw { response: { data, status: res.status } };
+    return { data };
+  },
   eliminarFoto: (vacanteId, fotoId) => api.delete(`/vacantes/${vacanteId}/fotos/${fotoId}`),
   eliminar: (id) => api.delete(`/vacantes/${id}`),
 };
