@@ -14,6 +14,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 const LABELS_PAGO = {
   jornal: 'Jornal (diario)', semanal: 'Semanal',
   quincenal: 'Quincenal', mensual: 'Mensual', destajo: 'Por tarea / destajo',
+  por_kilo: 'Por kilo',
 };
 
 export default function AdminVacantesScreen({ navigation }) {

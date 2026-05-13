@@ -22,6 +22,7 @@ const LABELS_DISPONIBILIDAD = {
 const LABELS_PAGO = {
   jornal: 'Jornal (diario)', semanal: 'Semanal',
   quincenal: 'Quincenal', mensual: 'Mensual', destajo: 'Por tarea / destajo',
+  por_kilo: 'Por kilo',
 };
 
 function LabelValue({ label, value, colors }) {

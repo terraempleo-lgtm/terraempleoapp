@@ -40,6 +40,7 @@ const LABELS_ESTUDIOS = {
 const LABELS_PAGO = {
   jornal: 'Jornal (diario)', semanal: 'Semanal',
   quincenal: 'Quincenal', mensual: 'Mensual', destajo: 'Por tarea / destajo',
+  por_kilo: 'Por kilo',
 };
 
 /* ── Animated count-up for employer stats ── */

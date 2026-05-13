@@ -4,6 +4,7 @@ const FRECUENCIA_LABELS = {
   quincenal: 'por quincena',
   mensual: 'por mes',
   destajo: 'por tarea',
+  por_kilo: 'por kilo',
 };
 
 const TIPO_PAGO_LABELS = {
@@ -12,6 +13,7 @@ const TIPO_PAGO_LABELS = {
   quincenal: 'Quincenal',
   mensual: 'Mensual',
   destajo: 'Destajo',
+  por_kilo: 'Por kilo',
 };
 
 function extraerSoloDigitos(valor) {

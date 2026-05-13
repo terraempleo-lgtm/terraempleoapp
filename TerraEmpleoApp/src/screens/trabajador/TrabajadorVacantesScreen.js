@@ -41,6 +41,7 @@ function getSalaryLabel(item) {
   if (tp.includes('semanal')) return 'PAGO SEMANAL';
   if (tp.includes('quincenal')) return 'PAGO QUINCENAL';
   if (tp.includes('destajo')) return 'PAGO POR DESTAJO';
+  if (tp.includes('por_kilo') || tp.includes('kilo')) return 'PAGO POR KILO';
   return 'PAGO ESTIMADO';
 }
 
