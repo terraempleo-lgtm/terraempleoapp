@@ -20,57 +20,57 @@ const toBool = (val) => Number(val) === 1;
 
 // Registro de usuario
 async function register(req, res) {
-  const db = await require('../config/database').getConnection();
+  const {
+    rol, nombre_completo, celular, correo, password, cedula,
+    departamento, municipio, vereda, acepta_habeas_data,
+    // Campos trabajador
+    nivel_estudios, titulo_estudio, anios_experiencia, disponibilidad,
+    habilidades, cultivos_trabajador,
+    // Campos empleador
+    nombre_empresa_finca, tipo_pago, ofrece_alojamiento, ofrece_alimentacion,
+    beneficios_extra, cultivos_empleador, labores
+  } = req.body;
+
+  // Validaciones antes de abrir conexión a la DB
+  if (!rol || !nombre_completo || !celular || !password || !cedula) {
+    return res.status(400).json({ error: 'Campos obligatorios faltantes: rol, nombre_completo, celular, password, cedula' });
+  }
+  if (!['trabajador', 'empleador'].includes(rol)) {
+    return res.status(400).json({ error: 'Rol inválido. Debe ser trabajador o empleador.' });
+  }
+  if (!acepta_habeas_data) {
+    return res.status(400).json({ error: 'Debe aceptar el tratamiento de datos (Habeas Data)' });
+  }
+  if (rol === 'empleador' && !nombre_empresa_finca) {
+    return res.status(400).json({ error: 'El nombre de la empresa o finca es obligatorio para empleadores' });
+  }
+
+  // Normalizar celular a E.164 antes de guardar
+  const celularNorm = normalizePhone(celular) || celular.replace(/[\s\-\(\)\.]/g, '');
+
+  // Verificar duplicado antes de abrir transacción
+  const existingUser = await findAnyUserByPhone(celular);
+  if (existingUser) {
+    const isDeleted = Number(existingUser.eliminado) === 1 || Number(existingUser.activo) === 0;
+    const isSameIdentity = existingUser.cedula === cedula;
+    if (!isDeleted && !isSameIdentity) {
+      return res.status(409).json({ error: 'Ya existe una cuenta con este número de celular. Si es tuya, intenta iniciar sesión.' });
+    }
+    // Misma persona o cuenta eliminada — borrar para permitir re-registro
+    await query('DELETE FROM usuarios WHERE id = ?', [existingUser.id]);
+  }
+
+  const password_hash = await bcrypt.hash(password, 10);
+
+  let db;
   try {
-    const {
-      rol, nombre_completo, celular, correo, password, cedula,
-      departamento, municipio, vereda, acepta_habeas_data,
-      // Campos trabajador
-      nivel_estudios, titulo_estudio, anios_experiencia, disponibilidad,
-      habilidades, cultivos_trabajador,
-      // Campos empleador
-      nombre_empresa_finca, tipo_pago, ofrece_alojamiento, ofrece_alimentacion,
-      beneficios_extra, cultivos_empleador, labores
-    } = req.body;
-
-    if (!rol || !nombre_completo || !celular || !password || !cedula) {
-      return res.status(400).json({ error: 'Campos obligatorios faltantes: rol, nombre_completo, celular, password, cedula' });
-    }
-
-    if (!['trabajador', 'empleador'].includes(rol)) {
-      return res.status(400).json({ error: 'Rol inválido. Debe ser trabajador o empleador.' });
-    }
-
-    if (!acepta_habeas_data) {
-      return res.status(400).json({ error: 'Debe aceptar el tratamiento de datos (Habeas Data)' });
-    }
-
-    if (rol === 'empleador' && !nombre_empresa_finca) {
-      return res.status(400).json({ error: 'El nombre de la empresa o finca es obligatorio para empleadores' });
-    }
-
-    // Normalizar celular a E.164 antes de guardar
-    const celularNorm = normalizePhone(celular) || celular.replace(/[\s\-\(\)\.]/g, '');
-
-    // Verificar si ya existe
-    const existingUser = await findAnyUserByPhone(celular);
-    if (existingUser) {
-      const isDeleted = Number(existingUser.eliminado) === 1 || Number(existingUser.activo) === 0;
-      // Solo permitir re-registro si es la misma persona (misma cédula) o cuenta eliminada
-      const isSameIdentity = existingUser.cedula === cedula;
-      if (isDeleted || isSameIdentity) {
-        await db.query('DELETE FROM usuarios WHERE id = ?', [existingUser.id]);
-      } else {
-        return res.status(409).json({ error: 'Ya existe una cuenta con este número de celular. Si es tuya, intenta iniciar sesión.' });
-      }
-    }
-
-    const password_hash = await bcrypt.hash(password, 10);
+    db = await require('../config/database').getConnection();
 
     // Toda la creación dentro de una transacción para evitar registros huérfanos
     await db.beginTransaction();
 
-    const [result] = await db.query(`
+    // mariadb devuelve el objeto de resultado directamente (no en array como mysql2)
+    const result = await db.query(`
       INSERT INTO usuarios (rol, nombre_completo, celular, correo, password_hash, cedula,
         departamento, municipio, vereda, acepta_habeas_data)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -78,9 +78,10 @@ async function register(req, res) {
         departamento || null, municipio || null, vereda || null, acepta_habeas_data ? 1 : 0]);
 
     const userId = Number(result.insertId);
+    if (!userId) throw new Error('No se obtuvo ID de usuario tras el INSERT');
 
     if (rol === 'trabajador') {
-      const [perfilResult] = await db.query(`
+      const perfilResult = await db.query(`
         INSERT INTO perfil_trabajador (usuario_id, nivel_estudios, titulo_estudio, anios_experiencia, disponibilidad)
         VALUES (?, ?, ?, ?, ?)
       `, [userId, nivel_estudios || null, titulo_estudio || null, anios_experiencia || null, disponibilidad || null]);
@@ -103,7 +104,7 @@ async function register(req, res) {
     }
 
     if (rol === 'empleador') {
-      const [perfilResult] = await db.query(`
+      const perfilResult = await db.query(`
         INSERT INTO perfil_empleador (usuario_id, nombre_empresa_finca, tipo_pago, ofrece_alojamiento, ofrece_alimentacion, beneficios_extra)
         VALUES (?, ?, ?, ?, ?, ?)
       `, [userId, nombre_empresa_finca, tipo_pago || null,
@@ -147,9 +148,8 @@ async function register(req, res) {
     });
 
   } catch (err) {
-    await db.rollback().catch(() => {});
+    if (db) await db.rollback().catch(() => {});
     console.error('Error en registro:', err);
-    // Devolver mensaje específico para errores conocidos
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'Ya existe una cuenta con ese número de celular o cédula.' });
     }
@@ -158,7 +158,7 @@ async function register(req, res) {
     }
     res.status(500).json({ error: 'Error al crear la cuenta. Intenta de nuevo en unos momentos.' });
   } finally {
-    db.release();
+    if (db) db.release();
   }
 }
 
