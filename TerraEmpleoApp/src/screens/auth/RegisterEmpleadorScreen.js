@@ -261,6 +261,7 @@ export default function RegisterEmpleadorScreen({ navigation }) {
 
       // Completar registro y navegación de inmediato.
       await signIn(user, token);
+      Alert.alert('¡Bienvenido!', `Hola ${user.nombre_completo?.split(' ')[0] || ''}, tu cuenta fue creada exitosamente.`);
 
       // Subir fotos en segundo plano para no bloquear el cierre del registro.
       const todasLasFotos = [
@@ -293,18 +294,16 @@ export default function RegisterEmpleadorScreen({ navigation }) {
         });
       }
     } catch (err) {
-      console.error('Error registro:', err?.response?.status, err?.response?.data, err.message);
-      let msg = 'Error al registrarse';
+      console.error('Error registro empleador:', err?.response?.status, JSON.stringify(err?.response?.data), err.message);
+      let msg = 'No se pudo completar el registro. Intenta de nuevo.';
       if (err.response?.data?.error) {
         msg = err.response.data.error;
-      } else if (err.message?.includes('Network')) {
-        msg = 'No se pudo conectar al servidor. Verifica tu conexión a internet.';
-      } else if (err.message?.includes('timeout')) {
-        msg = 'La solicitud tardó demasiado. Intenta de nuevo.';
+      } else if (!err.response && err.message) {
+        msg = 'Sin conexión al servidor. Verifica tu internet e intenta de nuevo.';
       } else if (err.message) {
         msg = err.message;
       }
-      Alert.alert('Error', msg);
+      Alert.alert('Error en el registro', msg);
     } finally {
       setLoading(false);
     }
