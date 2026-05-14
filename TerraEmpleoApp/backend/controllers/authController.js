@@ -20,6 +20,7 @@ const toBool = (val) => Number(val) === 1;
 
 // Registro de usuario
 async function register(req, res) {
+  const db = await require('../config/database').getConnection();
   try {
     const {
       rol, nombre_completo, celular, correo, password, cedula,
@@ -36,29 +37,40 @@ async function register(req, res) {
       return res.status(400).json({ error: 'Campos obligatorios faltantes: rol, nombre_completo, celular, password, cedula' });
     }
 
+    if (!['trabajador', 'empleador'].includes(rol)) {
+      return res.status(400).json({ error: 'Rol inválido. Debe ser trabajador o empleador.' });
+    }
+
     if (!acepta_habeas_data) {
       return res.status(400).json({ error: 'Debe aceptar el tratamiento de datos (Habeas Data)' });
+    }
+
+    if (rol === 'empleador' && !nombre_empresa_finca) {
+      return res.status(400).json({ error: 'El nombre de la empresa o finca es obligatorio para empleadores' });
     }
 
     // Normalizar celular a E.164 antes de guardar
     const celularNorm = normalizePhone(celular) || celular.replace(/[\s\-\(\)\.]/g, '');
 
-    // Verificar si ya existe (busca tanto normalizado como legacy)
+    // Verificar si ya existe
     const existingUser = await findAnyUserByPhone(celular);
     if (existingUser) {
       const isDeleted = Number(existingUser.eliminado) === 1 || Number(existingUser.activo) === 0;
+      // Solo permitir re-registro si es la misma persona (misma cédula) o cuenta eliminada
       const isSameIdentity = existingUser.cedula === cedula;
       if (isDeleted || isSameIdentity) {
-        // Re-registro: misma persona o usuario eliminado — borrar registro anterior
-        await query('DELETE FROM usuarios WHERE id = ?', [existingUser.id]);
+        await db.query('DELETE FROM usuarios WHERE id = ?', [existingUser.id]);
       } else {
-        return res.status(409).json({ error: 'Ya existe un usuario con este número de celular' });
+        return res.status(409).json({ error: 'Ya existe una cuenta con este número de celular. Si es tuya, intenta iniciar sesión.' });
       }
     }
 
     const password_hash = await bcrypt.hash(password, 10);
 
-    const result = await query(`
+    // Toda la creación dentro de una transacción para evitar registros huérfanos
+    await db.beginTransaction();
+
+    const [result] = await db.query(`
       INSERT INTO usuarios (rol, nombre_completo, celular, correo, password_hash, cedula,
         departamento, municipio, vereda, acepta_habeas_data)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -67,38 +79,31 @@ async function register(req, res) {
 
     const userId = Number(result.insertId);
 
-    // Si es trabajador, crear perfil
     if (rol === 'trabajador') {
-      const perfilResult = await query(`
+      const [perfilResult] = await db.query(`
         INSERT INTO perfil_trabajador (usuario_id, nivel_estudios, titulo_estudio, anios_experiencia, disponibilidad)
         VALUES (?, ?, ?, ?, ?)
       `, [userId, nivel_estudios || null, titulo_estudio || null, anios_experiencia || null, disponibilidad || null]);
 
       const perfilId = Number(perfilResult.insertId);
 
-      if (habilidades && Array.isArray(habilidades)) {
+      if (Array.isArray(habilidades)) {
         for (const h of habilidades) {
-          await query('INSERT INTO trabajador_habilidades (perfil_trabajador_id, habilidad, es_personalizada) VALUES (?, ?, ?)',
+          await db.query('INSERT INTO trabajador_habilidades (perfil_trabajador_id, habilidad, es_personalizada) VALUES (?, ?, ?)',
             [perfilId, h.nombre, h.es_personalizada ? 1 : 0]);
         }
       }
 
-      if (cultivos_trabajador && Array.isArray(cultivos_trabajador)) {
+      if (Array.isArray(cultivos_trabajador)) {
         for (const c of cultivos_trabajador) {
-          await query('INSERT INTO trabajador_cultivos (perfil_trabajador_id, cultivo, es_personalizado) VALUES (?, ?, ?)',
+          await db.query('INSERT INTO trabajador_cultivos (perfil_trabajador_id, cultivo, es_personalizado) VALUES (?, ?, ?)',
             [perfilId, c.nombre, c.es_personalizado ? 1 : 0]);
         }
       }
-
     }
 
-    // Si es empleador, crear perfil
     if (rol === 'empleador') {
-      if (!nombre_empresa_finca) {
-        return res.status(400).json({ error: 'El nombre de la empresa o finca es obligatorio para empleadores' });
-      }
-
-      const perfilResult = await query(`
+      const [perfilResult] = await db.query(`
         INSERT INTO perfil_empleador (usuario_id, nombre_empresa_finca, tipo_pago, ofrece_alojamiento, ofrece_alimentacion, beneficios_extra)
         VALUES (?, ?, ?, ?, ?, ?)
       `, [userId, nombre_empresa_finca, tipo_pago || null,
@@ -106,20 +111,22 @@ async function register(req, res) {
 
       const perfilId = Number(perfilResult.insertId);
 
-      if (cultivos_empleador && Array.isArray(cultivos_empleador)) {
+      if (Array.isArray(cultivos_empleador)) {
         for (const c of cultivos_empleador) {
-          await query('INSERT INTO empleador_cultivos (perfil_empleador_id, cultivo, es_personalizado) VALUES (?, ?, ?)',
+          await db.query('INSERT INTO empleador_cultivos (perfil_empleador_id, cultivo, es_personalizado) VALUES (?, ?, ?)',
             [perfilId, c.nombre, c.es_personalizado ? 1 : 0]);
         }
       }
 
-      if (labores && Array.isArray(labores)) {
+      if (Array.isArray(labores)) {
         for (const l of labores) {
-          await query('INSERT INTO empleador_labores (perfil_empleador_id, labor, es_personalizada) VALUES (?, ?, ?)',
+          await db.query('INSERT INTO empleador_labores (perfil_empleador_id, labor, es_personalizada) VALUES (?, ?, ?)',
             [perfilId, l.nombre, l.es_personalizada ? 1 : 0]);
         }
       }
     }
+
+    await db.commit();
 
     const token = jwt.sign(
       { id: userId, rol, celular: celularNorm, nombre_completo },
@@ -140,8 +147,18 @@ async function register(req, res) {
     });
 
   } catch (err) {
+    await db.rollback().catch(() => {});
     console.error('Error en registro:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    // Devolver mensaje específico para errores conocidos
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'Ya existe una cuenta con ese número de celular o cédula.' });
+    }
+    if (err.code === 'WARN_DATA_TRUNCATED' || err.message?.includes('Data truncated')) {
+      return res.status(400).json({ error: 'Uno de los valores seleccionados no es válido. Revisa los campos e intenta de nuevo.' });
+    }
+    res.status(500).json({ error: 'Error al crear la cuenta. Intenta de nuevo en unos momentos.' });
+  } finally {
+    db.release();
   }
 }
 

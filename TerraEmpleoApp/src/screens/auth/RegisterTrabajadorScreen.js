@@ -128,8 +128,21 @@ export default function RegisterTrabajadorScreen({ navigation }) {
         if (!fotoSelfie) errs.selfie = 'La selfie es obligatoria';
         if (!fotoSelfieCedula) errs.selfieCed = 'La selfie con cédula es obligatoria';
         break;
+      case 9:
+        // Validación final antes de enviar — chequea todo lo crítico
+        if (!nombre.trim()) errs.nombre = 'Falta tu nombre completo (paso 1)';
+        if (!celular.trim()) errs.celular = 'Falta el celular (paso 1)';
+        if (!password || password.length < 8) errs.password = 'Contraseña inválida (paso 1)';
+        if (!departamento || !municipio) errs.ubicacion = 'Falta la ubicación (paso 2)';
+        if (!cedula.trim()) errs.cedula = 'Falta la cédula (paso 3)';
+        if (!aceptaHabeasData) errs.habeas = 'Debe aceptar el tratamiento de datos (paso 3)';
+        if (!nivelEstudios) errs.estudios = 'Falta el nivel de estudios (paso 4)';
+        break;
     }
     setErrors(errs);
+    if (Object.keys(errs).length > 0 && step === 9) {
+      Alert.alert('Datos incompletos', Object.values(errs)[0]);
+    }
     return Object.keys(errs).length === 0;
   };
 
