@@ -224,9 +224,9 @@ export default function PerfilScreen({ navigation }) {
   const diasDesdeUltimoCambio = u?.foto_selfie_cambiada_at
     ? (Date.now() - new Date(u.foto_selfie_cambiada_at).getTime()) / 86400000
     : null;
-  const puedeCambiarFoto = diasDesdeUltimoCambio === null || diasDesdeUltimoCambio >= 30;
-  const diasParaCambio = diasDesdeUltimoCambio !== null && diasDesdeUltimoCambio < 30
-    ? Math.ceil(30 - diasDesdeUltimoCambio)
+  const puedeCambiarFoto = diasDesdeUltimoCambio === null || diasDesdeUltimoCambio >= 7;
+  const diasParaCambio = diasDesdeUltimoCambio !== null && diasDesdeUltimoCambio < 7
+    ? Math.ceil(7 - diasDesdeUltimoCambio)
     : 0;
 
   const _abrirCamara = async () => {
@@ -256,6 +256,27 @@ export default function PerfilScreen({ navigation }) {
       setPreview(foto.uri);
     } catch {
       showAlert('Error', 'No se pudo tomar la foto. Intenta de nuevo.');
+    }
+  };
+
+  const escogerDeGaleria = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        showAlert('Permiso requerido', 'Necesitamos acceso a tu galería.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        setPreview(result.assets[0].uri);
+      }
+    } catch {
+      showAlert('Error', 'No se pudo abrir la galería.');
     }
   };
 
@@ -917,6 +938,23 @@ export default function PerfilScreen({ navigation }) {
                 <Text style={s.camaraGuiaTxt}>Centra tu cara</Text>
               </View>
               <View style={s.camaraBar}>
+                <TouchableOpacity
+                  onPress={escogerDeGaleria}
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    backgroundColor: 'rgba(255,255,255,0.15)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'absolute',
+                    left: 32,
+                    bottom: 24,
+                  }}
+                  accessibilityLabel="Subir desde galería"
+                >
+                  <Ionicons name="images" size={24} color="#fff" />
+                </TouchableOpacity>
                 <TouchableOpacity style={s.camaraBtn} onPress={tomarFoto}>
                   <View style={s.camaraBtnInner} />
                 </TouchableOpacity>

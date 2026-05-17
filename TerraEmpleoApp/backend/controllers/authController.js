@@ -11,7 +11,11 @@ const {
 const { cognitoClient, COGNITO_CLIENT_ID } = require('../config/cognito');
 const { normalizePhone } = require('../helpers/normalizePhone');
 const { findUserByNormalizedPhone, findAnyUserByPhone, markPhoneVerified } = require('../helpers/userSync');
+const { crearNotificacion } = require('./notificacionesController');
 require('dotenv').config();
+
+// Cooldown para cambio de foto de perfil (días). Coordinado entre web, móvil y backend.
+const FOTO_PERFIL_COOLDOWN_DIAS = 7;
 
 const RECUPERACION_CODIGO_MOCK = '123456';
 
@@ -623,9 +627,13 @@ async function cambiarFotoPerfil(req, res) {
 
     if (user.foto_selfie_cambiada_at) {
       const diasDesdeUltimoCambio = (Date.now() - new Date(user.foto_selfie_cambiada_at).getTime()) / 86400000;
-      if (diasDesdeUltimoCambio < 30) {
-        const diasRestantes = Math.ceil(30 - diasDesdeUltimoCambio);
-        return res.status(429).json({ error: `Solo puedes cambiar tu foto cada 30 días. Podrás cambiarla en ${diasRestantes} día(s).` });
+      if (diasDesdeUltimoCambio < FOTO_PERFIL_COOLDOWN_DIAS) {
+        const diasRestantes = Math.ceil(FOTO_PERFIL_COOLDOWN_DIAS - diasDesdeUltimoCambio);
+        return res.status(429).json({
+          error: `Solo puedes cambiar tu foto cada ${FOTO_PERFIL_COOLDOWN_DIAS} días. Podrás cambiarla en ${diasRestantes} día(s).`,
+          dias_restantes: diasRestantes,
+          proxima_fecha: new Date(new Date(user.foto_selfie_cambiada_at).getTime() + FOTO_PERFIL_COOLDOWN_DIAS * 86400000).toISOString(),
+        });
       }
     }
 
@@ -643,8 +651,33 @@ async function cambiarFotoPerfil(req, res) {
       [filePath, userId]
     );
 
+    // Notificar a todos los admins activos para que revisen la nueva verificación
+    try {
+      const admins = await query("SELECT id FROM usuarios WHERE rol = 'admin' AND activo = 1");
+      const nombreRows = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [userId]);
+      const nombreUsuario = nombreRows[0]?.nombre_completo || 'Un usuario';
+      await Promise.all(
+        admins.map((a) =>
+          crearNotificacion(
+            a.id,
+            'verificacion_pendiente',
+            'Nueva verificación pendiente',
+            `${nombreUsuario} cambió su foto de perfil y requiere nueva verificación.`,
+            {}
+          )
+        )
+      );
+    } catch (notifErr) {
+      console.error('No se pudo notificar a admins (no bloquea cambio de foto):', notifErr);
+    }
+
     const signedPath = await signUrl(filePath);
-    res.json({ message: 'Foto de perfil actualizada. Tu verificación fue enviada a revisión.', path: signedPath });
+    res.json({
+      message: 'Tu foto de perfil fue actualizada correctamente. Tu verificación será revisada nuevamente por el administrador.',
+      path: signedPath,
+      foto_selfie_cambiada_at: new Date().toISOString(),
+      validacion_identidad_estado: 'pendiente',
+    });
   } catch (err) {
     console.error('Error cambiando foto de perfil:', err);
     res.status(500).json({ error: 'Error interno del servidor' });

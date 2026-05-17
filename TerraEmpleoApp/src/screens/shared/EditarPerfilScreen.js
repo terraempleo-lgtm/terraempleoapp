@@ -118,9 +118,9 @@ export default function EditarPerfilScreen({ navigation, route }) {
   const diasDesdeUltimoCambio = initUser?.foto_selfie_cambiada_at
     ? (Date.now() - new Date(initUser.foto_selfie_cambiada_at).getTime()) / 86400000
     : null;
-  const puedeCambiarFoto = diasDesdeUltimoCambio === null || diasDesdeUltimoCambio >= 30;
-  const diasParaCambio = diasDesdeUltimoCambio !== null && diasDesdeUltimoCambio < 30
-    ? Math.ceil(30 - diasDesdeUltimoCambio)
+  const puedeCambiarFoto = diasDesdeUltimoCambio === null || diasDesdeUltimoCambio >= 7;
+  const diasParaCambio = diasDesdeUltimoCambio !== null && diasDesdeUltimoCambio < 7
+    ? Math.ceil(7 - diasDesdeUltimoCambio)
     : 0;
 
   const _abrirCamara = async () => {
