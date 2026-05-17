@@ -22,10 +22,19 @@ async function crearNotificacion(usuarioId, tipo, titulo, mensaje, extra = {}) {
 async function listar(req, res) {
   try {
     const usuarioId = req.user.id;
-    const notifs = await query(
-      'SELECT * FROM notificaciones WHERE usuario_id = ? ORDER BY created_at DESC',
-      [usuarioId]
-    );
+    const since = req.query.since; // ISO opcional para sync incremental
+    let notifs;
+    if (since) {
+      notifs = await query(
+        'SELECT * FROM notificaciones WHERE usuario_id = ? AND created_at > ? ORDER BY created_at DESC LIMIT 500',
+        [usuarioId, since]
+      );
+    } else {
+      notifs = await query(
+        'SELECT * FROM notificaciones WHERE usuario_id = ? ORDER BY created_at DESC LIMIT 200',
+        [usuarioId]
+      );
+    }
     for (const n of notifs) {
       n.leida = Number(n.leida) === 1;
     }

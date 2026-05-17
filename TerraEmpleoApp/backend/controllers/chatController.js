@@ -75,6 +75,7 @@ async function getMensajes(req, res) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const offset = (page - 1) * limit;
+    const since = req.query.since; // ISO timestamp opcional (sync incremental)
 
     // Verificar que el usuario pertenece al chat
     const chats = await query(
@@ -85,18 +86,31 @@ async function getMensajes(req, res) {
       return res.status(404).json({ error: 'Chat no encontrado' });
     }
 
-    const mensajes = await query(`
-      SELECT m.id, m.emisor_id, m.mensaje, m.tipo, m.archivo_url, m.duracion_audio, m.leido, m.created_at,
-        u.nombre_completo as emisor_nombre
-      FROM mensajes m
-      JOIN usuarios u ON u.id = m.emisor_id
-      WHERE m.chat_id = ?
-      ORDER BY m.created_at DESC
-      LIMIT ? OFFSET ?
-    `, [id, limit, offset]);
-
-    // Retornar en orden cronológico
-    mensajes.reverse();
+    let mensajes;
+    if (since) {
+      // Modo sync: solo mensajes posteriores al timestamp, orden ASC, sin paginación
+      mensajes = await query(`
+        SELECT m.id, m.emisor_id, m.mensaje, m.tipo, m.archivo_url, m.duracion_audio, m.leido, m.created_at,
+          u.nombre_completo as emisor_nombre
+        FROM mensajes m
+        JOIN usuarios u ON u.id = m.emisor_id
+        WHERE m.chat_id = ? AND m.created_at > ?
+        ORDER BY m.created_at ASC
+        LIMIT 500
+      `, [id, since]);
+    } else {
+      // Modo histórico paginado (comportamiento original)
+      mensajes = await query(`
+        SELECT m.id, m.emisor_id, m.mensaje, m.tipo, m.archivo_url, m.duracion_audio, m.leido, m.created_at,
+          u.nombre_completo as emisor_nombre
+        FROM mensajes m
+        JOIN usuarios u ON u.id = m.emisor_id
+        WHERE m.chat_id = ?
+        ORDER BY m.created_at DESC
+        LIMIT ? OFFSET ?
+      `, [id, limit, offset]);
+      mensajes.reverse();
+    }
 
     // Firmar URLs de archivos multimedia
     for (const m of mensajes) {

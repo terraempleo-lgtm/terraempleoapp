@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import { useHeaderHeight } from '@react-navigation/elements';
+import { MediaCacheada } from '../../components/ui';
+import { resolverFuente } from '../../utils/mediaCache';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { chatsAPI, reportesAPI } from '../../services/api';
@@ -45,11 +47,12 @@ function formatDuracion(segundos) {
 }
 
 // ─── Burbuja de Audio ─────────────────────────────────────────────────────────
-function BurbujaAudio({ url, duracion, esMio, colors }) {
+function BurbujaAudio({ url, duracion, esMio, colors, mensajeId }) {
   const [sound, setSound] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [posicion, setPosicion] = useState(0);
   const [durTotal, setDurTotal] = useState(duracion || 0);
+  const [descargando, setDescargando] = useState(false);
 
   useEffect(() => {
     return () => { sound?.unloadAsync(); };
@@ -58,9 +61,19 @@ function BurbujaAudio({ url, duracion, esMio, colors }) {
   const togglePlay = async () => {
     try {
       if (!sound) {
+        // Descargar a cache local si aún no está; reproduce desde file://
+        let fuenteFinal = url;
+        if (url && !url.startsWith('file://')) {
+          setDescargando(true);
+          const local = await resolverFuente(url, {
+            entity: 'mensaje', entityId: mensajeId, autoDescargar: true,
+          });
+          setDescargando(false);
+          if (local) fuenteFinal = local;
+        }
         await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
         const { sound: s } = await Audio.Sound.createAsync(
-          { uri: url },
+          { uri: fuenteFinal },
           { shouldPlay: true },
           (status) => {
             if (status.isLoaded) {
@@ -94,7 +107,11 @@ function BurbujaAudio({ url, duracion, esMio, colors }) {
   return (
     <TouchableOpacity style={styles.audioRow} onPress={togglePlay} activeOpacity={0.8}>
       <View style={[styles.playBtn, { backgroundColor: esMio ? 'rgba(255,255,255,0.25)' : (COLORS.primarySoft || '#e8f5e9') }]}>
-        <Ionicons name={playing ? 'pause' : 'play'} size={18} color={esMio ? COLORS.white : COLORS.primary} />
+        {descargando ? (
+          <ActivityIndicator size="small" color={esMio ? COLORS.white : COLORS.primary} />
+        ) : (
+          <Ionicons name={playing ? 'pause' : 'play'} size={18} color={esMio ? COLORS.white : COLORS.primary} />
+        )}
       </View>
       <View style={styles.audioInfo}>
         <View style={[styles.audioTrack, { backgroundColor: trackColor }]}>
@@ -245,13 +262,34 @@ export default function ChatDetalleScreen({ route, navigation }) {
     });
   }, [navigation, chat, irAlPerfilRelacionado, llamar]);
 
-  // ── Carga y polling ────────────────────────────────────────────────────────
+  // ── Carga y polling (offline-first) ────────────────────────────────────────
   const cargarMensajes = useCallback(async () => {
     try {
-      const res = await chatsAPI.getMensajes(chat.id);
-      setMensajes(res.data.mensajes || []);
+      // 1) Mostrar lo que tengamos en SQLite local primero
+      try {
+        const { mensajesRepo } = require('../../db/repos');
+        const cacheLocal = await mensajesRepo.listarPorChat(chat.id);
+        if (cacheLocal?.length) setMensajes(cacheLocal);
+      } catch (_) {}
+
+      // 2) Pedir solo lo nuevo (sync incremental con ?since=)
+      const { syncMensajesDeChat } = require('../../db/sync');
+      const r = await syncMensajesDeChat(chat.id);
+
+      // 3) Releer cache combinado y actualizar UI
+      const { mensajesRepo } = require('../../db/repos');
+      const fresh = await mensajesRepo.listarPorChat(chat.id);
+      if (fresh?.length) setMensajes(fresh);
+      else {
+        // si SQLite aún vacío (primer load offline-fail), pedir directo
+        if (r?.ok === false && r?.reason === 'offline') return;
+        const res = await chatsAPI.getMensajes(chat.id);
+        const items = res.data?.mensajes || [];
+        setMensajes(items);
+        try { await mensajesRepo.upsertMany(chat.id, items); } catch (_) {}
+      }
     } catch (err) {
-      console.error('Error cargando mensajes:', err);
+      console.warn('cargarMensajes:', err?.message);
     } finally {
       setLoading(false);
     }
@@ -282,11 +320,26 @@ export default function ChatDetalleScreen({ route, navigation }) {
     setEnviando(true);
     try {
       const res = await chatsAPI.enviarMensaje(chat.id, msg);
-      setMensajes(prev => [...prev, res.data.mensaje]);
+      const m = res.data.mensaje;
+      setMensajes(prev => [...prev, m]);
+      try { const { mensajesRepo } = require('../../db/repos'); await mensajesRepo.upsertMany(chat.id, [m]); } catch (_) {}
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
-      setTexto(msg);
-      showAlert('Error', 'No se pudo enviar el mensaje.');
+      // Offline: encolar en outbox para reintento automático
+      try {
+        const { outboxRepo } = require('../../db/repos');
+        await outboxRepo.push('mensaje_texto', { chatId: chat.id, mensaje: msg });
+        // Mostrar mensaje optimista local con id negativo (placeholder)
+        const optimista = {
+          id: -Date.now(), chat_id: chat.id, emisor_id: user?.id,
+          mensaje: msg, tipo: 'texto', created_at: new Date().toISOString(),
+          _pending: true,
+        };
+        setMensajes(prev => [...prev, optimista]);
+      } catch (_) {
+        setTexto(msg);
+        showAlert('Sin conexión', 'No se pudo enviar el mensaje. Se reintentará cuando vuelva el internet.');
+      }
     } finally {
       setEnviando(false);
     }
@@ -297,11 +350,21 @@ export default function ChatDetalleScreen({ route, navigation }) {
     setEnviando(true);
     try {
       const res = await chatsAPI.enviarMedia(chat.id, uri, tipo, duracion);
-      setMensajes(prev => [...prev, res.data.mensaje]);
+      const m = res.data.mensaje;
+      setMensajes(prev => [...prev, m]);
+      try { const { mensajesRepo } = require('../../db/repos'); await mensajesRepo.upsertMany(chat.id, [m]); } catch (_) {}
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e) {
-      console.warn('Error enviando media:', e);
-      showAlert('Error', 'No se pudo enviar el archivo. Revisa tu conexión.');
+      console.warn('Error enviando media (probable offline):', e?.message);
+      // Fallback: encolar en outbox para subir cuando vuelva el internet
+      try {
+        const res = await chatsAPI.encolarMediaOutbox(chat.id, uri, tipo, duracion);
+        setMensajes(prev => [...prev, res.mensaje]);
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      } catch (queueErr) {
+        console.warn('No se pudo encolar al outbox:', queueErr?.message);
+        showAlert('Error', 'No se pudo enviar el archivo.');
+      }
     } finally {
       setEnviando(false);
     }
@@ -399,12 +462,16 @@ export default function ChatDetalleScreen({ route, navigation }) {
 
             {tipo === 'imagen' && item.archivo_url && (
               <TouchableOpacity onPress={() => setImagenPreview(item.archivo_url)} activeOpacity={0.9} style={styles.imagenWrapper}>
-                <Image source={{ uri: item.archivo_url }} style={styles.imagenBurbuja} resizeMode="cover" />
+                <MediaCacheada
+                  source={{ uri: item.archivo_url, entity: 'mensaje', entityId: item.id }}
+                  style={styles.imagenBurbuja}
+                  contentFit="cover"
+                />
               </TouchableOpacity>
             )}
 
             {tipo === 'audio' && item.archivo_url && (
-              <BurbujaAudio url={item.archivo_url} duracion={item.duracion_audio} esMio={esMio} colors={colors} />
+              <BurbujaAudio url={item.archivo_url} duracion={item.duracion_audio} esMio={esMio} colors={colors} mensajeId={item.id} />
             )}
 
             {tipo === 'texto' && (
@@ -419,9 +486,9 @@ export default function ChatDetalleScreen({ route, navigation }) {
               </Text>
               {esMio && (
                 <Ionicons
-                  name={item.leido ? 'checkmark-done' : 'checkmark'}
+                  name={item._pending ? 'time-outline' : (item.leido ? 'checkmark-done' : 'checkmark')}
                   size={14}
-                  color={item.leido ? '#90EE90' : 'rgba(255,255,255,0.7)'}
+                  color={item._pending ? 'rgba(255,255,255,0.7)' : (item.leido ? '#90EE90' : 'rgba(255,255,255,0.7)')}
                   style={{ marginLeft: 4 }}
                 />
               )}

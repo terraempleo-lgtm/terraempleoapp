@@ -91,10 +91,35 @@ export default function MisPostulacionesScreen({ navigation }) {
   const [filtro, setFiltro] = useState('todas');
 
   const cargar = useCallback(async () => {
+    // 1) Mostrar desde cache local (SQLite) primero — offline-first
+    try {
+      const { postulacionesRepo, vacantesRepo } = require('../../db/repos');
+      const cacheLocal = await postulacionesRepo.listar();
+      if (cacheLocal?.length) {
+        setPostulaciones(cacheLocal);
+        const mapa = {};
+        for (const p of cacheLocal) {
+          const vid = Number(p.vacante_id || p.id);
+          if (Number.isFinite(vid)) {
+            const v = await vacantesRepo.getById(vid);
+            mapa[vid] = v?.foto_portada || null;
+          }
+        }
+        setFotosVacante(mapa);
+      }
+    } catch (_) {}
+
+    // 2) Sync con backend (no-op si offline)
     try {
       const res = await vacantesAPI.misPostulaciones();
       const lista = res.data?.postulaciones || [];
       setPostulaciones(lista);
+
+      // Guardar en SQLite para próxima vez offline
+      try {
+        const { postulacionesRepo } = require('../../db/repos');
+        await postulacionesRepo.replaceAll(lista);
+      } catch (_) {}
 
       const idsVacantes = Array.from(new Set(
         lista.map((p) => Number(p.vacante_id || p.id)).filter((id) => Number.isFinite(id))
@@ -118,7 +143,8 @@ export default function MisPostulacionesScreen({ navigation }) {
       detalles.forEach((d) => { mapa[d.id] = d.foto; });
       setFotosVacante(mapa);
     } catch (err) {
-      console.error(err);
+      // offline: ya pintamos desde cache local arriba, no rompemos
+      console.warn('Sync postulaciones falló:', err?.message);
     } finally {
       setRefreshing(false);
     }

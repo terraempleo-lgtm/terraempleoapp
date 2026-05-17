@@ -102,11 +102,28 @@ export default function NotificacionesScreen({ navigation }) {
   const [respondiendo, setRespondiendo] = useState(false);
 
   const cargar = useCallback(async () => {
+    // 1) Cache local SQLite
     try {
-      const res = await notificacionesAPI.listar();
-      setNotificaciones(res.data.notificaciones || []);
+      const { notificacionesRepo } = require('../../db/repos');
+      const local = await notificacionesRepo.listar();
+      if (local?.length) setNotificaciones(local);
+    } catch (_) {}
+
+    // 2) Sync incremental con backend
+    try {
+      const { syncNotificaciones } = require('../../db/sync');
+      await syncNotificaciones();
+      const { notificacionesRepo } = require('../../db/repos');
+      const fresh = await notificacionesRepo.listar();
+      if (fresh?.length) setNotificaciones(fresh);
+      else {
+        const res = await notificacionesAPI.listar();
+        const items = res.data.notificaciones || [];
+        setNotificaciones(items);
+        try { await notificacionesRepo.upsertMany(items); } catch (_) {}
+      }
     } catch (err) {
-      console.error('Error cargando notificaciones:', err);
+      console.warn('Sync notificaciones (offline?):', err?.message);
     } finally {
       setLoading(false);
       setRefreshing(false);

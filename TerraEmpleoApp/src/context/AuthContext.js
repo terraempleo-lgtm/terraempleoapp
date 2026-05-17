@@ -118,6 +118,11 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.error('Error clearing session:', err);
     }
+    // Limpiar cache local SQLite para no mezclar datos entre cuentas
+    try {
+      const { clearAll } = require('../db/database');
+      await clearAll();
+    } catch (_) {}
   }, []);
 
   useEffect(() => { setGlobalSignOutHandler(signOut); }, [signOut]);

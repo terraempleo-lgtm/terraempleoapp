@@ -21,6 +21,7 @@ import { Toast, AppAlert } from './src/components/ui';
 import SplashAnimado from './src/components/ui/SplashAnimado';
 import { setGlobalToastRef } from './src/utils/toastService';
 import { setGlobalAlertRef } from './src/utils/alertService';
+import OfflineSyncManager from './src/components/OfflineSyncManager';
 
 // ── Helper: lazy en todos los entornos (Metro no hace split → resuelve sync en native)
 const lazyWeb = (importFn) => React.lazy(importFn);
@@ -671,6 +672,7 @@ function AppShell() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
       <AuthProvider>
+        <OfflineSyncManager />
         <NavigationContainer ref={navigationRef} theme={navigationTheme}>
           <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.primaryDark} />
           <RootNavigator />

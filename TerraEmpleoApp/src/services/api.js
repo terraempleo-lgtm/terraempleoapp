@@ -129,7 +129,7 @@ export const trabajadoresAPI = {
 
 // Notificaciones
 export const notificacionesAPI = {
-  listar: () => api.get('/notificaciones'),
+  listar: (params) => api.get('/notificaciones', params ? { params } : undefined),
   contarNoLeidas: () => api.get('/notificaciones/no-leidas'),
   marcarLeida: (id) => api.put(`/notificaciones/${id}/leer`),
   marcarTodasLeidas: () => api.put('/notificaciones/leer-todas'),
@@ -138,8 +138,13 @@ export const notificacionesAPI = {
 
 // Chats
 export const chatsAPI = {
-  misChats: () => api.get('/chats'),
-  getMensajes: (chatId, page = 1) => api.get(`/chats/${chatId}/mensajes`, { params: { page } }),
+  misChats: (params) => api.get('/chats', params ? { params } : undefined),
+  getMensajes: (chatId, pageOrParams = 1) => {
+    const params = typeof pageOrParams === 'object' && pageOrParams !== null
+      ? pageOrParams
+      : { page: pageOrParams };
+    return api.get(`/chats/${chatId}/mensajes`, { params });
+  },
   enviarMensaje: (chatId, mensaje) => api.post(`/chats/${chatId}/mensajes`, { mensaje }),
   enviarMedia: async (chatId, uri, tipo, duracionAudio = null) => {
     const form = new FormData();
@@ -159,6 +164,31 @@ export const chatsAPI = {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw { response: { data, status: res.status } };
     return { data };
+  },
+  // Encola un mensaje multimedia para envío diferido cuando no hay internet.
+  // Copia el archivo a una carpeta interna persistente (outbox) y registra la
+  // operación en SQLite. El sync orchestrator lo subirá al recuperar conexión.
+  // Devuelve un mensaje optimista local con `_pending: true` para pintar al instante.
+  encolarMediaOutbox: async (chatId, uri, tipo, duracionAudio = null) => {
+    const { copiarAlOutbox } = require('../utils/mediaCache');
+    const { outboxRepo } = require('../db/repos');
+    const ext = (uri.split('.').pop() || (tipo === 'audio' ? 'm4a' : 'jpg')).toLowerCase();
+    const { localPath } = await copiarAlOutbox(uri, ext);
+    const opId = await outboxRepo.push('mensaje_media', {
+      chatId, tipo, localPath, duracion: duracionAudio, ext,
+    });
+    return {
+      mensaje: {
+        id: -Date.now(),
+        chat_id: chatId,
+        tipo,
+        archivo_url: localPath,
+        duracion_audio: duracionAudio,
+        created_at: new Date().toISOString(),
+        _pending: true,
+        _outbox_id: opId,
+      },
+    };
   },
   marcarLeidos: (chatId) => api.put(`/chats/${chatId}/mensajes/leer`),
   contarNoLeidos: () => api.get('/chats/no-leidos'),

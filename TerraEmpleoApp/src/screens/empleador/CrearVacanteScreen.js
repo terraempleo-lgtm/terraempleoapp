@@ -86,12 +86,16 @@ export default function CrearVacanteScreen({ navigation }) {
 
 
   const handleCrear = async () => {
+    if (loading) return; // doble-tap guard
     const errs = {};
     if (!titulo.trim()) errs.titulo = 'El título es obligatorio';
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
     setLoading(true);
+
+    // PASO 1: crear la vacante (crítico). Si falla, el usuario debe poder reintentar.
+    let vacanteId = null;
     try {
       const response = await vacantesAPI.crear({
         titulo,
@@ -112,9 +116,17 @@ export default function CrearVacanteScreen({ navigation }) {
         ofrece_alimentacion: alimentacion,
         otros_beneficios: otrosBeneficios.trim() || undefined,
       });
+      vacanteId = response?.data?.vacanteId;
+    } catch (err) {
+      setLoading(false);
+      showAlert('Error', err.response?.data?.error || 'Error al crear la vacante');
+      return;
+    }
 
-      const vacanteId = response?.data?.vacanteId;
-      if (vacanteId && fotosVacante.length > 0) {
+    // PASO 2: subir fotos (NO crítico). Si falla, la vacante igual quedó creada.
+    let fotosError = null;
+    if (vacanteId && fotosVacante.length > 0) {
+      try {
         const formData = new FormData();
         for (let i = 0; i < fotosVacante.length; i++) {
           const uri = fotosVacante[i];
@@ -123,26 +135,37 @@ export default function CrearVacanteScreen({ navigation }) {
             const blob = await fotoResp.blob();
             formData.append('fotos', blob, `vacante_${vacanteId}_${i}.jpg`);
           } else {
+            const ext = (uri.split('.').pop() || 'jpg').toLowerCase();
+            const type = ext === 'png' ? 'image/png' : 'image/jpeg';
             formData.append('fotos', {
               uri,
-              type: 'image/jpeg',
-              name: `vacante_${vacanteId}_${i}.jpg`,
+              type,
+              name: `vacante_${vacanteId}_${i}.${ext}`,
             });
           }
         }
         await vacantesAPI.subirFotos(vacanteId, formData);
+      } catch (err) {
+        console.warn('Subida de fotos falló (vacante igual creada):', err?.message || err);
+        fotosError = err?.response?.data?.error || 'No se pudieron subir las fotos. Puedes agregarlas después editando la vacante.';
       }
-
-      setPublicadoExitoso(true);
-      successTimerRef.current = setTimeout(() => {
-        setPublicadoExitoso(false);
-        navigation.navigate('EmpleadorHome');
-      }, 1800);
-    } catch (err) {
-      showAlert('Error', err.response?.data?.error || 'Error al crear la vacante');
-    } finally {
-      setLoading(false);
     }
+
+    // PASO 3: éxito visual y salida. Limpio el form para evitar re-envíos.
+    setLoading(false);
+    setPublicadoExitoso(true);
+    // limpiar campos del formulario por si el usuario cancela la navegación
+    setTitulo(''); setDescripcion(''); setCultivosV([]); setLaboresV([]);
+    setTipoPago(''); setMontoPago(''); setDuracion(''); setRequisitos('');
+    setFechaInicio(''); setFechaFin(''); setVereda('');
+    setUrgente(false); setAlojamiento(false); setAlimentacion(false);
+    setOtrosBeneficios(''); setFotosVacante([]);
+
+    successTimerRef.current = setTimeout(() => {
+      setPublicadoExitoso(false);
+      if (fotosError) showAlert('Vacante publicada', fotosError);
+      try { navigation.navigate('EmpleadorHome'); } catch (_) { navigation.goBack(); }
+    }, 1800);
   };
 
   return (

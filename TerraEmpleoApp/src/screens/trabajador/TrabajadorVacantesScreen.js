@@ -28,6 +28,8 @@ import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { showAlert } from '../../utils/alertService';
 import { guardarVacantesCache, leerVacantesCache } from '../../utils/offlineCache';
+import { vacantesRepo, postulacionesRepo } from '../../db/repos';
+import { syncVacantes, syncPostulaciones } from '../../db/sync';
 import * as ImagePicker from 'expo-image-picker';
 import { encolarPostulacion, estaEnCola } from '../../utils/postulacionesQueue';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
@@ -156,35 +158,52 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   }, []);
 
   const cargarVacantes = useCallback(async () => {
-    // Mostrar cache sin fotos (las URLs firmadas expiran)
-    const cache = await leerVacantesCache();
-    if (cache && vacantes.length === 0) {
-      setVacantes(cache.map(v => ({ ...v, foto_portada: null })));
-    }
-
+    // 1) Stale-while-revalidate: pintamos lo que haya en SQLite primero
     try {
-      const params = {};
-      if (filterCultivo) params.cultivo = filterCultivo;
-      if (filterDepto) params.departamento = filterDepto;
-      if (filterUrgente) params.urgente = 'true';
+      const cachedLocal = await vacantesRepo.listar({
+        departamento: filterDepto || undefined,
+      });
+      if (cachedLocal?.length) {
+        const filtradas = cachedLocal.filter(v => {
+          if (filterUrgente && !v.urgente) return false;
+          if (filterCultivo && !(v.cultivos || []).some(c => (c.cultivo || c) === filterCultivo)) return false;
+          return true;
+        });
+        setVacantes(filtradas);
+        const pCache = await postulacionesRepo.listar();
+        setVacantesPostuladas(new Set(pCache.map(p => Number(p.vacante_id))));
+      } else {
+        // fallback al cache viejo de AsyncStorage si SQLite aún no tiene nada
+        const cache = await leerVacantesCache();
+        if (cache && vacantes.length === 0) {
+          setVacantes(cache.map(v => ({ ...v, foto_portada: null })));
+        }
+      }
+    } catch (_) {}
 
-      const [vacantesRes, postulacionesRes] = await Promise.all([
-        vacantesAPI.listar(params),
-        vacantesAPI.misPostulaciones(),
+    // 2) Disparamos sync incremental en paralelo
+    try {
+      await Promise.all([
+        syncVacantes(),
+        syncPostulaciones(),
       ]);
 
-      const nuevasVacantes = vacantesRes.data.vacantes || [];
-      setVacantes(nuevasVacantes);
-      guardarVacantesCache(nuevasVacantes);
+      // 3) Releemos del cache local actualizado (incluye fotos firmadas frescas)
+      const fresh = await vacantesRepo.listar({
+        departamento: filterDepto || undefined,
+      });
+      const filtradas = (fresh || []).filter(v => {
+        if (filterUrgente && !v.urgente) return false;
+        if (filterCultivo && !(v.cultivos || []).some(c => (c.cultivo || c) === filterCultivo)) return false;
+        return true;
+      });
+      setVacantes(filtradas);
+      guardarVacantesCache(filtradas); // mantener compat con cache viejo
 
-      const idsPostuladas = new Set(
-        (postulacionesRes.data.postulaciones || []).map((p) => Number(p.vacante_id))
-      );
-      setVacantesPostuladas(idsPostuladas);
+      const pFresh = await postulacionesRepo.listar();
+      setVacantesPostuladas(new Set(pFresh.map(p => Number(p.vacante_id))));
     } catch (err) {
-      // Sin internet: usar cache si existe
-      if (cache) setVacantes(cache);
-      console.error('Error cargando vacantes:', err);
+      console.warn('Sync vacantes falló (probablemente offline):', err?.message);
     } finally {
       setLoading(false);
       setRefreshing(false);

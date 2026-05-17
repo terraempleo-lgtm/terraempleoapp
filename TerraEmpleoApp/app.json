@@ -92,7 +92,8 @@
           "locationWhenInUsePermission": "TerraEmpleo usa tu ubicación para mostrarte vacantes de trabajo agrícola cercanas a tu vereda o municipio. Por ejemplo, si estás en Abriaquí, Antioquia, verás ofertas de trabajo en fincas cercanas.",
           "locationAlwaysAndWhenInUsePermission": "TerraEmpleo usa tu ubicación para mostrarte vacantes de trabajo agrícola cercanas a tu vereda o municipio. Por ejemplo, si estás en Abriaquí, Antioquia, verás ofertas de trabajo en fincas cercanas."
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "runtimeVersion": {
       "policy": "appVersion"

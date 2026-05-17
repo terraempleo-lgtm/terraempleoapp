@@ -13,6 +13,7 @@ export { default as TerraFooter } from './TerraFooter';
 export { default as WhatsAppFAB } from './WhatsAppFAB';
 export { Toast } from './Toast';
 export { CachedImage } from './CachedImage';
+export { default as MediaCacheada } from './MediaCacheada';
 export { EmptyState } from './EmptyState';
 export { default as AppAlert } from './AppAlert';
 export { default as OfflineBanner } from './OfflineBanner';

@@ -84,11 +84,24 @@ export default function ChatsScreen({ navigation, route }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const cargarChats = useCallback(async () => {
+    // 1) Pintar desde cache local SQLite primero
+    try {
+      const { chatsRepo } = require('../../db/repos');
+      const cacheLocal = await chatsRepo.listar();
+      if (cacheLocal?.length) setChats(cacheLocal);
+    } catch (_) {}
+
+    // 2) Sync con servidor
     try {
       const res = await chatsAPI.misChats();
-      setChats(res.data.chats || []);
+      const lista = res.data.chats || [];
+      setChats(lista);
+      try {
+        const { chatsRepo } = require('../../db/repos');
+        await chatsRepo.upsertMany(lista);
+      } catch (_) {}
     } catch (err) {
-      console.error('Error cargando chats:', err);
+      console.warn('cargarChats (offline?):', err?.message);
     } finally {
       setLoading(false);
       setRefreshing(false);

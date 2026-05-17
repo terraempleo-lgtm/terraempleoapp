@@ -187,7 +187,7 @@ async function misVacantes(req, res) {
 // Obtener todas las vacantes activas (para trabajadores)
 async function listarVacantes(req, res) {
   try {
-    const { departamento, municipio, cultivo, labor, urgente } = req.query;
+    const { departamento, municipio, cultivo, labor, urgente, since } = req.query;
     let sql = `
       SELECT v.*, u.nombre_completo as nombre_empleador,
         pe.nombre_empresa_finca,
@@ -219,6 +219,14 @@ async function listarVacantes(req, res) {
       params.push(labor);
     }
 
+    // Sync incremental: si el cliente envía ?since=, solo devolvemos vacantes
+    // modificadas después de ese timestamp + IDs eliminados (soft-delete o cierre)
+    // para que el cliente pueda invalidar su cache local.
+    if (since) {
+      sql += ' AND v.updated_at > ?';
+      params.push(since);
+    }
+
     sql += ' ORDER BY v.urgente DESC, v.created_at DESC';
 
     const vacantes = await query(sql, params);
@@ -236,7 +244,18 @@ async function listarVacantes(req, res) {
       v.foto_portada = portada.length > 0 ? await signUrl(portada[0].url) : null;
     }
 
-    res.json({ vacantes });
+    let deleted_ids = [];
+    if (since) {
+      const deletedRows = await query(
+        `SELECT id FROM vacantes
+         WHERE (eliminado = 1 OR estado IN ('cerrada','expirada'))
+           AND updated_at > ?`,
+        [since]
+      );
+      deleted_ids = deletedRows.map(r => Number(r.id));
+    }
+
+    res.json({ vacantes, deleted_ids });
   } catch (err) {
     console.error('Error listando vacantes:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
