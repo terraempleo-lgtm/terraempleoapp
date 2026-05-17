@@ -1,9 +1,9 @@
-import React from 'react';
-import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, RADIUS, SPACING, FONTS } from '../../theme';
 import { formatVacancyStartDate, getFechaInicioInputValue } from '../../utils/vacantesFecha';
-import { showAlert } from '../../utils/alertService';
 
 function abrirSelectorFechaWeb(valorActual, onSelect) {
   if (typeof document === 'undefined') return;
@@ -36,6 +36,22 @@ function abrirSelectorFechaWeb(valorActual, onSelect) {
   input.click();
 }
 
+function parseToDate(valor) {
+  const iso = getFechaInicioInputValue(valor);
+  if (iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date();
+}
+
+function formatDateToISO(date) {
+  const y = date.getFullYear().toString().padStart(4, '0');
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export default function FechaInicioField({
   label = 'Fecha de inicio',
   value,
@@ -44,14 +60,25 @@ export default function FechaInicioField({
   placeholder = 'Selecciona una fecha',
 }) {
   const fechaMostrada = formatVacancyStartDate(value, { long: true, fallback: '' });
+  const [showPicker, setShowPicker] = useState(false);
 
   const abrirSelector = () => {
     if (Platform.OS === 'web') {
       abrirSelectorFechaWeb(value, onChange);
       return;
     }
+    setShowPicker(true);
+  };
 
-    showAlert('Fecha de inicio', 'Seleccion de fecha disponible en web por ahora.');
+  const handleNativeChange = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+      if (event.type === 'set' && selectedDate) {
+        onChange(formatDateToISO(selectedDate));
+      }
+    } else {
+      if (selectedDate) onChange(formatDateToISO(selectedDate));
+    }
   };
 
   return (
@@ -74,6 +101,23 @@ export default function FechaInicioField({
         )}
       </TouchableOpacity>
       <Text style={styles.helper}>{helper}</Text>
+
+      {showPicker && Platform.OS !== 'web' && (
+        <>
+          <DateTimePicker
+            value={parseToDate(value)}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleNativeChange}
+            minimumDate={new Date(2020, 0, 1)}
+          />
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity style={styles.iosCloseBtn} onPress={() => setShowPicker(false)}>
+              <Text style={styles.iosCloseText}>Listo</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      )}
     </View>
   );
 }
@@ -111,5 +155,15 @@ const styles = StyleSheet.create({
   helper: {
     ...FONTS.caption,
     marginTop: SPACING.xs + 2,
+  },
+  iosCloseBtn: {
+    alignSelf: 'flex-end',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  iosCloseText: {
+    ...FONTS.label,
+    color: COLORS.primary,
+    fontWeight: FONTS.weight.semibold,
   },
 });

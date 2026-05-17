@@ -141,15 +141,24 @@ export const chatsAPI = {
   misChats: () => api.get('/chats'),
   getMensajes: (chatId, page = 1) => api.get(`/chats/${chatId}/mensajes`, { params: { page } }),
   enviarMensaje: (chatId, mensaje) => api.post(`/chats/${chatId}/mensajes`, { mensaje }),
-  enviarMedia: (chatId, uri, tipo, duracionAudio = null) => {
+  enviarMedia: async (chatId, uri, tipo, duracionAudio = null) => {
     const form = new FormData();
-    const ext = uri.split('.').pop().toLowerCase();
+    const ext = (uri.split('.').pop() || '').toLowerCase();
     const mimeTypes = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', m4a: 'audio/m4a', mp4: 'audio/mp4', wav: 'audio/wav', aac: 'audio/aac', webm: 'audio/webm', ogg: 'audio/ogg', caf: 'audio/x-caf', mp3: 'audio/mpeg' };
     const mimeType = mimeTypes[ext] || (tipo === 'audio' ? 'audio/m4a' : 'image/jpeg');
-    form.append('archivo', { uri, name: `chat_${Date.now()}.${ext}`, type: mimeType });
+    const nombre = `chat_${Date.now()}.${ext || (tipo === 'audio' ? 'm4a' : 'jpg')}`;
+    form.append('archivo', { uri, name: nombre, type: mimeType });
     form.append('tipo', tipo);
     if (duracionAudio !== null) form.append('duracion_audio', String(duracionAudio));
-    return api.post(`/chats/${chatId}/mensajes/media`, form);
+    // fetch handles FormData+multipart boundary correctly on iOS/Android (Axios no lo hace bien)
+    const res = await fetch(`${api.defaults.baseURL}/chats/${chatId}/mensajes/media`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authToken}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw { response: { data, status: res.status } };
+    return { data };
   },
   marcarLeidos: (chatId) => api.put(`/chats/${chatId}/mensajes/leer`),
   contarNoLeidos: () => api.get('/chats/no-leidos'),

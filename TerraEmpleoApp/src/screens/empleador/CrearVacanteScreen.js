@@ -322,15 +322,15 @@ export default function CrearVacanteScreen({ navigation }) {
             <Button title="Publicar vacante" onPress={handleCrear}
               loading={loading} size="large" style={{ marginTop: SPACING.lg }} />
           </View>
-
-          <PickerModal visible={showDeptPicker} onClose={() => setShowDeptPicker(false)}
-            title="Departamento" options={DEPARTAMENTOS} selectedValue={departamento}
-            onSelect={(v) => { setDepartamento(v); setMunicipio(''); }} />
-          <PickerModal visible={showMunPicker} onClose={() => setShowMunPicker(false)}
-            title="Municipio" options={getMunicipios(departamento)} selectedValue={municipio}
-            onSelect={setMunicipio} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <PickerModal visible={showDeptPicker} onClose={() => setShowDeptPicker(false)}
+        title="Departamento" options={DEPARTAMENTOS} selectedValue={departamento}
+        onSelect={(v) => { setDepartamento(v); setMunicipio(''); }} />
+      <PickerModal visible={showMunPicker} onClose={() => setShowMunPicker(false)}
+        title="Municipio" options={getMunicipios(departamento)} selectedValue={municipio}
+        onSelect={setMunicipio} />
 
       {publicadoExitoso && (
         <View style={styles.successOverlay} pointerEvents="none">
