@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Image,
   KeyboardAvoidingView, Platform, Switch, Linking, ActionSheetIOS, Modal, ActivityIndicator, TextInput,
@@ -20,6 +20,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../utils/alertService';
 import { AnimatedPressable } from '../../components/animated';
+import { useFormDraft } from '../../hooks/useFormDraft';
 
 export default function EditarPerfilScreen({ navigation, route }) {
   const { updateUser, user, signOut } = useAuth();
@@ -114,6 +115,41 @@ export default function EditarPerfilScreen({ navigation, route }) {
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const cameraRef = useRef(null);
   const [permission, requestPermission] = useCameraPermissions();
+
+  // ── Borrador automático del perfil (por usuario) ──────────────────────────
+  const onRestoreDraft = useCallback((d) => {
+    if (d.nombre) setNombre(d.nombre);
+    if (d.departamento) setDepartamento(d.departamento);
+    if (d.municipio) setMunicipio(d.municipio);
+    if (d.vereda) setVereda(d.vereda);
+    if (d.nivelEstudios) setNivelEstudios(d.nivelEstudios);
+    if (d.tituloEstudio) setTituloEstudio(d.tituloEstudio);
+    if (d.experiencia) setExperiencia(d.experiencia);
+    if (d.disponibilidad) setDisponibilidad(d.disponibilidad);
+    if (Array.isArray(d.habilidades)) setHabilidades(d.habilidades);
+    if (Array.isArray(d.cultivos)) setCultivos(d.cultivos);
+    if (d.acercaDeTrabajador) setAcercaDeTrabajador(d.acercaDeTrabajador);
+    if (d.nombreEmpresa) setNombreEmpresa(d.nombreEmpresa);
+    if (d.tipoPago) setTipoPago(d.tipoPago);
+    if (typeof d.ofreceAlojamiento === 'boolean') setOfreceAlojamiento(d.ofreceAlojamiento);
+    if (typeof d.ofreceAlimentacion === 'boolean') setOfreceAlimentacion(d.ofreceAlimentacion);
+    if (d.beneficiosExtra) setBeneficiosExtra(d.beneficiosExtra);
+    if (d.acercaDeEmpleador) setAcercaDeEmpleador(d.acercaDeEmpleador);
+    if (Array.isArray(d.cultivosEmp)) setCultivosEmp(d.cultivosEmp);
+    if (Array.isArray(d.labores)) setLabores(d.labores);
+  }, []);
+
+  const { clearDraft: clearFormDraft } = useFormDraft(`EditarPerfil:${user?.id || 'guest'}`, {
+    enabled: !!user?.id,
+    data: {
+      nombre, departamento, municipio, vereda,
+      nivelEstudios, tituloEstudio, experiencia, disponibilidad, habilidades, cultivos, acercaDeTrabajador,
+      nombreEmpresa, tipoPago, ofreceAlojamiento, ofreceAlimentacion, beneficiosExtra, acercaDeEmpleador,
+      cultivosEmp, labores,
+    },
+    onRestore: onRestoreDraft,
+    toastMessage: 'Cambios sin guardar restaurados',
+  });
 
   const diasDesdeUltimoCambio = initUser?.foto_selfie_cambiada_at
     ? (Date.now() - new Date(initUser.foto_selfie_cambiada_at).getTime()) / 86400000
@@ -382,6 +418,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
       }
       await authAPI.actualizarPerfil(body);
       updateUser({ nombre_completo: nombre, departamento, municipio });
+      try { await clearFormDraft(); } catch (_) {}
       setGuardadoExitoso(true);
       successTimerRef.current = setTimeout(() => {
         setGuardadoExitoso(false);

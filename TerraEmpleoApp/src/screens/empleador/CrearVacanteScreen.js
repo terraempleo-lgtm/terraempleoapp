@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
   KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Image,
@@ -14,6 +14,7 @@ import { formatearMontoInput, normalizarMontoPayload } from '../../utils/vacante
 import { vacantesAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../utils/alertService';
+import { useFormDraft } from '../../hooks/useFormDraft';
 
 export default function CrearVacanteScreen({ navigation }) {
   const [titulo, setTitulo] = useState('');
@@ -48,6 +49,37 @@ export default function CrearVacanteScreen({ navigation }) {
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
     };
   }, []);
+
+  // ── Borrador automático del formulario ────────────────────────────────────
+  const onRestoreDraft = useCallback((d) => {
+    if (d.titulo) setTitulo(d.titulo);
+    if (d.descripcion) setDescripcion(d.descripcion);
+    if (Array.isArray(d.cultivosV)) setCultivosV(d.cultivosV);
+    if (Array.isArray(d.laboresV)) setLaboresV(d.laboresV);
+    if (d.tipoPago) setTipoPago(d.tipoPago);
+    if (d.montoPago) setMontoPago(d.montoPago);
+    if (d.duracion) setDuracion(d.duracion);
+    if (d.requisitos) setRequisitos(d.requisitos);
+    if (d.fechaInicio) setFechaInicio(d.fechaInicio);
+    if (d.fechaFin) setFechaFin(d.fechaFin);
+    if (d.departamento) setDepartamento(d.departamento);
+    if (d.municipio) setMunicipio(d.municipio);
+    if (d.vereda) setVereda(d.vereda);
+    if (typeof d.urgente === 'boolean') setUrgente(d.urgente);
+    if (typeof d.alojamiento === 'boolean') setAlojamiento(d.alojamiento);
+    if (typeof d.alimentacion === 'boolean') setAlimentacion(d.alimentacion);
+    if (d.otrosBeneficios) setOtrosBeneficios(d.otrosBeneficios);
+  }, []);
+
+  const { clearDraft: clearFormDraft } = useFormDraft('CrearVacante', {
+    data: {
+      titulo, descripcion, cultivosV, laboresV, tipoPago, montoPago,
+      duracion, requisitos, fechaInicio, fechaFin, departamento, municipio,
+      vereda, urgente, alojamiento, alimentacion, otrosBeneficios,
+    },
+    onRestore: onRestoreDraft,
+    excludeFields: ['fotosVacante'],
+  });
 
   const seleccionarFotosVacante = async () => {
     try {
@@ -154,6 +186,8 @@ export default function CrearVacanteScreen({ navigation }) {
     // PASO 3: éxito visual y salida. Limpio el form para evitar re-envíos.
     setLoading(false);
     setPublicadoExitoso(true);
+    // borrar borrador local: ya está publicado
+    try { await clearFormDraft(); } catch (_) {}
     // limpiar campos del formulario por si el usuario cancela la navegación
     setTitulo(''); setDescripcion(''); setCultivosV([]); setLaboresV([]);
     setTipoPago(''); setMontoPago(''); setDuracion(''); setRequisitos('');

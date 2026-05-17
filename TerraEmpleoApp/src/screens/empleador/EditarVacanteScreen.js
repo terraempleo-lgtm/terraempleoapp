@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
   KeyboardAvoidingView, Platform, TouchableOpacity, Switch,
@@ -14,6 +14,7 @@ import { getFechaInicioInputValue, getFechaInicioPayload } from '../../utils/vac
 import { formatearMontoInput, normalizarMontoPayload } from '../../utils/vacantesPago';
 import { vacantesAPI, adminAPI } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
+import { useFormDraft } from '../../hooks/useFormDraft';
 
 const MAX_FOTOS = 5;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -81,6 +82,36 @@ export default function EditarVacanteScreen({ navigation, route }) {
   const [fotosExistentes, setFotosExistentes] = useState([]);
   const [fotosNuevas, setFotosNuevas] = useState([]);
   const [loadingFotos, setLoadingFotos] = useState(true);
+
+  // ── Borrador automático asociado al ID de la vacante ──────────────────────
+  const onRestoreDraft = useCallback((d) => {
+    if (d.titulo) setTitulo(d.titulo);
+    if (d.descripcion) setDescripcion(d.descripcion);
+    if (Array.isArray(d.cultivosV)) setCultivosV(d.cultivosV);
+    if (Array.isArray(d.laboresV)) setLaboresV(d.laboresV);
+    if (d.tipoPago) setTipoPago(d.tipoPago);
+    if (d.montoPago) setMontoPago(d.montoPago);
+    if (d.duracion) setDuracion(d.duracion);
+    if (d.requisitos) setRequisitos(d.requisitos);
+    if (d.fechaInicio) setFechaInicio(d.fechaInicio);
+    if (d.fechaFin) setFechaFin(d.fechaFin);
+    if (d.departamento) setDepartamento(d.departamento);
+    if (d.municipio) setMunicipio(d.municipio);
+    if (d.vereda) setVereda(d.vereda);
+    if (typeof d.urgente === 'boolean') setUrgente(d.urgente);
+    if (typeof d.alojamiento === 'boolean') setAlojamiento(d.alojamiento);
+    if (typeof d.alimentacion === 'boolean') setAlimentacion(d.alimentacion);
+    if (d.otrosBeneficios) setOtrosBeneficios(d.otrosBeneficios);
+  }, []);
+
+  const { clearDraft: clearFormDraft } = useFormDraft(`EditarVacante:${vacante.id}`, {
+    data: {
+      titulo, descripcion, cultivosV, laboresV, tipoPago, montoPago,
+      duracion, requisitos, fechaInicio, fechaFin, departamento, municipio,
+      vereda, urgente, alojamiento, alimentacion, otrosBeneficios,
+    },
+    onRestore: onRestoreDraft,
+  });
 
   useEffect(() => {
     const cargarDetalle = async () => {
@@ -251,6 +282,7 @@ export default function EditarVacanteScreen({ navigation, route }) {
       }
 
       setGuardadoExitoso(true);
+      try { await clearFormDraft(); } catch (_) {}
       successTimerRef.current = setTimeout(() => {
         setGuardadoExitoso(false);
         navigation.replace('DetalleVacanteEmpleador', { vacante: vacanteActualizada });

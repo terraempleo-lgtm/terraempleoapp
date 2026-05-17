@@ -28,3 +28,11 @@ export function setGlobalToastRef(ref) {
   globalToastRef = ref;
 }
 
+// Mostrar toast desde código no-React (utilidades, servicios). Si el ref
+// global aún no está registrado (app cargando), se ignora silenciosamente.
+export function showGlobalToast(title, message = '', type = 'info') {
+  if (!globalToastRef?.show) return;
+  globalToastRef.setConfig?.({ title, message, type });
+  globalToastRef.show();
+}
+

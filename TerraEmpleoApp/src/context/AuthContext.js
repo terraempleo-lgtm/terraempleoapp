@@ -123,6 +123,11 @@ export function AuthProvider({ children }) {
       const { clearAll } = require('../db/database');
       await clearAll();
     } catch (_) {}
+    // Limpiar borradores de formularios para no mezclar entre cuentas
+    try {
+      const { clearAllDrafts } = require('../utils/formDrafts');
+      await clearAllDrafts();
+    } catch (_) {}
   }, []);
 
   useEffect(() => { setGlobalSignOutHandler(signOut); }, [signOut]);

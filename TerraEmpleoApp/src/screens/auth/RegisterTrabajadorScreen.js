@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
   KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Image,
@@ -16,6 +16,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 import CamaraFoto from '../../components/CamaraFoto';
+import { useFormDraft } from '../../hooks/useFormDraft';
 
 
 const TOTAL_STEPS = 9;
@@ -76,6 +77,38 @@ export default function RegisterTrabajadorScreen({ navigation }) {
 
   const [errors, setErrors] = useState({});
   const scrollRef = useRef(null);
+
+  // ── Borrador automático del wizard ────────────────────────────────────────
+  // Campos sensibles (password, OTP, fotos de cédula/selfie) NO se guardan
+  // — el hook los filtra automáticamente.
+  const onRestoreDraft = useCallback((d) => {
+    if (typeof d.step === 'number' && d.step >= 1 && d.step <= 9) setStep(d.step);
+    if (d.nombre) setNombre(d.nombre);
+    if (d.celular) setCelular(d.celular);
+    if (d.correo) setCorreo(d.correo);
+    if (d.departamento) setDepartamento(d.departamento);
+    if (d.municipio) setMunicipio(d.municipio);
+    if (d.vereda) setVereda(d.vereda);
+    if (d.cedula) setCedula(d.cedula);
+    if (typeof d.aceptaHabeasData === 'boolean') setAceptaHabeasData(d.aceptaHabeasData);
+    if (typeof d.aceptaTerminos === 'boolean') setAceptaTerminos(d.aceptaTerminos);
+    if (d.nivelEstudios) setNivelEstudios(d.nivelEstudios);
+    if (d.tituloEstudio) setTituloEstudio(d.tituloEstudio);
+    if (Array.isArray(d.habilidades)) setHabilidades(d.habilidades);
+    if (Array.isArray(d.cultivos)) setCultivos(d.cultivos);
+    if (d.experiencia) setExperiencia(d.experiencia);
+    if (d.disponibilidad) setDisponibilidad(d.disponibilidad);
+  }, []);
+
+  const { clearDraft: clearFormDraft } = useFormDraft('RegisterTrabajador', {
+    data: {
+      step, nombre, celular, correo, departamento, municipio, vereda,
+      cedula, aceptaHabeasData, aceptaTerminos, nivelEstudios, tituloEstudio,
+      habilidades, cultivos, experiencia, disponibilidad,
+    },
+    onRestore: onRestoreDraft,
+    toastMessage: 'Continuando con tu registro',
+  });
 
   // Scroll to top and clear errors when step changes
   useEffect(() => {
@@ -258,6 +291,9 @@ export default function RegisterTrabajadorScreen({ navigation }) {
 
       // Activar token para futuras peticiones autenticadas
       setAuthToken(token);
+
+      // Borrar borrador local: registro completado
+      try { await clearFormDraft(); } catch (_) {}
 
       // Completar registro y navegación de inmediato.
       await signIn(user, token);

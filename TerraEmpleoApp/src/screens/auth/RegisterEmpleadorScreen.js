@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
   KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Image,
@@ -16,6 +16,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 import CamaraFoto from '../../components/CamaraFoto';
+import { useFormDraft } from '../../hooks/useFormDraft';
 
 const TOTAL_STEPS = 9;
 const STEP_LABELS = [
@@ -76,6 +77,38 @@ export default function RegisterEmpleadorScreen({ navigation }) {
 
   const [errors, setErrors] = useState({});
   const scrollRef = useRef(null);
+
+  // ── Borrador automático del wizard ────────────────────────────────────────
+  const onRestoreDraft = useCallback((d) => {
+    if (typeof d.step === 'number' && d.step >= 1 && d.step <= 9) setStep(d.step);
+    if (d.nombreEmpresa) setNombreEmpresa(d.nombreEmpresa);
+    if (d.departamento) setDepartamento(d.departamento);
+    if (d.municipio) setMunicipio(d.municipio);
+    if (d.vereda) setVereda(d.vereda);
+    if (d.nombre) setNombre(d.nombre);
+    if (d.celular) setCelular(d.celular);
+    if (d.correo) setCorreo(d.correo);
+    if (d.cedula) setCedula(d.cedula);
+    if (typeof d.aceptaHabeasData === 'boolean') setAceptaHabeasData(d.aceptaHabeasData);
+    if (typeof d.aceptaTerminos === 'boolean') setAceptaTerminos(d.aceptaTerminos);
+    if (Array.isArray(d.cultivosEmp)) setCultivosEmp(d.cultivosEmp);
+    if (Array.isArray(d.labores)) setLabores(d.labores);
+    if (d.tipoPago) setTipoPago(d.tipoPago);
+    if (typeof d.ofreceAlojamiento === 'boolean') setOfreceAlojamiento(d.ofreceAlojamiento);
+    if (typeof d.ofreceAlimentacion === 'boolean') setOfreceAlimentacion(d.ofreceAlimentacion);
+    if (d.beneficiosExtra) setBeneficiosExtra(d.beneficiosExtra);
+  }, []);
+
+  const { clearDraft: clearFormDraft } = useFormDraft('RegisterEmpleador', {
+    data: {
+      step, nombreEmpresa, departamento, municipio, vereda,
+      nombre, celular, correo, cedula, aceptaHabeasData, aceptaTerminos,
+      cultivosEmp, labores, tipoPago, ofreceAlojamiento, ofreceAlimentacion,
+      beneficiosExtra,
+    },
+    onRestore: onRestoreDraft,
+    toastMessage: 'Continuando con tu registro',
+  });
 
   // Scroll to top and clear errors when step changes
   useEffect(() => {
@@ -270,6 +303,9 @@ export default function RegisterEmpleadorScreen({ navigation }) {
 
       // Activar token para futuras peticiones autenticadas
       setAuthToken(token);
+
+      // Borrar borrador local: registro completado
+      try { await clearFormDraft(); } catch (_) {}
 
       // Completar registro y navegación de inmediato.
       await signIn(user, token);

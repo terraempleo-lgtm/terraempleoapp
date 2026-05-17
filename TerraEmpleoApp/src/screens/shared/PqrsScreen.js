@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
 import { pqrsAPI } from '../../services/api';
+import { useFormDraft } from '../../hooks/useFormDraft';
 
 const TIPOS = [
   { key: 'peticion', label: 'Petición', icon: 'hand-left-outline', color: '#2196F3' },
@@ -51,6 +52,18 @@ export default function PqrsScreen({ navigation }) {
   const [respuestaTextos, setRespuestaTextos] = useState({}); // { [id]: texto }
   const [enviandoRespuesta, setEnviandoRespuesta] = useState(null); // id en proceso
 
+  // ── Borrador automático del PQRS ──────────────────────────────────────────
+  const onRestoreDraft = useCallback((d) => {
+    if (d.tipo) setTipo(d.tipo);
+    if (d.asunto) setAsunto(d.asunto);
+    if (d.descripcion) setDescripcion(d.descripcion);
+  }, []);
+
+  const { clearDraft: clearFormDraft } = useFormDraft('Pqrs', {
+    data: { tipo, asunto, descripcion },
+    onRestore: onRestoreDraft,
+  });
+
   const cargarMisPqrs = useCallback(async () => {
     try {
       setLoadingPqrs(true);
@@ -76,6 +89,7 @@ export default function PqrsScreen({ navigation }) {
     try {
       setEnviando(true);
       await pqrsAPI.enviar({ tipo, asunto: asunto.trim(), descripcion: descripcion.trim() });
+      try { await clearFormDraft(); } catch (_) {}
       Alert.alert('✅ Enviado', 'Tu solicitud fue recibida. El equipo de TerraEmpleo la revisará y responderá a la brevedad.');
       setTipo('');
       setAsunto('');
