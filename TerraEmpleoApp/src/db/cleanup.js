@@ -1,8 +1,19 @@
-import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { tombstonesRepo, imageAssetsRepo, mensajesRepo } from './repos';
 import { getDb } from './database';
 import { borrarPorEntidad, MEDIA_PATHS } from '../utils/mediaCache';
+
+// Lazy require de expo-file-system (igual patrón que mediaCache.js)
+let _FS = null;
+function fs() {
+  if (Platform.OS === 'web') return null;
+  if (!_FS) {
+    // eslint-disable-next-line global-require
+    _FS = require('expo-file-system');
+  }
+  return _FS;
+}
 
 /**
  * Borra del dispositivo todo el contenido asociado a una entidad eliminada:
@@ -29,7 +40,8 @@ export async function limpiarEntidad(entity, entityId) {
     } catch (_) {}
     // Borrar carpeta del chat completa
     try {
-      await FileSystem.deleteAsync(`${MEDIA_PATHS.ROOT}chat/${entityId}/`, { idempotent: true });
+      const F = fs();
+      if (F) await F.deleteAsync(`${MEDIA_PATHS.ROOT}chat/${entityId}/`, { idempotent: true });
     } catch (_) {}
   }
 }
@@ -64,8 +76,9 @@ export async function limpiarCacheImagenesViejo({ maxDias = 30 } = {}) {
     'SELECT url, local_path FROM image_assets WHERE cached_at < ?',
     [limite]
   );
+  const F = fs();
   for (const r of (viejos || [])) {
-    try { await FileSystem.deleteAsync(r.local_path, { idempotent: true }); } catch (_) {}
+    try { if (F) await F.deleteAsync(r.local_path, { idempotent: true }); } catch (_) {}
   }
   await db.runAsync('DELETE FROM image_assets WHERE cached_at < ?', [limite]);
 }

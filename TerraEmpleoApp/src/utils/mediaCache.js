@@ -1,20 +1,34 @@
-import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
 import { imageAssetsRepo } from '../db/repos';
 import { getDb } from '../db/database';
 import { getNetworkStateSync } from '../hooks/useNetworkStatus';
 
-const ROOT = `${FileSystem.documentDirectory}media_cache/`;
-const OUTBOX_DIR = `${FileSystem.documentDirectory}outbox/`;
+// Lazy require de expo-file-system: en web no se necesita acceso al
+// FileSystem (no hay cache local persistente), y evitamos que el bundler
+// intente resolver el módulo en el bundle web.
+let _FS = null;
+function fs() {
+  if (Platform.OS === 'web') return null;
+  if (!_FS) {
+    // eslint-disable-next-line global-require
+    _FS = require('expo-file-system');
+  }
+  return _FS;
+}
+
+function getRoot() { return `${fs()?.documentDirectory || ''}media_cache/`; }
+function getOutboxDir() { return `${fs()?.documentDirectory || ''}outbox/`; }
 
 let _rootEnsured = false;
 async function ensureDirs() {
   if (_rootEnsured) return;
+  const F = fs();
+  if (!F) { _rootEnsured = true; return; }
   try {
-    await FileSystem.makeDirectoryAsync(ROOT, { intermediates: true });
-    await FileSystem.makeDirectoryAsync(OUTBOX_DIR, { intermediates: true });
+    await F.makeDirectoryAsync(getRoot(), { intermediates: true });
+    await F.makeDirectoryAsync(getOutboxDir(), { intermediates: true });
     _rootEnsured = true;
   } catch (_) {
-    // Si ya existe, ignorar
     _rootEnsured = true;
   }
 }
@@ -36,7 +50,6 @@ function inferExt(key, fallback = 'bin') {
 }
 
 function safeFilename(key, mensajeIdHint) {
-  // toma últimos 2 segmentos para evitar paths muy profundos
   const base = key.split('/').slice(-2).join('_');
   const cleaned = base.replace(/[^a-zA-Z0-9._-]/g, '_');
   return mensajeIdHint ? `${mensajeIdHint}_${cleaned}` : cleaned;
@@ -46,15 +59,17 @@ function safeFilename(key, mensajeIdHint) {
  * Construye el path local destino para una URL+entidad.
  */
 export function getLocalPath(stableKey, entity, entityId) {
-  const dir = `${ROOT}${entity || 'misc'}/${entityId || '0'}/`;
+  const dir = `${getRoot()}${entity || 'misc'}/${entityId || '0'}/`;
   const filename = safeFilename(stableKey, entity === 'mensaje' ? entityId : null);
   return `${dir}${filename}`;
 }
 
 async function ensureEntityDir(entity, entityId) {
   await ensureDirs();
-  const dir = `${ROOT}${entity || 'misc'}/${entityId || '0'}/`;
-  try { await FileSystem.makeDirectoryAsync(dir, { intermediates: true }); } catch (_) {}
+  const F = fs();
+  if (!F) return null;
+  const dir = `${getRoot()}${entity || 'misc'}/${entityId || '0'}/`;
+  try { await F.makeDirectoryAsync(dir, { intermediates: true }); } catch (_) {}
   return dir;
 }
 
@@ -65,12 +80,14 @@ async function ensureEntityDir(entity, entityId) {
 export async function tieneCacheLocal(url) {
   const key = getStableKey(url);
   if (!key) return url?.startsWith('file://') ? url : null;
+  const F = fs();
+  if (!F) return null;
   try {
     const local = await imageAssetsRepo.getLocalPath(key);
     if (!local) return null;
-    const info = await FileSystem.getInfoAsync(local);
+    const info = await F.getInfoAsync(local);
     if (info.exists && info.size > 0) return local;
-    // archivo borrado físicamente pero SQLite lo cree presente: limpiar
+    // archivo borrado físicamente pero SQLite cree presente: limpiar
     const db = await getDb();
     if (db) await db.runAsync('DELETE FROM image_assets WHERE url = ?', [key]);
     return null;
@@ -87,23 +104,24 @@ export async function tieneCacheLocal(url) {
 export async function descargarYCachear(url, { entity, entityId } = {}) {
   if (!url) return null;
   if (url.startsWith('file://')) return url;
+  const F = fs();
+  if (!F) return null; // web: sin acceso a FileSystem
   const key = getStableKey(url);
   if (!key) return null;
 
-  // ¿ya está?
   const existente = await tieneCacheLocal(url);
   if (existente) return existente;
 
-  // chequeo de red — si offline, no intentar (queda para próximo sync)
   const net = getNetworkStateSync();
   if (!net.isOnline) return null;
 
   try {
     const dir = await ensureEntityDir(entity, entityId);
+    if (!dir) return null;
     const local = `${dir}${safeFilename(key, entity === 'mensaje' ? entityId : null)}`;
-    const res = await FileSystem.downloadAsync(url, local);
+    const res = await F.downloadAsync(url, local);
     if (!res || res.status !== 200) {
-      try { await FileSystem.deleteAsync(local, { idempotent: true }); } catch (_) {}
+      try { await F.deleteAsync(local, { idempotent: true }); } catch (_) {}
       return null;
     }
     await imageAssetsRepo.upsert(key, local, entity || null, entityId || null);
@@ -115,10 +133,7 @@ export async function descargarYCachear(url, { entity, entityId } = {}) {
 }
 
 /**
- * Resuelve una URL a la mejor fuente disponible:
- * - si hay local, devuelve `file://...`
- * - si no y autoDescargar=true y online, descarga y devuelve local
- * - si no, devuelve la URL original (puede fallar offline)
+ * Resuelve una URL a la mejor fuente disponible.
  */
 export async function resolverFuente(url, { entity, entityId, autoDescargar = true } = {}) {
   if (!url) return null;
@@ -134,14 +149,15 @@ export async function resolverFuente(url, { entity, entityId, autoDescargar = tr
  * Borra todos los archivos físicos y registros de una entidad+id.
  */
 export async function borrarPorEntidad(entity, entityId) {
+  const F = fs();
   const assets = await imageAssetsRepo.deleteByEntity(entity, entityId);
+  if (!F) return;
   for (const a of (assets || [])) {
-    try { await FileSystem.deleteAsync(a.local_path, { idempotent: true }); } catch (_) {}
+    try { await F.deleteAsync(a.local_path, { idempotent: true }); } catch (_) {}
   }
-  // borrar el directorio si quedó vacío
   try {
-    const dir = `${ROOT}${entity}/${entityId}/`;
-    await FileSystem.deleteAsync(dir, { idempotent: true });
+    const dir = `${getRoot()}${entity}/${entityId}/`;
+    await F.deleteAsync(dir, { idempotent: true });
   } catch (_) {}
 }
 
@@ -149,13 +165,15 @@ export async function borrarPorEntidad(entity, entityId) {
  * Tamaño total del cache (MB).
  */
 export async function getTamanoCacheMB() {
+  const F = fs();
+  if (!F) return 0;
   const db = await getDb();
   if (!db) return 0;
   const rows = await db.getAllAsync('SELECT local_path FROM image_assets');
   let total = 0;
   for (const r of (rows || [])) {
     try {
-      const info = await FileSystem.getInfoAsync(r.local_path);
+      const info = await F.getInfoAsync(r.local_path);
       if (info.exists && info.size) total += info.size;
     } catch (_) {}
   }
@@ -163,13 +181,14 @@ export async function getTamanoCacheMB() {
 }
 
 /**
- * Política LRU: si el cache excede maxMB, borra los más viejos hasta volver bajo el límite.
+ * Política LRU: si el cache excede maxMB, borra los más viejos.
  */
 export async function purgarLRU(maxMB = 250) {
+  const F = fs();
   const total = await getTamanoCacheMB();
   if (total <= maxMB) return { total, borrados: 0 };
   const db = await getDb();
-  if (!db) return { total, borrados: 0 };
+  if (!db || !F) return { total, borrados: 0 };
   const rows = await db.getAllAsync(
     'SELECT url, local_path, cached_at FROM image_assets ORDER BY cached_at ASC'
   );
@@ -178,9 +197,9 @@ export async function purgarLRU(maxMB = 250) {
   for (const r of (rows || [])) {
     if (acumulado <= maxMB) break;
     try {
-      const info = await FileSystem.getInfoAsync(r.local_path);
+      const info = await F.getInfoAsync(r.local_path);
       const size = info.exists ? (info.size || 0) : 0;
-      await FileSystem.deleteAsync(r.local_path, { idempotent: true });
+      await F.deleteAsync(r.local_path, { idempotent: true });
       await db.runAsync('DELETE FROM image_assets WHERE url = ?', [r.url]);
       acumulado -= size / (1024 * 1024);
       borrados++;
@@ -191,19 +210,25 @@ export async function purgarLRU(maxMB = 250) {
 
 /**
  * Copia un archivo al outbox con un uuid persistente.
- * Devuelve `{ uuid, localPath, ext }`.
  */
 export async function copiarAlOutbox(uri, hintExt = null) {
+  const F = fs();
+  if (!F) throw new Error('FileSystem no disponible en esta plataforma');
   await ensureDirs();
   const ext = hintExt || inferExt(uri) || 'bin';
   const uuid = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  const localPath = `${OUTBOX_DIR}${uuid}.${ext}`;
-  await FileSystem.copyAsync({ from: uri, to: localPath });
+  const localPath = `${getOutboxDir()}${uuid}.${ext}`;
+  await F.copyAsync({ from: uri, to: localPath });
   return { uuid, localPath, ext };
 }
 
 export async function borrarOutboxFile(localPath) {
-  try { await FileSystem.deleteAsync(localPath, { idempotent: true }); } catch (_) {}
+  const F = fs();
+  if (!F) return;
+  try { await F.deleteAsync(localPath, { idempotent: true }); } catch (_) {}
 }
 
-export const MEDIA_PATHS = { ROOT, OUTBOX_DIR };
+export const MEDIA_PATHS = {
+  get ROOT() { return getRoot(); },
+  get OUTBOX_DIR() { return getOutboxDir(); },
+};

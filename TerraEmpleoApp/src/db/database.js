@@ -1,4 +1,3 @@
-import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 
 const DB_NAME = 'terraempleo_offline.db';
@@ -7,9 +6,9 @@ const SCHEMA_VERSION = 1;
 let _dbPromise = null;
 let _ready = false;
 
-// En web SQLite no funciona igual; expo-sqlite v16 lo soporta via WASM pero
-// requiere un setup adicional. Para evitar crashes en web devolvemos null
-// y los repos manejan el caso (fallback en memoria o no-op).
+// En web SQLite no funciona; expo-sqlite v16 lo soporta vía WASM pero requiere
+// setup adicional. Para evitar que el bundler web intente resolver el módulo,
+// hacemos require LAZY dentro de getDb() — solo se evalúa en native.
 function isSupported() {
   return Platform.OS === 'ios' || Platform.OS === 'android';
 }
@@ -98,6 +97,9 @@ async function migrate(db) {
 export async function getDb() {
   if (!isSupported()) return null;
   if (_dbPromise) return _dbPromise;
+  // require lazy: solo se evalúa en native, NO en el bundle web.
+  // eslint-disable-next-line global-require
+  const SQLite = require('expo-sqlite');
   _dbPromise = (async () => {
     const db = await SQLite.openDatabaseAsync(DB_NAME);
     await migrate(db);
