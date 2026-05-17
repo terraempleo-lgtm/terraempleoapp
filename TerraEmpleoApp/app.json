@@ -3,7 +3,7 @@
     "name": "TerraEmpleoApp",
     "slug": "TerraEmpleoApp",
     "owner": "rendonv",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "default",
     "icon": "./assets/Logos 2 TerraEmpleo.png",
     "userInterfaceStyle": "automatic",
@@ -30,7 +30,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.terraempleo.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "softwareKeyboardLayoutMode": "pan",
       "allowBackup": false,
       "edgeToEdgeLayoutEnabled": true,

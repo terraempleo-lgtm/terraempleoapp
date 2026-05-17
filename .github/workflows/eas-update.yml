@@ -1,0 +1,54 @@
+name: EAS Update (OTA)
+
+# Dispara un OTA update con EAS cuando se pushea a `main` y SOLO cambiaron
+# archivos seguros para OTA (código JS). Si cambia algo nativo (app.json,
+# eas.json, package.json, plugins, permisos, etc.) el workflow se salta y hay
+# que hacer build nuevo + subir a stores manualmente.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'TerraEmpleoApp/src/**'
+      - 'TerraEmpleoApp/assets/**'
+      - 'TerraEmpleoApp/App.js'
+    paths-ignore:
+      - 'TerraEmpleoApp/app.json'
+      - 'TerraEmpleoApp/eas.json'
+      - 'TerraEmpleoApp/package.json'
+      - 'TerraEmpleoApp/package-lock.json'
+      - 'TerraEmpleoApp/backend/**'
+      - '.github/**'
+      - '**.md'
+
+jobs:
+  eas-update:
+    name: Publicar OTA con EAS Update
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ secrets.EXPO_TOKEN != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        working-directory: TerraEmpleoApp
+        run: npm ci
+
+      - name: Publish update
+        working-directory: TerraEmpleoApp
+        run: |
+          MSG=$(git log -1 --pretty=%s)
+          npx eas update --branch production --message "$MSG" --non-interactive

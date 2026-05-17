@@ -118,6 +118,64 @@ Push a `main` dispara dos jobs paralelos en [.github/workflows/deploy.yml](.gith
 
 **Importante**: Los `.env` del servidor tienen `git update-index --skip-worktree` y el workflow los preserva con backup antes del reset.
 
+### Despliegue de la app móvil (Play Store / App Store)
+
+Un `git push` a `main` NO actualiza la app instalada en celulares. La app móvil tiene **dos canales** de despliegue distintos:
+
+#### A. OTA (over-the-air) — para cambios solo de JS/React
+
+Cuando solo cambia código JS (componentes, lógica, estilos, llamadas API), no hace falta rebuild ni Play Store. Se manda directo a los celulares con la app abierta:
+
+```bash
+EXPO_TOKEN=<token> npx eas update --branch production --message "descripción corta"
+```
+
+Los usuarios reciben el OTA al abrir la app la siguiente vez. Esto funciona porque `app.json` tiene `runtimeVersion.policy: "appVersion"` — los OTA se publican contra la `version` actual de app.json.
+
+**Limites de OTA — NO funciona si cambiaste:**
+- Dependencias nativas (`expo-*`, `@react-native-community/*`, etc.)
+- Permisos de Android/iOS
+- Plugins en `app.json`
+- Iconos / splash screen
+- `version` o `versionCode` en `app.json`
+
+#### B. Build nuevo + subir a stores — para cualquier cambio nativo
+
+Cuando cambias algo de la lista anterior, hay que generar un binario nuevo:
+
+```bash
+# Antes del build: bumpear version + versionCode en app.json
+# Ejemplo: 1.0.1 → 1.1.0, versionCode 5 → 6
+
+# Android (AAB para Play Store)
+EXPO_TOKEN=<token> npx eas build --platform android --profile production
+
+# iOS
+EXPO_TOKEN=<token> npx eas build --platform ios --profile production
+
+# Subir a stores (manual desde EAS dashboard o usando submit)
+EXPO_TOKEN=<token> npx eas submit --platform android
+```
+
+El proyecto EAS oficial pertenece a `rendonv` (la compañera Vero) — `projectId: f0c2d1e1-9208-44e1-af6f-9a2c29a3e5ba`. Solo ella o quien tenga acceso a esa cuenta puede ejecutar `eas build` con `owner: rendonv` en app.json.
+
+#### Versionado
+
+- `version` (semver): incrementar cuando se hace nuevo build. Mayor → cambios grandes (1.0.x → 1.1.0). Patch → fixes (1.0.0 → 1.0.1).
+- `android.versionCode`: entero monotónico. Play Store rechaza un build con versionCode menor o igual al anterior. Incrementar +1 con cada build.
+- `runtimeVersion.policy: "appVersion"` significa que los OTAs salen apuntando a la `version` actual. Al bumpear version, automáticamente se "cierra" el canal OTA de la versión anterior — los usuarios con el build viejo dejan de recibir actualizaciones JS hasta que instalen el nuevo build desde Play Store.
+
+#### Flujo recomendado de despliegue
+
+1. Cambios solo de JS → `git push` + `eas update --branch production` → todos los usuarios al instante.
+2. Cambios nativos → bumpear `version` y `versionCode` en `app.json` → `git push` → `eas build --platform android --profile production` → bajar AAB → subir a Play Store → esperar review (~horas) → publicar.
+
+#### Auto-OTA en pushes a main
+
+Hay un workflow opcional en [.github/workflows/eas-update.yml](.github/workflows/eas-update.yml) que dispara `eas update` automáticamente cuando se pushea a `main` y SOLO cambiaron archivos JS (excluye `app.json`, `package.json`, `eas.json`, `.github/**`). Si el push toca cualquier archivo de esa lista, el workflow se salta porque probablemente se necesita un build nuevo.
+
+**Requisito**: configurar el secret `EXPO_TOKEN` en GitHub Settings → Secrets and variables → Actions.
+
 ### Monitoreo y Backups
 
 | Item | Configuración |
