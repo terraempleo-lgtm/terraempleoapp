@@ -18,6 +18,7 @@ const chatsRoutes = require('./routes/chats');
 const cognitoAuthRoutes = require('./routes/cognitoAuth');
 const reportesRoutes = require('./routes/reportes');
 const pqrsRoutes = require('./routes/pqrs');
+const especialistasRoutes = require('./routes/especialistas');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -74,6 +75,7 @@ app.use('/api/chats', chatsRoutes);
 app.use('/api/auth/cognito', cognitoAuthRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/pqrs', pqrsRoutes);
+app.use('/api/especialistas', especialistasRoutes);
 
 // Endpoint base de API para diagnóstico rápido
 app.get('/api', (req, res) => {

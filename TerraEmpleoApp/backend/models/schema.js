@@ -398,6 +398,67 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // ── Especialistas ──────────────────────────────────────────────────────────
+  // Migración: ampliar ENUM rol para incluir especialista
+  try {
+    await query("ALTER TABLE usuarios MODIFY COLUMN rol ENUM('trabajador','empleador','admin','especialista') NOT NULL");
+  } catch (e) {
+    if (!e.message.includes('Duplicate') && !e.message.includes('already exists')) console.warn('[Migration] rol ENUM:', e.message);
+  }
+
+  // Perfil especialista (agroindustrial / técnico / prestador de servicios)
+  await query(`
+    CREATE TABLE IF NOT EXISTS perfil_especialista (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      usuario_id INT NOT NULL UNIQUE,
+      descripcion_servicio TEXT DEFAULT NULL,
+      nivel_formacion ENUM('empirico','tecnico_tecnologo','profesional') DEFAULT NULL,
+      titulo_certificacion VARCHAR(200) DEFAULT NULL,
+      anios_experiencia ENUM('menos_1','1_3','3_5','5_10','mas_10') DEFAULT NULL,
+      modalidad_trabajo ENUM('por_proyecto','por_dias','mensual','asesoria_puntual') DEFAULT NULL,
+      radio_cobertura ENUM('municipio','departamento','eje_cafetero','nacional') DEFAULT 'municipio',
+      hoja_vida_url VARCHAR(500) DEFAULT NULL,
+      hoja_vida_nombre VARCHAR(255) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Especialidades del especialista (chips)
+  await query(`
+    CREATE TABLE IF NOT EXISTS especialista_especialidades (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      perfil_especialista_id INT NOT NULL,
+      especialidad VARCHAR(150) NOT NULL,
+      es_personalizada TINYINT(1) DEFAULT 0,
+      FOREIGN KEY (perfil_especialista_id) REFERENCES perfil_especialista(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Cultivos/producciones con los que ha trabajado el especialista
+  await query(`
+    CREATE TABLE IF NOT EXISTS especialista_cultivos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      perfil_especialista_id INT NOT NULL,
+      cultivo VARCHAR(150) NOT NULL,
+      es_personalizado TINYINT(1) DEFAULT 0,
+      FOREIGN KEY (perfil_especialista_id) REFERENCES perfil_especialista(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Fotos del trabajo del especialista (portafolio)
+  await query(`
+    CREATE TABLE IF NOT EXISTS especialista_fotos_trabajo (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      perfil_especialista_id INT NOT NULL,
+      url VARCHAR(500) NOT NULL,
+      orden INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (perfil_especialista_id) REFERENCES perfil_especialista(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Crear usuario admin por defecto
   const bcrypt = require('bcryptjs');
   const adminExists = await query('SELECT id FROM usuarios WHERE rol = ? AND celular = ?', ['admin', '0000000000']);

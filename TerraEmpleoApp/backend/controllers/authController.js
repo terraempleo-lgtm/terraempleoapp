@@ -32,15 +32,19 @@ async function register(req, res) {
     habilidades, cultivos_trabajador,
     // Campos empleador
     nombre_empresa_finca, tipo_pago, ofrece_alojamiento, ofrece_alimentacion,
-    beneficios_extra, cultivos_empleador, labores
+    beneficios_extra, cultivos_empleador, labores,
+    // Campos especialista
+    descripcion_servicio, nivel_formacion, titulo_certificacion,
+    anios_experiencia_especialista, modalidad_trabajo, radio_cobertura,
+    especialidades, cultivos_especialista,
   } = req.body;
 
   // Validaciones antes de abrir conexión a la DB
   if (!rol || !nombre_completo || !celular || !password || !cedula) {
     return res.status(400).json({ error: 'Campos obligatorios faltantes: rol, nombre_completo, celular, password, cedula' });
   }
-  if (!['trabajador', 'empleador'].includes(rol)) {
-    return res.status(400).json({ error: 'Rol inválido. Debe ser trabajador o empleador.' });
+  if (!['trabajador', 'empleador', 'especialista'].includes(rol)) {
+    return res.status(400).json({ error: 'Rol inválido.' });
   }
   if (!acepta_habeas_data) {
     return res.status(400).json({ error: 'Debe aceptar el tratamiento de datos (Habeas Data)' });
@@ -127,6 +131,33 @@ async function register(req, res) {
         for (const l of labores) {
           await db.query('INSERT INTO empleador_labores (perfil_empleador_id, labor, es_personalizada) VALUES (?, ?, ?)',
             [perfilId, l.nombre, l.es_personalizada ? 1 : 0]);
+        }
+      }
+    }
+
+    if (rol === 'especialista') {
+      const perfilResult = await db.query(`
+        INSERT INTO perfil_especialista
+          (usuario_id, descripcion_servicio, nivel_formacion, titulo_certificacion,
+           anios_experiencia, modalidad_trabajo, radio_cobertura)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [userId, descripcion_servicio || null, nivel_formacion || null,
+          titulo_certificacion || null, anios_experiencia_especialista || null,
+          modalidad_trabajo || null, radio_cobertura || 'municipio']);
+
+      const perfilId = Number(perfilResult.insertId);
+
+      if (Array.isArray(especialidades)) {
+        for (const e of especialidades) {
+          await db.query('INSERT INTO especialista_especialidades (perfil_especialista_id, especialidad, es_personalizada) VALUES (?, ?, ?)',
+            [perfilId, e.nombre, e.es_personalizada ? 1 : 0]);
+        }
+      }
+
+      if (Array.isArray(cultivos_especialista)) {
+        for (const c of cultivos_especialista) {
+          await db.query('INSERT INTO especialista_cultivos (perfil_especialista_id, cultivo, es_personalizado) VALUES (?, ?, ?)',
+            [perfilId, c.nombre, c.es_personalizado ? 1 : 0]);
         }
       }
     }

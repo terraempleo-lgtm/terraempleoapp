@@ -127,6 +127,12 @@ export const trabajadoresAPI = {
   contactar: (id, data) => api.post(`/trabajadores/${id}/contactar`, data),
 };
 
+// Especialistas
+export const especialistasAPI = {
+  listar: (params) => api.get('/especialistas', { params }),
+  perfil: (id) => api.get(`/especialistas/${id}`),
+};
+
 // Notificaciones
 export const notificacionesAPI = {
   listar: (params) => api.get('/notificaciones', params ? { params } : undefined),

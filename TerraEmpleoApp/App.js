@@ -32,6 +32,7 @@ import LoginScreen from './src/screens/auth/LoginScreen';
 import RoleSelectScreen from './src/screens/auth/RoleSelectScreen';
 import RegisterTrabajadorScreen from './src/screens/auth/RegisterTrabajadorScreen';
 import RegisterEmpleadorScreen from './src/screens/auth/RegisterEmpleadorScreen';
+import RegisterEspecialistaScreen from './src/screens/auth/RegisterEspecialistaScreen';
 import RecuperarPasswordScreen from './src/screens/auth/RecuperarPasswordScreen';
 import DocumentoLegalScreen from './src/screens/auth/DocumentoLegalScreen';
 import VerificationNavigator from './src/modules/verification/navigation/VerificationNavigator';
@@ -570,6 +571,19 @@ function AdminDashboardStack() {
   );
 }
 
+// ── Especialista Tabs ── (tabs mínimos: perfil + mensajes)
+function EspecialistaTabs() {
+  const unread = useChatUnread();
+  return (
+    <Tab.Navigator screenOptions={tabScreenOptions}>
+      <Tab.Screen name="Perfil" component={PerfilStack}
+        options={{ tabBarLabel: 'Mi Perfil' }} />
+      <Tab.Screen name="Mensajes" component={ChatsStack}
+        options={{ tabBarLabel: 'Mensajes', tabBarBadge: unread > 0 ? unread : undefined }} />
+    </Tab.Navigator>
+  );
+}
+
 // ── Auth Stack ──
 function AuthStack() {
   return (
@@ -583,6 +597,8 @@ function AuthStack() {
         options={{ headerShown: true, title: 'Registro Trabajador' }} />
       <Stack.Screen name="RegisterEmpleador" component={RegisterEmpleadorScreen}
         options={{ headerShown: true, title: 'Registro Empleador' }} />
+      <Stack.Screen name="RegisterEspecialista" component={RegisterEspecialistaScreen}
+        options={{ headerShown: false }} />
       <Stack.Screen name="RecuperarPassword" component={RecuperarPasswordScreen}
         options={{ headerShown: true, title: 'Recuperar contraseña' }} />
       <Stack.Screen name="DocumentoLegal" component={DocumentoLegalScreen}
@@ -637,6 +653,8 @@ function RootNavigator() {
           <Stack.Screen name="AdminMain" component={AdminTabs} />
         ) : user.rol === 'empleador' ? (
           <Stack.Screen name="EmpleadorMain" component={EmpleadorTabs} />
+        ) : user.rol === 'especialista' ? (
+          <Stack.Screen name="EspecialistaMain" component={EspecialistaTabs} />
         ) : (
           <Stack.Screen name="TrabajadorMain" component={TrabajadorTabs} />
         )}

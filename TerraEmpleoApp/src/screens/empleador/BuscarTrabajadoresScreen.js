@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable } from '../../components/animated';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
-import { trabajadoresAPI, vacantesAPI } from '../../services/api';
+import { trabajadoresAPI, vacantesAPI, especialistasAPI } from '../../services/api';
 
 const LIME = '#C8F056';
 const LIME_TEXT = '#2A5C00';
@@ -223,9 +223,120 @@ function TrabajadorCard({ item, onPress, onContact, onChat, loadingContacto, est
   );
 }
 
+const EXPERIENCIA_LABELS_ESP = {
+  menos_1: 'Menos de 1 año',
+  '1_3': '1 a 3 años',
+  '3_5': '3 a 5 años',
+  '5_10': '5 a 10 años',
+  mas_10: '+10 años',
+};
+
+const MODALIDAD_LABELS_ESP = {
+  por_proyecto: 'Por proyecto',
+  por_dias: 'Por días',
+  mensual: 'Mensual',
+  asesoria_puntual: 'Asesoría puntual',
+};
+
+function EspecialistaCard({ item, onPress, colors }) {
+  const initials = getInitials(item.nombre_completo);
+  const avatarBg = getAvatarColor(item.nombre_completo);
+  const ubicacion = [item.municipio, item.departamento].filter(Boolean).join(', ');
+  const visibleEsp = (item.especialidades || []).slice(0, 3);
+  const hiddenEsp = (item.especialidades || []).length - visibleEsp.length;
+  const expLabel = EXPERIENCIA_LABELS_ESP[item.anios_experiencia];
+  const modalidadLabel = MODALIDAD_LABELS_ESP[item.modalidad_trabajo];
+
+  return (
+    <AnimatedPressable
+      style={[styles.card, { backgroundColor: colors.surface }, styles.espCard]}
+      onPress={() => onPress(item)}
+      scaleValue={0.98}
+      haptic={false}
+    >
+      <View style={styles.cardTop}>
+        <View style={[styles.avatarCircle, { backgroundColor: avatarBg }]}>
+          {item.foto_selfie ? (
+            <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
+          ) : (
+            <Text style={styles.avatarInitials}>{initials}</Text>
+          )}
+        </View>
+        <View style={styles.cardInfo}>
+          <View style={styles.nameRow}>
+            <Text style={[styles.nombre, { color: colors.textPrimary, flex: 1 }]} numberOfLines={1}>
+              {item.nombre_completo}
+            </Text>
+            {item.verificado && (
+              <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />
+            )}
+          </View>
+          {ubicacion ? (
+            <View style={styles.row}>
+              <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+              <Text style={[styles.ubicacion, { color: colors.textMuted }]} numberOfLines={1}>{ubicacion}</Text>
+            </View>
+          ) : null}
+          <View style={[styles.espBadge]}>
+            <Ionicons name="ribbon-outline" size={11} color={COLORS.primary} />
+            <Text style={[styles.espBadgeText]}>Especialista</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={[styles.cardDivider, { backgroundColor: colors.border }]} />
+
+      <View style={styles.cardMeta}>
+        {expLabel ? (
+          <View style={styles.attrItem}>
+            <Ionicons name="briefcase-outline" size={12} color={colors.textMuted} />
+            <Text style={[styles.attrText, { color: colors.textSecondary }]}>{expLabel}</Text>
+          </View>
+        ) : null}
+        {expLabel && modalidadLabel ? (
+          <View style={[styles.attrDivider, { backgroundColor: colors.border }]} />
+        ) : null}
+        {modalidadLabel ? (
+          <View style={styles.attrItem}>
+            <Ionicons name="calendar-outline" size={12} color={colors.textMuted} />
+            <Text style={[styles.attrText, { color: colors.textSecondary }]}>{modalidadLabel}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {visibleEsp.length > 0 && (
+        <View style={styles.skillsRow}>
+          {visibleEsp.map((e) => (
+            <View key={e} style={[styles.skillPill, { backgroundColor: COLORS.primarySoft }]}>
+              <Text style={[styles.skillText, { color: COLORS.primary }]}>{e}</Text>
+            </View>
+          ))}
+          {hiddenEsp > 0 && (
+            <View style={styles.skillPill}>
+              <Text style={styles.skillText}>+{hiddenEsp}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      <View style={styles.cardActions}>
+        <AnimatedPressable style={styles.btnContactar} onPress={() => onPress(item)} scaleValue={0.96} haptic>
+          <Ionicons name="chatbubble-ellipses-outline" size={14} color={COLORS.white} />
+          <Text style={styles.btnContactarText}>Contactar</Text>
+        </AnimatedPressable>
+        <AnimatedPressable style={styles.btnPerfil} onPress={() => onPress(item)} scaleValue={0.96} haptic>
+          <Text style={styles.btnPerfilText}>Ver perfil</Text>
+          <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
+        </AnimatedPressable>
+      </View>
+    </AnimatedPressable>
+  );
+}
+
 export default function BuscarTrabajadoresScreen({ navigation }) {
   const { colors, isDark } = useAppTheme();
   const [trabajadores, setTrabajadores] = useState([]);
+  const [especialistas, setEspecialistas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [enviandoContactoId, setEnviandoContactoId] = useState(null);
@@ -239,9 +350,14 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
     try {
       const params = { orden: ord };
       if (disp) params.disponibilidad = disp;
-      const res = await trabajadoresAPI.listar(params);
-      const lista = res.data?.trabajadores || [];
+      const [resTrab, resEsp] = await Promise.allSettled([
+        trabajadoresAPI.listar(params),
+        especialistasAPI.listar({ limit: 10 }),
+      ]);
+      const lista = resTrab.status === 'fulfilled' ? (resTrab.value.data?.trabajadores || []) : [];
+      const listaEsp = resEsp.status === 'fulfilled' ? (resEsp.value.data?.especialistas || []) : [];
       setTrabajadores(lista);
+      setEspecialistas(listaEsp);
       // Inicializar estados de contacto desde el servidor
       const estadosIniciales = {};
       lista.forEach(t => { if (t.estado_contacto) estadosIniciales[t.id] = t.estado_contacto; });
@@ -441,6 +557,33 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
           <Ionicons name="map-outline" size={18} color={COLORS.white} />
         </AnimatedPressable>
       </View>
+
+      {/* Especialistas destacados */}
+      {especialistas.length > 0 && (
+        <View style={styles.espSection}>
+          <View style={styles.espHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.espSectionTitle, { color: colors.textPrimary }]}>
+                Especialistas agroindustriales
+              </Text>
+              <Text style={[styles.espSectionSub, { color: colors.textMuted }]}>
+                Técnicos y profesionales para tu finca
+              </Text>
+            </View>
+            <View />
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.espScroll}>
+            {especialistas.slice(0, 5).map((esp) => (
+              <EspecialistaCard
+                key={esp.id}
+                item={esp}
+                colors={colors}
+                onPress={(item) => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.id })}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Disponibilidad chips */}
       <ScrollView
@@ -740,4 +883,22 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 16, fontWeight: '700' },
   emptyText: { fontSize: 13, textAlign: 'center' },
+
+  /* Especialistas section */
+  espSection: { marginTop: SPACING.md, marginBottom: SPACING.sm },
+  espHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md, marginBottom: SPACING.sm,
+  },
+  espSectionTitle: { fontSize: 16, fontWeight: '700' },
+  espSectionSub: { fontSize: 12, marginTop: 2 },
+  espVerTodos: { fontSize: 13, fontWeight: '600' },
+  espScroll: { paddingHorizontal: SPACING.md, gap: SPACING.sm },
+  espCard: { width: 260, marginRight: 0 },
+  espBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: COLORS.primarySoft, borderRadius: RADIUS.full,
+    paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginTop: 4,
+  },
+  espBadgeText: { fontSize: 11, color: COLORS.primary, fontWeight: '700' },
 });
