@@ -477,6 +477,7 @@ export default function RegisterEspecialistaScreen({ navigation }) {
               tipo="selfie"
               label={fotoSelfie ? '✓ Selfie tomada' : 'Tomar selfie'}
               onFotoGuardada={(_tipo, uri) => setFotoSelfie(uri)}
+              modoLocal
             />
             {errors.selfie && <Text style={styles.errorText}>{errors.selfie}</Text>}
 
@@ -488,6 +489,7 @@ export default function RegisterEspecialistaScreen({ navigation }) {
               tipo="cedula"
               label={fotoCedula ? '✓ Foto de cédula guardada' : 'Foto de cédula'}
               onFotoGuardada={(_tipo, uri) => setFotoCedula(uri)}
+              modoLocal
               permitirGaleria
             />
 
@@ -499,6 +501,7 @@ export default function RegisterEspecialistaScreen({ navigation }) {
               tipo="selfie_cedula"
               label={fotoSelfieCedula ? '✓ Selfie con cédula tomada' : 'Selfie con cédula'}
               onFotoGuardada={(_tipo, uri) => setFotoSelfieCedula(uri)}
+              modoLocal
             />
             {errors.selfieCed && <Text style={styles.errorText}>{errors.selfieCed}</Text>}
 
@@ -513,6 +516,7 @@ export default function RegisterEspecialistaScreen({ navigation }) {
                   tipo={`portafolio_${idx}`}
                   label={fotosPortafolio[idx] ? '✓ Foto' : 'Subir foto'}
                   onFotoGuardada={(_tipo, uri) => handleFotoPortafolio(idx, uri)}
+                  modoLocal
                   permitirGaleria
                 />
               ))}
