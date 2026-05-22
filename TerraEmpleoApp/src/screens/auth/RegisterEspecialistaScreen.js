@@ -186,12 +186,6 @@ export default function RegisterEspecialistaScreen({ navigation }) {
 
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
-  const handleFotoIdentidad = (tipo, uri) => {
-    if (tipo === 'selfie') setFotoSelfie(uri);
-    if (tipo === 'cedula') setFotoCedula(uri);
-    if (tipo === 'selfie_cedula') setFotoSelfieCedula(uri);
-  };
-
   const handleFotoPortafolio = (index, uri) => {
     setFotosPortafolio(prev => prev.map((f, i) => (i === index ? uri : f)));
   };
@@ -281,9 +275,8 @@ export default function RegisterEspecialistaScreen({ navigation }) {
               placeholder="Ej: Andrés Castaño Ríos" icon="person-outline" required error={errors.nombre} />
             <Input label="Celular" value={celular} onChangeText={setCelular}
               placeholder="Ej: 310 000 0000" keyboardType="phone-pad" icon="call-outline" required error={errors.celular} />
-            <Input label="Correo electrónico" value={correo} onChangeText={setCorreo}
-              placeholder="tucorreo@ejemplo.com" keyboardType="email-address" icon="mail-outline"
-              labelSuffix=" (opcional)" />
+            <Input label="Correo electrónico (opcional)" value={correo} onChangeText={setCorreo}
+              placeholder="tucorreo@ejemplo.com" keyboardType="email-address" icon="mail-outline" />
             <Input label="Cédula" value={cedula} onChangeText={setCedula}
               placeholder="Número de cédula" keyboardType="numeric" icon="card-outline" required error={errors.cedula} />
             <Input label="Contraseña" value={password} onChangeText={setPassword}
@@ -374,11 +367,8 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             <ChipSelector
               options={ESPECIALIDADES_OPTIONS}
               selected={especialidades}
-              onToggle={(item) => setEspecialidades(prev =>
-                prev.includes(item) ? prev.filter(e => e !== item) : [...prev, item]
-              )}
+              onSelectionChange={setEspecialidades}
               allowCustom
-              customPlaceholder="+ Otro"
             />
             {errors.especialidades && <Text style={styles.errorText}>{errors.especialidades}</Text>}
 
@@ -400,12 +390,11 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             {errors.nivelFormacion && <Text style={styles.errorText}>{errors.nivelFormacion}</Text>}
 
             <Input
-              label="Título o certificación"
+              label="Título o certificación (si aplica)"
               value={tituloCertificacion}
               onChangeText={setTituloCertificacion}
               placeholder="Ej: Tecnólogo en Gestión Cafetera"
               icon="school-outline"
-              labelSuffix=" (si aplica)"
             />
           </View>
         );
@@ -432,11 +421,8 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             <ChipSelector
               options={CULTIVOS}
               selected={cultivos}
-              onToggle={(item) => setCultivos(prev =>
-                prev.includes(item) ? prev.filter(c => c !== item) : [...prev, item]
-              )}
+              onSelectionChange={setCultivos}
               allowCustom
-              customPlaceholder="+ Otro"
             />
 
             <Text style={[styles.fieldLabel, { color: colors.textPrimary, marginTop: SPACING.lg }]}>Años de experiencia</Text>
@@ -490,10 +476,7 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             <CamaraFoto
               tipo="selfie"
               label={fotoSelfie ? '✓ Selfie tomada' : 'Tomar selfie'}
-              sublabel="Solo se puede tomar en el momento"
-              uri={fotoSelfie}
-              onFotoGuardada={(uri) => handleFotoIdentidad('selfie', uri)}
-              soloCaptura
+              onFotoGuardada={(_tipo, uri) => setFotoSelfie(uri)}
             />
             {errors.selfie && <Text style={styles.errorText}>{errors.selfie}</Text>}
 
@@ -504,8 +487,8 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             <CamaraFoto
               tipo="cedula"
               label={fotoCedula ? '✓ Foto de cédula guardada' : 'Foto de cédula'}
-              uri={fotoCedula}
-              onFotoGuardada={(uri) => handleFotoIdentidad('cedula', uri)}
+              onFotoGuardada={(_tipo, uri) => setFotoCedula(uri)}
+              permitirGaleria
             />
 
             {/* Selfie con cédula — OBLIGATORIA */}
@@ -515,10 +498,7 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             <CamaraFoto
               tipo="selfie_cedula"
               label={fotoSelfieCedula ? '✓ Selfie con cédula tomada' : 'Selfie con cédula'}
-              sublabel="Sostenga su cédula visible al lado de su rostro"
-              uri={fotoSelfieCedula}
-              onFotoGuardada={(uri) => handleFotoIdentidad('selfie_cedula', uri)}
-              soloCaptura
+              onFotoGuardada={(_tipo, uri) => setFotoSelfieCedula(uri)}
             />
             {errors.selfieCed && <Text style={styles.errorText}>{errors.selfieCed}</Text>}
 
@@ -527,15 +507,13 @@ export default function RegisterEspecialistaScreen({ navigation }) {
               Fotos de su trabajo{' '}<Text style={{ color: colors.textMuted, fontWeight: '400' }}>(opcional pero recomendado)</Text>
             </Text>
             <View style={styles.portafolioRow}>
-              {fotosPortafolio.map((uri, idx) => (
+              {fotosPortafolio.map((_uri, idx) => (
                 <CamaraFoto
                   key={idx}
                   tipo={`portafolio_${idx}`}
-                  label="Subir foto"
-                  uri={uri}
-                  onFotoGuardada={(u) => handleFotoPortafolio(idx, u)}
-                  style={styles.portafolioItem}
-                  compact
+                  label={fotosPortafolio[idx] ? '✓ Foto' : 'Subir foto'}
+                  onFotoGuardada={(_tipo, uri) => handleFotoPortafolio(idx, uri)}
+                  permitirGaleria
                 />
               ))}
             </View>
@@ -605,8 +583,6 @@ export default function RegisterEspecialistaScreen({ navigation }) {
     }
   };
 
-  const progress = step / TOTAL_STEPS;
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <KeyboardAvoidingView
@@ -614,23 +590,24 @@ export default function RegisterEspecialistaScreen({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
-        {/* Header */}
+        {/* Back button row */}
         <View style={[styles.headerBar, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={step > 1 ? prevStep : () => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity
+            onPress={step > 1 ? prevStep : () => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={[styles.headerStepLabel, { color: colors.textMuted }]}>
-              {STEP_LABELS[step - 1]}
-            </Text>
-            <Text style={[styles.headerProgress, { color: colors.textSecondary }]}>
-              Paso {step} de {TOTAL_STEPS} · {Math.round(progress * 100)}%
-            </Text>
-          </View>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Registro especialista</Text>
           <View style={{ width: 40 }} />
         </View>
 
-        <ProgressBar progress={progress} style={styles.progressBar} />
+        <ProgressBar
+          currentStep={step}
+          totalSteps={TOTAL_STEPS}
+          labels={STEP_LABELS}
+        />
 
         <ScrollView
           ref={scrollRef}
@@ -693,13 +670,10 @@ const styles = StyleSheet.create({
   headerBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: 0,
   },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
-  headerCenter: { alignItems: 'center', flex: 1 },
-  headerStepLabel: { fontSize: 13, fontWeight: '600' },
-  headerProgress: { fontSize: 12, marginTop: 2 },
-  progressBar: { marginHorizontal: 0 },
+  headerTitle: { fontSize: 15, fontWeight: '600', flex: 1, textAlign: 'center' },
   scrollContent: {
     padding: SPACING.lg,
     paddingBottom: SPACING.xl * 2,
