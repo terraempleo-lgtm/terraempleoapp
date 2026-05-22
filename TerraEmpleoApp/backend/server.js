@@ -41,6 +41,8 @@ app.use(helmet({
 const allowedOrigins = [
   'https://app.terrampleo.com',
   'https://api.terrampleo.com',
+  'https://www.terraempleo.com.co',
+  'https://terraempleo.com.co',
   /^http:\/\/localhost(:\d+)?$/,
   /^http:\/\/10\.0\.2\.2(:\d+)?$/,
   /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
