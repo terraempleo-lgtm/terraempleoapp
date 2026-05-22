@@ -19,20 +19,20 @@ const ROLES = [
     screen: 'RegisterTrabajador',
   },
   {
-    key: 'especialista',
-    icon: 'medal-outline',
-    iconLib: 'material',
-    title: 'Soy especialista / prestador',
-    description: 'Ofrezco servicios técnicos o profesionales',
-    screen: 'RegisterEspecialista',
-  },
-  {
     key: 'empleador',
     icon: 'office-building-outline',
     iconLib: 'material',
     title: 'Soy empleador / finca',
     description: 'Busco trabajadores para mi finca o empresa',
     screen: 'RegisterEmpleador',
+  },
+  {
+    key: 'especialista',
+    icon: 'medal-outline',
+    iconLib: 'material',
+    title: 'Soy especialista / prestador',
+    description: 'Ofrezco servicios técnicos o profesionales',
+    screen: 'RegisterEspecialista',
   },
 ];
 
