@@ -614,8 +614,29 @@ async function subirFotos(req, res) {
       } else {
         await query(`UPDATE perfil_empleador SET ${columnasEmpleador[tipo]} = ? WHERE usuario_id = ?`, [filePath, userId]);
       }
+    } else if (['portafolio_0', 'portafolio_1', 'portafolio_2'].includes(tipo)) {
+      // Fotos de portafolio del especialista → tabla especialista_fotos_trabajo
+      const orden = parseInt(tipo.split('_')[1]);
+      const perfiles = await query('SELECT id FROM perfil_especialista WHERE usuario_id = ?', [userId]);
+      if (!perfiles || perfiles.length === 0) {
+        return res.status(400).json({ error: 'Perfil de especialista no encontrado' });
+      }
+      const perfilId = perfiles[0].id;
+      // Reemplazar si ya existe foto en ese orden
+      const existente = await query(
+        'SELECT id FROM especialista_fotos_trabajo WHERE perfil_especialista_id = ? AND orden = ?',
+        [perfilId, orden]
+      );
+      if (existente && existente.length > 0) {
+        await query('UPDATE especialista_fotos_trabajo SET url = ? WHERE id = ?', [filePath, existente[0].id]);
+      } else {
+        await query(
+          'INSERT INTO especialista_fotos_trabajo (perfil_especialista_id, url, orden) VALUES (?, ?, ?)',
+          [perfilId, filePath, orden]
+        );
+      }
     } else {
-      return res.status(400).json({ error: 'Tipo de foto inválido. Use: selfie, cedula, selfie_cedula, finca_fachada, doc_empresa' });
+      return res.status(400).json({ error: 'Tipo de foto inválido. Use: selfie, cedula, selfie_cedula, finca_fachada, doc_empresa, portafolio_0..2' });
     }
 
     const signedPath = await signUrl(filePath);

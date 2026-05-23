@@ -240,6 +240,9 @@ export default function RegisterEspecialistaScreen({ navigation }) {
         { tipo: 'selfie', uri: fotoSelfie },
         { tipo: 'cedula', uri: fotoCedulaDoc },
         { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
+        ...fotosPortafolio
+          .map((uri, idx) => ({ tipo: `portafolio_${idx}`, uri }))
+          .filter(f => f.uri),
       ].filter(f => f.uri);
 
       if (fotos.length > 0) {
