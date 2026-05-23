@@ -545,6 +545,26 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
         </View>
       </View>
 
+      {/* Banner: sin vacante activa */}
+      {!vacanteContacto && (
+        <TouchableOpacity
+          style={styles.noVacanteBanner}
+          onPress={() => navigation.navigate('CrearVacante')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.noVacanteIcon}>
+            <Ionicons name="alert-circle-outline" size={22} color="#92400E" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.noVacanteTitulo}>Crea una vacante primero</Text>
+            <Text style={styles.noVacanteTexto}>
+              Necesitas tener una vacante activa para poder contactar trabajadores.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#92400E" />
+        </TouchableOpacity>
+      )}
+
       {/* Search bar */}
       <View style={styles.searchContainer}>
         <View style={[styles.searchWrap, { backgroundColor: isDark ? colors.surface : '#F5F5F5', borderColor: isDark ? colors.border : '#EBEBEB' }]}>
@@ -956,6 +976,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginTop: 4,
   },
   espBadgeText: { fontSize: 11, color: COLORS.primary, fontWeight: '700' },
+
+  noVacanteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+    backgroundColor: '#FEF3C7',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    padding: SPACING.sm + 2,
+  },
+  noVacanteIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.md,
+    backgroundColor: '#FDE68A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noVacanteTitulo: { fontSize: 13, fontWeight: '700', color: '#92400E', marginBottom: 2 },
+  noVacanteTexto: { fontSize: 12, color: '#78350F', lineHeight: 16 },
 
   espCardNew: {
     width: 300,
