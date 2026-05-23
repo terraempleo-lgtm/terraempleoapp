@@ -571,15 +571,23 @@ function AdminDashboardStack() {
   );
 }
 
-// ── Especialista Tabs ── (tabs mínimos: perfil + mensajes)
+// ── Especialista Tabs ── (mismas vistas que trabajador)
 function EspecialistaTabs() {
   const unread = useChatUnread();
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
-      <Tab.Screen name="Perfil" component={PerfilStack}
-        options={{ tabBarLabel: 'Mi Perfil' }} />
+      <Tab.Screen name="Vacantes" component={TrabajadorVacantesStack}
+        options={{ tabBarLabel: 'Vacantes' }} />
+      <Tab.Screen name="Mapa" component={VacantesMapaStack}
+        options={{ tabBarLabel: 'Mapa' }} />
+      <Tab.Screen name="ParaTi" component={VacantesRecomendadasStack}
+        options={{ tabBarLabel: 'Para ti' }} />
+      <Tab.Screen name="Postulaciones" component={MisPostulacionesStack}
+        options={{ tabBarLabel: 'Mis Postulaciones' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
         options={{ tabBarLabel: 'Mensajes', tabBarBadge: unread > 0 ? unread : undefined }} />
+      <Tab.Screen name="Perfil" component={PerfilStack}
+        options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );
 }

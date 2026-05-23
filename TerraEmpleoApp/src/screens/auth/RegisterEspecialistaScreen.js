@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
-  KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Image, Keyboard,
+  KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Image, Keyboard, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -24,9 +24,9 @@ import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 import CamaraFoto from '../../components/CamaraFoto';
 import { useFormDraft } from '../../hooks/useFormDraft';
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 const STEP_LABELS = [
-  'Sus datos', 'Ubicación', 'Especialidad', 'Sobre usted', 'Fotos y portafolio', 'Resumen',
+  'Sus datos', 'Ubicación', 'Cédula', 'Especialidad', 'Sobre usted', 'Fotos', 'Resumen',
 ];
 
 const RADIO_LABELS = {
@@ -71,47 +71,49 @@ export default function RegisterEspecialistaScreen({ navigation }) {
   const [nombre, setNombre] = useState('');
   const [celular, setCelular] = useState('');
   const [correo, setCorreo] = useState('');
-  const [cedula, setCedula] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [aceptaHabeasData, setAceptaHabeasData] = useState(false);
 
   // Step 2: Ubicación
   const [departamento, setDepartamento] = useState('');
   const [municipio, setMunicipio] = useState('');
+  const [vereda, setVereda] = useState('');
   const [radioCobertura, setRadioCobertura] = useState('municipio');
   const [showDeptPicker, setShowDeptPicker] = useState(false);
   const [showMunPicker, setShowMunPicker] = useState(false);
 
-  // Step 3: Especialidad
+  // Step 3: Cédula y consentimientos
+  const [cedula, setCedula] = useState('');
+  const [aceptaHabeasData, setAceptaHabeasData] = useState(false);
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
+
+  // Step 4: Especialidad
   const [especialidades, setEspecialidades] = useState([]);
   const [nivelFormacion, setNivelFormacion] = useState('');
   const [tituloCertificacion, setTituloCertificacion] = useState('');
 
-  // Step 4: Sobre usted
+  // Step 5: Sobre usted
   const [descripcionServicio, setDescripcionServicio] = useState('');
   const [cultivos, setCultivos] = useState([]);
   const [aniosExperiencia, setAniosExperiencia] = useState('');
   const [modalidadTrabajo, setModalidadTrabajo] = useState('');
 
-  // Step 5: Fotos identidad
+  // Step 6: Fotos identidad
   const [fotoSelfie, setFotoSelfie] = useState(null);
-  const [fotoCedula, setFotoCedula] = useState(null);
+  const [fotoCedulaDoc, setFotoCedulaDoc] = useState(null);
   const [fotoSelfieCedula, setFotoSelfieCedula] = useState(null);
-  // Fotos portafolio (hasta 3)
   const [fotosPortafolio, setFotosPortafolio] = useState([null, null, null]);
-  const [hojaVidaUri, setHojaVidaUri] = useState(null);
-  const [hojaVidaNombre, setHojaVidaNombre] = useState('');
 
   const onRestoreDraft = useCallback((d) => {
     if (typeof d.step === 'number' && d.step >= 1 && d.step <= TOTAL_STEPS) setStep(d.step);
     if (d.nombre) setNombre(d.nombre);
     if (d.celular) setCelular(d.celular);
     if (d.correo) setCorreo(d.correo);
-    if (d.cedula) setCedula(d.cedula);
     if (d.departamento) setDepartamento(d.departamento);
     if (d.municipio) setMunicipio(d.municipio);
+    if (d.vereda) setVereda(d.vereda);
     if (d.radioCobertura) setRadioCobertura(d.radioCobertura);
+    if (d.cedula) setCedula(d.cedula);
     if (Array.isArray(d.especialidades)) setEspecialidades(d.especialidades);
     if (d.nivelFormacion) setNivelFormacion(d.nivelFormacion);
     if (d.tituloCertificacion) setTituloCertificacion(d.tituloCertificacion);
@@ -120,13 +122,14 @@ export default function RegisterEspecialistaScreen({ navigation }) {
     if (d.aniosExperiencia) setAniosExperiencia(d.aniosExperiencia);
     if (d.modalidadTrabajo) setModalidadTrabajo(d.modalidadTrabajo);
     if (typeof d.aceptaHabeasData === 'boolean') setAceptaHabeasData(d.aceptaHabeasData);
+    if (typeof d.aceptaTerminos === 'boolean') setAceptaTerminos(d.aceptaTerminos);
   }, []);
 
   const { clearDraft: clearFormDraft } = useFormDraft('RegisterEspecialista', {
     data: {
-      step, nombre, celular, correo, cedula, departamento, municipio, radioCobertura,
+      step, nombre, celular, correo, cedula, departamento, municipio, vereda, radioCobertura,
       especialidades, nivelFormacion, tituloCertificacion, descripcionServicio,
-      cultivos, aniosExperiencia, modalidadTrabajo, aceptaHabeasData,
+      cultivos, aniosExperiencia, modalidadTrabajo, aceptaHabeasData, aceptaTerminos,
     },
     onRestore: onRestoreDraft,
     toastMessage: 'Continuando con tu registro',
@@ -147,33 +150,36 @@ export default function RegisterEspecialistaScreen({ navigation }) {
       case 1:
         if (!nombre.trim()) errs.nombre = 'El nombre es obligatorio';
         if (!celular.trim() || celular.length < 7) errs.celular = 'Celular inválido';
-        if (!cedula.trim()) errs.cedula = 'La cédula es obligatoria';
         if (!password || password.length < 8) errs.password = 'Mínimo 8 caracteres';
         if (password !== confirmPassword) errs.confirmPassword = 'Las contraseñas no coinciden';
-        if (!aceptaHabeasData) errs.habeas = 'Debe aceptar el tratamiento de datos';
         break;
       case 2:
         if (!departamento) errs.departamento = 'Seleccione un departamento';
         if (!municipio) errs.municipio = 'Seleccione un municipio';
         break;
       case 3:
+        if (!cedula.trim()) errs.cedula = 'La cédula es obligatoria';
+        if (!aceptaHabeasData) errs.habeas = 'Debe aceptar el tratamiento de datos';
+        if (!aceptaTerminos) errs.terminos = 'Debe aceptar los Términos y Condiciones';
+        break;
+      case 4:
         if (especialidades.length === 0) errs.especialidades = 'Seleccione al menos una especialidad';
         if (!nivelFormacion) errs.nivelFormacion = 'Seleccione su nivel de formación';
         break;
-      case 5:
+      case 6:
         if (!fotoSelfie) errs.selfie = 'La selfie es obligatoria';
         if (!fotoSelfieCedula) errs.selfieCed = 'La selfie con cédula es obligatoria';
         break;
-      case 6:
+      case 7:
         if (!nombre.trim()) errs.nombre = 'Falta nombre (paso 1)';
-        if (!celular.trim()) errs.celular = 'Falta celular (paso 1)';
         if (!departamento || !municipio) errs.ubicacion = 'Falta ubicación (paso 2)';
-        if (especialidades.length === 0) errs.especialidades = 'Falta especialidad (paso 3)';
-        if (!aceptaHabeasData) errs.habeas = 'Debe aceptar Habeas Data (paso 1)';
+        if (!cedula.trim()) errs.cedula = 'Falta cédula (paso 3)';
+        if (especialidades.length === 0) errs.especialidades = 'Falta especialidad (paso 4)';
+        if (!aceptaHabeasData || !aceptaTerminos) errs.habeas = 'Faltan consentimientos (paso 3)';
         break;
     }
     setErrors(errs);
-    if (Object.keys(errs).length > 0 && step === 6) {
+    if (Object.keys(errs).length > 0 && step === 7) {
       Alert.alert('Datos incompletos', Object.values(errs)[0]);
     }
     return Object.keys(errs).length === 0;
@@ -204,6 +210,7 @@ export default function RegisterEspecialistaScreen({ navigation }) {
         cedula,
         departamento,
         municipio,
+        vereda: vereda || undefined,
         acepta_habeas_data: true,
         descripcion_servicio: descripcionServicio || undefined,
         nivel_formacion: nivelFormacion || undefined,
@@ -228,16 +235,16 @@ export default function RegisterEspecialistaScreen({ navigation }) {
       await signIn(user, token);
       Alert.alert('¡Bienvenido!', `Hola ${user.nombre_completo?.split(' ')[0] || ''}, tu cuenta fue creada exitosamente.`);
 
-      // Subir fotos de identidad en segundo plano
-      const fotosIdentidad = [
+      // Subir fotos en segundo plano
+      const fotos = [
         { tipo: 'selfie', uri: fotoSelfie },
-        { tipo: 'cedula', uri: fotoCedula },
+        { tipo: 'cedula', uri: fotoCedulaDoc },
         { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
       ].filter(f => f.uri);
 
-      if (fotosIdentidad.length > 0) {
+      if (fotos.length > 0) {
         Promise.allSettled(
-          fotosIdentidad.map(async ({ tipo, uri }) => {
+          fotos.map(async ({ tipo, uri }) => {
             const formData = new FormData();
             if (Platform.OS === 'web') {
               const resp = await fetch(uri);
@@ -260,6 +267,29 @@ export default function RegisterEspecialistaScreen({ navigation }) {
     }
   };
 
+  const ConsentRow = ({ icon, title, subtitle, linkLabel, linkUrl, value, onToggle, error }) => (
+    <View style={[styles.consentCard, { backgroundColor: colors.surface, borderColor: error ? COLORS.error : colors.border }]}>
+      <View style={styles.consentIcon}>
+        <Ionicons name={icon} size={20} color={COLORS.primary} />
+      </View>
+      <View style={styles.consentText}>
+        <Text style={[styles.consentTitle, { color: colors.textPrimary }]}>{title}</Text>
+        <Text style={[styles.consentSubtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
+        {linkUrl && (
+          <TouchableOpacity onPress={() => Linking.openURL(linkUrl)}>
+            <Text style={styles.consentLink}>{linkLabel}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onToggle}
+        trackColor={{ false: colors.border, true: COLORS.primaryMuted }}
+        thumbColor={value ? COLORS.primary : '#f4f3f4'}
+      />
+    </View>
+  );
+
   const renderStep = () => {
     switch (step) {
       case 1:
@@ -277,26 +307,10 @@ export default function RegisterEspecialistaScreen({ navigation }) {
               placeholder="Ej: 310 000 0000" keyboardType="phone-pad" icon="call-outline" required error={errors.celular} />
             <Input label="Correo electrónico (opcional)" value={correo} onChangeText={setCorreo}
               placeholder="tucorreo@ejemplo.com" keyboardType="email-address" icon="mail-outline" />
-            <Input label="Cédula" value={cedula} onChangeText={setCedula}
-              placeholder="Número de cédula" keyboardType="numeric" icon="card-outline" required error={errors.cedula} />
             <Input label="Contraseña" value={password} onChangeText={setPassword}
               placeholder="Mínimo 8 caracteres" secureTextEntry icon="lock-closed-outline" required error={errors.password} />
             <Input label="Confirmar contraseña" value={confirmPassword} onChangeText={setConfirmPassword}
               placeholder="Repite tu contraseña" secureTextEntry icon="lock-closed-outline" error={errors.confirmPassword} />
-
-            <TouchableOpacity
-              style={[styles.habeasCard, { backgroundColor: colors.surface, borderColor: aceptaHabeasData ? COLORS.primary : colors.border }]}
-              onPress={() => setAceptaHabeasData(v => !v)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.habeasCheck, aceptaHabeasData && styles.habeasCheckActive]}>
-                {aceptaHabeasData && <Ionicons name="checkmark" size={14} color={COLORS.white} />}
-              </View>
-              <Text style={[styles.habeasText, { color: colors.textSecondary }]}>
-                Acepto el tratamiento de mis datos personales según la Ley 1581 de 2012 (Habeas Data)
-              </Text>
-            </TouchableOpacity>
-            {errors.habeas && <Text style={styles.errorText}>{errors.habeas}</Text>}
           </View>
         );
 
@@ -306,14 +320,15 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             <View style={styles.stepIconWrap}>
               <Ionicons name="location-outline" size={32} color={COLORS.primary} />
             </View>
-            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>¿Dónde trabaja?</Text>
-            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Puede ofrecer servicios en varias regiones</Text>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Ubicación</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>¿Dónde te encuentras?</Text>
 
             <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Departamento *</Text>
             <TouchableOpacity
               style={[styles.pickerButton, { backgroundColor: isDark ? colors.surface : '#F9FAFB', borderColor: colors.border }]}
               onPress={() => setShowDeptPicker(true)}
             >
+              <Ionicons name="map-outline" size={16} color={COLORS.textLight} style={{ marginRight: 8 }} />
               <Text style={[styles.pickerText, { color: departamento ? colors.textPrimary : colors.textMuted }]}>
                 {departamento || 'Seleccione un departamento'}
               </Text>
@@ -327,6 +342,7 @@ export default function RegisterEspecialistaScreen({ navigation }) {
               onPress={() => departamento && setShowMunPicker(true)}
               disabled={!departamento}
             >
+              <Ionicons name="business-outline" size={16} color={COLORS.textLight} style={{ marginRight: 8 }} />
               <Text style={[styles.pickerText, { color: municipio ? colors.textPrimary : colors.textMuted }]}>
                 {municipio || 'Seleccione un municipio'}
               </Text>
@@ -334,9 +350,17 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             </TouchableOpacity>
             {errors.municipio && <Text style={styles.errorText}>{errors.municipio}</Text>}
 
-            <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>¿Dispuesto a desplazarse?{' '}
-              <Text style={{ color: colors.textMuted, fontWeight: '400' }}>(opcional)</Text>
-            </Text>
+            <Input label="Vereda / Sector" value={vereda} onChangeText={setVereda}
+              placeholder="Ej: Vereda La Linda" icon="trail-sign-outline" />
+
+            <View style={styles.mapDecor}>
+              <Ionicons name="map" size={48} color={COLORS.primary} style={{ opacity: 0.15 }} />
+              <Text style={[styles.mapDecorText, { color: colors.textMuted }]}>
+                Tu ubicación nos ayuda a conectarte con fincas y empresas cercanas
+              </Text>
+            </View>
+
+            <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>¿Dispuesto a desplazarse?</Text>
             <View style={styles.chipRow}>
               {RADIO_COBERTURA_OPTIONS.map(opt => (
                 <TouchableOpacity
@@ -356,6 +380,46 @@ export default function RegisterEspecialistaScreen({ navigation }) {
         );
 
       case 3:
+        return (
+          <View>
+            <View style={styles.stepIconWrap}>
+              <Ionicons name="shield-checkmark-outline" size={32} color={COLORS.primary} />
+            </View>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Cédula y Datos Legales</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Necesitamos verificar tu identidad</Text>
+
+            <Input label="Número de cédula" value={cedula} onChangeText={setCedula}
+              placeholder="Ej: 1234567890" keyboardType="numeric" icon="card-outline" required error={errors.cedula} />
+
+            <Text style={[styles.fieldLabel, { color: colors.textPrimary, marginTop: SPACING.md }]}>Consentimientos legales</Text>
+
+            <ConsentRow
+              icon="document-text-outline"
+              title="Habeas Data"
+              subtitle="Autorizo el tratamiento de mis datos personales, según la Ley 1581 de 2012."
+              linkLabel="Leer documento de Habeas Data"
+              linkUrl="https://app.terrampleo.com/privacidad.html"
+              value={aceptaHabeasData}
+              onToggle={setAceptaHabeasData}
+              error={errors.habeas}
+            />
+            {errors.habeas && <Text style={styles.errorText}>{errors.habeas}</Text>}
+
+            <ConsentRow
+              icon="checkmark-circle-outline"
+              title="Términos y Condiciones"
+              subtitle="Acepto los Términos y Condiciones de uso de la plataforma TerraEmpleo."
+              linkLabel="Leer Términos y Condiciones completos"
+              linkUrl="https://app.terrampleo.com/privacidad.html"
+              value={aceptaTerminos}
+              onToggle={setAceptaTerminos}
+              error={errors.terminos}
+            />
+            {errors.terminos && <Text style={styles.errorText}>{errors.terminos}</Text>}
+          </View>
+        );
+
+      case 4:
         return (
           <View>
             <View style={styles.stepIconWrap}>
@@ -399,7 +463,7 @@ export default function RegisterEspecialistaScreen({ navigation }) {
           </View>
         );
 
-      case 4:
+      case 5:
         return (
           <View>
             <View style={styles.stepIconWrap}>
@@ -411,13 +475,13 @@ export default function RegisterEspecialistaScreen({ navigation }) {
               label="Descripción de su servicio"
               value={descripcionServicio}
               onChangeText={setDescripcionServicio}
-              placeholder="Ej: Asesoro fincas cafeteras para mejorar el perfil de taza y alcanzar puntajes de especialidad..."
+              placeholder="Ej: Asesoro fincas cafeteras para mejorar el perfil de taza..."
               multiline
               numberOfLines={4}
               icon="create-outline"
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>¿Con qué cultivos o producciones ha trabajado?</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>¿Con qué cultivos ha trabajado?</Text>
             <ChipSelector
               options={CULTIVOS}
               selected={cultivos}
@@ -460,18 +524,18 @@ export default function RegisterEspecialistaScreen({ navigation }) {
           </View>
         );
 
-      case 5:
+      case 6:
         return (
           <View>
             <View style={styles.stepIconWrap}>
               <Ionicons name="camera-outline" size={32} color={COLORS.primary} />
             </View>
-            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Sus fotos y trabajo</Text>
+            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Fotos y portafolio</Text>
             <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Las fotos generan más confianza con las fincas</Text>
 
-            {/* Selfie — OBLIGATORIA */}
             <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>
-              Selfie{' '}<Text style={{ color: COLORS.error, fontWeight: '700' }}>*</Text>
+              Selfie <Text style={{ color: COLORS.error, fontWeight: '700' }}>*</Text>
+              <Text style={{ color: colors.textMuted, fontWeight: '400' }}> (será tu foto de perfil)</Text>
             </Text>
             <CamaraFoto
               tipo="selfie"
@@ -481,21 +545,19 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             />
             {errors.selfie && <Text style={styles.errorText}>{errors.selfie}</Text>}
 
-            {/* Foto cédula — opcional */}
             <Text style={[styles.fieldLabel, { color: colors.textPrimary, marginTop: SPACING.md }]}>
-              Foto de cédula{' '}<Text style={{ color: colors.textMuted, fontWeight: '400' }}>(recomendada)</Text>
+              Foto de cédula <Text style={{ color: colors.textMuted, fontWeight: '400' }}>(recomendada)</Text>
             </Text>
             <CamaraFoto
               tipo="cedula"
-              label={fotoCedula ? '✓ Foto de cédula guardada' : 'Foto de cédula'}
-              onFotoGuardada={(_tipo, uri) => setFotoCedula(uri)}
+              label={fotoCedulaDoc ? '✓ Foto de cédula guardada' : 'Foto de cédula'}
+              onFotoGuardada={(_tipo, uri) => setFotoCedulaDoc(uri)}
               modoLocal
               permitirGaleria
             />
 
-            {/* Selfie con cédula — OBLIGATORIA */}
             <Text style={[styles.fieldLabel, { color: colors.textPrimary, marginTop: SPACING.md }]}>
-              Selfie sosteniendo la cédula{' '}<Text style={{ color: COLORS.error, fontWeight: '700' }}>*</Text>
+              Selfie sosteniendo la cédula <Text style={{ color: COLORS.error, fontWeight: '700' }}>*</Text>
             </Text>
             <CamaraFoto
               tipo="selfie_cedula"
@@ -505,9 +567,8 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             />
             {errors.selfieCed && <Text style={styles.errorText}>{errors.selfieCed}</Text>}
 
-            {/* Fotos portafolio */}
             <Text style={[styles.fieldLabel, { color: colors.textPrimary, marginTop: SPACING.lg }]}>
-              Fotos de su trabajo{' '}<Text style={{ color: colors.textMuted, fontWeight: '400' }}>(opcional pero recomendado)</Text>
+              Fotos de su trabajo <Text style={{ color: colors.textMuted, fontWeight: '400' }}>(opcional)</Text>
             </Text>
             <View style={styles.portafolioRow}>
               {fotosPortafolio.map((_uri, idx) => (
@@ -522,16 +583,16 @@ export default function RegisterEspecialistaScreen({ navigation }) {
               ))}
             </View>
 
-            <InfoBox variant="info" text="La selfie y la selfie con cédula son obligatorias para verificar su identidad. Las demás fotos son opcionales." />
+            <InfoBox variant="info" text="La selfie y la selfie con cédula son obligatorias. La selfie será tu foto de perfil." />
           </View>
         );
 
-      case 6: {
+      case 7: {
         const resumenEspecialidades = especialidades.slice(0, 3).join(', ') +
           (especialidades.length > 3 ? ` +${especialidades.length - 3}` : '');
         const rows = [
           { label: 'Nombre', value: nombre },
-          { label: 'Ubicación', value: municipio && departamento ? `${municipio}, ${departamento}` : municipio || departamento || '—' },
+          { label: 'Ubicación', value: municipio && departamento ? `${municipio}, ${departamento}` : '—' },
           { label: 'Desplazamiento', value: RADIO_LABELS[radioCobertura] || '—' },
           { label: 'Especialidad', value: resumenEspecialidades || '—' },
           { label: 'Formación', value: NIVEL_LABELS[nivelFormacion] || '—' },
@@ -540,15 +601,30 @@ export default function RegisterEspecialistaScreen({ navigation }) {
         ];
         const docs = [
           fotoSelfie ? '✓ Selfie' : null,
-          fotoCedula ? '✓ Cédula' : null,
+          fotoCedulaDoc ? '✓ Cédula' : null,
           fotoSelfieCedula ? '✓ Selfie+Cédula' : null,
         ].filter(Boolean);
         return (
           <View>
-            <View style={styles.stepIconWrap}>
-              <Ionicons name="checkmark-done-circle-outline" size={32} color={COLORS.primary} />
+            {/* Avatar con selfie */}
+            <View style={styles.avatarWrap}>
+              {fotoSelfie ? (
+                <Image source={{ uri: fotoSelfie }} style={styles.avatarImg} />
+              ) : (
+                <View style={[styles.avatarPlaceholder, { backgroundColor: COLORS.primarySoft }]}>
+                  <Ionicons name="person" size={40} color={COLORS.primary} />
+                </View>
+              )}
+              <View style={styles.avatarBadge}>
+                <Ionicons name="checkmark" size={12} color={COLORS.white} />
+              </View>
             </View>
-            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Resumen de su perfil</Text>
+            <Text style={[styles.avatarName, { color: colors.textPrimary }]}>{nombre}</Text>
+            <Text style={[styles.avatarRole, { color: colors.textSecondary }]}>
+              Especialista · {municipio || '—'}
+            </Text>
+
+            <Text style={[styles.stepTitle, { color: colors.textPrimary, marginTop: SPACING.lg }]}>Resumen de su perfil</Text>
             <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Verifique que todo esté correcto</Text>
 
             <View style={[styles.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -573,10 +649,10 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             </View>
 
             {!fotoSelfie && (
-              <InfoBox variant="warning" text="Falta la selfie (obligatoria). Vuelva al paso 5 para tomarla." />
+              <InfoBox variant="warning" text="Falta la selfie (obligatoria). Vuelva al paso 6 para tomarla." />
             )}
             {!fotoSelfieCedula && (
-              <InfoBox variant="warning" text="Falta la selfie con cédula (obligatoria). Vuelva al paso 5 para tomarla." />
+              <InfoBox variant="warning" text="Falta la selfie con cédula (obligatoria). Vuelva al paso 6 para tomarla." />
             )}
           </View>
         );
@@ -594,7 +670,6 @@ export default function RegisterEspecialistaScreen({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
-        {/* Back button row */}
         <View style={[styles.headerBar, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
           <TouchableOpacity
             onPress={step > 1 ? prevStep : () => navigation.goBack()}
@@ -607,11 +682,7 @@ export default function RegisterEspecialistaScreen({ navigation }) {
           <View style={{ width: 40 }} />
         </View>
 
-        <ProgressBar
-          currentStep={step}
-          totalSteps={TOTAL_STEPS}
-          labels={STEP_LABELS}
-        />
+        <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} labels={STEP_LABELS} />
 
         <ScrollView
           ref={scrollRef}
@@ -646,7 +717,6 @@ export default function RegisterEspecialistaScreen({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Pickers */}
       <PickerModal
         visible={showDeptPicker}
         title="Seleccione departamento"
@@ -678,10 +748,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
   headerTitle: { fontSize: 15, fontWeight: '600', flex: 1, textAlign: 'center' },
-  scrollContent: {
-    padding: SPACING.lg,
-    paddingBottom: SPACING.xl * 2,
-  },
+  scrollContent: { padding: SPACING.lg, paddingBottom: SPACING.xl * 2 },
   stepIconWrap: {
     width: 56, height: 56, borderRadius: 28,
     backgroundColor: COLORS.primarySoft,
@@ -698,9 +765,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   pickerText: { fontSize: 15, flex: 1 },
-  chipRow: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.md,
+  mapDecor: {
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: SPACING.lg, gap: SPACING.sm,
   },
+  mapDecorText: { fontSize: 13, textAlign: 'center', lineHeight: 18 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.md },
   radioChip: {
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs + 2,
     borderRadius: RADIUS.full, borderWidth: 1.5,
@@ -708,6 +778,16 @@ const styles = StyleSheet.create({
   radioChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   radioChipText: { fontSize: 13, fontWeight: '500' },
   radioChipTextActive: { color: COLORS.white, fontWeight: '700' },
+  consentCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm,
+    borderWidth: 1.5, borderRadius: RADIUS.md,
+    padding: SPACING.md, marginBottom: SPACING.sm,
+  },
+  consentIcon: { marginTop: 2 },
+  consentText: { flex: 1 },
+  consentTitle: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  consentSubtitle: { fontSize: 13, lineHeight: 18, marginBottom: 4 },
+  consentLink: { fontSize: 13, color: COLORS.primary, textDecorationLine: 'underline', fontWeight: '600' },
   optionRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderWidth: 1.5, borderRadius: RADIUS.md,
@@ -716,28 +796,23 @@ const styles = StyleSheet.create({
   },
   optionRowActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
   optionText: { fontSize: 15 },
+  portafolioRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md },
   navButtons: { marginTop: SPACING.xl, gap: SPACING.sm },
   backTextBtn: { alignItems: 'center', paddingVertical: SPACING.sm },
   backText: { fontSize: 14 },
-  habeasCard: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
-    borderWidth: 1.5, borderRadius: RADIUS.md,
-    padding: SPACING.md, marginTop: SPACING.md,
-  },
-  habeasCheck: {
-    width: 22, height: 22, borderRadius: 4, borderWidth: 2,
-    borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center',
-  },
-  habeasCheckActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  habeasText: { flex: 1, fontSize: 13, lineHeight: 18 },
-  portafolioRow: {
-    flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md,
-  },
-  portafolioItem: { flex: 1 },
   errorText: { color: COLORS.error, fontSize: 12, marginBottom: SPACING.sm },
-  resumenCard: {
-    borderWidth: 1, borderRadius: RADIUS.lg, overflow: 'hidden', marginTop: SPACING.md,
+  avatarWrap: { alignItems: 'center', marginBottom: SPACING.sm, position: 'relative', alignSelf: 'center' },
+  avatarImg: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: COLORS.primary },
+  avatarPlaceholder: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
+  avatarBadge: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: COLORS.white,
   },
+  avatarName: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  avatarRole: { fontSize: 14, textAlign: 'center', marginBottom: SPACING.md },
+  resumenCard: { borderWidth: 1, borderRadius: RADIUS.lg, overflow: 'hidden', marginTop: SPACING.md },
   resumenRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.md, gap: SPACING.md,
