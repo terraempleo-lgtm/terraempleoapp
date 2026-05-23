@@ -158,6 +158,27 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   }, []);
 
   const cargarVacantes = useCallback(async () => {
+    const isWeb = Platform.OS === 'web';
+
+    if (isWeb) {
+      // En web SQLite no está disponible — llamada directa a la API
+      try {
+        const params = {};
+        if (filterDepto) params.departamento = filterDepto;
+        if (filterCultivo) params.cultivo = filterCultivo;
+        if (filterUrgente) params.urgente = true;
+        const res = await vacantesAPI.listar(params);
+        const lista = Array.isArray(res.data?.vacantes) ? res.data.vacantes : [];
+        setVacantes(lista);
+      } catch (err) {
+        console.warn('Error cargando vacantes (web):', err?.message);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+      return;
+    }
+
     // 1) Stale-while-revalidate: pintamos lo que haya en SQLite primero
     try {
       const cachedLocal = await vacantesRepo.listar({
@@ -198,7 +219,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
         return true;
       });
       setVacantes(filtradas);
-      guardarVacantesCache(filtradas); // mantener compat con cache viejo
+      guardarVacantesCache(filtradas);
 
       const pFresh = await postulacionesRepo.listar();
       setVacantesPostuladas(new Set(pFresh.map(p => Number(p.vacante_id))));
