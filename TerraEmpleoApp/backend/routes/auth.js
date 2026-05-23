@@ -9,6 +9,11 @@ const { storage, storageHojasVida } = require('../config/s3');
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    if (allowed.includes(file.mimetype)) return cb(null, true);
+    return cb(new Error('Solo se permiten imágenes (jpg, png, webp, heic)'));
+  },
 });
 
 const uploadHojaVida = multer({

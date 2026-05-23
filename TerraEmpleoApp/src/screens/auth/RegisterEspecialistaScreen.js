@@ -258,7 +258,14 @@ export default function RegisterEspecialistaScreen({ navigation }) {
             }
             await authAPI.subirFoto(tipo, formData);
           })
-        );
+        ).then((results) => {
+          results.forEach((r, idx) => {
+            if (r.status === 'rejected') {
+              const t = fotos[idx]?.tipo || 'desconocido';
+              console.error(`Error subiendo foto ${t}:`, r.reason?.response?.data || r.reason?.message || r.reason);
+            }
+          });
+        });
       }
     } catch (err) {
       let msg = 'No se pudo completar el registro. Intenta de nuevo.';
