@@ -238,92 +238,114 @@ const MODALIDAD_LABELS_ESP = {
   asesoria_puntual: 'Asesoría puntual',
 };
 
-function EspecialistaCard({ item, onPress, colors }) {
+function EspecialistaCard({ item, onPress, onContactar, loadingId, estadoContacto, colors }) {
   const initials = getInitials(item.nombre_completo);
   const avatarBg = getAvatarColor(item.nombre_completo);
   const ubicacion = [item.municipio, item.departamento].filter(Boolean).join(', ');
-  const visibleEsp = (item.especialidades || []).slice(0, 3);
+  const visibleEsp = (item.especialidades || []).slice(0, 2);
   const hiddenEsp = (item.especialidades || []).length - visibleEsp.length;
   const expLabel = EXPERIENCIA_LABELS_ESP[item.anios_experiencia];
   const modalidadLabel = MODALIDAD_LABELS_ESP[item.modalidad_trabajo];
+  const cal = parseFloat(item.calificacion_promedio || 0);
+  const estado = estadoContacto || null;
+  const isLoading = loadingId === Number(item.id);
 
   return (
     <AnimatedPressable
-      style={[styles.card, { backgroundColor: colors.surface }, styles.espCard]}
+      style={[styles.espCardNew, { backgroundColor: colors.surface }]}
       onPress={() => onPress(item)}
       scaleValue={0.98}
       haptic={false}
     >
-      <View style={styles.cardTop}>
-        <View style={[styles.avatarCircle, { backgroundColor: avatarBg }]}>
+      {/* Header */}
+      <View style={styles.espCardHeader}>
+        <View style={[styles.avatarCircle, { backgroundColor: avatarBg, width: 52, height: 52, borderRadius: 26 }]}>
           {item.foto_selfie ? (
-            <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
+            <Image source={{ uri: item.foto_selfie }} style={[styles.avatar, { width: 52, height: 52, borderRadius: 26 }]} />
           ) : (
             <Text style={styles.avatarInitials}>{initials}</Text>
           )}
         </View>
-        <View style={styles.cardInfo}>
-          <View style={styles.nameRow}>
-            <Text style={[styles.nombre, { color: colors.textPrimary, flex: 1 }]} numberOfLines={1}>
+        <View style={{ flex: 1, marginLeft: SPACING.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={[styles.nombre, { color: colors.textPrimary, flex: 1, fontSize: 15 }]} numberOfLines={1}>
               {item.nombre_completo}
             </Text>
-            {item.verificado && (
-              <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />
-            )}
+            {item.verificado && <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />}
           </View>
           {ubicacion ? (
             <View style={styles.row}>
-              <Ionicons name="location-outline" size={12} color={colors.textMuted} />
-              <Text style={[styles.ubicacion, { color: colors.textMuted }]} numberOfLines={1}>{ubicacion}</Text>
+              <Ionicons name="location-outline" size={11} color={colors.textMuted} />
+              <Text style={[styles.ubicacion, { color: colors.textMuted, fontSize: 12 }]} numberOfLines={1}>{ubicacion}</Text>
             </View>
           ) : null}
-          <View style={[styles.espBadge]}>
-            <Ionicons name="ribbon-outline" size={11} color={COLORS.primary} />
-            <Text style={[styles.espBadgeText]}>Especialista</Text>
+          {/* Estrellas */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}>
+            {[1,2,3,4,5].map(i => (
+              <Ionicons key={i} name={i <= Math.round(cal) ? 'star' : 'star-outline'} size={11} color="#F59E0B" />
+            ))}
+            {cal > 0 && <Text style={{ fontSize: 11, color: colors.textMuted, marginLeft: 2 }}>{cal.toFixed(1)}</Text>}
           </View>
         </View>
       </View>
 
-      <View style={[styles.cardDivider, { backgroundColor: colors.border }]} />
-
-      <View style={styles.cardMeta}>
-        {expLabel ? (
-          <View style={styles.attrItem}>
-            <Ionicons name="briefcase-outline" size={12} color={colors.textMuted} />
-            <Text style={[styles.attrText, { color: colors.textSecondary }]}>{expLabel}</Text>
-          </View>
-        ) : null}
-        {expLabel && modalidadLabel ? (
-          <View style={[styles.attrDivider, { backgroundColor: colors.border }]} />
-        ) : null}
-        {modalidadLabel ? (
-          <View style={styles.attrItem}>
-            <Ionicons name="calendar-outline" size={12} color={colors.textMuted} />
-            <Text style={[styles.attrText, { color: colors.textSecondary }]}>{modalidadLabel}</Text>
-          </View>
-        ) : null}
+      {/* Badge + atributos */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm }}>
+        <View style={styles.espBadge}>
+          <Ionicons name="ribbon-outline" size={11} color={COLORS.primary} />
+          <Text style={styles.espBadgeText}>Especialista</Text>
+        </View>
+        {expLabel && <Text style={[styles.attrText, { color: colors.textMuted, fontSize: 12 }]}>{expLabel}</Text>}
+        {modalidadLabel && <Text style={[styles.attrText, { color: colors.textMuted, fontSize: 12 }]}>· {modalidadLabel}</Text>}
       </View>
 
+      {/* Descripción */}
+      {item.descripcion_servicio ? (
+        <Text style={[styles.espDesc, { color: colors.textSecondary }]} numberOfLines={2}>
+          {item.descripcion_servicio}
+        </Text>
+      ) : null}
+
+      {/* Especialidades chips */}
       {visibleEsp.length > 0 && (
-        <View style={styles.skillsRow}>
+        <View style={[styles.skillsRow, { marginTop: SPACING.sm }]}>
           {visibleEsp.map((e) => (
             <View key={e} style={[styles.skillPill, { backgroundColor: COLORS.primarySoft }]}>
               <Text style={[styles.skillText, { color: COLORS.primary }]}>{e}</Text>
             </View>
           ))}
           {hiddenEsp > 0 && (
-            <View style={styles.skillPill}>
-              <Text style={styles.skillText}>+{hiddenEsp}</Text>
+            <View style={[styles.skillPill, { backgroundColor: colors.border }]}>
+              <Text style={[styles.skillText, { color: colors.textMuted }]}>+{hiddenEsp}</Text>
             </View>
           )}
         </View>
       )}
 
-      <View style={styles.cardActions}>
-        <AnimatedPressable style={styles.btnContactar} onPress={() => onPress(item)} scaleValue={0.96} haptic>
-          <Ionicons name="chatbubble-ellipses-outline" size={14} color={COLORS.white} />
-          <Text style={styles.btnContactarText}>Contactar</Text>
-        </AnimatedPressable>
+      {/* Acciones */}
+      <View style={[styles.cardActions, { marginTop: SPACING.sm }]}>
+        {estado === 'aceptada' ? (
+          <AnimatedPressable style={[styles.btnContactar, { backgroundColor: COLORS.success, flex: 1 }]} onPress={() => onContactar(item)} scaleValue={0.96} haptic>
+            <Ionicons name="chatbubble-ellipses-outline" size={14} color={COLORS.white} />
+            <Text style={styles.btnContactarText}>Ir al chat</Text>
+          </AnimatedPressable>
+        ) : estado === 'contacto_solicitado' ? (
+          <View style={[styles.btnContactar, { backgroundColor: '#F59E0B', flex: 1, opacity: 0.9 }]}>
+            <Ionicons name="time-outline" size={14} color={COLORS.white} />
+            <Text style={styles.btnContactarText}>En espera</Text>
+          </View>
+        ) : (
+          <AnimatedPressable
+            style={[styles.btnContactar, { flex: 1 }, isLoading && { opacity: 0.7 }]}
+            onPress={() => onContactar(item)}
+            scaleValue={0.96}
+            haptic
+            disabled={isLoading}
+          >
+            <Ionicons name="chatbubble-ellipses-outline" size={14} color={COLORS.white} />
+            <Text style={styles.btnContactarText}>{isLoading ? 'Enviando...' : 'Contactar'}</Text>
+          </AnimatedPressable>
+        )}
         <AnimatedPressable style={styles.btnPerfil} onPress={() => onPress(item)} scaleValue={0.96} haptic>
           <Text style={styles.btnPerfilText}>Ver perfil</Text>
           <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
@@ -407,6 +429,36 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
       t.cultivos?.some((c) => c.toLowerCase().includes(q))
     );
   }, [trabajadores, search]);
+
+  const solicitarContactoEspecialista = async (item) => {
+    try {
+      setEnviandoContactoId(Number(item.id));
+      const res = await especialistasAPI.contactar(item.id, { vacante_id: vacanteContacto?.id });
+      const estado = res?.data?.estado;
+      const chatId = Number(res?.data?.chat_id || 0);
+
+      if (estado === 'aceptada' && chatId) {
+        setContactosEstado(prev => ({ ...prev, [`esp_${item.id}`]: 'aceptada' }));
+        Alert.alert('Listo', 'Este especialista ya aceptó contacto. Te llevamos al chat.');
+        navigation.navigate('Mensajes', {
+          screen: 'ChatDetalle',
+          params: { chat: { id: chatId, otro_nombre: item.nombre_completo, otro_foto: item.foto_selfie } },
+        });
+        return;
+      }
+      if (estado === 'contacto_solicitado') {
+        setContactosEstado(prev => ({ ...prev, [`esp_${item.id}`]: 'contacto_solicitado' }));
+        Alert.alert('En espera', `${item.nombre_completo} debe aceptar para habilitar el chat.`);
+        return;
+      }
+      setContactosEstado(prev => ({ ...prev, [`esp_${item.id}`]: 'contacto_solicitado' }));
+      Alert.alert('Listo', `Se envió solicitud de contacto a ${item.nombre_completo}.`);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud de contacto');
+    } finally {
+      setEnviandoContactoId(null);
+    }
+  };
 
   const irPerfil = (item) => {
     navigation.navigate('PerfilPublicoTrabajador', {
@@ -579,6 +631,9 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
                 item={esp}
                 colors={colors}
                 onPress={(item) => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.id, rol: 'especialista' })}
+                onContactar={solicitarContactoEspecialista}
+                loadingId={enviandoContactoId}
+                estadoContacto={contactosEstado[`esp_${esp.id}`] || null}
               />
             ))}
           </ScrollView>
@@ -901,4 +956,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginTop: 4,
   },
   espBadgeText: { fontSize: 11, color: COLORS.primary, fontWeight: '700' },
+
+  espCardNew: {
+    width: 300,
+    borderRadius: 18,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: '#EFF1ED',
+    ...SHADOWS.card,
+  },
+  espCardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
+  espDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: SPACING.sm,
+  },
+  cardActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+
+  skillPill: {
+    paddingHorizontal: 10,
+    height: 26,
+    borderRadius: RADIUS.full,
+    justifyContent: 'center',
+  },
 });
