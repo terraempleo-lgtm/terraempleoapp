@@ -125,18 +125,18 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: err.message || 'Error interno del servidor' });
 });
 
-// Auto-cierre de vacantes expiradas
+// Reactivar vacantes que fueron cerradas automáticamente por fecha
 const { query: dbQuery } = require('./config/database');
-async function cerrarVacantesExpiradas() {
+async function reactivarVacantes() {
   try {
     const result = await dbQuery(
-      "UPDATE vacantes SET estado = 'cerrada' WHERE fecha_fin IS NOT NULL AND fecha_fin < CURDATE() AND estado = 'activa'"
+      "UPDATE vacantes SET estado = 'activa' WHERE estado = 'cerrada' AND eliminado = 0"
     );
     if (result.affectedRows > 0) {
-      console.log(`[AUTO-CLOSE] ${result.affectedRows} vacante(s) cerrada(s) por fecha de finalización.`);
+      console.log(`[REACTIVAR] ${result.affectedRows} vacante(s) reactivada(s).`);
     }
   } catch (err) {
-    console.error('[AUTO-CLOSE] Error cerrando vacantes expiradas:', err.message);
+    console.error('[REACTIVAR] Error reactivando vacantes:', err.message);
   }
 }
 
@@ -169,9 +169,8 @@ async function startServer() {
     console.error('[INIT] El servidor arrancará sin garantías de schema. Verifica la conexión a la BD.');
   }
 
-  // Cerrar vacantes expiradas al iniciar y cada hora
-  cerrarVacantesExpiradas();
-  setInterval(cerrarVacantesExpiradas, 60 * 60 * 1000);
+  // Reactivar vacantes cerradas automáticamente
+  await reactivarVacantes();
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🌿 TerraEmpleo API corriendo en http://localhost:${PORT}`);
