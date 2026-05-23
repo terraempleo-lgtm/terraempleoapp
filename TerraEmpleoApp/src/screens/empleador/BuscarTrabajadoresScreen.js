@@ -578,7 +578,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
                 key={esp.id}
                 item={esp}
                 colors={colors}
-                onPress={(item) => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.id })}
+                onPress={(item) => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: item.id, rol: 'especialista' })}
               />
             ))}
           </ScrollView>

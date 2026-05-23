@@ -329,10 +329,11 @@ export default function PerfilScreen({ navigation }) {
 
   const handleLogout = () => { signOut(); };
 
+  const esEspecialista = u?.rol === 'especialista';
   const calificacion = parseFloat(u?.calificacion_promedio || 0);
   const totalCalif = u?.total_calificaciones || 0;
   const habilidades = (perfil?.habilidades || []).map(h => h.habilidad);
-  const cultivos = (perfil?.cultivos || []).map(c => c.cultivo);
+  const cultivos = (perfil?.cultivos || []).map(c => c.cultivo || c);
   const especialidades = [...habilidades, ...cultivos];
 
   const abrirDocumento = async (url) => {
@@ -348,6 +349,139 @@ export default function PerfilScreen({ navigation }) {
       showAlert('Error', 'No se pudo abrir el documento.');
     }
   };
+
+  /* ══════════ ESPECIALISTA ══════════ */
+  if (esEspecialista) {
+    const espEspecialidades = (perfil?.especialidades || []).map(e => e.especialidad || e);
+    const espCultivos = (perfil?.cultivos || []).map(c => c.cultivo || c);
+    const NIVEL_LABELS = { empirico: 'Empírico / experiencia', tecnico_tecnologo: 'Técnico / Tecnólogo', profesional: 'Profesional' };
+    const MODAL_LABELS = { por_proyecto: 'Por proyecto', por_dias: 'Por días', mensual: 'Mensual', asesoria_puntual: 'Asesoría puntual' };
+    const RADIO_LABELS = { municipio: 'Solo mi municipio', departamento: 'Mi departamento', eje_cafetero: 'Eje Cafetero', nacional: 'Todo Colombia' };
+    const EXP_LABELS = { menos_1: 'Menos de 1 año', '1_3': '1 a 3 años', '3_5': '3 a 5 años', '5_10': '5 a 10 años', mas_10: 'Más de 10 años' };
+    const ubicEsp = [u?.municipio, u?.departamento].filter(Boolean).join(', ');
+
+    return (
+      <SafeAreaView style={[s.root, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+        <DecorativeBackground intensity="strong" />
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+          <View style={s.topBar}>
+            <View style={{ width: 40 }} />
+            <Text style={[s.topBarTitle, { color: colors.textPrimary }]}>Mi Perfil</Text>
+            <AnimatedPressable style={s.shareBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.9} haptic>
+              <Ionicons name="settings-outline" size={20} color={colors.textPrimary} />
+            </AnimatedPressable>
+          </View>
+
+          {/* Avatar */}
+          <View style={s.profileCenter}>
+            <View style={s.avatarWrap}>
+              {u?.foto_selfie?.startsWith('http') ? (
+                <Image source={{ uri: u.foto_selfie }} style={s.avatar} />
+              ) : (
+                <View style={[s.avatarFallbackLg, { backgroundColor: COLORS.primarySoft }]}>
+                  <Ionicons name="person" size={40} color={COLORS.primary} />
+                </View>
+              )}
+            </View>
+            <Text style={[s.profileName, { color: colors.textPrimary }]}>{u?.nombre_completo || 'Especialista'}</Text>
+            <Text style={[s.profileRole, { color: colors.textSecondary }]}>Especialista · {ubicEsp || '—'}</Text>
+            {u?.validacion_identidad_estado === 'aprobada' && (
+              <View style={[s.verBadge, { backgroundColor: COLORS.primarySoft }]}>
+                <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />
+                <Text style={[s.verBadgeTxt, { color: COLORS.primary }]}>Identidad verificada</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Especialidades */}
+          {espEspecialidades.length > 0 && (
+            <View style={[s.section, { backgroundColor: colors.surface }]}>
+              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Especialidades</Text>
+              <View style={s.chipsRow}>
+                {espEspecialidades.map((e, i) => (
+                  <View key={i} style={[s.chip, { backgroundColor: COLORS.primarySoft }]}>
+                    <Text style={[s.chipTxt, { color: COLORS.primary }]}>{e}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Sobre mí */}
+          {perfil?.descripcion_servicio ? (
+            <View style={[s.section, { backgroundColor: colors.surface }]}>
+              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Descripción del servicio</Text>
+              <Text style={[s.bioText, { color: colors.textSecondary }]}>{perfil.descripcion_servicio}</Text>
+            </View>
+          ) : null}
+
+          {/* Info */}
+          <View style={[s.section, { backgroundColor: colors.surface }]}>
+            <Text style={[s.secTitle, { color: colors.textPrimary }]}>Información profesional</Text>
+            {[
+              { icon: 'school-outline', label: 'Formación', value: NIVEL_LABELS[perfil?.nivel_formacion] },
+              { icon: 'time-outline', label: 'Experiencia', value: EXP_LABELS[perfil?.anios_experiencia] },
+              { icon: 'calendar-outline', label: 'Modalidad', value: MODAL_LABELS[perfil?.modalidad_trabajo] },
+              { icon: 'navigate-outline', label: 'Cobertura', value: RADIO_LABELS[perfil?.radio_cobertura] },
+              { icon: 'ribbon-outline', label: 'Certificación', value: perfil?.titulo_certificacion },
+            ].filter(r => r.value).map((r, i) => (
+              <View key={i} style={[s.infoRow, { borderBottomColor: colors.border }]}>
+                <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}>
+                  <Ionicons name={r.icon} size={17} color={COLORS.primary} />
+                </View>
+                <View style={s.infoRowText}>
+                  <Text style={[s.infoLabel, { color: colors.textMuted }]}>{r.label}</Text>
+                  <Text style={[s.infoValue, { color: colors.textPrimary }]}>{r.value}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {/* Cultivos */}
+          {espCultivos.length > 0 && (
+            <View style={[s.section, { backgroundColor: colors.surface }]}>
+              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Cultivos y producciones</Text>
+              <View style={s.chipsRow}>
+                {espCultivos.map((c, i) => (
+                  <View key={i} style={[s.chip, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
+                    <Text style={[s.chipTxt, { color: colors.textSecondary }]}>{c}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Documentación */}
+          <View style={[s.section, { backgroundColor: colors.surface }]}>
+            <Text style={[s.secTitle, { color: colors.textPrimary }]}>Documentación Verificada</Text>
+            {[
+              { label: 'Cédula de Ciudadanía', ok: !!u?.cedula, icon: 'card-outline' },
+              { label: 'Identidad verificada', ok: u?.validacion_identidad_estado === 'aprobada', icon: 'shield-checkmark-outline' },
+            ].map((d, i) => (
+              <View key={i} style={[s.docRow, { borderBottomColor: colors.border }]}>
+                <Ionicons name={d.icon} size={18} color={d.ok ? COLORS.primary : colors.textMuted} />
+                <Text style={[s.docLabel, { color: colors.textPrimary }]}>{d.label}</Text>
+                <Ionicons name={d.ok ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={d.ok ? COLORS.primary : colors.textMuted} />
+              </View>
+            ))}
+          </View>
+
+          {/* Acciones */}
+          <View style={[s.section, { backgroundColor: colors.surface }]}>
+            <TouchableOpacity style={[s.editBtn, { borderColor: COLORS.primary }]}
+              onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}>
+              <Ionicons name="create-outline" size={18} color={COLORS.primary} />
+              <Text style={[s.editBtnTxt, { color: COLORS.primary }]}>Editar Perfil</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.logoutBtn, { borderColor: COLORS.error }]} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={18} color={COLORS.error} />
+              <Text style={[s.logoutBtnTxt, { color: COLORS.error }]}>Cerrar sesión</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   /* ══════════ EMPLEADOR ══════════ */
   if (esEmpleador) {
@@ -1136,4 +1270,24 @@ const s = StyleSheet.create({
   empStatVal: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
   empStatLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.8 },
   empStatDiv: { width: 1, backgroundColor: COLORS.borderLight },
+
+  // ── Especialista styles ──
+  avatarFallbackLg: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
+  profileName: { fontSize: 22, fontWeight: '800', marginTop: SPACING.sm, textAlign: 'center' },
+  profileRole: { fontSize: 14, marginTop: 2, textAlign: 'center' },
+  verBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.md, paddingVertical: 4, borderRadius: RADIUS.full, marginTop: SPACING.sm },
+  verBadgeTxt: { fontSize: 12, fontWeight: '600' },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  chip: { paddingHorizontal: SPACING.sm + 2, paddingVertical: 4, borderRadius: RADIUS.full },
+  chipTxt: { fontSize: 13, fontWeight: '600' },
+  bioText: { fontSize: 14, lineHeight: 22 },
+  infoRowText: { flex: 1 },
+  infoLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 2 },
+  infoValue: { fontSize: 14, fontWeight: '600' },
+  docRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingVertical: SPACING.md, borderBottomWidth: 1 },
+  docLabel: { flex: 1, fontSize: 14 },
+  editBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, borderWidth: 1.5, borderRadius: RADIUS.lg, paddingVertical: SPACING.md, marginBottom: SPACING.sm },
+  editBtnTxt: { fontSize: 15, fontWeight: '700' },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, borderWidth: 1.5, borderRadius: RADIUS.lg, paddingVertical: SPACING.md },
+  logoutBtnTxt: { fontSize: 15, fontWeight: '700' },
 });

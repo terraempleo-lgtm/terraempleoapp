@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
-import { trabajadoresAPI, chatsAPI, vacantesAPI } from '../../services/api';
+import { trabajadoresAPI, chatsAPI, vacantesAPI, especialistasAPI } from '../../services/api';
 import { showAlert } from '../../utils/alertService';
 
 const LABELS_EXPERIENCIA = {
@@ -54,9 +54,10 @@ const sh = StyleSheet.create({
 });
 
 export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
-  const { trabajador_id, vacante_id, postulacion_estado } = route.params;
+  const { trabajador_id, vacante_id, postulacion_estado, rol: rolParam } = route.params;
   const [perfil, setPerfil] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const esEspecialista = rolParam === 'especialista';
   const [enviandoSolicitud, setEnviandoSolicitud] = useState(false);
   const [estadoActual, setEstadoActual] = useState(postulacion_estado || null);
   const insets = useSafeAreaInsets();
@@ -69,8 +70,14 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
 
   const cargarPerfil = async () => {
     try {
-      const res = await trabajadoresAPI.perfilPublico(trabajador_id);
-      setPerfil(res.data.trabajador);
+      if (esEspecialista) {
+        const res = await especialistasAPI.perfil(trabajador_id);
+        const d = res.data.especialista || res.data;
+        setPerfil({ ...d, _esEspecialista: true });
+      } else {
+        const res = await trabajadoresAPI.perfilPublico(trabajador_id);
+        setPerfil(res.data.trabajador);
+      }
     } catch { showAlert('Error', 'No se pudo cargar el perfil'); }
     finally { setCargando(false); }
   };
@@ -175,8 +182,8 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const disponibilidad = LABELS_DISPONIBILIDAD[perfil.disponibilidad] || perfil.disponibilidad;
   const experiencia = LABELS_EXPERIENCIA[perfil.anios_experiencia] || perfil.anios_experiencia;
   const estudios = LABELS_ESTUDIOS[perfil.nivel_estudios] || perfil.nivel_estudios;
-  const cultivos = (perfil.cultivos || []).map(c => c.cultivo);
-  const habilidades = (perfil.habilidades || []).map(h => h.habilidad);
+  const cultivos = (perfil.cultivos || []).map(c => c.cultivo || c);
+  const habilidades = (perfil.habilidades || []).map(h => h.habilidad || h);
   const ubicacion = [perfil.municipio, perfil.departamento].filter(Boolean).join(', ');
   const isPendiente = estadoActual === 'pendiente' || estadoActual === 'match_auto';
   const isSolicitudContacto = estadoActual === 'contacto_solicitado';
@@ -189,6 +196,111 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     .toUpperCase();
 
   const hasFooter = isPendiente || estadoActual === 'aceptada' || !estadoActual || isSolicitudContacto;
+
+  // ── Render especialista público ──
+  if (perfil._esEspecialista) {
+    const espEspecialidades = perfil.especialidades || [];
+    const espCultivos = perfil.cultivos || [];
+    const espFotos = perfil.fotos_trabajo || [];
+    const NIVEL_LABELS = { empirico: 'Empírico / experiencia', tecnico_tecnologo: 'Técnico / Tecnólogo', profesional: 'Profesional' };
+    const MODAL_LABELS = { por_proyecto: 'Por proyecto', por_dias: 'Por días', mensual: 'Mensual', asesoria_puntual: 'Asesoría puntual' };
+    const RADIO_LABELS = { municipio: 'Solo mi municipio', departamento: 'Mi departamento', eje_cafetero: 'Eje Cafetero', nacional: 'Todo Colombia' };
+    const EXP_LABELS = { menos_1: 'Menos de 1 año', '1_3': '1 a 3 años', '3_5': '3 a 5 años', '5_10': '5 a 10 años', mas_10: 'Más de 10 años' };
+    const initEsp = (perfil.nombre_completo || 'E').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    return (
+      <View style={[s.root, { backgroundColor: colors.background }]}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+          <View style={[s.topBar, { paddingTop: insets.top + SPACING.sm, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+            <AnimatedPressable style={[s.iconBtn, { backgroundColor: colors.surface }]} onPress={() => navigation.goBack()}>
+              <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
+            </AnimatedPressable>
+            <Text style={[s.topBarTitle, { color: colors.textPrimary }]}>Perfil Especialista</Text>
+            <View style={s.iconBtn} />
+          </View>
+          <View style={[s.hero, { backgroundColor: colors.surface }]}>
+            <View style={s.avatarWrap}>
+              {perfil.foto_selfie?.startsWith('http') ? (
+                <Image source={{ uri: perfil.foto_selfie }} style={[s.avatar, { borderColor: colors.primary }]} />
+              ) : (
+                <View style={[s.avatarFallback, { borderColor: colors.primary, backgroundColor: colors.primary + '1A' }]}>
+                  <Text style={[s.initials, { color: colors.primary }]}>{initEsp}</Text>
+                </View>
+              )}
+              {perfil.verificado && (
+                <View style={[s.verifiedBadge, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                </View>
+              )}
+            </View>
+            <Text style={[s.nombre, { color: colors.textPrimary }]}>{perfil.nombre_completo}</Text>
+            <Text style={[s.role, { color: colors.textMuted }]}>Especialista · {ubicacion || '—'}</Text>
+            {perfil.verificado && (
+              <View style={[s.verTag, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="shield-checkmark" size={13} color={colors.primary} />
+                <Text style={[s.verTagTxt, { color: colors.primary }]}>Identidad verificada</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Especialidades */}
+          {espEspecialidades.length > 0 && (
+            <View style={[s.section, { backgroundColor: colors.surface }]}>
+              <SectionHeader icon="ribbon-outline" title="Especialidades" colors={colors} />
+              <View style={s.chips}>
+                {espEspecialidades.map((e, i) => (
+                  <View key={i} style={[s.chip, { backgroundColor: colors.primary + '15' }]}>
+                    <Text style={[s.chipTxt, { color: colors.primary }]}>{e}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Sobre el especialista */}
+          <View style={[s.section, { backgroundColor: colors.surface }]}>
+            <SectionHeader icon="briefcase-outline" title="Sobre el especialista" colors={colors} />
+            {perfil.descripcion_servicio ? (
+              <Text style={[s.bioText, { color: colors.textSecondary }]}>{perfil.descripcion_servicio}</Text>
+            ) : null}
+            <View style={s.infoGrid}>
+              {perfil.nivel_formacion && <View style={[s.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}><Ionicons name="school-outline" size={13} color={colors.primary} /><Text style={[s.infoChipTxt, { color: colors.textSecondary }]}>{NIVEL_LABELS[perfil.nivel_formacion] || perfil.nivel_formacion}</Text></View>}
+              {perfil.anios_experiencia && <View style={[s.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}><Ionicons name="time-outline" size={13} color={colors.primary} /><Text style={[s.infoChipTxt, { color: colors.textSecondary }]}>{EXP_LABELS[perfil.anios_experiencia] || perfil.anios_experiencia}</Text></View>}
+              {perfil.modalidad_trabajo && <View style={[s.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}><Ionicons name="calendar-outline" size={13} color={colors.primary} /><Text style={[s.infoChipTxt, { color: colors.textSecondary }]}>{MODAL_LABELS[perfil.modalidad_trabajo] || perfil.modalidad_trabajo}</Text></View>}
+              {perfil.radio_cobertura && <View style={[s.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}><Ionicons name="navigate-outline" size={13} color={colors.primary} /><Text style={[s.infoChipTxt, { color: colors.textSecondary }]}>{RADIO_LABELS[perfil.radio_cobertura] || perfil.radio_cobertura}</Text></View>}
+            </View>
+          </View>
+
+          {/* Cultivos */}
+          {espCultivos.length > 0 && (
+            <View style={[s.section, { backgroundColor: colors.surface }]}>
+              <SectionHeader icon="leaf-outline" title="Cultivos y producciones" colors={colors} />
+              <View style={s.chips}>
+                {espCultivos.map((c, i) => (
+                  <View key={i} style={[s.chip, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+                    <Text style={[s.chipTxt, { color: colors.textSecondary }]}>{c}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Fotos de trabajo */}
+          {espFotos.length > 0 && (
+            <View style={[s.section, { backgroundColor: colors.surface }]}>
+              <SectionHeader icon="images-outline" title="Fotos de trabajo" colors={colors} />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                  {espFotos.map((url, i) => (
+                    <Image key={i} source={{ uri: url }} style={{ width: 120, height: 90, borderRadius: RADIUS.md }} />
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
@@ -624,4 +736,11 @@ const s = StyleSheet.create({
     borderRadius: RADIUS.lg, paddingHorizontal: SPACING.md, paddingVertical: 12, borderWidth: 1,
   },
   infoPillTxt: { flex: 1, fontSize: 13, fontWeight: '600' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  chip: { paddingHorizontal: SPACING.sm + 2, paddingVertical: 4, borderRadius: RADIUS.full },
+  chipTxt: { fontSize: 13, fontWeight: '600' },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.sm },
+  infoChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.sm, paddingVertical: 6, borderRadius: RADIUS.full, borderWidth: 1 },
+  infoChipTxt: { fontSize: 12, fontWeight: '600' },
+  bioText: { fontSize: 14, lineHeight: 22 },
 });

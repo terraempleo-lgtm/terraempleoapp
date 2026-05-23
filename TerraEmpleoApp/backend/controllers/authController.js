@@ -416,6 +416,13 @@ async function getPerfil(req, res) {
         perfil.cultivos = await query('SELECT * FROM empleador_cultivos WHERE perfil_empleador_id = ?', [perfil.id]);
         perfil.labores = await query('SELECT * FROM empleador_labores WHERE perfil_empleador_id = ?', [perfil.id]);
       }
+    } else if (user.rol === 'especialista') {
+      const perfiles = await query('SELECT * FROM perfil_especialista WHERE usuario_id = ?', [userId]);
+      if (perfiles.length > 0) {
+        perfil = perfiles[0];
+        perfil.especialidades = await query('SELECT especialidad FROM especialista_especialidades WHERE perfil_especialista_id = ?', [perfil.id]);
+        perfil.cultivos = await query('SELECT cultivo FROM especialista_cultivos WHERE perfil_especialista_id = ?', [perfil.id]);
+      }
     }
 
     // Firmar URLs de S3
