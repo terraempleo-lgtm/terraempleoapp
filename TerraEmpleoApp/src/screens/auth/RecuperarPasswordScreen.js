@@ -8,15 +8,24 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input } from '../../components/ui';
 import { authAPI, cognitoAPI } from '../../services/api';
-import { showAlert } from '../../utils/alertService';
+import { showAlert as _showAlert } from '../../utils/alertService';
 import { useAppTheme } from '../../context/ThemeContext';
+
+// Fallback garantizado: usa alertService si está montado, Alert.alert si no
+function showAlert(title, message = '', buttons = [{ text: 'OK' }]) {
+  try { _showAlert(title, message, buttons); } catch (_) {}
+  // En web el alertService puede no estar montado — usamos window.alert como último recurso
+  if (Platform.OS === 'web' && !buttons.some(b => b.onPress)) {
+    setTimeout(() => window.alert(`${title}\n\n${message}`), 50);
+  }
+}
 
 
 export default function RecuperarPasswordScreen({ navigation, route }) {
@@ -225,11 +234,17 @@ export default function RecuperarPasswordScreen({ navigation, route }) {
       } else {
         await authAPI.actualizarPasswordRecuperacion(celularFinal, resetToken, nuevaPassword);
       }
-      showAlert('Éxito', 'Contraseña actualizada correctamente', [
-        { text: 'Ir a iniciar sesión', onPress: () => navigation.navigate('Login') },
-      ]);
+      if (Platform.OS === 'web') {
+        window.alert('Contraseña actualizada correctamente');
+        navigation.navigate('Login');
+      } else {
+        Alert.alert('Éxito', 'Contraseña actualizada correctamente', [
+          { text: 'Ir a iniciar sesión', onPress: () => navigation.navigate('Login') },
+        ]);
+      }
     } catch (err) {
-      showAlert('Error', err.response?.data?.error || 'No se pudo actualizar la contraseña');
+      const msg = err.response?.data?.error || 'No se pudo actualizar la contraseña';
+      if (Platform.OS === 'web') { window.alert(`Error: ${msg}`); } else { Alert.alert('Error', msg); }
     } finally {
       setLoading(false);
     }
