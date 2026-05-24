@@ -36,7 +36,7 @@ router.delete('/:id/fotos/:fotoId', authMiddleware, empleadorMiddleware, vacante
 router.get('/:id/ejecutar-matching', authMiddleware, empleadorMiddleware, vacantesController.ejecutarMatchingEndpoint);
 
 // Rutas de trabajador
-router.get('/recomendadas', authMiddleware, trabajadorMiddleware, vacantesController.vacantesRecomendadas);
+router.get('/recomendadas', authMiddleware, vacantesController.vacantesRecomendadas);
 router.put('/postulaciones/:id/responder-contacto', authMiddleware, trabajadorMiddleware, vacantesController.responderSolicitudContacto);
 router.get('/', authMiddleware, vacantesController.listarVacantes);
 router.get('/:id', authMiddleware, vacantesController.detalleVacante);

@@ -932,31 +932,37 @@ async function perfilPublicoTrabajador(req, res) {
   }
 }
 
-// Vacantes recomendadas para un trabajador según su perfil
+// Vacantes recomendadas para un trabajador o especialista según su perfil
 async function vacantesRecomendadas(req, res) {
   try {
     const trabajadorId = req.user.id;
+    const rol = req.user.rol;
 
-    // Perfil del trabajador
-    const perfiles = await query(
-      'SELECT id FROM perfil_trabajador WHERE usuario_id = ?',
-      [trabajadorId]
-    );
-    if (!perfiles || perfiles.length === 0) {
-      return res.json({ vacantes: [] });
+    // Obtener cultivos y habilidades según el rol
+    let cultivosTrabajador = [];
+    let habilidadesTrabajador = [];
+
+    if (rol === 'especialista') {
+      const perfiles = await query('SELECT id FROM perfil_especialista WHERE usuario_id = ?', [trabajadorId]);
+      if (perfiles && perfiles.length > 0) {
+        const perfilId = perfiles[0].id;
+        const esp = await query('SELECT cultivo FROM especialista_cultivos WHERE perfil_especialista_id = ?', [perfilId]);
+        const especialidades = await query('SELECT especialidad FROM especialista_especialidades WHERE perfil_especialista_id = ?', [perfilId]);
+        cultivosTrabajador = esp.map(c => c.cultivo.toLowerCase());
+        habilidadesTrabajador = especialidades.map(e => e.especialidad.toLowerCase());
+      }
+    } else {
+      // trabajador (y cualquier otro rol)
+      const perfiles = await query('SELECT id FROM perfil_trabajador WHERE usuario_id = ?', [trabajadorId]);
+      if (!perfiles || perfiles.length === 0) {
+        return res.json({ vacantes: [] });
+      }
+      const perfilId = perfiles[0].id;
+      const tCultivos = await query('SELECT cultivo FROM trabajador_cultivos WHERE perfil_trabajador_id = ?', [perfilId]);
+      const tHabilidades = await query('SELECT habilidad FROM trabajador_habilidades WHERE perfil_trabajador_id = ?', [perfilId]);
+      cultivosTrabajador = tCultivos.map((c) => c.cultivo.toLowerCase());
+      habilidadesTrabajador = tHabilidades.map((h) => h.habilidad.toLowerCase());
     }
-    const perfilId = perfiles[0].id;
-
-    const tCultivos = await query(
-      'SELECT cultivo FROM trabajador_cultivos WHERE perfil_trabajador_id = ?',
-      [perfilId]
-    );
-    const tHabilidades = await query(
-      'SELECT habilidad FROM trabajador_habilidades WHERE perfil_trabajador_id = ?',
-      [perfilId]
-    );
-    const cultivosTrabajador = tCultivos.map((c) => c.cultivo.toLowerCase());
-    const habilidadesTrabajador = tHabilidades.map((h) => h.habilidad.toLowerCase());
 
     // Ubicación del trabajador
     const users = await query(
@@ -1025,7 +1031,9 @@ async function vacantesRecomendadas(req, res) {
         }
       }
 
-      if (puntaje < 10) continue; // Solo mostrar si hay al menos algo de match
+      // Si el trabajador no tiene etiquetas configuradas, mostrar todas las vacantes activas
+      const sinEtiquetas = cultivosTrabajador.length === 0 && habilidadesTrabajador.length === 0;
+      if (!sinEtiquetas && puntaje < 5) continue;
 
       // Normalizar campos
       v.total_postulaciones = Number(v.total_postulaciones || 0);
