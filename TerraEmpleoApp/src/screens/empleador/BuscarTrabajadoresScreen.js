@@ -367,6 +367,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
   const [orden, setOrden] = useState('match');
   const [disponibilidad, setDisponibilidad] = useState('');
   const [search, setSearch] = useState('');
+  const [empleadorTieneUbicacion, setEmpleadorTieneUbicacion] = useState(true);
 
   const cargar = useCallback(async (ord = orden, disp = disponibilidad) => {
     try {
@@ -376,11 +377,14 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
         trabajadoresAPI.listar(params),
         especialistasAPI.listar({ limit: 10 }),
       ]);
-      const lista = resTrab.status === 'fulfilled' ? (resTrab.value.data?.trabajadores || []) : [];
+      const data = resTrab.status === 'fulfilled' ? resTrab.value.data : {};
+      const lista = data?.trabajadores || [];
       const listaEsp = resEsp.status === 'fulfilled' ? (resEsp.value.data?.especialistas || []) : [];
       setTrabajadores(lista);
       setEspecialistas(listaEsp);
-      // Inicializar estados de contacto desde el servidor
+      if (typeof data?.empleador_tiene_ubicacion === 'boolean') {
+        setEmpleadorTieneUbicacion(data.empleador_tiene_ubicacion);
+      }
       const estadosIniciales = {};
       lista.forEach(t => { if (t.estado_contacto) estadosIniciales[t.id] = t.estado_contacto; });
       setContactosEstado(estadosIniciales);
@@ -544,6 +548,26 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
           <Text style={[styles.subtitleMuted, { color: colors.textMuted }]}>Talento cerca de ti</Text>
         </View>
       </View>
+
+      {/* Banner: sin ubicación + filtro cercanos */}
+      {orden === 'cercanos' && !empleadorTieneUbicacion && (
+        <TouchableOpacity
+          style={[styles.noVacanteBanner, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+          onPress={() => navigation.navigate('Perfil')}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.noVacanteIcon, { backgroundColor: '#DBEAFE' }]}>
+            <Ionicons name="location-outline" size={22} color="#1E40AF" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.noVacanteTitulo, { color: '#1E3A8A' }]}>Agrega tu ubicación</Text>
+            <Text style={[styles.noVacanteTexto, { color: '#1E40AF' }]}>
+              Configura tu departamento en tu perfil para ver trabajadores cercanos.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#1E40AF" />
+        </TouchableOpacity>
+      )}
 
       {/* Banner: sin vacante activa */}
       {!vacanteContacto && (

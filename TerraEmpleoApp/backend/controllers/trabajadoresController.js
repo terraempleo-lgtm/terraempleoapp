@@ -301,11 +301,24 @@ async function listarTrabajadores(req, res) {
     // Ordenar
     if (orden === 'cercanos') {
       const prioridadProx = { mismo_municipio: 0, mismo_departamento: 1, lejano: 2 };
-      filtrados.sort(
-        (a, b) =>
-          prioridadProx[a.proximidad] - prioridadProx[b.proximidad] ||
-          b.puntaje_match - a.puntaje_match
-      );
+      filtrados.sort((a, b) => {
+        const proxDiff = prioridadProx[a.proximidad] - prioridadProx[b.proximidad];
+        if (proxDiff !== 0) return proxDiff;
+        // Dentro del mismo grupo de proximidad: calificación primero, luego match
+        const calDiff = b.calificacion_promedio - a.calificacion_promedio;
+        if (Math.abs(calDiff) > 0.1) return calDiff;
+        // Si ambos son lejano y sin calificación, ordenar por departamento/municipio
+        // para que trabajadores de la misma región queden juntos visualmente
+        if (a.proximidad === 'lejano' && b.proximidad === 'lejano') {
+          const deptA = (a.departamento || '').toLowerCase();
+          const deptB = (b.departamento || '').toLowerCase();
+          if (deptA !== deptB) return deptA.localeCompare(deptB);
+          const munA = (a.municipio || '').toLowerCase();
+          const munB = (b.municipio || '').toLowerCase();
+          if (munA !== munB) return munA.localeCompare(munB);
+        }
+        return b.puntaje_match - a.puntaje_match;
+      });
     } else {
       // Por defecto: mejor match primero
       filtrados.sort(
@@ -315,7 +328,9 @@ async function listarTrabajadores(req, res) {
       );
     }
 
-    res.json({ trabajadores: filtrados });
+    // Indicar si el empleador tiene ubicación configurada (útil para el frontend)
+    const empleadorTieneUbicacion = !!(empDept);
+    res.json({ trabajadores: filtrados, empleador_tiene_ubicacion: empleadorTieneUbicacion });
   } catch (err) {
     console.error('Error listando trabajadores:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
