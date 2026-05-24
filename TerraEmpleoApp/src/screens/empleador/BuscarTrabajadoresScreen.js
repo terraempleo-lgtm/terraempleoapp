@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { AnimatedPressable } from '../../components/animated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { AnimatedPressable, StaggeredItem } from '../../components/animated';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
 import { trabajadoresAPI, vacantesAPI, especialistasAPI } from '../../services/api';
@@ -100,7 +101,7 @@ function MatchPill({ matchNum }) {
   );
 }
 
-function TrabajadorCard({ item, onPress, onContact, onChat, loadingContacto, estadoContacto, colors, isDark }) {
+function TrabajadorCard({ item, onPress, onContact, onChat, loadingContacto, estadoContacto, colors, isDark, index }) {
   const proxConfig = PROXIMIDAD_CONFIG[item.proximidad] || PROXIMIDAD_CONFIG.lejano;
   const dispLabel = DISPONIBILIDAD_LABELS[item.disponibilidad];
   const expLabel = EXPERIENCIA_LABELS[item.anios_experiencia];
@@ -108,116 +109,245 @@ function TrabajadorCard({ item, onPress, onContact, onChat, loadingContacto, est
   const matchNum = Number(item.puntaje_match || 0);
   const initials = getInitials(item.nombre_completo);
   const avatarBg = getAvatarColor(item.nombre_completo);
+  const cal = parseFloat(item.calificacion_promedio || 0);
 
-  const allSkills = [...(item.cultivos || []), ...(item.habilidades || [])];
-  const visibleSkills = allSkills.slice(0, 3);
+  const cultivos = item.cultivos || [];
+  const habilidades = item.habilidades || [];
+  const allSkills = [...cultivos, ...habilidades];
+  const visibleSkills = allSkills.slice(0, 4);
   const hiddenCount = allSkills.length - visibleSkills.length;
 
-  return (
-    <AnimatedPressable
-      style={[styles.card, { backgroundColor: colors.surface }]}
-      onPress={() => onPress(item)}
-      scaleValue={0.98}
-      haptic={false}
-    >
-      {/* Card header: avatar + info */}
-      <View style={styles.cardTop}>
-        <View style={[styles.avatarCircle, { backgroundColor: avatarBg }]}>
-          {item.foto_selfie ? (
-            <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
-          ) : (
-            <Text style={styles.avatarInitials}>{initials}</Text>
-          )}
-        </View>
+  const matchColor = matchNum >= 80 ? '#16A34A' : matchNum >= 60 ? '#2563EB' : '#6B7280';
+  const matchBg = matchNum >= 80 ? '#DCFCE7' : matchNum >= 60 ? '#DBEAFE' : '#F3F4F6';
 
-        <View style={styles.cardInfo}>
-          <View style={styles.nameRow}>
-            <Text style={[styles.nombre, { color: colors.textPrimary, flex: 1 }]} numberOfLines={1}>
-              {item.nombre_completo}
-            </Text>
-            <StarRating value={item.calificacion_promedio || 0} />
-          </View>
-          {ubicacion ? (
-            <View style={styles.row}>
-              <Ionicons name="location-outline" size={12} color={colors.textMuted} />
-              <Text style={[styles.ubicacion, { color: colors.textMuted }]} numberOfLines={1}>{ubicacion}</Text>
-              {proxConfig.label ? (
-                <View style={[styles.regionPill, { backgroundColor: proxConfig.color + '15' }]}>
-                  <Text style={[styles.regionPillText, { color: proxConfig.color }]}>{proxConfig.label}</Text>
+  return (
+    <StaggeredItem index={index ?? 0}>
+      <AnimatedPressable
+        style={[styles.card, { backgroundColor: colors.surface }]}
+        onPress={() => onPress(item)}
+        scaleValue={0.985}
+        haptic={false}
+      >
+        {/* Top accent strip */}
+        <LinearGradient
+          colors={matchNum >= 70 ? ['#2E7D32', '#43A047'] : ['#546E7A', '#78909C']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={styles.cardAccentStrip}
+        />
+
+        <View style={styles.cardInner}>
+          {/* Header: avatar + info + match badge */}
+          <View style={styles.cardTop}>
+            {/* Avatar with ring */}
+            <View style={[styles.avatarRing, { borderColor: matchNum >= 70 ? COLORS.primary : '#CBD5E1' }]}>
+              <View style={[styles.avatarCircle, { backgroundColor: avatarBg }]}>
+                {item.foto_selfie ? (
+                  <Image source={{ uri: item.foto_selfie }} style={styles.avatar} />
+                ) : (
+                  <Text style={styles.avatarInitials}>{initials}</Text>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.cardInfo}>
+              <View style={styles.nameRow}>
+                <Text style={[styles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>
+                  {item.nombre_completo}
+                </Text>
+              </View>
+
+              {/* Stars */}
+              {cal > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                  <StarRating value={cal} />
+                  <Text style={{ fontSize: 11, color: colors.textMuted, fontWeight: '600' }}>{cal.toFixed(1)}</Text>
+                </View>
+              )}
+
+              {ubicacion ? (
+                <View style={[styles.row, { marginTop: 3 }]}>
+                  <Ionicons name="location-outline" size={11} color={colors.textMuted} />
+                  <Text style={[styles.ubicacion, { color: colors.textMuted }]} numberOfLines={1}>{ubicacion}</Text>
+                  {proxConfig.label ? (
+                    <View style={[styles.regionPill, { backgroundColor: proxConfig.color + '18' }]}>
+                      <Text style={[styles.regionPillText, { color: proxConfig.color }]}>{proxConfig.label}</Text>
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
             </View>
-          ) : null}
-          <MatchPill matchNum={matchNum} />
-        </View>
-      </View>
 
-      {/* Divider */}
-      <View style={[styles.cardDivider, { backgroundColor: colors.border }]} />
-
-      {/* Attr row */}
-      <View style={styles.cardMeta}>
-        {dispLabel ? (
-          <View style={styles.attrItem}>
-            <Ionicons name="time-outline" size={12} color={colors.textMuted} />
-            <Text style={[styles.attrText, { color: colors.textSecondary }]}>{dispLabel}</Text>
+            {/* Match badge */}
+            {matchNum > 0 && (
+              <View style={[styles.matchBadge, { backgroundColor: matchBg }]}>
+                <Ionicons name="flash" size={12} color={matchColor} />
+                <Text style={[styles.matchBadgeNum, { color: matchColor }]}>{matchNum}%</Text>
+                <Text style={[styles.matchBadgeLabel, { color: matchColor }]}>match</Text>
+              </View>
+            )}
           </View>
-        ) : null}
-        {dispLabel && expLabel ? (
-          <View style={[styles.attrDivider, { backgroundColor: colors.border }]} />
-        ) : null}
-        {expLabel ? (
-          <View style={styles.attrItem}>
-            <Ionicons name="briefcase-outline" size={12} color={colors.textMuted} />
-            <Text style={[styles.attrText, { color: colors.textSecondary }]}>{expLabel}</Text>
-          </View>
-        ) : null}
-      </View>
 
-      {/* Skills */}
-      {visibleSkills.length > 0 && (
-        <View style={styles.skillsRow}>
-          {visibleSkills.map((s, i) => (
-            <View key={i} style={[styles.skillChip, { backgroundColor: isDark ? colors.border : '#F2F4F0', borderColor: isDark ? colors.border : '#E8EAE6' }]}>
-              <Text style={[styles.skillText, { color: colors.textSecondary }]} numberOfLines={1}>{s}</Text>
-            </View>
-          ))}
-          {hiddenCount > 0 && (
-            <View style={[styles.skillChip, { backgroundColor: '#1A1A1A', borderColor: 'transparent' }]}>
-              <Text style={[styles.skillText, { color: COLORS.white, fontWeight: '700' }]}>+{hiddenCount}</Text>
+          {/* Stats row */}
+          <View style={[styles.statsRow, { borderColor: colors.borderLight }]}>
+            {dispLabel ? (
+              <View style={styles.statItem}>
+                <Ionicons name="time-outline" size={13} color={COLORS.primary} />
+                <Text style={[styles.statText, { color: colors.textSecondary }]}>{dispLabel}</Text>
+              </View>
+            ) : null}
+            {dispLabel && expLabel ? <View style={[styles.statDiv, { backgroundColor: colors.border }]} /> : null}
+            {expLabel ? (
+              <View style={styles.statItem}>
+                <Ionicons name="briefcase-outline" size={13} color={COLORS.primary} />
+                <Text style={[styles.statText, { color: colors.textSecondary }]}>{expLabel}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Skills chips */}
+          {visibleSkills.length > 0 && (
+            <View style={styles.skillsRow}>
+              {cultivos.slice(0, 2).map((s, i) => (
+                <View key={`c${i}`} style={[styles.skillChip, { backgroundColor: '#DCFCE7', borderColor: '#BBF7D0' }]}>
+                  <Ionicons name="leaf-outline" size={10} color="#16A34A" />
+                  <Text style={[styles.skillText, { color: '#15803D' }]} numberOfLines={1}>{s}</Text>
+                </View>
+              ))}
+              {habilidades.slice(0, 2).map((s, i) => (
+                <View key={`h${i}`} style={[styles.skillChip, { backgroundColor: isDark ? colors.border : '#F1F5F9', borderColor: isDark ? colors.border : '#E2E8F0' }]}>
+                  <Ionicons name="hammer-outline" size={10} color={colors.textMuted} />
+                  <Text style={[styles.skillText, { color: colors.textSecondary }]} numberOfLines={1}>{s}</Text>
+                </View>
+              ))}
+              {hiddenCount > 0 && (
+                <View style={[styles.skillChip, { backgroundColor: COLORS.primary, borderColor: 'transparent' }]}>
+                  <Text style={[styles.skillText, { color: COLORS.white, fontWeight: '700' }]}>+{hiddenCount}</Text>
+                </View>
+              )}
             </View>
           )}
-        </View>
-      )}
 
-      {/* CTA */}
-      <View style={styles.cardFooter}>
+          {/* CTA row */}
+          <View style={styles.cardFooter}>
+            {estadoContacto === 'aceptada' ? (
+              <AnimatedPressable style={[styles.btnContactar, { backgroundColor: '#16A34A' }]} onPress={() => onChat(item)} scaleValue={0.96} haptic>
+                <Ionicons name="chatbubble-ellipses" size={14} color={COLORS.white} />
+                <Text style={styles.btnContactarText}>Ir al chat</Text>
+              </AnimatedPressable>
+            ) : estadoContacto === 'contacto_solicitado' ? (
+              <View style={[styles.btnContactar, { backgroundColor: '#F59E0B' }]}>
+                <Ionicons name="hourglass-outline" size={14} color={COLORS.white} />
+                <Text style={styles.btnContactarText}>En espera</Text>
+              </View>
+            ) : (
+              <AnimatedPressable
+                style={[styles.btnContactar, loadingContacto && { opacity: 0.6 }]}
+                onPress={() => onContact(item)}
+                disabled={loadingContacto}
+                scaleValue={0.96}
+                haptic
+              >
+                <Ionicons name={loadingContacto ? 'hourglass-outline' : 'paper-plane-outline'} size={14} color={COLORS.white} />
+                <Text style={styles.btnContactarText}>{loadingContacto ? 'Enviando...' : 'Contactar'}</Text>
+              </AnimatedPressable>
+            )}
+            <AnimatedPressable style={[styles.btnPerfil, { borderColor: COLORS.primary }]} onPress={() => onPress(item)} scaleValue={0.96} haptic>
+              <Ionicons name="person-circle-outline" size={15} color={COLORS.primary} />
+              <Text style={styles.btnPerfilText}>Ver perfil</Text>
+            </AnimatedPressable>
+          </View>
+        </View>
+      </AnimatedPressable>
+    </StaggeredItem>
+  );
+}
+
+/* ── Top Match Card (horizontal scroll) ── */
+function TopMatchCard({ item, onPress, onContact, onChat, loadingContacto, estadoContacto, colors, isDark }) {
+  const initials = getInitials(item.nombre_completo);
+  const avatarBg = getAvatarColor(item.nombre_completo);
+  const matchNum = Number(item.puntaje_match || 0);
+  const expLabel = EXPERIENCIA_LABELS[item.anios_experiencia];
+  const cal = parseFloat(item.calificacion_promedio || 0);
+  const allSkills = [...(item.cultivos || []), ...(item.habilidades || [])].slice(0, 2);
+
+  return (
+    <AnimatedPressable
+      style={[styles.topCard, { backgroundColor: colors.surface }]}
+      onPress={() => onPress(item)}
+      scaleValue={0.97}
+      haptic={false}
+    >
+      <LinearGradient
+        colors={['#1b5e20', '#2e7d32']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={styles.topCardBanner}
+      >
+        {matchNum > 0 && (
+          <View style={styles.topMatchBadge}>
+            <Ionicons name="flash" size={11} color="#fff" />
+            <Text style={styles.topMatchBadgeText}>{matchNum}% match</Text>
+          </View>
+        )}
+      </LinearGradient>
+
+      <View style={styles.topCardAvatarWrap}>
+        <View style={[styles.topAvatarCircle, { backgroundColor: avatarBg }]}>
+          {item.foto_selfie ? (
+            <Image source={{ uri: item.foto_selfie }} style={styles.topAvatar} />
+          ) : (
+            <Text style={styles.topAvatarInitials}>{initials}</Text>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.topCardBody}>
+        <Text style={[styles.topNombre, { color: colors.textPrimary }]} numberOfLines={1}>
+          {item.nombre_completo}
+        </Text>
+        {cal > 0 && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, justifyContent: 'center', marginTop: 2 }}>
+            <StarRating value={cal} />
+            <Text style={{ fontSize: 10, color: colors.textMuted }}>{cal.toFixed(1)}</Text>
+          </View>
+        )}
+        {expLabel && (
+          <View style={styles.topAttr}>
+            <Ionicons name="briefcase-outline" size={11} color={colors.textMuted} />
+            <Text style={[styles.topAttrText, { color: colors.textMuted }]}>{expLabel}</Text>
+          </View>
+        )}
+        {allSkills.length > 0 && (
+          <View style={styles.topSkills}>
+            {allSkills.map((s, i) => (
+              <View key={i} style={[styles.topSkillChip, { backgroundColor: COLORS.primarySoft }]}>
+                <Text style={[styles.skillText, { color: COLORS.primary, fontSize: 11 }]} numberOfLines={1}>{s}</Text>
+              </View>
+            ))}
+          </View>
+        )}
         {estadoContacto === 'aceptada' ? (
-          <AnimatedPressable style={[styles.btnContactar, { backgroundColor: COLORS.success }]} onPress={() => onChat(item)} scaleValue={0.96} haptic>
-            <Ionicons name="chatbubble-ellipses" size={14} color={COLORS.white} />
-            <Text style={styles.btnContactarText}>Ir al chat</Text>
+          <AnimatedPressable style={[styles.topBtn, { backgroundColor: '#16A34A' }]} onPress={() => onChat(item)} scaleValue={0.96} haptic>
+            <Ionicons name="chatbubble-ellipses" size={13} color="#fff" />
+            <Text style={styles.topBtnText}>Chat</Text>
           </AnimatedPressable>
         ) : estadoContacto === 'contacto_solicitado' ? (
-          <View style={[styles.btnContactar, { backgroundColor: '#F59E0B' }]}>
-            <Ionicons name="hourglass-outline" size={14} color={COLORS.white} />
-            <Text style={styles.btnContactarText}>En espera</Text>
+          <View style={[styles.topBtn, { backgroundColor: '#F59E0B' }]}>
+            <Ionicons name="hourglass-outline" size={13} color="#fff" />
+            <Text style={styles.topBtnText}>En espera</Text>
           </View>
         ) : (
           <AnimatedPressable
-            style={[styles.btnContactar, loadingContacto && { opacity: 0.7 }]}
+            style={[styles.topBtn, { backgroundColor: COLORS.primary }, loadingContacto && { opacity: 0.6 }]}
             onPress={() => onContact(item)}
             disabled={loadingContacto}
             scaleValue={0.96}
             haptic
           >
-            <Ionicons name={loadingContacto ? 'hourglass-outline' : 'chatbubble-ellipses-outline'} size={14} color={COLORS.white} />
-            <Text style={styles.btnContactarText}>{loadingContacto ? 'Enviando...' : 'Contactar'}</Text>
+            <Ionicons name="paper-plane-outline" size={13} color="#fff" />
+            <Text style={styles.topBtnText}>{loadingContacto ? '...' : 'Contactar'}</Text>
           </AnimatedPressable>
         )}
-        <AnimatedPressable style={styles.btnPerfil} onPress={() => onPress(item)} scaleValue={0.96} haptic>
-          <Text style={styles.btnPerfilText}>Ver perfil</Text>
-          <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
-        </AnimatedPressable>
       </View>
     </AnimatedPressable>
   );
@@ -531,7 +661,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
   };
 
   const ListHeader = (
-    <View>
+    <View key="header">
       {/* Title row */}
       <View style={styles.titleRow}>
         <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Trabajadores</Text>
@@ -630,6 +760,44 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
         </AnimatedPressable>
       </View>
 
+      {/* Top candidatos — horizontal scroll */}
+      {filtrados.filter(t => Number(t.puntaje_match || 0) >= 50).length > 0 && (
+        <View style={styles.topSection}>
+          <View style={styles.topSectionHeader}>
+            <View style={[styles.topSectionBadge, { backgroundColor: COLORS.primarySoft }]}>
+              <Ionicons name="flash" size={12} color={COLORS.primary} />
+              <Text style={[styles.topSectionBadgeText, { color: COLORS.primary }]}>Top candidatos</Text>
+            </View>
+            <Text style={[styles.topSectionSub, { color: colors.textMuted }]}>Mejor match con tu perfil</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topScroll}>
+            {filtrados
+              .filter(t => Number(t.puntaje_match || 0) >= 50)
+              .slice(0, 6)
+              .map((t) => (
+                <TopMatchCard
+                  key={t.id}
+                  item={t}
+                  colors={colors}
+                  isDark={isDark}
+                  onPress={irPerfil}
+                  onContact={solicitarContacto}
+                  onChat={irAlChat}
+                  loadingContacto={Number(enviandoContactoId) === Number(t.id)}
+                  estadoContacto={contactosEstado[t.id] || null}
+                />
+              ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Separador sección lista completa */}
+      <View style={styles.listSectionHeader}>
+        <View style={[styles.listSectionLine, { backgroundColor: colors.borderLight }]} />
+        <Text style={[styles.listSectionLabel, { color: colors.textMuted }]}>Todos los trabajadores</Text>
+        <View style={[styles.listSectionLine, { backgroundColor: colors.borderLight }]} />
+      </View>
+
       {/* Especialistas destacados */}
       {especialistas.length > 0 && (
         <View style={styles.espSection}>
@@ -713,9 +881,10 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
       <FlatList
         data={filtrados}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <TrabajadorCard
             item={item}
+            index={index}
             onPress={irPerfil}
             onContact={solicitarContacto}
             onChat={irAlChat}
@@ -851,104 +1020,153 @@ const styles = StyleSheet.create({
   /* List */
   list: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.lg },
 
-  /* Card */
+  /* ── Card rediseñada ── */
   card: {
-    borderRadius: 18,
-    marginBottom: SPACING.sm,
-    padding: SPACING.md,
+    borderRadius: 20,
+    marginBottom: SPACING.sm + 2,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#EFF1ED',
+    borderColor: '#E8EDE8',
     ...SHADOWS.card,
   },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cardAccentStrip: { height: 5 },
+  cardInner: { padding: SPACING.md },
+
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  avatarRing: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    borderWidth: 2.5,
+    padding: 2,
+    flexShrink: 0,
+  },
   avatarCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    flexShrink: 0,
   },
-  avatar: { width: 52, height: 52, borderRadius: 26 },
-  avatarInitials: { fontSize: 18, fontWeight: '700', color: COLORS.white },
+  avatar: { width: 58, height: 58, borderRadius: 29 },
+  avatarInitials: { fontSize: 20, fontWeight: '800', color: COLORS.white },
 
-  matchPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: RADIUS.full,
-    marginTop: 4,
-  },
-  matchPillText: { fontSize: 12, fontWeight: '700' },
-
-  cardInfo: { flex: 1, gap: 2 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  nombre: { fontSize: 15, fontWeight: '700', lineHeight: 20, letterSpacing: -0.2 },
+  cardInfo: { flex: 1, paddingTop: 2 },
+  nameRow: { flexDirection: 'row', alignItems: 'center' },
+  nombre: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3, flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
   ubicacion: { fontSize: 12 },
 
-  regionPill: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: RADIUS.full,
+  regionPill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: RADIUS.full },
+  regionPillText: { fontSize: 10, fontWeight: '700' },
+
+  matchBadge: {
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 1,
+    minWidth: 54,
   },
-  regionPillText: { fontSize: 10.5, fontWeight: '700' },
+  matchBadgeNum: { fontSize: 15, fontWeight: '900', lineHeight: 18 },
+  matchBadgeLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
 
-  cardDivider: { height: 1, marginVertical: 10 },
-
-  cardMeta: {
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
   },
-  attrItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  attrDivider: { width: 1, height: 12 },
-  attrText: { fontSize: 12.5, fontWeight: '500' },
+  statItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  statDiv: { width: 1, height: 14 },
+  statText: { fontSize: 12.5, fontWeight: '600' },
 
-  skillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 10,
+  matchPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: RADIUS.full, marginTop: 4,
   },
+  matchPillText: { fontSize: 12, fontWeight: '700' },
+
+  skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   skillChip: {
-    paddingHorizontal: 10,
-    height: 26,
-    borderRadius: RADIUS.full,
-    justifyContent: 'center',
-    borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, height: 27, borderRadius: RADIUS.full,
+    justifyContent: 'center', borderWidth: 1,
   },
   skillText: { fontSize: 12, fontWeight: '600' },
 
-  cardFooter: { marginTop: 12, flexDirection: 'row', gap: 8, alignItems: 'center' },
+  cardFooter: { marginTop: 14, flexDirection: 'row', gap: 8, alignItems: 'center' },
   btnContactar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 10,
-    borderRadius: RADIUS.full,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, backgroundColor: COLORS.primary, paddingVertical: 11, borderRadius: RADIUS.full,
   },
   btnContactarText: { fontSize: 13.5, fontWeight: '700', color: COLORS.white },
   btnPerfil: {
-    flex: 1.4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: 'transparent',
-    paddingVertical: 10,
-    borderRadius: RADIUS.full,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, backgroundColor: 'transparent', paddingVertical: 11,
+    borderRadius: RADIUS.full, borderWidth: 1.5,
   },
   btnPerfilText: { fontSize: 13.5, fontWeight: '700', color: COLORS.primary },
+
+  /* ── Top candidatos section ── */
+  topSection: { marginTop: SPACING.sm, marginBottom: SPACING.sm },
+  topSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: SPACING.md, marginBottom: 10 },
+  topSectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full },
+  topSectionBadgeText: { fontSize: 12, fontWeight: '700' },
+  topSectionSub: { fontSize: 12 },
+  topScroll: { paddingHorizontal: SPACING.md, gap: SPACING.sm, paddingBottom: 4 },
+
+  topCard: {
+    width: 165,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E8EDE8',
+    ...SHADOWS.card,
+  },
+  topCardBanner: { height: 56, position: 'relative' },
+  topMatchBadge: {
+    position: 'absolute', top: 8, right: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: RADIUS.full,
+    paddingHorizontal: 7, paddingVertical: 3,
+  },
+  topMatchBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  topCardAvatarWrap: { alignItems: 'center', marginTop: -26 },
+  topAvatarCircle: {
+    width: 52, height: 52, borderRadius: 26,
+    borderWidth: 3, borderColor: '#fff',
+    overflow: 'hidden', justifyContent: 'center', alignItems: 'center',
+  },
+  topAvatar: { width: 52, height: 52, borderRadius: 26 },
+  topAvatarInitials: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  topCardBody: { padding: 10, paddingTop: 6, alignItems: 'center' },
+  topNombre: { fontSize: 13, fontWeight: '800', textAlign: 'center', marginTop: 4 },
+  topAttr: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
+  topAttrText: { fontSize: 11 },
+  topSkills: { flexDirection: 'row', gap: 4, flexWrap: 'wrap', justifyContent: 'center', marginTop: 6 },
+  topSkillChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: RADIUS.full },
+  topBtn: {
+    width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, paddingVertical: 9, borderRadius: RADIUS.full, marginTop: 8,
+  },
+  topBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+
+  /* ── List section header ── */
+  listSectionHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: SPACING.md, marginBottom: 10, marginTop: 4,
+  },
+  listSectionLine: { flex: 1, height: 1 },
+  listSectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+
+  attrItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  attrDivider: { width: 1, height: 12 },
+  attrText: { fontSize: 12.5, fontWeight: '500' },
 
   empty: {
     alignItems: 'center',
