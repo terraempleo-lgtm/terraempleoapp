@@ -818,7 +818,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
             <View style={talentStyles.sectionHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={[talentStyles.sectionTitle, { color: colors.textPrimary }]}>Descubre talento</Text>
-                <Text style={[talentStyles.sectionSub, { color: colors.textMuted }]}>Trabajadores y especialistas disponibles</Text>
+                <Text style={[talentStyles.sectionSub, { color: colors.textMuted }]}>Conecta con quienes hacen crecer tu campo</Text>
               </View>
               <AnimatedPressable
                 style={[talentStyles.verTodosBtn, { borderColor: COLORS.primary }]}
@@ -827,6 +827,24 @@ export default function EmpleadorVacantesScreen({ navigation }) {
               >
                 <Text style={[talentStyles.verTodosText, { color: COLORS.primary }]}>Ver todos</Text>
               </AnimatedPressable>
+            </View>
+
+            {/* Tarjetas de explicación */}
+            <View style={talentStyles.infoRow}>
+              <View style={[talentStyles.infoCard, { backgroundColor: '#FDEAE5', borderColor: '#F5C4B5' }]}>
+                <View style={talentStyles.infoCardIcon}>
+                  <Ionicons name="ribbon" size={16} color="#C0694A" />
+                </View>
+                <Text style={[talentStyles.infoCardTitle, { color: '#8B3A2A' }]}>Especialistas</Text>
+                <Text style={[talentStyles.infoCardDesc, { color: '#A0522D' }]}>Expertos que ofrecen servicios en fincas: café de especialidad, agroindustria, suelos, certificaciones y más.</Text>
+              </View>
+              <View style={[talentStyles.infoCard, { backgroundColor: COLORS.primarySoft, borderColor: '#B8DFBC' }]}>
+                <View style={talentStyles.infoCardIcon}>
+                  <Ionicons name="people" size={16} color={COLORS.primary} />
+                </View>
+                <Text style={[talentStyles.infoCardTitle, { color: '#1B5E20' }]}>Trabajadores</Text>
+                <Text style={[talentStyles.infoCardDesc, { color: '#2E7D32' }]}>Ingenieros, tecnólogos, técnicos y recolectores disponibles para trabajar en tu finca.</Text>
+              </View>
             </View>
 
             {/* Especialistas — scroll horizontal */}
@@ -1702,4 +1720,9 @@ const talentStyles = StyleSheet.create({
   espBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full },
   espBadgeText: { fontSize: 12, fontWeight: '700' },
   hScroll: { paddingHorizontal: SPACING.md, gap: SPACING.sm, paddingBottom: 4 },
+  infoRow: { flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.md, marginBottom: SPACING.md },
+  infoCard: { flex: 1, borderRadius: RADIUS.lg, borderWidth: 1, padding: SPACING.sm },
+  infoCardIcon: { marginBottom: 4 },
+  infoCardTitle: { fontSize: 13, fontWeight: '800', marginBottom: 3 },
+  infoCardDesc: { fontSize: 11, lineHeight: 15 },
 });
