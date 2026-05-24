@@ -13,6 +13,8 @@ import { DEPARTAMENTOS, getMunicipios } from '../../data/colombia';
 import {
   CULTIVOS, LABORES, NIVELES_ESTUDIO, TITULOS_SUGERIDOS,
   EXPERIENCIA_OPTIONS, DISPONIBILIDAD_OPTIONS, TIPO_PAGO_OPTIONS,
+  ESPECIALIDADES_OPTIONS, NIVEL_FORMACION_OPTIONS, MODALIDAD_ESPECIALISTA_OPTIONS,
+  RADIO_COBERTURA_OPTIONS, EXPERIENCIA_ESPECIALISTA_OPTIONS,
 } from '../../data/options';
 import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -52,6 +54,22 @@ export default function EditarPerfilScreen({ navigation, route }) {
   const [hojaVidaUrl, setHojaVidaUrl] = useState(initPerfil?.hoja_vida_url || '');
   const [hojaVidaNombre, setHojaVidaNombre] = useState(initPerfil?.hoja_vida_nombre || '');
   const [subiendoHojaVida, setSubiendoHojaVida] = useState(false);
+
+  // Campos especialista
+  const [descripcionServicio, setDescripcionServicio] = useState(initPerfil?.descripcion_servicio || '');
+  const [nivelFormacion, setNivelFormacion] = useState(initPerfil?.nivel_formacion || '');
+  const [tituloCertificacion, setTituloCertificacion] = useState(initPerfil?.titulo_certificacion || '');
+  const [experienciaEsp, setExperienciaEsp] = useState(initPerfil?.anios_experiencia || '');
+  const [modalidadTrabajo, setModalidadTrabajo] = useState(initPerfil?.modalidad_trabajo || '');
+  const [radioCobertura, setRadioCobertura] = useState(initPerfil?.radio_cobertura || '');
+  const [especialidades, setEspecialidades] = useState(
+    initPerfil?.especialidades?.map(e => e.especialidad || e) || []
+  );
+  const [cultivosEsp, setCultivosEsp] = useState(
+    initPerfil?.cultivos?.map(c => c.cultivo || c) || []
+  );
+  const [hojaVidaUrlEsp, setHojaVidaUrlEsp] = useState(initPerfil?.hoja_vida_url || '');
+  const [hojaVidaNombreEsp, setHojaVidaNombreEsp] = useState(initPerfil?.hoja_vida_nombre || '');
 
   // Campos empleador
   const [nombreEmpresa, setNombreEmpresa] = useState(initPerfil?.nombre_empresa_finca || '');
@@ -129,6 +147,14 @@ export default function EditarPerfilScreen({ navigation, route }) {
     if (Array.isArray(d.habilidades)) setHabilidades(d.habilidades);
     if (Array.isArray(d.cultivos)) setCultivos(d.cultivos);
     if (d.acercaDeTrabajador) setAcercaDeTrabajador(d.acercaDeTrabajador);
+    if (d.descripcionServicio) setDescripcionServicio(d.descripcionServicio);
+    if (d.nivelFormacion) setNivelFormacion(d.nivelFormacion);
+    if (d.tituloCertificacion) setTituloCertificacion(d.tituloCertificacion);
+    if (d.experienciaEsp) setExperienciaEsp(d.experienciaEsp);
+    if (d.modalidadTrabajo) setModalidadTrabajo(d.modalidadTrabajo);
+    if (d.radioCobertura) setRadioCobertura(d.radioCobertura);
+    if (Array.isArray(d.especialidades)) setEspecialidades(d.especialidades);
+    if (Array.isArray(d.cultivosEsp)) setCultivosEsp(d.cultivosEsp);
     if (d.nombreEmpresa) setNombreEmpresa(d.nombreEmpresa);
     if (d.tipoPago) setTipoPago(d.tipoPago);
     if (typeof d.ofreceAlojamiento === 'boolean') setOfreceAlojamiento(d.ofreceAlojamiento);
@@ -144,6 +170,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
     data: {
       nombre, departamento, municipio, vereda,
       nivelEstudios, tituloEstudio, experiencia, disponibilidad, habilidades, cultivos, acercaDeTrabajador,
+      descripcionServicio, nivelFormacion, tituloCertificacion, experienciaEsp, modalidadTrabajo, radioCobertura, especialidades, cultivosEsp,
       nombreEmpresa, tipoPago, ofreceAlojamiento, ofreceAlimentacion, beneficiosExtra, acercaDeEmpleador,
       cultivosEmp, labores,
     },
@@ -400,6 +427,21 @@ export default function EditarPerfilScreen({ navigation, route }) {
           habilidades: habilidades.map(h => ({ nombre: h, es_personalizada: !LABORES.includes(h) })),
           cultivos_trabajador: cultivos.map(c => ({ nombre: c, es_personalizado: !CULTIVOS.includes(c) })),
         };
+      } else if (rol === 'especialista') {
+        body = {
+          nombre_completo: nombre,
+          departamento: departamento || null,
+          municipio: municipio || null,
+          vereda: vereda || null,
+          descripcion_servicio: descripcionServicio.trim() || null,
+          nivel_formacion: nivelFormacion || null,
+          titulo_certificacion: tituloCertificacion.trim() || null,
+          anios_experiencia_especialista: experienciaEsp || null,
+          modalidad_trabajo: modalidadTrabajo || null,
+          radio_cobertura: radioCobertura || null,
+          especialidades: especialidades.map(e => ({ nombre: e, es_personalizada: !ESPECIALIDADES_OPTIONS.includes(e) })),
+          cultivos_especialista: cultivosEsp.map(c => ({ nombre: c, es_personalizado: !CULTIVOS.includes(c) })),
+        };
       } else {
         body = {
           nombre_completo: nombre,
@@ -642,6 +684,171 @@ export default function EditarPerfilScreen({ navigation, route }) {
                     <Ionicons name="cloud-upload-outline" size={16} color={COLORS.white} />
                     <Text style={styles.hojaVidaBtnPrimaryText}>
                       {subiendoHojaVida ? 'Subiendo...' : hojaVidaUrl ? 'Cambiar hoja de vida' : 'Subir hoja de vida'}
+                    </Text>
+                  </AnimatedPressable>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Campos especialista */}
+          {rol === 'especialista' && (
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Perfil Especialista</Text>
+
+              <Input
+                label="Descripción de tus servicios"
+                value={descripcionServicio}
+                onChangeText={setDescripcionServicio}
+                placeholder="Describe qué servicios ofreces, tu especialidad y cómo puedes ayudar a las fincas"
+                multiline
+                numberOfLines={4}
+              />
+
+              <Text style={styles.fieldLabel}>Nivel de formación</Text>
+              <ChipSelector
+                options={NIVEL_FORMACION_OPTIONS.map(n => n.label)}
+                selected={nivelFormacion ? [NIVEL_FORMACION_OPTIONS.find(n => n.value === nivelFormacion)?.label].filter(Boolean) : []}
+                onSelectionChange={(sel) => {
+                  const n = NIVEL_FORMACION_OPTIONS.find(x => x.label === sel[sel.length - 1]);
+                  setNivelFormacion(n?.value || '');
+                }}
+                multiSelect={false}
+                allowCustom={false}
+              />
+
+              <Input
+                label="Título / Certificación (opcional)"
+                value={tituloCertificacion}
+                onChangeText={setTituloCertificacion}
+                placeholder="Ej: Ingeniero Agrónomo, Técnico en Café"
+                icon="school-outline"
+              />
+
+              <Text style={[styles.fieldLabel, { marginTop: SPACING.md }]}>Años de experiencia</Text>
+              <ChipSelector
+                options={EXPERIENCIA_ESPECIALISTA_OPTIONS.map(e => e.label)}
+                selected={experienciaEsp ? [EXPERIENCIA_ESPECIALISTA_OPTIONS.find(e => e.value === experienciaEsp)?.label].filter(Boolean) : []}
+                onSelectionChange={(sel) => {
+                  const e = EXPERIENCIA_ESPECIALISTA_OPTIONS.find(x => x.label === sel[sel.length - 1]);
+                  setExperienciaEsp(e?.value || '');
+                }}
+                multiSelect={false}
+                allowCustom={false}
+              />
+
+              <Text style={[styles.fieldLabel, { marginTop: SPACING.md }]}>Modalidad de trabajo</Text>
+              <ChipSelector
+                options={MODALIDAD_ESPECIALISTA_OPTIONS.map(m => m.label)}
+                selected={modalidadTrabajo ? [MODALIDAD_ESPECIALISTA_OPTIONS.find(m => m.value === modalidadTrabajo)?.label].filter(Boolean) : []}
+                onSelectionChange={(sel) => {
+                  const m = MODALIDAD_ESPECIALISTA_OPTIONS.find(x => x.label === sel[sel.length - 1]);
+                  setModalidadTrabajo(m?.value || '');
+                }}
+                multiSelect={false}
+                allowCustom={false}
+              />
+
+              <Text style={[styles.fieldLabel, { marginTop: SPACING.md }]}>Radio de cobertura</Text>
+              <ChipSelector
+                options={RADIO_COBERTURA_OPTIONS.map(r => r.label)}
+                selected={radioCobertura ? [RADIO_COBERTURA_OPTIONS.find(r => r.value === radioCobertura)?.label].filter(Boolean) : []}
+                onSelectionChange={(sel) => {
+                  const r = RADIO_COBERTURA_OPTIONS.find(x => x.label === sel[sel.length - 1]);
+                  setRadioCobertura(r?.value || '');
+                }}
+                multiSelect={false}
+                allowCustom={false}
+              />
+
+              <Text style={[styles.fieldLabel, { marginTop: SPACING.md }]}>Especialidades</Text>
+              <ChipSelector
+                options={ESPECIALIDADES_OPTIONS}
+                selected={especialidades}
+                onSelectionChange={setEspecialidades}
+                allowCustom={true}
+                customLabel="+ Otra especialidad"
+              />
+
+              <Text style={[styles.fieldLabel, { marginTop: SPACING.md }]}>Cultivos con los que trabajas</Text>
+              <ChipSelector
+                options={CULTIVOS}
+                selected={cultivosEsp}
+                onSelectionChange={setCultivosEsp}
+                allowCustom={true}
+                customLabel="+ Otro cultivo"
+              />
+
+              <View style={styles.hojaVidaCard}>
+                <View style={styles.hojaVidaHeader}>
+                  <Ionicons name="document-text-outline" size={20} color={COLORS.primary} />
+                  <Text style={styles.hojaVidaTitle}>Hoja de vida / Portafolio</Text>
+                </View>
+                {hojaVidaUrlEsp ? (
+                  <View style={styles.hojaVidaEstadoOk}>
+                    <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
+                    <Text style={styles.hojaVidaEstadoText}>Documento cargado</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.hojaVidaHint}>Aún no has cargado tu hoja de vida</Text>
+                )}
+                {hojaVidaNombreEsp ? <Text style={styles.hojaVidaNombre} numberOfLines={1}>{hojaVidaNombreEsp}</Text> : null}
+                <View style={styles.hojaVidaAcciones}>
+                  {hojaVidaUrlEsp ? (
+                    <AnimatedPressable style={[styles.hojaVidaBtnOutline, { borderColor: COLORS.primary }]}
+                      onPress={async () => {
+                        const canOpen = await Linking.canOpenURL(hojaVidaUrlEsp);
+                        if (canOpen) Linking.openURL(hojaVidaUrlEsp);
+                        else showAlert('No disponible', 'No se pudo abrir el documento.');
+                      }} scaleValue={0.95}>
+                      <Ionicons name="open-outline" size={16} color={COLORS.primary} />
+                      <Text style={styles.hojaVidaBtnOutlineText}>Ver documento</Text>
+                    </AnimatedPressable>
+                  ) : null}
+                  <AnimatedPressable
+                    style={[styles.hojaVidaBtnPrimary, { backgroundColor: COLORS.primary }]}
+                    onPress={async () => {
+                      const upload = async (formData) => {
+                        setSubiendoHojaVida(true);
+                        try {
+                          const res = await authAPI.subirHojaVida(formData);
+                          setHojaVidaUrlEsp(res.data?.hoja_vida_url || '');
+                          setHojaVidaNombreEsp(res.data?.hoja_vida_nombre || '');
+                          showAlert('Éxito', 'Documento cargado correctamente.');
+                        } catch (err) {
+                          showAlert('Error', err.response?.data?.error || 'No se pudo subir el documento');
+                        } finally {
+                          setSubiendoHojaVida(false);
+                        }
+                      };
+                      if (Platform.OS === 'web') {
+                        const input = document.createElement('input');
+                        input.type = 'file'; input.accept = 'application/pdf,.pdf';
+                        input.style.cssText = 'position:fixed;opacity:0;pointer-events:none;left:-9999px';
+                        input.addEventListener('change', async (ev) => {
+                          const file = ev.target?.files?.[0]; input.remove();
+                          if (!file) return;
+                          const fd = new FormData(); fd.append('hoja_vida', file, file.name || 'hoja_vida.pdf');
+                          await upload(fd);
+                        });
+                        document.body.appendChild(input); input.click();
+                      } else {
+                        try {
+                          const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
+                          if (result.canceled || !result.assets?.[0]) return;
+                          const asset = result.assets[0];
+                          const fd = new FormData();
+                          fd.append('hoja_vida', { uri: asset.uri, name: asset.name || 'hoja_vida.pdf', type: asset.mimeType || 'application/pdf' });
+                          await upload(fd);
+                        } catch { showAlert('Error', 'No se pudo seleccionar el archivo.'); }
+                      }
+                    }}
+                    disabled={subiendoHojaVida}
+                    scaleValue={0.95}
+                  >
+                    <Ionicons name="cloud-upload-outline" size={16} color={COLORS.white} />
+                    <Text style={styles.hojaVidaBtnPrimaryText}>
+                      {subiendoHojaVida ? 'Subiendo...' : hojaVidaUrlEsp ? 'Cambiar documento' : 'Subir hoja de vida'}
                     </Text>
                   </AnimatedPressable>
                 </View>

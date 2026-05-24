@@ -518,8 +518,49 @@ async function actualizarPerfil(req, res) {
         }
       }
 
+    } else if (rol === 'especialista') {
+      const {
+        nombre_completo, departamento, municipio, vereda,
+        descripcion_servicio, nivel_formacion, titulo_certificacion,
+        anios_experiencia_especialista, modalidad_trabajo, radio_cobertura,
+        especialidades, cultivos_especialista,
+      } = req.body;
+
+      await query(
+        'UPDATE usuarios SET nombre_completo=?, departamento=?, municipio=?, vereda=? WHERE id=?',
+        [nombre_completo, departamento || null, municipio || null, vereda || null, userId]
+      );
+
+      await query(
+        `UPDATE perfil_especialista SET descripcion_servicio=?, nivel_formacion=?, titulo_certificacion=?,
+         anios_experiencia=?, modalidad_trabajo=?, radio_cobertura=? WHERE usuario_id=?`,
+        [
+          descripcion_servicio || null, nivel_formacion || null, titulo_certificacion || null,
+          anios_experiencia_especialista || null, modalidad_trabajo || null, radio_cobertura || null,
+          userId
+        ]
+      );
+
+      const perfiles = await query('SELECT id FROM perfil_especialista WHERE usuario_id=?', [userId]);
+      if (perfiles.length > 0) {
+        const perfilId = Number(perfiles[0].id);
+        await query('DELETE FROM especialista_especialidades WHERE perfil_especialista_id=?', [perfilId]);
+        if (Array.isArray(especialidades)) {
+          for (const e of especialidades) {
+            await query('INSERT INTO especialista_especialidades (perfil_especialista_id, especialidad, es_personalizada) VALUES (?, ?, ?)',
+              [perfilId, e.nombre || e, e.es_personalizada ? 1 : 0]);
+          }
+        }
+        await query('DELETE FROM especialista_cultivos WHERE perfil_especialista_id=?', [perfilId]);
+        if (Array.isArray(cultivos_especialista)) {
+          for (const c of cultivos_especialista) {
+            await query('INSERT INTO especialista_cultivos (perfil_especialista_id, cultivo, es_personalizado) VALUES (?, ?, ?)',
+              [perfilId, c.nombre || c, c.es_personalizado ? 1 : 0]);
+          }
+        }
+      }
     } else {
-      return res.status(403).json({ error: 'Solo trabajadores y empleadores pueden editar su perfil' });
+      return res.status(403).json({ error: 'Rol no permitido para editar perfil' });
     }
 
     res.json({ message: 'Perfil actualizado exitosamente' });
@@ -529,31 +570,42 @@ async function actualizarPerfil(req, res) {
   }
 }
 
-// Subir hoja de vida (trabajador)
+// Subir hoja de vida (trabajador o especialista)
 async function subirHojaVida(req, res) {
   try {
     const userId = req.user.id;
+    const rol = req.user.rol;
 
-    if (req.user.rol !== 'trabajador') {
-      return res.status(403).json({ error: 'Solo trabajadores pueden subir hoja de vida' });
+    if (rol !== 'trabajador' && rol !== 'especialista') {
+      return res.status(403).json({ error: 'Solo trabajadores y especialistas pueden subir hoja de vida' });
     }
 
     if (!req.file) {
       return res.status(400).json({ error: 'Archivo PDF requerido' });
     }
 
-    const perfiles = await query('SELECT id FROM perfil_trabajador WHERE usuario_id = ?', [userId]);
-    if (!perfiles || perfiles.length === 0) {
-      return res.status(404).json({ error: 'Perfil de trabajador no encontrado' });
-    }
-
     const hojaVidaUrl = req.file.location;
     const hojaVidaNombre = req.file.originalname || 'hoja_vida.pdf';
 
-    await query(
-      'UPDATE perfil_trabajador SET hoja_vida_url = ?, hoja_vida_nombre = ? WHERE usuario_id = ?',
-      [hojaVidaUrl, hojaVidaNombre, userId]
-    );
+    if (rol === 'trabajador') {
+      const perfiles = await query('SELECT id FROM perfil_trabajador WHERE usuario_id = ?', [userId]);
+      if (!perfiles || perfiles.length === 0) {
+        return res.status(404).json({ error: 'Perfil de trabajador no encontrado' });
+      }
+      await query(
+        'UPDATE perfil_trabajador SET hoja_vida_url = ?, hoja_vida_nombre = ? WHERE usuario_id = ?',
+        [hojaVidaUrl, hojaVidaNombre, userId]
+      );
+    } else {
+      const perfiles = await query('SELECT id FROM perfil_especialista WHERE usuario_id = ?', [userId]);
+      if (!perfiles || perfiles.length === 0) {
+        return res.status(404).json({ error: 'Perfil de especialista no encontrado' });
+      }
+      await query(
+        'UPDATE perfil_especialista SET hoja_vida_url = ?, hoja_vida_nombre = ? WHERE usuario_id = ?',
+        [hojaVidaUrl, hojaVidaNombre, userId]
+      );
+    }
 
     const signedUrl = await signUrl(hojaVidaUrl);
     res.json({
