@@ -158,7 +158,7 @@ function EspCard({ item, onPress, onContact, loadingId, estadoContacto, colors, 
 
   return (
     <AnimatedPressable style={[socialStyles.espCard, { backgroundColor: colors.surface }]} onPress={() => onPress(item)} scaleValue={0.97} haptic={false}>
-      <LinearGradient colors={['#4A148C','#7B1FA2']} start={{x:0,y:0}} end={{x:1,y:1}} style={socialStyles.espBanner}>
+      <LinearGradient colors={['#8B3A2A','#C0694A']} start={{x:0,y:0}} end={{x:1,y:1}} style={socialStyles.espBanner}>
         <View style={socialStyles.espRibbon}>
           <Ionicons name="ribbon" size={11} color="#fff" />
           <Text style={socialStyles.espRibbonText}>Especialista</Text>
@@ -180,10 +180,10 @@ function EspCard({ item, onPress, onContact, loadingId, estadoContacto, colors, 
           </View>
         )}
         {item.descripcion_servicio ? <Text style={[socialStyles.bio, { color: colors.textSecondary }]} numberOfLines={2}>{item.descripcion_servicio}</Text> : null}
-        {modalidad && <View style={[socialStyles.chip, { backgroundColor: '#F3E8FF', borderColor: '#E9D5FF', alignSelf: 'flex-start', marginBottom: 6 }]}><Text style={[socialStyles.chipText, { color: '#7C3AED' }]}>{modalidad}</Text></View>}
+        {modalidad && <View style={[socialStyles.chip, { backgroundColor: '#FDEAE5', borderColor: '#F5C4B5', alignSelf: 'flex-start', marginBottom: 6 }]}><Text style={[socialStyles.chipText, { color: '#C0694A' }]}>{modalidad}</Text></View>}
         {esp.length > 0 && (
           <View style={socialStyles.chipsWrap}>
-            {esp.map((e, i) => <View key={i} style={[socialStyles.chip, { backgroundColor: '#F3E8FF', borderColor: '#E9D5FF' }]}><Text style={[socialStyles.chipText, { color: '#7C3AED' }]}>{e}</Text></View>)}
+            {esp.map((e, i) => <View key={i} style={[socialStyles.chip, { backgroundColor: '#FDEAE5', borderColor: '#F5C4B5' }]}><Text style={[socialStyles.chipText, { color: '#C0694A' }]}>{e}</Text></View>)}
           </View>
         )}
         <View style={socialStyles.actions}>
@@ -198,14 +198,14 @@ function EspCard({ item, onPress, onContact, loadingId, estadoContacto, colors, 
               <Text style={socialStyles.btnPrimaryText}>En espera</Text>
             </View>
           ) : (
-            <AnimatedPressable style={[socialStyles.btnPrimary, { backgroundColor: '#7C3AED', flex: 1 }, isLoading && { opacity: 0.6 }]} onPress={() => onContact(item)} disabled={isLoading} scaleValue={0.96} haptic>
+            <AnimatedPressable style={[socialStyles.btnPrimary, { backgroundColor: '#C0694A', flex: 1 }, isLoading && { opacity: 0.6 }]} onPress={() => onContact(item)} disabled={isLoading} scaleValue={0.96} haptic>
               <Ionicons name="paper-plane-outline" size={14} color="#fff" />
               <Text style={socialStyles.btnPrimaryText}>{isLoading ? '...' : 'Contactar'}</Text>
             </AnimatedPressable>
           )}
-          <AnimatedPressable style={[socialStyles.btnSecondary, { borderColor: '#7C3AED' }]} onPress={() => onPress(item)} scaleValue={0.96} haptic>
-            <Ionicons name="person-circle-outline" size={15} color="#7C3AED" />
-            <Text style={[socialStyles.btnSecondaryText, { color: '#7C3AED' }]}>Perfil</Text>
+          <AnimatedPressable style={[socialStyles.btnSecondary, { borderColor: '#C0694A' }]} onPress={() => onPress(item)} scaleValue={0.96} haptic>
+            <Ionicons name="person-circle-outline" size={15} color="#C0694A" />
+            <Text style={[socialStyles.btnSecondaryText, { color: '#C0694A' }]}>Perfil</Text>
           </AnimatedPressable>
         </View>
       </View>
@@ -215,7 +215,7 @@ function EspCard({ item, onPress, onContact, loadingId, estadoContacto, colors, 
 
 const socialStyles = StyleSheet.create({
   card: { borderRadius: 20, marginBottom: SPACING.sm, overflow: 'hidden', borderWidth: 1, borderColor: '#E8EDE8', ...SHADOWS.card },
-  espCard: { borderRadius: 20, marginBottom: SPACING.sm, overflow: 'hidden', borderWidth: 1, borderColor: '#E9D5FF', ...SHADOWS.card },
+  espCard: { borderRadius: 20, marginBottom: SPACING.sm, overflow: 'hidden', borderWidth: 1, borderColor: '#F5C4B5', ...SHADOWS.card },
   banner: { height: 72 },
   espBanner: { height: 72 },
   espRibbon: { position: 'absolute', top: 10, right: 10, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: RADIUS.full, paddingHorizontal: 8, paddingVertical: 3 },
@@ -833,9 +833,9 @@ export default function EmpleadorVacantesScreen({ navigation }) {
             {especialistas.length > 0 && (
               <View style={{ marginBottom: SPACING.md }}>
                 <View style={talentStyles.subHeader}>
-                  <View style={[talentStyles.espBadge, { backgroundColor: '#F3E8FF' }]}>
-                    <Ionicons name="ribbon" size={11} color="#7C3AED" />
-                    <Text style={[talentStyles.espBadgeText, { color: '#7C3AED' }]}>Especialistas</Text>
+                  <View style={[talentStyles.espBadge, { backgroundColor: '#FDEAE5' }]}>
+                    <Ionicons name="ribbon" size={11} color="#C0694A" />
+                    <Text style={[talentStyles.espBadgeText, { color: '#C0694A' }]}>Especialistas</Text>
                   </View>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={talentStyles.hScroll}>
