@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, Image, Modal, ActivityIndicator, ScrollView, Linking,
@@ -624,7 +624,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
     );
   };
 
-  const ListHeader = (
+  const ListHeader = useMemo(() => (
     <View>
       {/* Greeting */}
       <FadeInView delay={0}>
@@ -886,7 +886,8 @@ export default function EmpleadorVacantesScreen({ navigation }) {
         </FadeInView>
       )}
     </View>
-  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [trabajadores, especialistas, vacantes, user, estadoVerif, colors, isDark, mostrarTarjetaVerificacion, estadoIdentidad, postulantesCount, contactosEstado, enviandoContactoId, vacanteActiva]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.surface : '#F8FAF9' }]} edges={['top']}>
