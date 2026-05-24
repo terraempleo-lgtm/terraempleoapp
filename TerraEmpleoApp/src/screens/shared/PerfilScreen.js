@@ -359,126 +359,286 @@ export default function PerfilScreen({ navigation }) {
     const RADIO_LABELS = { municipio: 'Solo mi municipio', departamento: 'Mi departamento', eje_cafetero: 'Eje Cafetero', nacional: 'Todo Colombia' };
     const EXP_LABELS = { menos_1: 'Menos de 1 año', '1_3': '1 a 3 años', '3_5': '3 a 5 años', '5_10': '5 a 10 años', mas_10: 'Más de 10 años' };
     const ubicEsp = [u?.municipio, u?.departamento].filter(Boolean).join(', ');
+    const infoRows = [
+      { icon: 'school-outline', label: 'Formación', value: NIVEL_LABELS[perfil?.nivel_formacion] },
+      { icon: 'time-outline', label: 'Experiencia', value: EXP_LABELS[perfil?.anios_experiencia] },
+      { icon: 'calendar-outline', label: 'Modalidad', value: MODAL_LABELS[perfil?.modalidad_trabajo] },
+      { icon: 'navigate-outline', label: 'Cobertura', value: RADIO_LABELS[perfil?.radio_cobertura] },
+      { icon: 'ribbon-outline', label: 'Certificación', value: perfil?.titulo_certificacion },
+    ].filter(r => r.value);
 
     return (
       <SafeAreaView style={[s.root, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <DecorativeBackground intensity="strong" />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+          {/* Top bar */}
           <View style={s.topBar}>
             <View style={{ width: 40 }} />
-            <Text style={[s.topBarTitle, { color: colors.textPrimary }]}>Mi Perfil</Text>
+            <FadeInView delay={100} translateY={-5}>
+              <Text style={[s.topBarTitle, { color: colors.textPrimary }]}>Mi Perfil</Text>
+            </FadeInView>
             <AnimatedPressable style={s.shareBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.9} haptic>
               <Ionicons name="settings-outline" size={20} color={colors.textPrimary} />
             </AnimatedPressable>
           </View>
 
-          {/* Avatar */}
+          {/* Hero — avatar + nombre + stats */}
           <View style={s.profileCenter}>
-            <View style={s.avatarWrap}>
-              {u?.foto_selfie?.startsWith('http') ? (
-                <Image source={{ uri: u.foto_selfie }} style={s.avatar} />
-              ) : (
-                <View style={[s.avatarFallbackLg, { backgroundColor: COLORS.primarySoft }]}>
-                  <Ionicons name="person" size={40} color={COLORS.primary} />
+            <MotiView
+              from={{ scale: 0.4, opacity: 0, translateY: 30 }}
+              animate={{ scale: 1, opacity: 1, translateY: 0 }}
+              transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 150 }}
+            >
+              <TouchableOpacity onPress={abrirCamaraFoto} activeOpacity={0.75}>
+                <View style={s.avatarWrap}>
+                  {u?.foto_selfie?.startsWith('http') ? (
+                    <Image source={{ uri: u.foto_selfie }} style={s.avatar} />
+                  ) : (
+                    <View style={s.avatarFallback}><Ionicons name="person" size={52} color={COLORS.textLight} /></View>
+                  )}
+                  {identidadAprobada && <View style={s.verifiedBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>}
+                  <View style={s.camaraBadge}>
+                    <Ionicons name={puedeCambiarFoto ? 'camera' : 'time-outline'} size={12} color={COLORS.white} />
+                  </View>
                 </View>
-              )}
-            </View>
-            <Text style={[s.profileName, { color: colors.textPrimary }]}>{u?.nombre_completo || 'Especialista'}</Text>
-            <Text style={[s.profileRole, { color: colors.textSecondary }]}>Especialista · {ubicEsp || '—'}</Text>
-            {u?.validacion_identidad_estado === 'aprobada' && (
-              <View style={[s.verBadge, { backgroundColor: COLORS.primarySoft }]}>
-                <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />
-                <Text style={[s.verBadgeTxt, { color: COLORS.primary }]}>Identidad verificada</Text>
+              </TouchableOpacity>
+            </MotiView>
+
+            <FadeInView delay={250}>
+              <Text style={[s.fullName, { color: colors.textPrimary }]}>{u?.nombre_completo || 'Especialista'}</Text>
+            </FadeInView>
+            <FadeInView delay={280}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                <View style={[s.espRolePill, { backgroundColor: '#F3E8FF' }]}>
+                  <Ionicons name="ribbon-outline" size={12} color="#7C3AED" />
+                  <Text style={[s.espRolePillTxt, { color: '#7C3AED' }]}>Especialista</Text>
+                </View>
+                {ubicEsp ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                    <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+                    <Text style={[s.noRating, { color: colors.textMuted, marginBottom: 0 }]}>{ubicEsp}</Text>
+                  </View>
+                ) : null}
               </View>
+            </FadeInView>
+
+            {calificacion > 0 ? (
+              <FadeInView delay={300}>
+                <View style={s.ratingRow}>
+                  <Ionicons name="star" size={16} color="#FFB300" />
+                  <Text style={[s.ratingVal, { color: colors.textPrimary }]}>{calificacion.toFixed(1)}</Text>
+                  <Text style={[s.ratingCnt, { color: colors.textSecondary }]}>({totalCalif} reseñas)</Text>
+                </View>
+              </FadeInView>
+            ) : (
+              <FadeInView delay={300}>
+                <Text style={[s.noRating, { color: colors.textMuted }]}>Sin reseñas aún</Text>
+              </FadeInView>
+            )}
+
+            {identidadAprobada && (
+              <MotiView from={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 350 }}>
+                <View style={s.verPill}>
+                  <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} /><Text style={s.verPillTxt}>VERIFICADO</Text>
+                </View>
+              </MotiView>
             )}
           </View>
 
-          {/* Especialidades */}
-          {espEspecialidades.length > 0 && (
-            <View style={[s.section, { backgroundColor: colors.surface }]}>
-              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Especialidades</Text>
-              <View style={s.chipsRow}>
-                {espEspecialidades.map((e, i) => (
-                  <View key={i} style={[s.chip, { backgroundColor: COLORS.primarySoft }]}>
-                    <Text style={[s.chipTxt, { color: COLORS.primary }]}>{e}</Text>
-                  </View>
-                ))}
+          {/* Stats */}
+          <StaggeredItem index={0}>
+            <View style={[s.secWrap, { paddingHorizontal: SPACING.lg }]}>
+              <View style={[s.empStats, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
+                <View style={s.empStatItem}>
+                  <Text style={[s.empStatVal, { color: colors.textPrimary }]}>{calificacion > 0 ? calificacion.toFixed(1) : '—'}</Text>
+                  <Text style={[s.empStatLabel, { color: colors.textSecondary }]}>CALIFICACIÓN</Text>
+                </View>
+                <View style={[s.empStatDiv, { backgroundColor: colors.border }]} />
+                <View style={s.empStatItem}>
+                  <Text style={[s.empStatVal, { color: colors.textPrimary }]}>{espEspecialidades.length || '—'}</Text>
+                  <Text style={[s.empStatLabel, { color: colors.textSecondary }]}>ESPECIALIDADES</Text>
+                </View>
+                <View style={[s.empStatDiv, { backgroundColor: colors.border }]} />
+                <View style={s.empStatItem}>
+                  <Text style={[s.empStatVal, { color: colors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit>
+                    {EXP_LABELS[perfil?.anios_experiencia]?.split(' ').slice(0, 2).join(' ') || '—'}
+                  </Text>
+                  <Text style={[s.empStatLabel, { color: colors.textSecondary }]}>EXPERIENCIA</Text>
+                </View>
               </View>
             </View>
-          )}
+          </StaggeredItem>
 
-          {/* Sobre mí */}
+          {/* Descripción del servicio */}
           {perfil?.descripcion_servicio ? (
-            <View style={[s.section, { backgroundColor: colors.surface }]}>
-              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Descripción del servicio</Text>
-              <Text style={[s.bioText, { color: colors.textSecondary }]}>{perfil.descripcion_servicio}</Text>
-            </View>
+            <StaggeredItem index={1}>
+              <View style={s.secWrap}>
+                <View style={s.secHead}>
+                  <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="document-text-outline" size={17} color={COLORS.primary} /></View>
+                  <Text style={[s.secTitle, { color: colors.textPrimary }]}>Descripción del servicio</Text>
+                </View>
+                <Text style={[s.secText, { color: colors.textSecondary }]}>{perfil.descripcion_servicio}</Text>
+              </View>
+            </StaggeredItem>
           ) : null}
 
-          {/* Info */}
-          <View style={[s.section, { backgroundColor: colors.surface }]}>
-            <Text style={[s.secTitle, { color: colors.textPrimary }]}>Información profesional</Text>
-            {[
-              { icon: 'school-outline', label: 'Formación', value: NIVEL_LABELS[perfil?.nivel_formacion] },
-              { icon: 'time-outline', label: 'Experiencia', value: EXP_LABELS[perfil?.anios_experiencia] },
-              { icon: 'calendar-outline', label: 'Modalidad', value: MODAL_LABELS[perfil?.modalidad_trabajo] },
-              { icon: 'navigate-outline', label: 'Cobertura', value: RADIO_LABELS[perfil?.radio_cobertura] },
-              { icon: 'ribbon-outline', label: 'Certificación', value: perfil?.titulo_certificacion },
-            ].filter(r => r.value).map((r, i) => (
-              <View key={i} style={[s.infoRow, { borderBottomColor: colors.border }]}>
-                <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}>
-                  <Ionicons name={r.icon} size={17} color={COLORS.primary} />
+          {/* Especialidades */}
+          {espEspecialidades.length > 0 && (
+            <StaggeredItem index={2}>
+              <View style={s.secWrap}>
+                <View style={s.secHead}>
+                  <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="ribbon-outline" size={17} color={COLORS.primary} /></View>
+                  <Text style={[s.secTitle, { color: colors.textPrimary }]}>Especialidades</Text>
                 </View>
-                <View style={s.infoRowText}>
-                  <Text style={[s.infoLabel, { color: colors.textMuted }]}>{r.label}</Text>
-                  <Text style={[s.infoValue, { color: colors.textPrimary }]}>{r.value}</Text>
+                <View style={s.chipWrap}>
+                  {espEspecialidades.map((e, i) => (
+                    <MotiView key={i} from={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 40 }}>
+                      <View style={s.chipColor}><Ionicons name="ribbon" size={12} color={COLORS.primary} /><Text style={s.chipColorTxt}>{e}</Text></View>
+                    </MotiView>
+                  ))}
                 </View>
               </View>
-            ))}
-          </View>
+            </StaggeredItem>
+          )}
+
+          {/* Información profesional */}
+          {infoRows.length > 0 && (
+            <StaggeredItem index={3}>
+              <View style={s.secWrap}>
+                <View style={s.secHead}>
+                  <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="briefcase-outline" size={17} color={COLORS.primary} /></View>
+                  <Text style={[s.secTitle, { color: colors.textPrimary }]}>Información profesional</Text>
+                </View>
+                <View style={s.verList}>
+                  {infoRows.map((r, i) => (
+                    <View key={i} style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
+                      <View style={[s.verIcon, { backgroundColor: isDark ? '#223a32' : COLORS.primarySoft }]}>
+                        <Ionicons name={r.icon} size={18} color={COLORS.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.infoLabel, { color: colors.textMuted }]}>{r.label}</Text>
+                        <Text style={[s.verText, { color: colors.textPrimary }]}>{r.value}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </StaggeredItem>
+          )}
 
           {/* Cultivos */}
           {espCultivos.length > 0 && (
-            <View style={[s.section, { backgroundColor: colors.surface }]}>
-              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Cultivos y producciones</Text>
-              <View style={s.chipsRow}>
-                {espCultivos.map((c, i) => (
-                  <View key={i} style={[s.chip, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
-                    <Text style={[s.chipTxt, { color: colors.textSecondary }]}>{c}</Text>
-                  </View>
-                ))}
+            <StaggeredItem index={4}>
+              <View style={s.secWrap}>
+                <View style={s.secHead}>
+                  <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="leaf-outline" size={17} color={COLORS.primary} /></View>
+                  <Text style={[s.secTitle, { color: colors.textPrimary }]}>Cultivos y producciones</Text>
+                </View>
+                <View style={s.chipWrap}>
+                  {espCultivos.map((c, i) => (
+                    <MotiView key={i} from={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 40 }}>
+                      <View style={[s.chipColor, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' }]}>
+                        <Ionicons name="leaf" size={12} color="#16A34A" />
+                        <Text style={[s.chipColorTxt, { color: '#15803D' }]}>{c}</Text>
+                      </View>
+                    </MotiView>
+                  ))}
+                </View>
               </View>
-            </View>
+            </StaggeredItem>
           )}
 
           {/* Documentación */}
-          <View style={[s.section, { backgroundColor: colors.surface }]}>
-            <Text style={[s.secTitle, { color: colors.textPrimary }]}>Documentación Verificada</Text>
-            {[
-              { label: 'Cédula de Ciudadanía', ok: !!u?.cedula, icon: 'card-outline' },
-              { label: 'Identidad verificada', ok: u?.validacion_identidad_estado === 'aprobada', icon: 'shield-checkmark-outline' },
-            ].map((d, i) => (
-              <View key={i} style={[s.docRow, { borderBottomColor: colors.border }]}>
-                <Ionicons name={d.icon} size={18} color={d.ok ? COLORS.primary : colors.textMuted} />
-                <Text style={[s.docLabel, { color: colors.textPrimary }]}>{d.label}</Text>
-                <Ionicons name={d.ok ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={d.ok ? COLORS.primary : colors.textMuted} />
+          <StaggeredItem index={5}>
+            <View style={s.secWrap}>
+              <View style={s.secHead}>
+                <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="shield-checkmark-outline" size={17} color={COLORS.primary} /></View>
+                <Text style={[s.secTitle, { color: colors.textPrimary }]}>Documentación Verificada</Text>
               </View>
-            ))}
-          </View>
+              <View style={s.verList}>
+                <View style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
+                  <View style={[s.verIcon, { backgroundColor: isDark ? '#223a32' : COLORS.primarySoft }]}><Ionicons name="card-outline" size={18} color={COLORS.primary} /></View>
+                  <Text style={[s.verText, { color: colors.textPrimary }]}>Cédula de Ciudadanía</Text>
+                  <Ionicons name={u?.cedula ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={u?.cedula ? COLORS.primary : colors.textMuted} />
+                </View>
+                <View style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
+                  <View style={[s.verIcon, { backgroundColor: isDark ? '#223a32' : COLORS.primarySoft }]}><Ionicons name="shield-checkmark-outline" size={18} color={COLORS.primary} /></View>
+                  <Text style={[s.verText, { color: colors.textPrimary }]}>Identidad verificada</Text>
+                  <Ionicons name={identidadAprobada ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={identidadAprobada ? COLORS.primary : colors.textMuted} />
+                </View>
+              </View>
+            </View>
+          </StaggeredItem>
 
           {/* Acciones */}
-          <View style={[s.section, { backgroundColor: colors.surface }]}>
-            <TouchableOpacity style={[s.editBtn, { borderColor: COLORS.primary }]}
-              onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}>
-              <Ionicons name="create-outline" size={18} color={COLORS.primary} />
-              <Text style={[s.editBtnTxt, { color: COLORS.primary }]}>Editar Perfil</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.logoutBtn, { borderColor: COLORS.error }]} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={18} color={COLORS.error} />
-              <Text style={[s.logoutBtnTxt, { color: COLORS.error }]}>Cerrar sesión</Text>
-            </TouchableOpacity>
-          </View>
+          <StaggeredItem index={6}>
+            <View style={s.secWrap}>
+              <AnimatedPressable style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.96} haptic>
+                <Ionicons name="create-outline" size={20} color={COLORS.primary} /><Text style={s.ctaBtnTxt}>Editar Perfil</Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                style={[s.themeRow, { backgroundColor: isDark ? '#1a322a' : '#F8FAF9', borderColor: isDark ? '#2a4c41' : COLORS.borderLight }]}
+                onPress={toggleMode} scaleValue={0.97} haptic
+              >
+                <View style={[s.themeIcon, { backgroundColor: isDark ? '#244238' : COLORS.primarySoft }]}>
+                  <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={17} color={colors.primary} />
+                </View>
+                <Text style={[s.themeTxt, { color: colors.textPrimary }]}>{isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+              </AnimatedPressable>
+              <AnimatedPressable style={s.pqrsRow} onPress={() => navigation.navigate('Pqrs')} scaleValue={0.97} haptic>
+                <Ionicons name="chatbox-ellipses-outline" size={16} color={COLORS.textSecondary} />
+                <Text style={s.pqrsRowTxt}>Peticiones, Quejas y Sugerencias</Text>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
+              </AnimatedPressable>
+              <AnimatedPressable style={s.logoutRow} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
+                <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
+              </AnimatedPressable>
+            </View>
+          </StaggeredItem>
         </ScrollView>
+
+        {/* Modal cámara */}
+        <Modal visible={modalCamara} animationType="slide" statusBarTranslucent onRequestClose={() => setModalCamara(false)}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+            <View style={s.camaraHeader}>
+              <TouchableOpacity onPress={() => { setModalCamara(false); setPreview(null); }}>
+                <Ionicons name="close" size={28} color="#fff" />
+              </TouchableOpacity>
+              <Text style={s.camaraHeaderTxt}>Nueva foto de perfil</Text>
+              <View style={{ width: 28 }} />
+            </View>
+            {!preview ? (
+              <View style={{ flex: 1 }}>
+                <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" />
+                <View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }]}>
+                  <View style={s.camaraGuia} />
+                  <Text style={s.camaraGuiaTxt}>Centra tu cara</Text>
+                </View>
+                <View style={s.camaraBar}>
+                  <TouchableOpacity onPress={escogerDeGaleria} style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', position: 'absolute', left: 32, bottom: 24 }}>
+                    <Ionicons name="images" size={24} color="#fff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.camaraBtn} onPress={tomarFoto}>
+                    <View style={s.camaraBtnInner} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={{ flex: 1 }}>
+                <Image source={{ uri: preview }} style={{ flex: 1 }} resizeMode="contain" />
+                <View style={s.camaraAcciones}>
+                  <TouchableOpacity style={s.camaraBtnRepetir} onPress={() => setPreview(null)}>
+                    <Ionicons name="refresh" size={20} color="#fff" /><Text style={s.camaraBtnTxt}>Repetir</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.camaraBtnConfirmar, subiendoFoto && { opacity: 0.6 }]} onPress={confirmarCambioFoto} disabled={subiendoFoto}>
+                    {subiendoFoto ? <ActivityIndicator color="#fff" /> : <><Ionicons name="checkmark" size={20} color="#fff" /><Text style={s.camaraBtnTxt}>Usar esta foto</Text></>}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </SafeAreaView>
+        </Modal>
       </SafeAreaView>
     );
   }
@@ -1270,6 +1430,9 @@ const s = StyleSheet.create({
   empStatVal: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
   empStatLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.8 },
   empStatDiv: { width: 1, backgroundColor: COLORS.borderLight },
+
+  espRolePill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full, marginTop: 6 },
+  espRolePillTxt: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
 
   // ── Especialista styles ──
   avatarFallbackLg: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
