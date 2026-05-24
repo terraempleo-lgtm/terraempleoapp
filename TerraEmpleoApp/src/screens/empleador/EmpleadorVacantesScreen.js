@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { vacantesAPI, notificacionesAPI, authAPI } from '../../services/api';
+import { vacantesAPI, notificacionesAPI, authAPI, trabajadoresAPI, especialistasAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import CamaraFoto from '../../components/CamaraFoto';
@@ -20,6 +20,231 @@ import Animated, {
   withRepeat, withSequence, withTiming, Easing,
 } from 'react-native-reanimated';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
+
+const AVATAR_COLORS = ['#C8A882','#A8B8D0','#B8C8A0','#D0A8A8','#A8C8C8','#C8B8A0','#B0A8C8','#C0B0B8'];
+function getInitials(name) {
+  if (!name) return '?';
+  const p = name.trim().split(' ').filter(Boolean);
+  return p.length === 1 ? p[0][0].toUpperCase() : (p[0][0] + p[1][0]).toUpperCase();
+}
+function getAvatarColor(name) {
+  if (!name) return AVATAR_COLORS[0];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+
+const DISP_LABELS = {
+  tiempo_completo: 'Tiempo completo', por_dias: 'Por días',
+  temporada_cosecha: 'Temporada', fines_semana: 'Fines de semana',
+  disponible_inmediatamente: 'Disponible ya',
+};
+const EXP_LABELS = {
+  sin: 'Sin exp.', menos_1: '<1 año', '1_3': '1-3 años',
+  '3_5': '3-5 años', '5_10': '5-10 años', mas_10: '+10 años',
+};
+const MODALIDAD_LABELS = {
+  por_proyecto: 'Por proyecto', por_dias: 'Por días',
+  mensual: 'Mensual', asesoria_puntual: 'Asesoría',
+};
+
+function SocialWorkerCard({ item, onPress, onContact, loadingContacto, estadoContacto, colors, isDark }) {
+  const avatarBg = getAvatarColor(item.nombre_completo);
+  const initials = getInitials(item.nombre_completo);
+  const ubicacion = [item.municipio, item.departamento].filter(Boolean).join(', ');
+  const dispLabel = DISP_LABELS[item.disponibilidad];
+  const expLabel = EXP_LABELS[item.anios_experiencia];
+  const matchNum = Number(item.puntaje_match || 0);
+  const cal = parseFloat(item.calificacion_promedio || 0);
+  const cultivos = (item.cultivos || []).slice(0, 2);
+  const habilidades = (item.habilidades || []).slice(0, 2);
+  const extraSkills = (item.cultivos?.length || 0) + (item.habilidades?.length || 0) - 4;
+
+  return (
+    <AnimatedPressable style={[socialStyles.card, { backgroundColor: colors.surface }]} onPress={() => onPress(item)} scaleValue={0.985} haptic={false}>
+      {/* Banner + avatar */}
+      <LinearGradient colors={matchNum >= 60 ? ['#1b5e20','#2e7d32'] : ['#37474F','#546E7A']} start={{x:0,y:0}} end={{x:1,y:1}} style={socialStyles.banner}>
+        {matchNum > 0 && (
+          <View style={socialStyles.matchBadge}>
+            <Ionicons name="flash" size={11} color="#fff" />
+            <Text style={socialStyles.matchBadgeText}>{matchNum}% match</Text>
+          </View>
+        )}
+      </LinearGradient>
+      <View style={socialStyles.avatarWrap}>
+        <View style={[socialStyles.avatarRing, { borderColor: colors.surface }]}>
+          <View style={[socialStyles.avatarCircle, { backgroundColor: avatarBg }]}>
+            {item.foto_selfie ? <Image source={{ uri: item.foto_selfie }} style={socialStyles.avatar} /> : <Text style={socialStyles.avatarInitials}>{initials}</Text>}
+          </View>
+        </View>
+        {dispLabel === 'Disponible ya' && <View style={socialStyles.onlineDot} />}
+      </View>
+
+      <View style={socialStyles.body}>
+        {/* Name + stars */}
+        <Text style={[socialStyles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>{item.nombre_completo}</Text>
+        {cal > 0 && (
+          <View style={socialStyles.starsRow}>
+            {[1,2,3,4,5].map(i => <Ionicons key={i} name={i <= Math.round(cal) ? 'star' : 'star-outline'} size={11} color={i <= Math.round(cal) ? '#F59E0B' : '#D1D5DB'} />)}
+            <Text style={[socialStyles.calText, { color: colors.textMuted }]}>{cal.toFixed(1)}</Text>
+          </View>
+        )}
+
+        {/* Location + exp */}
+        <View style={socialStyles.metaRow}>
+          {ubicacion ? <><Ionicons name="location-outline" size={11} color={colors.textMuted} /><Text style={[socialStyles.metaText, { color: colors.textMuted }]} numberOfLines={1}>{ubicacion}</Text></> : null}
+          {expLabel ? <><View style={[socialStyles.metaDot, { backgroundColor: colors.border }]} /><Text style={[socialStyles.metaText, { color: colors.textMuted }]}>{expLabel}</Text></> : null}
+        </View>
+
+        {/* Bio */}
+        {item.acerca_de ? <Text style={[socialStyles.bio, { color: colors.textSecondary }]} numberOfLines={2}>{item.acerca_de}</Text> : null}
+
+        {/* Skills chips */}
+        <View style={socialStyles.chipsWrap}>
+          {cultivos.map((c, i) => (
+            <View key={`c${i}`} style={[socialStyles.chip, { backgroundColor: '#DCFCE7', borderColor: '#BBF7D0' }]}>
+              <Ionicons name="leaf-outline" size={10} color="#16A34A" />
+              <Text style={[socialStyles.chipText, { color: '#15803D' }]}>{c}</Text>
+            </View>
+          ))}
+          {habilidades.map((h, i) => (
+            <View key={`h${i}`} style={[socialStyles.chip, { backgroundColor: isDark ? colors.border : '#F1F5F9', borderColor: isDark ? colors.border : '#E2E8F0' }]}>
+              <Text style={[socialStyles.chipText, { color: colors.textSecondary }]}>{h}</Text>
+            </View>
+          ))}
+          {extraSkills > 0 && (
+            <View style={[socialStyles.chip, { backgroundColor: COLORS.primary, borderColor: 'transparent' }]}>
+              <Text style={[socialStyles.chipText, { color: '#fff', fontWeight: '800' }]}>+{extraSkills}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Actions */}
+        <View style={socialStyles.actions}>
+          {estadoContacto === 'aceptada' ? (
+            <AnimatedPressable style={[socialStyles.btnPrimary, { backgroundColor: '#16A34A', flex: 1 }]} onPress={() => onContact(item)} scaleValue={0.96} haptic>
+              <Ionicons name="chatbubble-ellipses" size={14} color="#fff" />
+              <Text style={socialStyles.btnPrimaryText}>Ir al chat</Text>
+            </AnimatedPressable>
+          ) : estadoContacto === 'contacto_solicitado' ? (
+            <View style={[socialStyles.btnPrimary, { backgroundColor: '#F59E0B', flex: 1 }]}>
+              <Ionicons name="hourglass-outline" size={14} color="#fff" />
+              <Text style={socialStyles.btnPrimaryText}>En espera</Text>
+            </View>
+          ) : (
+            <AnimatedPressable style={[socialStyles.btnPrimary, { flex: 1 }, loadingContacto && { opacity: 0.6 }]} onPress={() => onContact(item)} disabled={loadingContacto} scaleValue={0.96} haptic>
+              <Ionicons name="paper-plane-outline" size={14} color="#fff" />
+              <Text style={socialStyles.btnPrimaryText}>{loadingContacto ? 'Enviando...' : 'Contactar'}</Text>
+            </AnimatedPressable>
+          )}
+          <AnimatedPressable style={[socialStyles.btnSecondary, { borderColor: COLORS.primary }]} onPress={() => onPress(item)} scaleValue={0.96} haptic>
+            <Ionicons name="person-circle-outline" size={15} color={COLORS.primary} />
+            <Text style={[socialStyles.btnSecondaryText, { color: COLORS.primary }]}>Perfil</Text>
+          </AnimatedPressable>
+        </View>
+      </View>
+    </AnimatedPressable>
+  );
+}
+
+function EspCard({ item, onPress, onContact, loadingId, estadoContacto, colors, isDark }) {
+  const avatarBg = getAvatarColor(item.nombre_completo);
+  const initials = getInitials(item.nombre_completo);
+  const cal = parseFloat(item.calificacion_promedio || 0);
+  const modalidad = MODALIDAD_LABELS[item.modalidad_trabajo];
+  const esp = (item.especialidades || []).slice(0, 2);
+  const isLoading = loadingId === Number(item.id);
+  const estado = estadoContacto || null;
+
+  return (
+    <AnimatedPressable style={[socialStyles.espCard, { backgroundColor: colors.surface }]} onPress={() => onPress(item)} scaleValue={0.97} haptic={false}>
+      <LinearGradient colors={['#4A148C','#7B1FA2']} start={{x:0,y:0}} end={{x:1,y:1}} style={socialStyles.espBanner}>
+        <View style={socialStyles.espRibbon}>
+          <Ionicons name="ribbon" size={11} color="#fff" />
+          <Text style={socialStyles.espRibbonText}>Especialista</Text>
+        </View>
+      </LinearGradient>
+      <View style={socialStyles.avatarWrap}>
+        <View style={[socialStyles.avatarRing, { borderColor: colors.surface }]}>
+          <View style={[socialStyles.avatarCircle, { backgroundColor: avatarBg }]}>
+            {item.foto_selfie ? <Image source={{ uri: item.foto_selfie }} style={socialStyles.avatar} /> : <Text style={socialStyles.avatarInitials}>{initials}</Text>}
+          </View>
+        </View>
+      </View>
+      <View style={socialStyles.body}>
+        <Text style={[socialStyles.nombre, { color: colors.textPrimary }]} numberOfLines={1}>{item.nombre_completo}</Text>
+        {cal > 0 && (
+          <View style={socialStyles.starsRow}>
+            {[1,2,3,4,5].map(i => <Ionicons key={i} name={i <= Math.round(cal) ? 'star' : 'star-outline'} size={11} color={i <= Math.round(cal) ? '#F59E0B' : '#D1D5DB'} />)}
+            <Text style={[socialStyles.calText, { color: colors.textMuted }]}>{cal.toFixed(1)}</Text>
+          </View>
+        )}
+        {item.descripcion_servicio ? <Text style={[socialStyles.bio, { color: colors.textSecondary }]} numberOfLines={2}>{item.descripcion_servicio}</Text> : null}
+        {modalidad && <View style={[socialStyles.chip, { backgroundColor: '#F3E8FF', borderColor: '#E9D5FF', alignSelf: 'flex-start', marginBottom: 6 }]}><Text style={[socialStyles.chipText, { color: '#7C3AED' }]}>{modalidad}</Text></View>}
+        {esp.length > 0 && (
+          <View style={socialStyles.chipsWrap}>
+            {esp.map((e, i) => <View key={i} style={[socialStyles.chip, { backgroundColor: '#F3E8FF', borderColor: '#E9D5FF' }]}><Text style={[socialStyles.chipText, { color: '#7C3AED' }]}>{e}</Text></View>)}
+          </View>
+        )}
+        <View style={socialStyles.actions}>
+          {estado === 'aceptada' ? (
+            <AnimatedPressable style={[socialStyles.btnPrimary, { backgroundColor: '#16A34A', flex: 1 }]} onPress={() => onContact(item)} scaleValue={0.96} haptic>
+              <Ionicons name="chatbubble-ellipses" size={14} color="#fff" />
+              <Text style={socialStyles.btnPrimaryText}>Ir al chat</Text>
+            </AnimatedPressable>
+          ) : estado === 'contacto_solicitado' ? (
+            <View style={[socialStyles.btnPrimary, { backgroundColor: '#F59E0B', flex: 1 }]}>
+              <Ionicons name="time-outline" size={14} color="#fff" />
+              <Text style={socialStyles.btnPrimaryText}>En espera</Text>
+            </View>
+          ) : (
+            <AnimatedPressable style={[socialStyles.btnPrimary, { backgroundColor: '#7C3AED', flex: 1 }, isLoading && { opacity: 0.6 }]} onPress={() => onContact(item)} disabled={isLoading} scaleValue={0.96} haptic>
+              <Ionicons name="paper-plane-outline" size={14} color="#fff" />
+              <Text style={socialStyles.btnPrimaryText}>{isLoading ? '...' : 'Contactar'}</Text>
+            </AnimatedPressable>
+          )}
+          <AnimatedPressable style={[socialStyles.btnSecondary, { borderColor: '#7C3AED' }]} onPress={() => onPress(item)} scaleValue={0.96} haptic>
+            <Ionicons name="person-circle-outline" size={15} color="#7C3AED" />
+            <Text style={[socialStyles.btnSecondaryText, { color: '#7C3AED' }]}>Perfil</Text>
+          </AnimatedPressable>
+        </View>
+      </View>
+    </AnimatedPressable>
+  );
+}
+
+const socialStyles = StyleSheet.create({
+  card: { borderRadius: 20, marginBottom: SPACING.sm, overflow: 'hidden', borderWidth: 1, borderColor: '#E8EDE8', ...SHADOWS.card },
+  espCard: { borderRadius: 20, marginBottom: SPACING.sm, overflow: 'hidden', borderWidth: 1, borderColor: '#E9D5FF', ...SHADOWS.card },
+  banner: { height: 72 },
+  espBanner: { height: 72 },
+  espRibbon: { position: 'absolute', top: 10, right: 10, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: RADIUS.full, paddingHorizontal: 8, paddingVertical: 3 },
+  espRibbonText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  matchBadge: { position: 'absolute', top: 10, right: 10, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: RADIUS.full, paddingHorizontal: 8, paddingVertical: 3 },
+  matchBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  avatarWrap: { marginTop: -28, paddingHorizontal: SPACING.md, position: 'relative' },
+  avatarRing: { width: 60, height: 60, borderRadius: 30, borderWidth: 3, overflow: 'hidden' },
+  avatarCircle: { width: '100%', height: '100%', borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
+  avatar: { width: '100%', height: '100%', borderRadius: 30 },
+  avatarInitials: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  onlineDot: { position: 'absolute', bottom: 3, left: 46, width: 12, height: 12, borderRadius: 6, backgroundColor: '#22C55E', borderWidth: 2, borderColor: '#fff' },
+  body: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.md, paddingTop: 6 },
+  nombre: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
+  starsRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 3 },
+  calText: { fontSize: 11, fontWeight: '600', marginLeft: 3 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5, flexWrap: 'wrap' },
+  metaDot: { width: 3, height: 3, borderRadius: 1.5 },
+  metaText: { fontSize: 12 },
+  bio: { fontSize: 13, lineHeight: 19, marginTop: 6, marginBottom: 4 },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 6, marginBottom: 4 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: RADIUS.full, borderWidth: 1 },
+  chipText: { fontSize: 11.5, fontWeight: '600' },
+  actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  btnPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.primary, paddingVertical: 11, borderRadius: RADIUS.full },
+  btnPrimaryText: { fontSize: 13.5, fontWeight: '700', color: '#fff' },
+  btnSecondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 11, paddingHorizontal: 14, borderRadius: RADIUS.full, borderWidth: 1.5 },
+  btnSecondaryText: { fontSize: 13, fontWeight: '700' },
+});
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -143,6 +368,11 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   const [fotosReVerif, setFotosReVerif] = useState({ selfie: false, selfie_cedula: false });
 
   const [estadoVerif, setEstadoVerif] = useState(user?.validacion_identidad_estado || 'pendiente');
+  const [trabajadores, setTrabajadores] = useState([]);
+  const [especialistas, setEspecialistas] = useState([]);
+  const [enviandoContactoId, setEnviandoContactoId] = useState(null);
+  const [contactosEstado, setContactosEstado] = useState({});
+  const [vacanteActiva, setVacanteActiva] = useState(null);
 
   const firstName = (user?.nombre_completo || user?.nombre || 'Empleador').split(' ')[0];
   const nombreCompleto = user?.nombre_completo || user?.nombre || firstName;
@@ -185,8 +415,23 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
   const cargar = useCallback(async () => {
     try {
-      const res = await vacantesAPI.misVacantes();
-      setVacantes(res.data.vacantes || []);
+      const [resVac, resTrab, resEsp] = await Promise.allSettled([
+        vacantesAPI.misVacantes(),
+        trabajadoresAPI.listar({ orden: 'match', limit: 10 }),
+        especialistasAPI.listar({ limit: 6 }),
+      ]);
+      const misVac = resVac.status === 'fulfilled' ? (resVac.value.data.vacantes || []) : [];
+      setVacantes(misVac);
+      const activa = misVac.find(v => v.estado === 'activa') || null;
+      setVacanteActiva(activa ? { id: Number(activa.id), titulo: activa.titulo } : null);
+      if (resTrab.status === 'fulfilled') {
+        const lista = resTrab.value.data?.trabajadores || [];
+        setTrabajadores(lista);
+        const est = {};
+        lista.forEach(t => { if (t.estado_contacto) est[t.id] = t.estado_contacto; });
+        setContactosEstado(prev => ({ ...est, ...prev }));
+      }
+      if (resEsp.status === 'fulfilled') setEspecialistas(resEsp.value.data?.especialistas || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -215,6 +460,50 @@ export default function EmpleadorVacantesScreen({ navigation }) {
     });
     return unsub;
   }, [navigation, sincronizarVerificacion]);
+
+  const contactarTrabajador = async (item) => {
+    if (!vacanteActiva?.id) {
+      Alert.alert('Sin vacante', 'Crea una vacante activa para contactar trabajadores.');
+      return;
+    }
+    try {
+      setEnviandoContactoId(Number(item.id));
+      const res = await trabajadoresAPI.contactar(item.id, { vacante_id: vacanteActiva.id });
+      const estado = res?.data?.estado;
+      const chatId = Number(res?.data?.chat_id || 0);
+      if (estado === 'aceptada' && chatId) {
+        setContactosEstado(prev => ({ ...prev, [item.id]: 'aceptada' }));
+        navigation.navigate('Mensajes', { screen: 'ChatDetalle', params: { chat: { id: chatId, otro_nombre: item.nombre_completo, otro_foto: item.foto_selfie } } });
+        return;
+      }
+      setContactosEstado(prev => ({ ...prev, [item.id]: estado || 'contacto_solicitado' }));
+      Alert.alert('Listo', `Solicitud enviada a ${item.nombre_completo}.`);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud');
+    } finally {
+      setEnviandoContactoId(null);
+    }
+  };
+
+  const contactarEspecialista = async (item) => {
+    try {
+      setEnviandoContactoId(Number(item.id));
+      const res = await especialistasAPI.contactar(item.id, { vacante_id: vacanteActiva?.id });
+      const estado = res?.data?.estado;
+      const chatId = Number(res?.data?.chat_id || 0);
+      if (estado === 'aceptada' && chatId) {
+        setContactosEstado(prev => ({ ...prev, [`esp_${item.id}`]: 'aceptada' }));
+        navigation.navigate('Mensajes', { screen: 'ChatDetalle', params: { chat: { id: chatId, otro_nombre: item.nombre_completo, otro_foto: item.foto_selfie } } });
+        return;
+      }
+      setContactosEstado(prev => ({ ...prev, [`esp_${item.id}`]: estado || 'contacto_solicitado' }));
+      Alert.alert('Listo', `Solicitud enviada a ${item.nombre_completo}.`);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud');
+    } finally {
+      setEnviandoContactoId(null);
+    }
+  };
 
   const activas = vacantes.filter(v => v.estado === 'activa');
   const inactivas = vacantes.filter(v => v.estado !== 'activa');
@@ -520,6 +809,82 @@ export default function EmpleadorVacantesScreen({ navigation }) {
           </View>
         </AnimatedPressable>
       </FadeInView>
+
+      {/* ── Descubre talento ── */}
+      {(especialistas.length > 0 || trabajadores.length > 0) && (
+        <FadeInView delay={300}>
+          <View style={talentStyles.section}>
+            {/* Header sección */}
+            <View style={talentStyles.sectionHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[talentStyles.sectionTitle, { color: colors.textPrimary }]}>Descubre talento</Text>
+                <Text style={[talentStyles.sectionSub, { color: colors.textMuted }]}>Trabajadores y especialistas disponibles</Text>
+              </View>
+              <AnimatedPressable
+                style={[talentStyles.verTodosBtn, { borderColor: COLORS.primary }]}
+                onPress={() => navigation.navigate('Trabajadores')}
+                scaleValue={0.95} haptic
+              >
+                <Text style={[talentStyles.verTodosText, { color: COLORS.primary }]}>Ver todos</Text>
+              </AnimatedPressable>
+            </View>
+
+            {/* Especialistas — scroll horizontal */}
+            {especialistas.length > 0 && (
+              <View style={{ marginBottom: SPACING.md }}>
+                <View style={talentStyles.subHeader}>
+                  <View style={[talentStyles.espBadge, { backgroundColor: '#F3E8FF' }]}>
+                    <Ionicons name="ribbon" size={11} color="#7C3AED" />
+                    <Text style={[talentStyles.espBadgeText, { color: '#7C3AED' }]}>Especialistas</Text>
+                  </View>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={talentStyles.hScroll}>
+                  {especialistas.slice(0, 6).map((esp) => (
+                    <View key={esp.id} style={{ width: 280 }}>
+                      <EspCard
+                        item={esp}
+                        colors={colors}
+                        isDark={isDark}
+                        onPress={(item) => navigation.navigate('Trabajadores', { screen: 'PerfilPublicoTrabajador', params: { trabajador_id: item.id, rol: 'especialista' } })}
+                        onContact={contactarEspecialista}
+                        loadingId={enviandoContactoId}
+                        estadoContacto={contactosEstado[`esp_${esp.id}`] || null}
+                      />
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Trabajadores — scroll horizontal */}
+            {trabajadores.length > 0 && (
+              <View>
+                <View style={talentStyles.subHeader}>
+                  <View style={[talentStyles.espBadge, { backgroundColor: COLORS.primarySoft }]}>
+                    <Ionicons name="people" size={11} color={COLORS.primary} />
+                    <Text style={[talentStyles.espBadgeText, { color: COLORS.primary }]}>Trabajadores</Text>
+                  </View>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={talentStyles.hScroll}>
+                  {trabajadores.slice(0, 8).map((t) => (
+                    <View key={t.id} style={{ width: 280 }}>
+                      <SocialWorkerCard
+                        item={t}
+                        colors={colors}
+                        isDark={isDark}
+                        onPress={(item) => navigation.navigate('Trabajadores', { screen: 'PerfilPublicoTrabajador', params: { trabajador_id: item.id, vacante_id: vacanteActiva?.id } })}
+                        onContact={contactarTrabajador}
+                        loadingContacto={Number(enviandoContactoId) === Number(t.id)}
+                        estadoContacto={contactosEstado[t.id] || null}
+                      />
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+        </FadeInView>
+      )}
     </View>
   );
 
@@ -1323,4 +1688,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 16,
   },
+});
+
+const talentStyles = StyleSheet.create({
+  section: { paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: '#E8EDE8', marginTop: SPACING.md },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, marginBottom: SPACING.md },
+  sectionTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
+  sectionSub: { fontSize: 12, marginTop: 2 },
+  verTodosBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.full, borderWidth: 1.5 },
+  verTodosText: { fontSize: 13, fontWeight: '700' },
+  subHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, marginBottom: SPACING.sm },
+  espBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full },
+  espBadgeText: { fontSize: 12, fontWeight: '700' },
+  hScroll: { paddingHorizontal: SPACING.md, gap: SPACING.sm, paddingBottom: 4 },
 });
