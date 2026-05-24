@@ -67,6 +67,26 @@ export const authAPI = {
     transformRequest: [(data) => data],
   }),
   reenviarVerificacion: () => api.post('/auth/verificacion/reenviar'),
+  subirFotoTrabajo: async (uri) => {
+    const form = new FormData();
+    const ext = (uri.split('.').pop() || 'jpg').toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    if (typeof document !== 'undefined') {
+      const blob = await fetch(uri).then(r => r.blob());
+      form.append('foto', blob, `foto_trabajo_${Date.now()}.${ext}`);
+    } else {
+      form.append('foto', { uri, type: mime, name: `foto_trabajo_${Date.now()}.${ext}` });
+    }
+    const res = await fetch(`${api.defaults.baseURL}/auth/fotos-trabajo`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authToken}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw { response: { data, status: res.status } };
+    return { data };
+  },
+  eliminarFotoTrabajo: (fotoId) => api.delete(`/auth/fotos-trabajo/${fotoId}`),
   eliminarCuenta: (motivo) => api.delete('/auth/cuenta', { data: { motivo } }),
 };
 

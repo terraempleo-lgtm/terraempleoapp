@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Image,
-  KeyboardAvoidingView, Platform, Switch, Linking, ActionSheetIOS, Modal, ActivityIndicator, TextInput,
+  KeyboardAvoidingView, Platform, Switch, Linking, ActionSheetIOS, Modal, ActivityIndicator, TextInput, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -70,6 +70,8 @@ export default function EditarPerfilScreen({ navigation, route }) {
   );
   const [hojaVidaUrlEsp, setHojaVidaUrlEsp] = useState(initPerfil?.hoja_vida_url || '');
   const [hojaVidaNombreEsp, setHojaVidaNombreEsp] = useState(initPerfil?.hoja_vida_nombre || '');
+  const [fotosTrabajo, setFotosTrabajo] = useState(initPerfil?.fotos_trabajo || []);
+  const [subiendoFotoTrabajo, setSubiendoFotoTrabajo] = useState(false);
 
   // Campos empleador
   const [nombreEmpresa, setNombreEmpresa] = useState(initPerfil?.nombre_empresa_finca || '');
@@ -408,6 +410,38 @@ export default function EditarPerfilScreen({ navigation, route }) {
     return true;
   };
 
+  const agregarFotoTrabajo = async () => {
+    if (fotosTrabajo.length >= 10) {
+      showAlert('Límite alcanzado', 'Puedes subir máximo 10 fotos de trabajo.');
+      return;
+    }
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.75,
+        allowsMultipleSelection: false,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      const uri = result.assets[0].uri;
+      setSubiendoFotoTrabajo(true);
+      const res = await authAPI.subirFotoTrabajo(uri);
+      setFotosTrabajo(prev => [...prev, res.data.foto]);
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'No se pudo subir la foto.');
+    } finally {
+      setSubiendoFotoTrabajo(false);
+    }
+  };
+
+  const eliminarFotoTrabajo = async (foto) => {
+    try {
+      await authAPI.eliminarFotoTrabajo(foto.id);
+      setFotosTrabajo(prev => prev.filter(f => f.id !== foto.id));
+    } catch (err) {
+      showAlert('Error', 'No se pudo eliminar la foto.');
+    }
+  };
+
   const handleGuardar = async () => {
     if (!validate()) return;
     setLoading(true);
@@ -688,6 +722,52 @@ export default function EditarPerfilScreen({ navigation, route }) {
                   </AnimatedPressable>
                 </View>
               </View>
+            </View>
+
+            {/* Fotos de trabajo */}
+            <View style={[styles.card, { backgroundColor: colors.surface, marginTop: SPACING.sm }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
+                <Ionicons name="images-outline" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary, marginBottom: 0 }]}>Fotos de tu trabajo</Text>
+              </View>
+              <Text style={[styles.fieldHint, { color: colors.textMuted, marginBottom: SPACING.sm }]}>
+                Agrega fotos de tus labores, cosechas o proyectos completados. Máximo 10 fotos.
+              </Text>
+              {fotosTrabajo.length > 0 && (
+                <View style={ftStyles.grid}>
+                  {fotosTrabajo.map((foto) => (
+                    <View key={foto.id} style={ftStyles.fotoWrap}>
+                      <Image source={{ uri: foto.url }} style={ftStyles.foto} />
+                      <AnimatedPressable
+                        style={ftStyles.deleteBtn}
+                        onPress={() => eliminarFotoTrabajo(foto)}
+                        scaleValue={0.9}
+                      >
+                        <Ionicons name="close-circle" size={22} color="#EF4444" />
+                      </AnimatedPressable>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {fotosTrabajo.length < 10 && (
+                <AnimatedPressable
+                  style={[ftStyles.addBtn, { borderColor: COLORS.primary }]}
+                  onPress={agregarFotoTrabajo}
+                  disabled={subiendoFotoTrabajo}
+                  scaleValue={0.97}
+                >
+                  {subiendoFotoTrabajo ? (
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+                      <Text style={[ftStyles.addBtnText, { color: COLORS.primary }]}>
+                        {fotosTrabajo.length === 0 ? 'Agregar fotos de trabajo' : 'Agregar más fotos'}
+                      </Text>
+                    </>
+                  )}
+                </AnimatedPressable>
+              )}
             </View>
           )}
 
@@ -1175,4 +1255,14 @@ const styles = StyleSheet.create({
     fontSize: 12, color: COLORS.textLight, textAlign: 'center',
     textDecorationLine: 'underline', marginBottom: SPACING.xl, paddingVertical: SPACING.xs,
   },
+});
+
+const FOTO_SIZE = (Dimensions.get('window').width - SPACING.md * 2 - SPACING.sm * 4) / 3;
+const ftStyles = StyleSheet.create({
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.sm },
+  fotoWrap: { width: FOTO_SIZE, height: FOTO_SIZE, borderRadius: RADIUS.md, overflow: 'visible' },
+  foto: { width: '100%', height: '100%', borderRadius: RADIUS.md, backgroundColor: '#E5E7EB' },
+  deleteBtn: { position: 'absolute', top: -8, right: -8, backgroundColor: '#fff', borderRadius: 11 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderStyle: 'dashed', borderRadius: RADIUS.md, paddingVertical: 14 },
+  addBtnText: { fontSize: 14, fontWeight: '600' },
 });

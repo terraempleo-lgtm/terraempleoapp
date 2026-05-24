@@ -1028,6 +1028,57 @@ async function solicitarRecuperacionEmail(req, res) {
   }
 }
 
+async function subirFotoTrabajo(req, res) {
+  try {
+    const userId = req.user.id;
+    const rol = req.user.rol;
+    if (!['trabajador', 'especialista'].includes(rol)) {
+      return res.status(403).json({ error: 'Solo trabajadores pueden subir fotos de trabajo.' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'No se recibió imagen.' });
+
+    const fileUrl = req.file.location || req.file.path;
+
+    const perfiles = await query('SELECT id FROM perfil_trabajador WHERE usuario_id = ?', [userId]);
+    if (!perfiles || perfiles.length === 0) return res.status(404).json({ error: 'Perfil no encontrado.' });
+    const perfilId = perfiles[0].id;
+
+    const count = await query('SELECT COUNT(*) as n FROM trabajador_fotos_trabajo WHERE perfil_trabajador_id = ?', [perfilId]);
+    const total = Number(count[0].n);
+    if (total >= 10) return res.status(400).json({ error: 'Máximo 10 fotos de trabajo permitidas.' });
+
+    await query('INSERT INTO trabajador_fotos_trabajo (perfil_trabajador_id, url, orden) VALUES (?, ?, ?)', [perfilId, fileUrl, total]);
+    const signedUrl = await signUrl(fileUrl);
+    const inserted = await query('SELECT id FROM trabajador_fotos_trabajo WHERE perfil_trabajador_id = ? AND url = ? ORDER BY id DESC LIMIT 1', [perfilId, fileUrl]);
+    res.json({ foto: { id: inserted[0].id, url: signedUrl } });
+  } catch (err) {
+    console.error('Error subiendo foto de trabajo:', err);
+    res.status(500).json({ error: 'No se pudo subir la foto.' });
+  }
+}
+
+async function eliminarFotoTrabajo(req, res) {
+  try {
+    const userId = req.user.id;
+    const { fotoId } = req.params;
+    const { deleteFromS3 } = require('../config/s3');
+
+    const perfiles = await query('SELECT id FROM perfil_trabajador WHERE usuario_id = ?', [userId]);
+    if (!perfiles || perfiles.length === 0) return res.status(404).json({ error: 'Perfil no encontrado.' });
+    const perfilId = perfiles[0].id;
+
+    const fotos = await query('SELECT * FROM trabajador_fotos_trabajo WHERE id = ? AND perfil_trabajador_id = ?', [fotoId, perfilId]);
+    if (!fotos || fotos.length === 0) return res.status(404).json({ error: 'Foto no encontrada.' });
+
+    await deleteFromS3(fotos[0].url);
+    await query('DELETE FROM trabajador_fotos_trabajo WHERE id = ?', [fotoId]);
+    res.json({ message: 'Foto eliminada.' });
+  } catch (err) {
+    console.error('Error eliminando foto de trabajo:', err);
+    res.status(500).json({ error: 'No se pudo eliminar la foto.' });
+  }
+}
+
 async function eliminarCuenta(req, res) {
   try {
     const userId = req.user.id;
@@ -1059,5 +1110,7 @@ module.exports = {
   verificarCodigoRecuperacion,
   actualizarPasswordRecuperacion,
   solicitarRecuperacionEmail,
+  subirFotoTrabajo,
+  eliminarFotoTrabajo,
   eliminarCuenta,
 };

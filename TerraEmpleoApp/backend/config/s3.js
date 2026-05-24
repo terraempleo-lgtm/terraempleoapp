@@ -58,6 +58,16 @@ const storageHojasVida = multerS3({
   },
 });
 
+const storageFotosTrabajo = multerS3({
+  s3,
+  bucket,
+  contentType: multerS3.AUTO_CONTENT_TYPE,
+  key: (req, file, cb) => {
+    const ext = file.originalname.split('.').pop();
+    cb(null, `fotos_trabajo/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`);
+  },
+});
+
 const storageChat = multerS3({
   s3,
   bucket,
@@ -139,6 +149,7 @@ module.exports = {
   storage,
   storageVacantes,
   storageHojasVida,
+  storageFotosTrabajo,
   storageChat,
   deleteFromS3,
   signUrl,

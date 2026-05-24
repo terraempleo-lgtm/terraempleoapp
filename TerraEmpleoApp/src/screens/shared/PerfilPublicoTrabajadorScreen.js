@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-  ActivityIndicator, Linking, Pressable, Alert, Share,
+  ActivityIndicator, Linking, Pressable, Alert, Share, Dimensions, Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +33,30 @@ function AnimatedPressable({ style, onPress, disabled, children, activeOpacity =
     >
       {children}
     </Pressable>
+  );
+}
+
+const W = Dimensions.get('window').width;
+const FT_SIZE = (W - SPACING.md * 2 - SPACING.sm * 2) / 3;
+
+function FotosTrabajoGrid({ fotos, colors }) {
+  const [preview, setPreview] = useState(null);
+  return (
+    <>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
+        {fotos.map((f) => (
+          <TouchableOpacity key={f.id} onPress={() => setPreview(f.url)} activeOpacity={0.85}>
+            <Image source={{ uri: f.url }} style={{ width: FT_SIZE, height: FT_SIZE, borderRadius: RADIUS.md, backgroundColor: '#E5E7EB' }} />
+          </TouchableOpacity>
+        ))}
+      </View>
+      <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setPreview(null)}>
+          {preview && <Image source={{ uri: preview }} style={{ width: W - 32, height: W - 32, borderRadius: RADIUS.lg }} resizeMode="contain" />}
+          <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 16, fontSize: 13 }}>Toca para cerrar</Text>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -349,13 +373,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
           {espFotos.length > 0 && (
             <View style={[s.card, { backgroundColor: colors.surface }]}>
               <SectionHeader icon="images-outline" title="Fotos de trabajo" colors={colors} />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-                  {espFotos.map((url, i) => (
-                    <Image key={i} source={{ uri: url }} style={{ width: 140, height: 105, borderRadius: RADIUS.md }} />
-                  ))}
-                </View>
-              </ScrollView>
+              <FotosTrabajoGrid fotos={espFotos} colors={colors} />
             </View>
           )}
         </ScrollView>
@@ -624,6 +642,14 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
             </View>
           ) : null}
         </View>
+
+        {/* Fotos de trabajo */}
+        {(perfil.fotos_trabajo || []).length > 0 && (
+          <View style={[s.card, { backgroundColor: colors.surface }]}>
+            <SectionHeader icon="images-outline" title="Fotos de trabajo" colors={colors} />
+            <FotosTrabajoGrid fotos={perfil.fotos_trabajo} colors={colors} />
+          </View>
+        )}
 
         {/* Documentación verificada */}
         <View style={[s.card, { backgroundColor: colors.surface }]}>

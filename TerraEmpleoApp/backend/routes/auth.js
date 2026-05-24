@@ -4,11 +4,21 @@ const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const { authLoginLimiter, authSmsLimiter, authRecoveryLimiter } = require('../middleware/rateLimit');
 const authController = require('../controllers/authController');
-const { storage, storageHojasVida } = require('../config/s3');
+const { storage, storageHojasVida, storageFotosTrabajo } = require('../config/s3');
 
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    if (allowed.includes(file.mimetype)) return cb(null, true);
+    return cb(new Error('Solo se permiten imágenes (jpg, png, webp, heic)'));
+  },
+});
+
+const uploadFotoTrabajo = multer({
+  storage: storageFotosTrabajo,
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
     if (allowed.includes(file.mimetype)) return cb(null, true);
@@ -44,6 +54,8 @@ router.post('/fotos/:tipo', authMiddleware, upload.single('foto'), authControlle
 router.post('/verificacion/reenviar', authMiddleware, authController.reenviarVerificacion);
 router.post('/cambiar-foto-perfil', authMiddleware, upload.single('foto'), authController.cambiarFotoPerfil);
 router.post('/hoja-vida', authMiddleware, uploadHojaVida.single('hoja_vida'), authController.subirHojaVida);
+router.post('/fotos-trabajo', authMiddleware, uploadFotoTrabajo.single('foto'), authController.subirFotoTrabajo);
+router.delete('/fotos-trabajo/:fotoId', authMiddleware, authController.eliminarFotoTrabajo);
 router.delete('/cuenta', authMiddleware, authController.eliminarCuenta);
 
 module.exports = router;

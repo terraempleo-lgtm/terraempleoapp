@@ -447,6 +447,18 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Fotos de trabajo del trabajador (portafolio)
+  await query(`
+    CREATE TABLE IF NOT EXISTS trabajador_fotos_trabajo (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      perfil_trabajador_id INT NOT NULL,
+      url VARCHAR(500) NOT NULL,
+      orden INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (perfil_trabajador_id) REFERENCES perfil_trabajador(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Fotos del trabajo del especialista (portafolio)
   await query(`
     CREATE TABLE IF NOT EXISTS especialista_fotos_trabajo (
