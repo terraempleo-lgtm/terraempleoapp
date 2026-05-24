@@ -91,7 +91,7 @@ export default function AdminPostulantesVacanteScreen({ route, navigation }) {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <FadeInView delay={0}>
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>{vacante?.titulo || 'Postulantes'}</Text>

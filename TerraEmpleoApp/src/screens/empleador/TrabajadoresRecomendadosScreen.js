@@ -313,7 +313,7 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.centerWrap}>
           <Ionicons name="sparkles-outline" size={40} color={COLORS.primaryLight} />
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Buscando trabajadores para ti...</Text>
@@ -323,7 +323,7 @@ export default function TrabajadoresRecomendadosScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.header}>
         <View>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Para ti</Text>

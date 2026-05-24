@@ -699,7 +699,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.centerWrap}>
           <Ionicons name="people-outline" size={40} color={COLORS.primaryLight} />
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Buscando trabajadores...</Text>
@@ -709,7 +709,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <FlatList
         data={filtrados}
         keyExtractor={(item) => String(item.id)}

@@ -247,7 +247,7 @@ export default function AdminVerificacionCedulasScreen({ navigation }) {
   const [fotoZoom, setFotoZoom] = useState(null);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Modal zoom foto */}
       <Modal visible={!!fotoZoom} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setFotoZoom(null)}>
         <StatusBar hidden />

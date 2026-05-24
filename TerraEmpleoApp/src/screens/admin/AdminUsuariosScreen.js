@@ -16,6 +16,7 @@ const ROLE_FILTERS = [
   { key: 'todos', label: 'Todos' },
   { key: 'trabajador', label: 'Trabajadores' },
   { key: 'empleador', label: 'Empleadores' },
+  { key: 'especialista', label: 'Especialistas' },
   { key: 'admin', label: 'Admin' },
 ];
 
@@ -183,6 +184,11 @@ export default function AdminUsuariosScreen({ navigation }) {
       fg: colors.warning,
       label: 'Empleador',
     };
+    if (rol === 'especialista') return {
+      bg: isDark ? 'rgba(168,85,247,0.18)' : '#F3E8FF',
+      fg: '#7C3AED',
+      label: 'Especialista',
+    };
     return {
       bg: isDark ? 'rgba(59,130,246,0.18)' : COLORS.infoSoft,
       fg: COLORS.info,
@@ -312,7 +318,7 @@ export default function AdminUsuariosScreen({ navigation }) {
 
   if (error) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <ScrollView
           contentContainerStyle={[styles.center, { flex: 1 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
@@ -343,7 +349,7 @@ export default function AdminUsuariosScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Search bar */}
       <FadeInView delay={0}>
         <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>

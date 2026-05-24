@@ -98,7 +98,7 @@ export default function AdminDetalleUsuarioScreen({ route }) {
   const { user, perfil, vacantes, postulaciones, calificacionesRecibidas } = detalle;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={

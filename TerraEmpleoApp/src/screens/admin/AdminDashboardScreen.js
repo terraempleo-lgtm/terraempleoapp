@@ -57,7 +57,7 @@ export default function AdminDashboardScreen({ navigation }) {
 
   if (error) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <ScrollView
           contentContainerStyle={[
             styles.content,
@@ -131,7 +131,7 @@ export default function AdminDashboardScreen({ navigation }) {
   const anchoTarjeta = columnas === 1 ? '100%' : columnas === 2 ? '48%' : '31%';
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView
         contentContainerStyle={[
           styles.content,

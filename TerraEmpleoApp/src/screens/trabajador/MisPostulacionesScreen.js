@@ -425,7 +425,7 @@ export default function MisPostulacionesScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <FlatList
         data={dataFiltrada}
         keyExtractor={(item) => String(item.id)}
