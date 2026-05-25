@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const { signUrl } = require('../config/s3');
 const { crearNotificacion } = require('./notificacionesController');
+const { crearChat } = require('./chatController');
 
 async function listarEspecialistas(req, res) {
   try {
@@ -277,12 +278,8 @@ async function responderSolicitudContacto(req, res) {
       return res.json({ estado: 'rechazado' });
     }
 
-    // Aceptar: crear chat
-    const chatResult = await query(
-      'INSERT INTO chats (usuario1_id, usuario2_id) VALUES (?, ?)',
-      [solicitud.empleador_id, especialistaId]
-    );
-    const chatId = chatResult.insertId;
+    // Aceptar: crear chat (vacante_id = null para chats de especialista)
+    const chatId = await crearChat(null, solicitud.empleador_id, especialistaId);
 
     await query(
       'UPDATE contactos_especialista SET estado = ?, chat_id = ? WHERE id = ?',

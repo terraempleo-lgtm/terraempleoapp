@@ -18,11 +18,12 @@ async function misChats(req, res) {
           u.nombre_completo as otro_nombre,
           u.foto_selfie as otro_foto,
           u.celular as otro_celular,
+          u.rol as otro_rol,
           (SELECT m.mensaje FROM mensajes m WHERE m.chat_id = c.id ORDER BY m.created_at DESC LIMIT 1) as ultimo_mensaje,
           (SELECT m.created_at FROM mensajes m WHERE m.chat_id = c.id ORDER BY m.created_at DESC LIMIT 1) as ultimo_mensaje_at,
           (SELECT COUNT(*) FROM mensajes m WHERE m.chat_id = c.id AND m.leido = 0 AND m.emisor_id != ?) as no_leidos
         FROM chats c
-        JOIN vacantes v ON v.id = c.vacante_id
+        LEFT JOIN vacantes v ON v.id = c.vacante_id
         JOIN usuarios u ON u.id = c.trabajador_id
         WHERE c.empleador_id = ? AND c.activo = 1
           AND u.id NOT IN (SELECT bloqueado_id FROM usuarios_bloqueados WHERE bloqueador_id = ?)
@@ -38,11 +39,12 @@ async function misChats(req, res) {
           u.nombre_completo as otro_nombre,
           u.foto_selfie as otro_foto,
           u.celular as otro_celular,
+          u.rol as otro_rol,
           (SELECT m.mensaje FROM mensajes m WHERE m.chat_id = c.id ORDER BY m.created_at DESC LIMIT 1) as ultimo_mensaje,
           (SELECT m.created_at FROM mensajes m WHERE m.chat_id = c.id ORDER BY m.created_at DESC LIMIT 1) as ultimo_mensaje_at,
           (SELECT COUNT(*) FROM mensajes m WHERE m.chat_id = c.id AND m.leido = 0 AND m.emisor_id != ?) as no_leidos
         FROM chats c
-        JOIN vacantes v ON v.id = c.vacante_id
+        LEFT JOIN vacantes v ON v.id = c.vacante_id
         JOIN usuarios u ON u.id = c.empleador_id
         WHERE c.trabajador_id = ? AND c.activo = 1
           AND u.id NOT IN (SELECT bloqueado_id FROM usuarios_bloqueados WHERE bloqueador_id = ?)
@@ -250,17 +252,26 @@ async function marcarLeidos(req, res) {
 async function crearChat(vacanteId, empleadorId, trabajadorId) {
   try {
     // Verificar si ya existe
-    const existing = await query(
-      'SELECT id FROM chats WHERE vacante_id = ? AND trabajador_id = ?',
-      [vacanteId, trabajadorId]
-    );
+    let existing;
+    if (vacanteId) {
+      existing = await query(
+        'SELECT id FROM chats WHERE vacante_id = ? AND trabajador_id = ?',
+        [vacanteId, trabajadorId]
+      );
+    } else {
+      // Chat especialista: sin vacante, identificar por par empleador+trabajador
+      existing = await query(
+        'SELECT id FROM chats WHERE vacante_id IS NULL AND empleador_id = ? AND trabajador_id = ?',
+        [empleadorId, trabajadorId]
+      );
+    }
     if (existing && existing.length > 0) {
       return Number(existing[0].id);
     }
 
     const result = await query(
       'INSERT INTO chats (vacante_id, empleador_id, trabajador_id) VALUES (?, ?, ?)',
-      [vacanteId, empleadorId, trabajadorId]
+      [vacanteId || null, empleadorId, trabajadorId]
     );
     return Number(result.insertId);
   } catch (err) {

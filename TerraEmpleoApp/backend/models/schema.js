@@ -206,17 +206,25 @@ async function initializeDatabase() {
   await query(`
     CREATE TABLE IF NOT EXISTS chats (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      vacante_id INT NOT NULL,
+      vacante_id INT DEFAULT NULL,
       empleador_id INT NOT NULL,
       trabajador_id INT NOT NULL,
       activo TINYINT(1) NOT NULL DEFAULT 1,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE KEY uk_chat (vacante_id, trabajador_id),
       FOREIGN KEY (vacante_id) REFERENCES vacantes(id) ON DELETE CASCADE,
       FOREIGN KEY (empleador_id) REFERENCES usuarios(id) ON DELETE CASCADE,
       FOREIGN KEY (trabajador_id) REFERENCES usuarios(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  // Hacer vacante_id nullable en chats si ya existía como NOT NULL (migracion)
+  await query(`
+    ALTER TABLE chats MODIFY COLUMN vacante_id INT DEFAULT NULL
+  `).catch(() => {});
+  // Eliminar unique key antigua si existe (no permite NULL duplicados correctamente en algunos motores)
+  await query(`
+    ALTER TABLE chats DROP INDEX uk_chat
+  `).catch(() => {});
 
   // Mensajes de chat
   await query(`
