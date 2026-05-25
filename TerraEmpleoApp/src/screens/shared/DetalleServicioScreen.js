@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-  ActivityIndicator, Dimensions, Modal, Pressable, Linking, Platform, Alert,
+  ActivityIndicator, Dimensions, Modal, Pressable, Linking, Platform, Alert, NativeScrollEvent, NativeSyntheticEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -87,19 +87,35 @@ export default function DetalleServicioScreen({ route, navigation }) {
   );
 
   const fotos = servicio.fotos || [];
-  const foto = fotos[fotoIdx]?.url;
+  const carouselRef = useRef(null);
+
+  const onCarouselScroll = (e) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / W);
+    setFotoIdx(idx);
+  };
 
   return (
     <View style={[st.root, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
 
-        {/* ── HERO FOTO ── */}
+        {/* ── HERO CARRUSEL ── */}
         <View style={st.heroWrap}>
-          {foto ? (
-            <TouchableOpacity onPress={() => setFotoModal(foto)} activeOpacity={0.92}>
-              <Image source={{ uri: foto }} style={st.heroImg} resizeMode="cover" />
-              <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={st.heroOverlay} />
-            </TouchableOpacity>
+          {fotos.length > 0 ? (
+            <ScrollView
+              ref={carouselRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={onCarouselScroll}
+              style={{ width: W, height: st.heroImg.height }}
+            >
+              {fotos.map((f, i) => (
+                <TouchableOpacity key={i} activeOpacity={0.92} onPress={() => setFotoModal(f.url)} style={{ width: W, height: st.heroImg.height }}>
+                  <Image source={{ uri: f.url }} style={{ width: W, height: st.heroImg.height }} resizeMode="cover" />
+                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.65)']} style={st.heroOverlay} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           ) : (
             <LinearGradient colors={['#1B5E20', '#2E7D32', '#43A047']} style={st.heroImg} />
           )}
@@ -109,13 +125,11 @@ export default function DetalleServicioScreen({ route, navigation }) {
             <Ionicons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
 
-          {/* Dots fotos */}
+          {/* Dots carrusel */}
           {fotos.length > 1 && (
             <View style={st.dotsRow}>
               {fotos.map((_, i) => (
-                <TouchableOpacity key={i} onPress={() => setFotoIdx(i)}>
-                  <View style={[st.dot, { backgroundColor: i === fotoIdx ? '#fff' : 'rgba(255,255,255,0.4)' }]} />
-                </TouchableOpacity>
+                <View key={i} style={[st.dot, { backgroundColor: i === fotoIdx ? '#fff' : 'rgba(255,255,255,0.45)', width: i === fotoIdx ? 18 : 6 }]} />
               ))}
             </View>
           )}
@@ -123,6 +137,9 @@ export default function DetalleServicioScreen({ route, navigation }) {
           {/* Título encima del hero */}
           <View style={st.heroBottom}>
             <Text style={st.heroTitulo}>{servicio.titulo}</Text>
+            {fotos.length > 1 && (
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 }}>{fotoIdx + 1} / {fotos.length}</Text>
+            )}
           </View>
         </View>
 

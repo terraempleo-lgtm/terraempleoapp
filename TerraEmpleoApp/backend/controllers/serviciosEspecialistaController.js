@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const { s3, signUrl } = require('../config/s3');
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const path = require('path');
 
 const BUCKET = process.env.AWS_S3_BUCKET;
@@ -12,8 +13,21 @@ function parseCultivos(val) {
   return [];
 }
 
+// Firma una URL o clave S3 — soporta clave cruda (sin amazonaws.com)
+async function firmarUrl(urlOrKey) {
+  if (!urlOrKey) return urlOrKey;
+  try {
+    if (urlOrKey.includes('amazonaws.com')) return signUrl(urlOrKey);
+    // clave cruda: firmar directamente
+    const cmd = new GetObjectCommand({ Bucket: BUCKET, Key: urlOrKey });
+    return await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+  } catch (_) {
+    return urlOrKey;
+  }
+}
+
 async function signFotos(fotos) {
-  return Promise.all(fotos.map(async (f) => ({ ...f, url: await signUrl(f.url) })));
+  return Promise.all(fotos.map(async (f) => ({ ...f, url: await firmarUrl(f.url) })));
 }
 
 // GET /api/servicios-especialista — feed para empleador (todos los servicios activos)
@@ -35,8 +49,7 @@ async function listarServicios(req, res) {
 
     const servicios = await Promise.all(rows.map(async (s) => {
       const fotos = await query('SELECT id, url, orden FROM servicio_fotos WHERE servicio_id = ? ORDER BY orden', [s.id]);
-      let foto_selfie = s.foto_selfie;
-      try { foto_selfie = await signUrl(s.foto_selfie); } catch (_) {}
+      const foto_selfie = await firmarUrl(s.foto_selfie);
       return {
         ...s,
         cultivos: parseCultivos(s.cultivos),
@@ -93,7 +106,7 @@ async function detalleServicio(req, res) {
       servicio: {
         ...s,
         cultivos: parseCultivos(s.cultivos),
-        foto_selfie: await signUrl(s.foto_selfie),
+        foto_selfie: await firmarUrl(s.foto_selfie),
         fotos: await signFotos(fotos),
       },
     });
