@@ -1,5 +1,6 @@
 const { query } = require('../config/database');
 const { signArrayField, signUrl } = require('../config/s3');
+const { crearNotificacion } = require('./notificacionesController');
 
 // Listar mis chats con último mensaje y datos del otro usuario
 async function misChats(req, res) {
@@ -138,7 +139,7 @@ async function enviarMensaje(req, res) {
     }
 
     const chats = await query(
-      'SELECT id FROM chats WHERE id = ? AND (empleador_id = ? OR trabajador_id = ?) AND activo = 1',
+      'SELECT id, empleador_id, trabajador_id FROM chats WHERE id = ? AND (empleador_id = ? OR trabajador_id = ?) AND activo = 1',
       [id, userId, userId]
     );
     if (!chats || chats.length === 0) {
@@ -163,6 +164,15 @@ async function enviarMensaje(req, res) {
     };
 
     res.status(201).json({ mensaje: nuevoMensaje });
+
+    // Notificar al otro participante (sin bloquear la respuesta)
+    try {
+      const chat = chats[0];
+      const destinatarioId = chat.empleador_id === userId ? chat.trabajador_id : chat.empleador_id;
+      const remitente = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [userId]);
+      const nombreRemitente = remitente[0]?.nombre_completo?.split(' ')[0] || 'Alguien';
+      crearNotificacion(destinatarioId, 'mensaje', `Mensaje de ${nombreRemitente}`, mensaje.trim().substring(0, 80), { chat_id: Number(id) }).catch(() => {});
+    } catch (_) {}
   } catch (err) {
     console.error('Error enviando mensaje:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -184,7 +194,7 @@ async function enviarMedia(req, res) {
     }
 
     const chats = await query(
-      'SELECT id FROM chats WHERE id = ? AND (empleador_id = ? OR trabajador_id = ?) AND activo = 1',
+      'SELECT id, empleador_id, trabajador_id FROM chats WHERE id = ? AND (empleador_id = ? OR trabajador_id = ?) AND activo = 1',
       [id, userId, userId]
     );
     if (!chats || chats.length === 0) {
@@ -214,6 +224,16 @@ async function enviarMedia(req, res) {
     };
 
     res.status(201).json({ mensaje: nuevoMensaje });
+
+    // Notificar al otro participante
+    try {
+      const chat = chats[0];
+      const destinatarioId = chat.empleador_id === userId ? chat.trabajador_id : chat.empleador_id;
+      const remitente = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [userId]);
+      const nombreRemitente = remitente[0]?.nombre_completo?.split(' ')[0] || 'Alguien';
+      const textoNotif = tipo === 'imagen' ? `${nombreRemitente} te envió una imagen` : `${nombreRemitente} te envió un audio`;
+      crearNotificacion(destinatarioId, 'mensaje', `Mensaje de ${nombreRemitente}`, textoNotif, { chat_id: Number(id) }).catch(() => {});
+    } catch (_) {}
   } catch (err) {
     console.error('Error enviando media:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
