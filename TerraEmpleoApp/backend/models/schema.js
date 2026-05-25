@@ -471,6 +471,21 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Contactos directos empleador → especialista (sin necesidad de vacante)
+  await query(`
+    CREATE TABLE IF NOT EXISTS contactos_especialista (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      empleador_id INT NOT NULL,
+      especialista_id INT NOT NULL,
+      estado ENUM('solicitado','aceptado','rechazado') DEFAULT 'solicitado',
+      chat_id INT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_contacto (empleador_id, especialista_id),
+      FOREIGN KEY (empleador_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+      FOREIGN KEY (especialista_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Experiencias laborales (trabajador y especialista)
   await query(`
     CREATE TABLE IF NOT EXISTS experiencias_laborales (

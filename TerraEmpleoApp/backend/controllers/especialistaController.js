@@ -156,58 +156,32 @@ async function contactarEspecialista(req, res) {
   try {
     const empleadorId = req.user.id;
     const especialistaId = Number(req.params.id);
-    const vacanteId = Number(req.body?.vacante_id);
 
     if (!Number.isFinite(especialistaId)) {
       return res.status(400).json({ error: 'ID de especialista inválido' });
     }
 
     // Verificar que el especialista existe
-    const esps = await query('SELECT id, nombre_completo FROM usuarios WHERE id = ? AND rol = ?', [especialistaId, 'especialista']);
+    const esps = await query('SELECT id FROM usuarios WHERE id = ? AND rol = ? AND activo = 1', [especialistaId, 'especialista']);
     if (!esps || esps.length === 0) return res.status(404).json({ error: 'Especialista no encontrado' });
-    const nombreEsp = esps[0].nombre_completo;
 
-    // Si no hay vacante, obtener la primera activa del empleador
-    let vid = Number.isFinite(vacanteId) ? vacanteId : null;
-    if (!vid) {
-      const vacantes = await query(
-        `SELECT v.id FROM vacantes v
-         INNER JOIN perfil_empleador pe ON pe.id = v.empleador_id
-         WHERE pe.usuario_id = ? AND v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
-         LIMIT 1`,
-        [empleadorId]
-      );
-      if (vacantes && vacantes.length > 0) vid = Number(vacantes[0].id);
-    }
-
-    if (!vid) {
-      return res.status(400).json({ error: 'Necesitas tener una vacante activa para contactar especialistas.' });
-    }
-
-    // Buscar postulación existente
+    // Buscar contacto existente
     const existente = await query(
-      'SELECT id, estado FROM postulaciones WHERE vacante_id = ? AND trabajador_id = ?',
-      [vid, especialistaId]
+      'SELECT id, estado, chat_id FROM contactos_especialista WHERE empleador_id = ? AND especialista_id = ?',
+      [empleadorId, especialistaId]
     );
 
     if (existente && existente.length > 0) {
-      const post = existente[0];
-      if (post.estado === 'aceptada') {
-        // Buscar chat existente
-        const chats = await query('SELECT id FROM chats WHERE vacante_id = ? AND trabajador_id = ?', [vid, especialistaId]);
-        const chatId = chats && chats.length > 0 ? Number(chats[0].id) : null;
-        return res.json({ estado: 'aceptada', chat_id: chatId });
+      const c = existente[0];
+      if (c.estado === 'aceptado') {
+        return res.json({ estado: 'aceptada', chat_id: c.chat_id ? Number(c.chat_id) : null });
       }
-      if (post.estado === 'contacto_solicitado') {
-        return res.json({ estado: 'contacto_solicitado' });
-      }
-      await query('UPDATE postulaciones SET estado = ? WHERE id = ?', ['contacto_solicitado', post.id]);
       return res.json({ estado: 'contacto_solicitado' });
     }
 
     await query(
-      `INSERT INTO postulaciones (vacante_id, trabajador_id, estado, mensaje) VALUES (?, ?, 'contacto_solicitado', ?)`,
-      [vid, especialistaId, req.body?.mensaje || null]
+      'INSERT INTO contactos_especialista (empleador_id, especialista_id, estado) VALUES (?, ?, ?)',
+      [empleadorId, especialistaId, 'solicitado']
     );
 
     res.status(201).json({ estado: 'contacto_solicitado' });
