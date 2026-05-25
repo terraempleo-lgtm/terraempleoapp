@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
-import { notificacionesAPI, vacantesAPI, chatsAPI } from '../../services/api';
+import { notificacionesAPI, vacantesAPI, chatsAPI, especialistasAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { AnimatedPressable } from '../../components/animated';
@@ -23,6 +23,7 @@ const TIPO_CONFIG = {
   nuevo_mensaje:      { icon: 'chatbubble-ellipses',color: '#3B82F6', bg: '#EFF6FF' },
   rechazado:          { icon: 'close-circle',       color: '#DC2626', bg: '#FEF2F2' },
   calificacion:       { icon: 'star',               color: '#7B1FA2', bg: '#F3E5F5' },
+  contacto:           { icon: 'person-add',         color: '#C0694A', bg: '#FEF3EE' },
 };
 
 function tiempoRelativo(dateStr) {
@@ -61,6 +62,7 @@ function normalizarNotificacion(raw) {
     case 'oferta_recomendada': case 'nueva_vacante': type = 'VACANTE_RECOMENDADA'; break;
     case 'postulacion': type = 'POSTULACION_ENVIADA'; break;
     case 'contacto_solicitado': type = 'SOLICITUD_CONTACTO'; break;
+    case 'contacto': type = 'CONTACTO_ESPECIALISTA'; break;
     case 'vacante_editada': type = 'VACANTE_EDITADA'; break;
     case 'vacante_cerrada': type = 'VACANTE_CERRADA'; break;
     case 'vacante_activada': type = 'VACANTE_ACTIVADA'; break;
@@ -73,7 +75,8 @@ function normalizarNotificacion(raw) {
     else if (txt.includes('chat') && txt.includes('habilit')) type = 'CHAT_HABILITADO';
     else if (txt.includes('nuevo match') || txt.includes('coincide con la vacante')) type = 'NUEVO_MATCH';
     else if (txt.includes('recomendad')) type = 'VACANTE_RECOMENDADA';
-    else if (txt.includes('solicitud de contacto') || txt.includes('quiere contactarte')) type = 'SOLICITUD_CONTACTO';
+    else if (txt.includes('quiere contactarte')) type = 'CONTACTO_ESPECIALISTA';
+    else if (txt.includes('solicitud de contacto')) type = 'SOLICITUD_CONTACTO';
   }
 
   return {
@@ -222,6 +225,10 @@ export default function NotificacionesScreen({ navigation }) {
       case 'POSTULACION_ENVIADA':
         await abrirPostulaciones(notification.data.vacancyId);
         break;
+      case 'CONTACTO_ESPECIALISTA':
+        // Navegar a Mis Postulaciones/Solicitudes donde el especialista puede aceptar/rechazar
+        navigation.navigate('Postulaciones');
+        break;
       case 'SOLICITUD_CONTACTO':
         setSolicitudModal({
           notif: item,
@@ -265,7 +272,7 @@ export default function NotificacionesScreen({ navigation }) {
     if (filtro === 'sin_leer') return notificaciones.filter(n => !n.leida);
     if (filtro === 'postulaciones') return notificaciones.filter(n => {
       const t = (n.tipo || '').toLowerCase();
-      return t.includes('postulacion') || t.includes('aceptado');
+      return t.includes('postulacion') || t.includes('aceptado') || t === 'contacto';
     });
     if (filtro === 'mensajes') return notificaciones.filter(n => {
       const t = (n.tipo || '').toLowerCase();
@@ -300,7 +307,7 @@ export default function NotificacionesScreen({ navigation }) {
   const CHIPS = [
     { key: 'todas', label: 'Todas', count: notificaciones.length },
     { key: 'sin_leer', label: 'Sin leer', count: countNoLeidas },
-    { key: 'postulaciones', label: 'Postulaciones', count: notificaciones.filter(n => { const t=(n.tipo||'').toLowerCase(); return t.includes('postulacion')||t.includes('aceptado'); }).length },
+    { key: 'postulaciones', label: 'Postulaciones', count: notificaciones.filter(n => { const t=(n.tipo||'').toLowerCase(); return t.includes('postulacion')||t.includes('aceptado')||t==='contacto'; }).length },
     { key: 'mensajes', label: 'Mensajes', count: notificaciones.filter(n => { const t=(n.tipo||'').toLowerCase(); return t.includes('chat')||t.includes('mensaje'); }).length },
   ];
 
