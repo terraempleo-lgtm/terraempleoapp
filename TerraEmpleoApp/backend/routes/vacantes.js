@@ -40,7 +40,13 @@ router.get('/recomendadas', authMiddleware, vacantesController.vacantesRecomenda
 router.put('/postulaciones/:id/responder-contacto', authMiddleware, trabajadorMiddleware, vacantesController.responderSolicitudContacto);
 router.get('/', authMiddleware, vacantesController.listarVacantes);
 router.get('/:id', authMiddleware, vacantesController.detalleVacante);
-router.post('/postularse', authMiddleware, trabajadorMiddleware, vacantesController.postularse);
-router.get('/mis-postulaciones/lista', authMiddleware, trabajadorMiddleware, vacantesController.misPostulaciones);
+const trabajadorOEspecialistaMiddleware = (req, res, next) => {
+  if (!['trabajador', 'especialista', 'admin'].includes(req.user.rol)) {
+    return res.status(403).json({ error: 'Acceso denegado.' });
+  }
+  next();
+};
+router.post('/postularse', authMiddleware, trabajadorOEspecialistaMiddleware, vacantesController.postularse);
+router.get('/mis-postulaciones/lista', authMiddleware, trabajadorOEspecialistaMiddleware, vacantesController.misPostulaciones);
 
 module.exports = router;

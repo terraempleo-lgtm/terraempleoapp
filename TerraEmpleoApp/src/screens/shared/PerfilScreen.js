@@ -421,13 +421,24 @@ export default function PerfilScreen({ navigation }) {
 
           {/* ── HERO terracota ── */}
           <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 400 }}>
-            <LinearGradient colors={['#8B3A2A', '#C0694A', '#D4845A']} style={[tw.hero, { paddingTop: (insets?.top || 0) + 52 }]}>
+            <View style={[tw.hero, { paddingTop: (insets?.top || 0) + 52, overflow: 'hidden' }]}>
+              {/* Portada */}
+              {fotoPortada
+                ? <Image source={{ uri: fotoPortada }} style={tw.heroPortadaImg} resizeMode="cover" />
+                : <LinearGradient colors={['#8B3A2A', '#C0694A', '#D4845A']} style={StyleSheet.absoluteFill} />
+              }
+              <LinearGradient colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0.55)']} style={StyleSheet.absoluteFill} pointerEvents="none" />
               <View style={tw.heroTopBar}>
                 <View style={{ width: 40 }} />
                 <Text style={tw.heroTopTitle}>Mi Perfil</Text>
-                <AnimatedPressable style={tw.settingsBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.88} haptic>
-                  <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.9)" />
-                </AnimatedPressable>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <TouchableOpacity style={[tw.settingsBtn, { backgroundColor: 'rgba(255,255,255,0.2)' }]} onPress={subirPortadaTrabajador} disabled={subiendoPortada} activeOpacity={0.75}>
+                    {subiendoPortada ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="image-outline" size={18} color="#fff" />}
+                  </TouchableOpacity>
+                  <TouchableOpacity style={tw.settingsBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} activeOpacity={0.75}>
+                    <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.9)" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <MotiView from={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 150 }}>
@@ -472,7 +483,7 @@ export default function PerfilScreen({ navigation }) {
                   <Text style={tw.statLbl}>Experiencia</Text>
                 </View>
               </MotiView>
-            </LinearGradient>
+            </View>
           </MotiView>
 
           <View style={{ paddingHorizontal: SPACING.md, paddingTop: 52 }}>

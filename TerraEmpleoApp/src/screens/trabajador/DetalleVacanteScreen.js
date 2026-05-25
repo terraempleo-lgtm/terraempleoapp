@@ -75,7 +75,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
       try {
         const [detalleRes, postulacionesRes] = await Promise.all([
           vacantesAPI.detalle(vacanteParam.id),
-          user?.rol === 'trabajador'
+          (user?.rol === 'trabajador' || user?.rol === 'especialista')
             ? vacantesAPI.misPostulaciones()
             : Promise.resolve({ data: { postulaciones: [] } }),
         ]);
@@ -569,7 +569,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
             <Text style={[styles.postBtnDoneText, { color: '#9CA3AF' }]}>Vacante cerrada</Text>
           </View>
         ) : (
-          user?.rol === 'trabajador' && (
+          (user?.rol === 'trabajador' || user?.rol === 'especialista') && (
             <TouchableOpacity
               style={styles.postBtn}
               onPress={() => setShowPostModal(true)}
