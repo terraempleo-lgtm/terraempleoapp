@@ -155,6 +155,8 @@ export const especialistasAPI = {
   perfil: (id) => api.get(`/especialistas/${id}`),
   contactar: (id, data) => api.post(`/especialistas/${id}/contactar`, data),
   contactoEstado: (id) => api.get(`/especialistas/${id}/contacto-estado`),
+  misSolicitudes: () => api.get('/especialistas/mis-solicitudes'),
+  responderSolicitud: (id, accion) => api.put(`/especialistas/solicitudes/${id}/responder`, { accion }),
 };
 
 // Notificaciones

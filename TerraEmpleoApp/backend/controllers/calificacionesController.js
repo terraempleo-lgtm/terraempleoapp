@@ -26,67 +26,74 @@ async function calificar(req, res) {
 
     const rolCalificado = usuarios.find((u) => Number(u.id) === Number(calificado_id))?.rol;
 
-    if (!['trabajador', 'empleador'].includes(rolCalificador) || !['trabajador', 'empleador'].includes(rolCalificado)) {
-      return res.status(403).json({ error: 'Solo trabajadores y empleadores pueden calificarse' });
+    const rolesValidos = ['trabajador', 'empleador', 'especialista'];
+    if (!rolesValidos.includes(rolCalificador) || !rolesValidos.includes(rolCalificado)) {
+      return res.status(403).json({ error: 'Rol no permitido para calificar' });
     }
 
     if (rolCalificador === rolCalificado) {
-      return res.status(400).json({ error: 'Solo se permite calificación entre trabajador y empleador' });
+      return res.status(400).json({ error: 'No puedes calificar a alguien del mismo rol' });
     }
 
-    if (!vacante_id) {
-      return res.status(400).json({ error: 'vacante_id es obligatorio para registrar la calificación' });
-    }
-
-    const vacanteId = Number(vacante_id);
-    if (!Number.isFinite(vacanteId)) {
-      return res.status(400).json({ error: 'vacante_id inválido' });
-    }
+    // Caso: empleador califica especialista (vía contactos_especialista aceptado)
+    const esEspecialistaCaso = (rolCalificador === 'empleador' && rolCalificado === 'especialista')
+      || (rolCalificador === 'especialista' && rolCalificado === 'empleador');
 
     let relacion;
-    if (rolCalificador === 'empleador') {
+
+    if (esEspecialistaCaso) {
+      const empId = rolCalificador === 'empleador' ? calificadorId : calificado_id;
+      const espId = rolCalificador === 'especialista' ? calificadorId : calificado_id;
       relacion = await query(
-        `SELECT p.id
-         FROM postulaciones p
-         JOIN vacantes v ON v.id = p.vacante_id
-         WHERE p.vacante_id = ?
-           AND v.empleador_id = ?
-           AND p.trabajador_id = ?
-           AND p.estado = 'aceptada'
-         LIMIT 1`,
-        [vacanteId, calificadorId, calificado_id]
+        `SELECT id FROM contactos_especialista WHERE empleador_id = ? AND especialista_id = ? AND estado = 'aceptado' LIMIT 1`,
+        [empId, espId]
       );
     } else {
-      relacion = await query(
-        `SELECT p.id
-         FROM postulaciones p
-         JOIN vacantes v ON v.id = p.vacante_id
-         WHERE p.vacante_id = ?
-           AND p.trabajador_id = ?
-           AND v.empleador_id = ?
-           AND p.estado = 'aceptada'
-         LIMIT 1`,
-        [vacanteId, calificadorId, calificado_id]
-      );
+      // trabajador ↔ empleador: requiere postulación aceptada
+      const vacanteId = Number(vacante_id);
+      if (!vacante_id || !Number.isFinite(vacanteId)) {
+        return res.status(400).json({ error: 'vacante_id es obligatorio para calificar trabajador/empleador' });
+      }
+
+      if (rolCalificador === 'empleador') {
+        relacion = await query(
+          `SELECT p.id FROM postulaciones p
+           JOIN vacantes v ON v.id = p.vacante_id
+           WHERE p.vacante_id = ? AND v.empleador_id = ? AND p.trabajador_id = ? AND p.estado = 'aceptada'
+           LIMIT 1`,
+          [vacanteId, calificadorId, calificado_id]
+        );
+      } else {
+        relacion = await query(
+          `SELECT p.id FROM postulaciones p
+           JOIN vacantes v ON v.id = p.vacante_id
+           WHERE p.vacante_id = ? AND p.trabajador_id = ? AND v.empleador_id = ? AND p.estado = 'aceptada'
+           LIMIT 1`,
+          [vacanteId, calificadorId, calificado_id]
+        );
+      }
     }
 
     if (!relacion || relacion.length === 0) {
-      return res.status(403).json({ error: 'Solo puedes calificar después de una relación aceptada en esta vacante' });
+      return res.status(403).json({ error: 'Solo puedes calificar después de una relación aceptada' });
     }
 
+    // Para especialistas usamos vacante_id = NULL
+    const vacanteGuardar = esEspecialistaCaso ? null : Number(vacante_id);
+
     const existente = await query(
-      'SELECT id FROM calificaciones WHERE calificador_id = ? AND calificado_id = ? AND vacante_id = ? LIMIT 1',
-      [calificadorId, calificado_id, vacanteId]
+      'SELECT id FROM calificaciones WHERE calificador_id = ? AND calificado_id = ? AND (vacante_id = ? OR (vacante_id IS NULL AND ? IS NULL)) LIMIT 1',
+      [calificadorId, calificado_id, vacanteGuardar, vacanteGuardar]
     );
 
     if (existente && existente.length > 0) {
-      return res.status(409).json({ error: 'Ya calificaste a este usuario para esta vacante' });
+      return res.status(409).json({ error: 'Ya calificaste a este usuario' });
     }
 
-    await query(`
-      INSERT INTO calificaciones (calificador_id, calificado_id, vacante_id, estrellas, comentario)
-      VALUES (?, ?, ?, ?, ?)
-    `, [calificadorId, calificado_id, vacanteId, estrellas, comentario || null]);
+    await query(
+      `INSERT INTO calificaciones (calificador_id, calificado_id, vacante_id, estrellas, comentario) VALUES (?, ?, ?, ?, ?)`,
+      [calificadorId, calificado_id, vacanteGuardar, estrellas, comentario || null]
+    );
 
     // Actualizar promedio
     const promedioResult = await query(

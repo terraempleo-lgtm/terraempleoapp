@@ -37,4 +37,11 @@ function trabajadorMiddleware(req, res, next) {
   next();
 }
 
-module.exports = { authMiddleware, adminMiddleware, empleadorMiddleware, trabajadorMiddleware };
+function especialistaMiddleware(req, res, next) {
+  if (req.user.rol !== 'especialista' && req.user.rol !== 'admin') {
+    return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de especialista.' });
+  }
+  next();
+}
+
+module.exports = { authMiddleware, adminMiddleware, empleadorMiddleware, trabajadorMiddleware, especialistaMiddleware };

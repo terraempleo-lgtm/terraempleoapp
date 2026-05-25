@@ -219,4 +219,91 @@ async function getContactoEstado(req, res) {
   }
 }
 
-module.exports = { listarEspecialistas, getPerfilEspecialista, contactarEspecialista, getContactoEstado };
+async function misSolicitudesContacto(req, res) {
+  try {
+    const especialistaId = req.user.id;
+    const rows = await query(
+      `SELECT ce.id, ce.empleador_id, ce.estado, ce.chat_id, ce.created_at,
+              u.nombre_completo, u.foto_selfie, u.municipio, u.departamento
+       FROM contactos_especialista ce
+       JOIN usuarios u ON u.id = ce.empleador_id
+       WHERE ce.especialista_id = ?
+       ORDER BY ce.created_at DESC`,
+      [especialistaId]
+    );
+
+    const solicitudes = await Promise.all((rows || []).map(async (r) => ({
+      id: Number(r.id),
+      empleador_id: Number(r.empleador_id),
+      nombre_completo: r.nombre_completo,
+      foto_selfie: r.foto_selfie ? await signUrl(r.foto_selfie).catch(() => null) : null,
+      municipio: r.municipio,
+      departamento: r.departamento,
+      estado: r.estado,
+      chat_id: r.chat_id ? Number(r.chat_id) : null,
+      created_at: r.created_at,
+    })));
+
+    res.json({ solicitudes });
+  } catch (err) {
+    console.error('Error listando solicitudes de contacto:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+}
+
+async function responderSolicitudContacto(req, res) {
+  try {
+    const especialistaId = req.user.id;
+    const solicitudId = Number(req.params.id);
+    const { accion } = req.body; // 'aceptar' | 'rechazar'
+
+    if (!['aceptar', 'rechazar'].includes(accion)) {
+      return res.status(400).json({ error: 'accion debe ser aceptar o rechazar' });
+    }
+
+    const rows = await query(
+      'SELECT id, empleador_id, estado, chat_id FROM contactos_especialista WHERE id = ? AND especialista_id = ?',
+      [solicitudId, especialistaId]
+    );
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+    const solicitud = rows[0];
+    if (solicitud.estado !== 'solicitado') {
+      return res.status(409).json({ error: 'Esta solicitud ya fue respondida' });
+    }
+
+    if (accion === 'rechazar') {
+      await query('UPDATE contactos_especialista SET estado = ? WHERE id = ?', ['rechazado', solicitudId]);
+      return res.json({ estado: 'rechazado' });
+    }
+
+    // Aceptar: crear chat
+    const chatResult = await query(
+      'INSERT INTO chats (usuario1_id, usuario2_id) VALUES (?, ?)',
+      [solicitud.empleador_id, especialistaId]
+    );
+    const chatId = chatResult.insertId;
+
+    await query(
+      'UPDATE contactos_especialista SET estado = ?, chat_id = ? WHERE id = ?',
+      ['aceptado', chatId, solicitudId]
+    );
+
+    // Notificar al empleador
+    const esp = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [especialistaId]);
+    const nombreEsp = esp?.[0]?.nombre_completo || 'El especialista';
+    await crearNotificacion(
+      solicitud.empleador_id, 'contacto',
+      '¡Solicitud aceptada!',
+      `${nombreEsp} aceptó tu solicitud de contacto. Ya puedes chatear con él/ella.`,
+      { chat_id: chatId }
+    ).catch(() => {});
+
+    res.json({ estado: 'aceptado', chat_id: chatId });
+  } catch (err) {
+    console.error('Error respondiendo solicitud:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+}
+
+module.exports = { listarEspecialistas, getPerfilEspecialista, contactarEspecialista, getContactoEstado, misSolicitudesContacto, responderSolicitudContacto };

@@ -6,7 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { vacantesAPI } from '../../services/api';
+import { vacantesAPI, especialistasAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { MotiView } from 'moti';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
@@ -85,10 +86,14 @@ function PostulacionTimeline({ estado, colors }) {
 
 export default function MisPostulacionesScreen({ navigation }) {
   const { colors, isDark } = useAppTheme();
+  const { user } = useAuth();
+  const esEspecialista = user?.rol === 'especialista';
   const [postulaciones, setPostulaciones] = useState([]);
   const [fotosVacante, setFotosVacante] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const [filtro, setFiltro] = useState('todas');
+  const [solicitudesEsp, setSolicitudesEsp] = useState([]);
+  const [respondiendo, setRespondiendo] = useState(null);
 
   const cargar = useCallback(async () => {
     // 1) Mostrar desde cache local (SQLite) primero — offline-first
@@ -148,7 +153,15 @@ export default function MisPostulacionesScreen({ navigation }) {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+
+    // Especialista: cargar solicitudes de contacto de empleadores
+    if (esEspecialista) {
+      try {
+        const res = await especialistasAPI.misSolicitudes();
+        setSolicitudesEsp(res.data?.solicitudes || []);
+      } catch (_) {}
+    }
+  }, [esEspecialista]);
 
   useEffect(() => { cargar(); }, [cargar]);
   useEffect(() => {
@@ -176,6 +189,31 @@ export default function MisPostulacionesScreen({ navigation }) {
       showAlert('Listo', accion === 'aceptar' ? 'Contacto aceptado. Ya puedes chatear.' : 'Solicitud rechazada.');
     } catch (err) {
       showAlert('Error', err.response?.data?.error || 'No se pudo responder la solicitud');
+    }
+  };
+
+  const responderSolicitudEsp = async (solicitudId, accion) => {
+    if (respondiendo) return;
+    try {
+      setRespondiendo(solicitudId);
+      const res = await especialistasAPI.responderSolicitud(solicitudId, accion);
+      await cargar();
+      if (accion === 'aceptar') {
+        const chatId = res.data?.chat_id;
+        showAlert('¡Solicitud aceptada!', 'Ya puedes chatear con el empleador.');
+        if (chatId) {
+          navigation.navigate('Mensajes', {
+            screen: 'ChatDetalle',
+            params: { chat: { id: chatId } },
+          });
+        }
+      } else {
+        showAlert('Rechazada', 'Solicitud rechazada.');
+      }
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'No se pudo responder');
+    } finally {
+      setRespondiendo(null);
     }
   };
 
@@ -222,12 +260,88 @@ export default function MisPostulacionesScreen({ navigation }) {
     return true;
   });
 
+  const solicitudesPendientes = solicitudesEsp.filter(s => s.estado === 'solicitado');
+
   const ListHeader = (
     <View>
       {/* Title */}
       <View style={styles.titleRow}>
-        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Mis Postulaciones</Text>
+        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>
+          {esEspecialista ? 'Solicitudes' : 'Mis Postulaciones'}
+        </Text>
       </View>
+
+      {/* Sección de solicitudes de contacto para especialistas */}
+      {esEspecialista && solicitudesEsp.length > 0 && (
+        <View style={{ paddingHorizontal: SPACING.md, marginBottom: SPACING.md }}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            Solicitudes de contacto
+            {solicitudesPendientes.length > 0 && (
+              <Text style={{ color: '#C0694A' }}> · {solicitudesPendientes.length} nueva{solicitudesPendientes.length > 1 ? 's' : ''}</Text>
+            )}
+          </Text>
+          {solicitudesEsp.map((sol) => {
+            const isPendiente = sol.estado === 'solicitado';
+            const isAceptada = sol.estado === 'aceptado';
+            return (
+              <View key={sol.id} style={[styles.solCard, { backgroundColor: colors.surface, borderColor: isPendiente ? '#C0694A' : colors.border }]}>
+                <View style={styles.solRow}>
+                  <View style={styles.solAvatar}>
+                    {sol.foto_selfie ? (
+                      <Image source={{ uri: sol.foto_selfie }} style={styles.solAvatarImg} />
+                    ) : (
+                      <Text style={styles.solAvatarTxt}>{(sol.nombre_completo || 'E')[0].toUpperCase()}</Text>
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.solNombre, { color: colors.textPrimary }]} numberOfLines={1}>{sol.nombre_completo}</Text>
+                    <Text style={[styles.solUbicacion, { color: colors.textMuted }]} numberOfLines={1}>
+                      {[sol.municipio, sol.departamento].filter(Boolean).join(', ')}
+                    </Text>
+                  </View>
+                  <View style={[styles.solBadge, { backgroundColor: isPendiente ? '#FEF3C7' : isAceptada ? '#DCEFE4' : '#FEE2E2' }]}>
+                    <Text style={[styles.solBadgeTxt, { color: isPendiente ? '#D97706' : isAceptada ? COLORS.primary : COLORS.error }]}>
+                      {isPendiente ? 'Pendiente' : isAceptada ? 'Aceptada' : 'Rechazada'}
+                    </Text>
+                  </View>
+                </View>
+                {isPendiente && (
+                  <View style={styles.solBtns}>
+                    <TouchableOpacity
+                      style={[styles.solBtn, styles.solBtnRechazar]}
+                      onPress={() => responderSolicitudEsp(sol.id, 'rechazar')}
+                      disabled={respondiendo === sol.id}
+                    >
+                      <Ionicons name="close" size={14} color={COLORS.error} />
+                      <Text style={[styles.solBtnTxt, { color: COLORS.error }]}>Rechazar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.solBtn, styles.solBtnAceptar]}
+                      onPress={() => responderSolicitudEsp(sol.id, 'aceptar')}
+                      disabled={respondiendo === sol.id}
+                    >
+                      <Ionicons name="checkmark" size={14} color="#fff" />
+                      <Text style={[styles.solBtnTxt, { color: '#fff' }]}>Aceptar</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {isAceptada && sol.chat_id && (
+                  <TouchableOpacity
+                    style={[styles.solBtn, styles.solBtnChat]}
+                    onPress={() => navigation.navigate('Mensajes', {
+                      screen: 'ChatDetalle',
+                      params: { chat: { id: sol.chat_id, otro_nombre: sol.nombre_completo, otro_foto: sol.foto_selfie } },
+                    })}
+                  >
+                    <Ionicons name="chatbubble-outline" size={14} color={COLORS.primary} />
+                    <Text style={[styles.solBtnTxt, { color: COLORS.primary }]}>Ir al chat</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       {/* Stats row */}
       <View style={styles.statsRow}>
@@ -699,4 +813,29 @@ const styles = StyleSheet.create({
     ...SHADOWS.button,
   },
   emptyBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  sectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: SPACING.sm },
+  solCard: {
+    borderRadius: RADIUS.lg, borderWidth: 1.5, padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  solRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  solAvatar: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: '#C0694A', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  solAvatarImg: { width: 42, height: 42, borderRadius: 21 },
+  solAvatarTxt: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  solNombre: { fontWeight: '700', fontSize: 14 },
+  solUbicacion: { fontSize: 12, marginTop: 2 },
+  solBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: RADIUS.full },
+  solBadgeTxt: { fontSize: 11, fontWeight: '700' },
+  solBtns: { flexDirection: 'row', gap: 8, marginTop: SPACING.sm },
+  solBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, paddingVertical: 9, borderRadius: RADIUS.md,
+  },
+  solBtnRechazar: { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' },
+  solBtnAceptar: { backgroundColor: '#C0694A' },
+  solBtnChat: { flex: 1, backgroundColor: '#DCEFE4', borderWidth: 1, borderColor: '#A7F3D0', marginTop: SPACING.sm },
+  solBtnTxt: { fontSize: 13, fontWeight: '700' },
 });

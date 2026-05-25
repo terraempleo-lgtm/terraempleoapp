@@ -337,11 +337,13 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
               </View>
               <View style={[r.statDivider, { backgroundColor: colors.border }]} />
               <View style={r.statItem}>
-                <View style={[r.statIcon, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="chatbubble-outline" size={16} color="#2563EB" />
+                <View style={{ flexDirection: 'row', gap: 2, marginBottom: 2 }}>
+                  {[1,2,3,4,5].map(i => (
+                    <Ionicons key={i} name={i <= Math.round(espCal) ? 'star' : 'star-outline'} size={13} color="#D97706" />
+                  ))}
                 </View>
-                <Text style={[r.statNum, { color: colors.textPrimary }]}>{espTotalCal}</Text>
-                <Text style={[r.statLbl, { color: colors.textMuted }]}>Reseñas</Text>
+                <Text style={[r.statNum, { color: colors.textPrimary, fontSize: 13 }]}>{espTotalCal} {espTotalCal === 1 ? 'voto' : 'votos'}</Text>
+                <Text style={[r.statLbl, { color: colors.textMuted }]}>Estrellas</Text>
               </View>
               <View style={[r.statDivider, { backgroundColor: colors.border }]} />
               <View style={r.statItem}>
@@ -588,11 +590,13 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
             </View>
             <View style={[r.statDivider, { backgroundColor: colors.border }]} />
             <View style={r.statItem}>
-              <View style={[r.statIcon, { backgroundColor: '#DBEAFE' }]}>
-                <Ionicons name="chatbubble-outline" size={16} color="#2563EB" />
+              <View style={{ flexDirection: 'row', gap: 2, marginBottom: 2 }}>
+                {[1,2,3,4,5].map(i => (
+                  <Ionicons key={i} name={i <= Math.round(cal) ? 'star' : 'star-outline'} size={13} color="#D97706" />
+                ))}
               </View>
-              <Text style={[r.statNum, { color: colors.textPrimary }]}>{totalCal}</Text>
-              <Text style={[r.statLbl, { color: colors.textMuted }]}>Reseñas</Text>
+              <Text style={[r.statNum, { color: colors.textPrimary, fontSize: 13 }]}>{totalCal} {totalCal === 1 ? 'voto' : 'votos'}</Text>
+              <Text style={[r.statLbl, { color: colors.textMuted }]}>Estrellas</Text>
             </View>
             <View style={[r.statDivider, { backgroundColor: colors.border }]} />
             <View style={r.statItem}>
