@@ -405,6 +405,8 @@ async function getPerfil(req, res) {
         perfil = perfiles[0];
         perfil.habilidades = await query('SELECT * FROM trabajador_habilidades WHERE perfil_trabajador_id = ?', [perfil.id]);
         perfil.cultivos = await query('SELECT * FROM trabajador_cultivos WHERE perfil_trabajador_id = ?', [perfil.id]);
+        const fotosRows = await query('SELECT id, url FROM trabajador_fotos_trabajo WHERE perfil_trabajador_id = ? ORDER BY orden, id', [perfil.id]);
+        perfil.fotos_trabajo = await Promise.all(fotosRows.map(async (f) => ({ id: f.id, url: await signUrl(f.url) })));
       }
     } else if (user.rol === 'empleador') {
       const perfiles = await query('SELECT * FROM perfil_empleador WHERE usuario_id = ?', [userId]);
@@ -422,6 +424,8 @@ async function getPerfil(req, res) {
         perfil = perfiles[0];
         perfil.especialidades = await query('SELECT especialidad FROM especialista_especialidades WHERE perfil_especialista_id = ?', [perfil.id]);
         perfil.cultivos = await query('SELECT cultivo FROM especialista_cultivos WHERE perfil_especialista_id = ?', [perfil.id]);
+        const fotosRows = await query('SELECT id, url FROM especialista_fotos_trabajo WHERE perfil_especialista_id = ? ORDER BY orden, id', [perfil.id]);
+        perfil.fotos_trabajo = await Promise.all(fotosRows.map(async (f) => ({ id: f.id, url: await signUrl(f.url) })));
       }
     }
 
@@ -1033,23 +1037,33 @@ async function subirFotoTrabajo(req, res) {
     const userId = req.user.id;
     const rol = req.user.rol;
     if (!['trabajador', 'especialista'].includes(rol)) {
-      return res.status(403).json({ error: 'Solo trabajadores pueden subir fotos de trabajo.' });
+      return res.status(403).json({ error: 'Solo trabajadores y especialistas pueden subir fotos de trabajo.' });
     }
     if (!req.file) return res.status(400).json({ error: 'No se recibió imagen.' });
 
     const fileUrl = req.file.location || req.file.path;
+    const MAX_FOTOS = 4;
+
+    if (rol === 'especialista') {
+      const perfiles = await query('SELECT id FROM perfil_especialista WHERE usuario_id = ?', [userId]);
+      if (!perfiles || perfiles.length === 0) return res.status(404).json({ error: 'Perfil no encontrado.' });
+      const perfilId = perfiles[0].id;
+      const count = await query('SELECT COUNT(*) as n FROM especialista_fotos_trabajo WHERE perfil_especialista_id = ?', [perfilId]);
+      if (Number(count[0].n) >= MAX_FOTOS) return res.status(400).json({ error: `Máximo ${MAX_FOTOS} fotos permitidas.` });
+      await query('INSERT INTO especialista_fotos_trabajo (perfil_especialista_id, url, orden) VALUES (?, ?, ?)', [perfilId, fileUrl, Number(count[0].n)]);
+      const inserted = await query('SELECT id FROM especialista_fotos_trabajo WHERE perfil_especialista_id = ? AND url = ? ORDER BY id DESC LIMIT 1', [perfilId, fileUrl]);
+      const signedUrl = await signUrl(fileUrl);
+      return res.json({ foto: { id: inserted[0].id, url: signedUrl } });
+    }
 
     const perfiles = await query('SELECT id FROM perfil_trabajador WHERE usuario_id = ?', [userId]);
     if (!perfiles || perfiles.length === 0) return res.status(404).json({ error: 'Perfil no encontrado.' });
     const perfilId = perfiles[0].id;
-
     const count = await query('SELECT COUNT(*) as n FROM trabajador_fotos_trabajo WHERE perfil_trabajador_id = ?', [perfilId]);
-    const total = Number(count[0].n);
-    if (total >= 10) return res.status(400).json({ error: 'Máximo 10 fotos de trabajo permitidas.' });
-
-    await query('INSERT INTO trabajador_fotos_trabajo (perfil_trabajador_id, url, orden) VALUES (?, ?, ?)', [perfilId, fileUrl, total]);
-    const signedUrl = await signUrl(fileUrl);
+    if (Number(count[0].n) >= MAX_FOTOS) return res.status(400).json({ error: `Máximo ${MAX_FOTOS} fotos permitidas.` });
+    await query('INSERT INTO trabajador_fotos_trabajo (perfil_trabajador_id, url, orden) VALUES (?, ?, ?)', [perfilId, fileUrl, Number(count[0].n)]);
     const inserted = await query('SELECT id FROM trabajador_fotos_trabajo WHERE perfil_trabajador_id = ? AND url = ? ORDER BY id DESC LIMIT 1', [perfilId, fileUrl]);
+    const signedUrl = await signUrl(fileUrl);
     res.json({ foto: { id: inserted[0].id, url: signedUrl } });
   } catch (err) {
     console.error('Error subiendo foto de trabajo:', err);
@@ -1060,8 +1074,20 @@ async function subirFotoTrabajo(req, res) {
 async function eliminarFotoTrabajo(req, res) {
   try {
     const userId = req.user.id;
+    const rol = req.user.rol;
     const { fotoId } = req.params;
     const { deleteFromS3 } = require('../config/s3');
+
+    if (rol === 'especialista') {
+      const perfiles = await query('SELECT id FROM perfil_especialista WHERE usuario_id = ?', [userId]);
+      if (!perfiles || perfiles.length === 0) return res.status(404).json({ error: 'Perfil no encontrado.' });
+      const perfilId = perfiles[0].id;
+      const fotos = await query('SELECT * FROM especialista_fotos_trabajo WHERE id = ? AND perfil_especialista_id = ?', [fotoId, perfilId]);
+      if (!fotos || fotos.length === 0) return res.status(404).json({ error: 'Foto no encontrada.' });
+      await deleteFromS3(fotos[0].url);
+      await query('DELETE FROM especialista_fotos_trabajo WHERE id = ?', [fotoId]);
+      return res.json({ message: 'Foto eliminada.' });
+    }
 
     const perfiles = await query('SELECT id FROM perfil_trabajador WHERE usuario_id = ?', [userId]);
     if (!perfiles || perfiles.length === 0) return res.status(404).json({ error: 'Perfil no encontrado.' });

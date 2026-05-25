@@ -1024,6 +1024,45 @@ export default function PerfilScreen({ navigation }) {
           )}
         </View>
 
+        {/* Banner mejora tu perfil */}
+        {(!acercaDeTrabajador || !perfil?.hoja_vida_url || !(perfil?.fotos_trabajo?.length > 0)) && (
+          <FadeInView delay={80}>
+            <AnimatedPressable
+              style={[mejoraStyles.banner, { backgroundColor: isDark ? '#1a2f22' : '#EBF5ED', borderColor: isDark ? '#2a4c3a' : '#B8DFBC' }]}
+              onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}
+              scaleValue={0.98} haptic
+            >
+              <View style={[mejoraStyles.iconWrap, { backgroundColor: COLORS.primary }]}>
+                <Ionicons name="trending-up" size={18} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[mejoraStyles.title, { color: isDark ? '#7CCC8A' : COLORS.primary }]}>¡Mejora tu perfil!</Text>
+                <View style={mejoraStyles.itemsRow}>
+                  {!acercaDeTrabajador && (
+                    <View style={mejoraStyles.item}>
+                      <Ionicons name="ellipse" size={6} color={COLORS.primary} />
+                      <Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Agrega un "Acerca de ti"</Text>
+                    </View>
+                  )}
+                  {!(perfil?.fotos_trabajo?.length > 0) && (
+                    <View style={mejoraStyles.item}>
+                      <Ionicons name="ellipse" size={6} color={COLORS.primary} />
+                      <Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Sube fotos de tu trabajo</Text>
+                    </View>
+                  )}
+                  {!perfil?.hoja_vida_url && (
+                    <View style={mejoraStyles.item}>
+                      <Ionicons name="ellipse" size={6} color={COLORS.primary} />
+                      <Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Adjunta tu hoja de vida</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
+            </AnimatedPressable>
+          </FadeInView>
+        )}
+
         {/* ACERCA DE */}
         <StaggeredItem index={0}>
           <View style={s.secWrap}>
@@ -1453,4 +1492,14 @@ const s = StyleSheet.create({
   editBtnTxt: { fontSize: 15, fontWeight: '700' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, borderWidth: 1.5, borderRadius: RADIUS.lg, paddingVertical: SPACING.md },
   logoutBtnTxt: { fontSize: 15, fontWeight: '700' },
+});
+
+
+const mejoraStyles = StyleSheet.create({
+  banner: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginHorizontal: SPACING.md, marginBottom: SPACING.sm, padding: SPACING.md, borderRadius: RADIUS.lg, borderWidth: 1 },
+  iconWrap: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 13, fontWeight: '800', marginBottom: 4 },
+  itemsRow: { gap: 3 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  itemText: { fontSize: 12, fontWeight: '500' },
 });

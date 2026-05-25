@@ -411,8 +411,8 @@ export default function EditarPerfilScreen({ navigation, route }) {
   };
 
   const agregarFotoTrabajo = async () => {
-    if (fotosTrabajo.length >= 10) {
-      showAlert('Límite alcanzado', 'Puedes subir máximo 10 fotos de trabajo.');
+    if (fotosTrabajo.length >= 4) {
+      showAlert('Límite alcanzado', 'Puedes subir máximo 4 fotos de trabajo.');
       return;
     }
     try {
@@ -724,51 +724,6 @@ export default function EditarPerfilScreen({ navigation, route }) {
               </View>
             </View>
 
-            {/* Fotos de trabajo */}
-            <View style={[styles.card, { backgroundColor: colors.surface, marginTop: SPACING.sm }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
-                <Ionicons name="images-outline" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
-                <Text style={[styles.sectionTitle, { color: colors.textPrimary, marginBottom: 0 }]}>Fotos de tu trabajo</Text>
-              </View>
-              <Text style={[styles.fieldHint, { color: colors.textMuted, marginBottom: SPACING.sm }]}>
-                Agrega fotos de tus labores, cosechas o proyectos completados. Máximo 10 fotos.
-              </Text>
-              {fotosTrabajo.length > 0 && (
-                <View style={ftStyles.grid}>
-                  {fotosTrabajo.map((foto) => (
-                    <View key={foto.id} style={ftStyles.fotoWrap}>
-                      <Image source={{ uri: foto.url }} style={ftStyles.foto} />
-                      <AnimatedPressable
-                        style={ftStyles.deleteBtn}
-                        onPress={() => eliminarFotoTrabajo(foto)}
-                        scaleValue={0.9}
-                      >
-                        <Ionicons name="close-circle" size={22} color="#EF4444" />
-                      </AnimatedPressable>
-                    </View>
-                  ))}
-                </View>
-              )}
-              {fotosTrabajo.length < 10 && (
-                <AnimatedPressable
-                  style={[ftStyles.addBtn, { borderColor: COLORS.primary }]}
-                  onPress={agregarFotoTrabajo}
-                  disabled={subiendoFotoTrabajo}
-                  scaleValue={0.97}
-                >
-                  {subiendoFotoTrabajo ? (
-                    <ActivityIndicator size="small" color={COLORS.primary} />
-                  ) : (
-                    <>
-                      <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
-                      <Text style={[ftStyles.addBtnText, { color: COLORS.primary }]}>
-                        {fotosTrabajo.length === 0 ? 'Agregar fotos de trabajo' : 'Agregar más fotos'}
-                      </Text>
-                    </>
-                  )}
-                </AnimatedPressable>
-              )}
-            </View>
           )}
 
           {/* Campos especialista */}
@@ -1024,6 +979,52 @@ export default function EditarPerfilScreen({ navigation, route }) {
                 customLabel="+ Otra labor"
               />
 
+            </View>
+          )}
+
+          {/* Fotos de trabajo — trabajadores y especialistas */}
+          {(rol === 'trabajador' || rol === 'especialista') && (
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
+                <Ionicons name="images-outline" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary, marginBottom: 0 }]}>Fotos de mi trabajo</Text>
+              </View>
+              <Text style={[styles.fieldHint, { color: colors.textMuted, marginBottom: SPACING.sm }]}>
+                {rol === 'especialista'
+                  ? 'Agrega fotos de tus proyectos y servicios realizados. Máximo 4 fotos.'
+                  : 'Agrega fotos de tus labores, cosechas o proyectos completados. Máximo 4 fotos.'}
+              </Text>
+              {fotosTrabajo.length > 0 && (
+                <View style={ftStyles.grid}>
+                  {fotosTrabajo.map((foto) => (
+                    <View key={foto.id} style={ftStyles.fotoWrap}>
+                      <Image source={{ uri: foto.url }} style={ftStyles.foto} />
+                      <AnimatedPressable style={ftStyles.deleteBtn} onPress={() => eliminarFotoTrabajo(foto)} scaleValue={0.9}>
+                        <Ionicons name="close-circle" size={22} color="#EF4444" />
+                      </AnimatedPressable>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {fotosTrabajo.length < 4 && (
+                <AnimatedPressable
+                  style={[ftStyles.addBtn, { borderColor: COLORS.primary }]}
+                  onPress={agregarFotoTrabajo}
+                  disabled={subiendoFotoTrabajo}
+                  scaleValue={0.97}
+                >
+                  {subiendoFotoTrabajo ? (
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+                      <Text style={[ftStyles.addBtnText, { color: COLORS.primary }]}>
+                        {fotosTrabajo.length === 0 ? 'Agregar fotos de trabajo' : `Agregar más (${fotosTrabajo.length}/4)`}
+                      </Text>
+                    </>
+                  )}
+                </AnimatedPressable>
+              )}
             </View>
           )}
 
