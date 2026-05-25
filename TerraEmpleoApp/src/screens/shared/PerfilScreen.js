@@ -829,7 +829,7 @@ export default function PerfilScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Avatar + info dentro del hero */}
+            {/* Avatar + info dentro del hero — centrado */}
             <View style={empS.heroBody}>
               <TouchableOpacity onPress={abrirCamaraFoto} activeOpacity={0.85} style={empS.avatarWrap}>
                 {u?.foto_selfie?.startsWith('http')
@@ -840,16 +840,18 @@ export default function PerfilScreen({ navigation }) {
                 <View style={empS.camIcon}><Ionicons name="camera" size={10} color="#fff" /></View>
               </TouchableOpacity>
               <Text style={empS.heroName}>{u?.nombre_completo}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                <Ionicons name="home-outline" size={13} color="rgba(255,255,255,0.8)" />
-                <Text style={empS.heroSub}>{empresa}</Text>
-              </View>
-              {ubicacion && (
+              {empresa ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                  <Ionicons name="home-outline" size={13} color="rgba(255,255,255,0.8)" />
+                  <Text style={empS.heroSub}>{empresa}</Text>
+                </View>
+              ) : null}
+              {ubicacion ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
                   <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.7)" />
-                  <Text style={empS.heroLoc}>{ubicacion}</Text>
+                  <Text style={empS.heroLoc} numberOfLines={1}>{ubicacion}</Text>
                 </View>
-              )}
+              ) : null}
             </View>
           </View>
 
@@ -1842,21 +1844,21 @@ const tw = StyleSheet.create({
 /* ══════════ EMPLOYER STYLES ══════════ */
 const empS = StyleSheet.create({
   // Hero
-  hero: { height: HERO_H, justifyContent: 'flex-end' },
+  hero: { height: 300, justifyContent: 'flex-end' },
   heroTopBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingBottom: 8 },
   heroTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#fff', textAlign: 'center' },
   heroBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
-  heroBody: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.md, gap: 4 },
+  heroBody: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.lg, gap: 2, alignItems: 'center' },
   // Avatar
-  avatarWrap: { width: 72, height: 72, borderRadius: 36, borderWidth: 3, borderColor: '#fff', overflow: 'visible', marginBottom: 6 },
-  avatar: { width: 66, height: 66, borderRadius: 33 },
-  avatarFallback: { width: 66, height: 66, borderRadius: 33, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
+  avatarWrap: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: '#fff', overflow: 'visible', marginBottom: 8 },
+  avatar: { width: 74, height: 74, borderRadius: 37 },
+  avatarFallback: { width: 74, height: 74, borderRadius: 37, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
   verBadgeSmall: { position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: '#16A34A', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
   camIcon: { position: 'absolute', top: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
   // Hero text
-  heroName: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
-  heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
-  heroLoc: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+  heroName: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: 0.3, textAlign: 'center' },
+  heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '500', textAlign: 'center' },
+  heroLoc: { fontSize: 12, color: 'rgba(255,255,255,0.7)', textAlign: 'center', flexShrink: 1 },
   // Stats
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: SPACING.sm },
   statCard: { flex: 1, borderRadius: 14, padding: 12, alignItems: 'center', ...SHADOWS.medium },
