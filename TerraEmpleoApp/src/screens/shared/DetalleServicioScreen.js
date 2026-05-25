@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-  ActivityIndicator, Dimensions, Modal, Pressable, Linking, Platform, Alert, NativeScrollEvent, NativeSyntheticEvent,
+  ActivityIndicator, Dimensions, Modal, Pressable, Linking, Platform, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { showAlert } from '../../utils/alertService';
 
 const W = Dimensions.get('window').width;
+const HERO_H = 300;
 
 export default function DetalleServicioScreen({ route, navigation }) {
   const { servicio_id, servicio: servicioParam } = route.params || {};
@@ -107,11 +108,11 @@ export default function DetalleServicioScreen({ route, navigation }) {
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               onMomentumScrollEnd={onCarouselScroll}
-              style={{ width: W, height: st.heroImg.height }}
+              style={{ width: W, height: HERO_H }}
             >
               {fotos.map((f, i) => (
-                <TouchableOpacity key={i} activeOpacity={0.92} onPress={() => setFotoModal(f.url)} style={{ width: W, height: st.heroImg.height }}>
-                  <Image source={{ uri: f.url }} style={{ width: W, height: st.heroImg.height }} resizeMode="cover" />
+                <TouchableOpacity key={i} activeOpacity={0.92} onPress={() => setFotoModal(f.url)} style={{ width: W, height: HERO_H }}>
+                  <Image source={{ uri: f.url }} style={{ width: W, height: HERO_H }} resizeMode="cover" />
                   <LinearGradient colors={['transparent', 'rgba(0,0,0,0.65)']} style={st.heroOverlay} />
                 </TouchableOpacity>
               ))}
@@ -291,8 +292,8 @@ export default function DetalleServicioScreen({ route, navigation }) {
 const st = StyleSheet.create({
   root: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  heroWrap: { height: 280, position: 'relative' },
-  heroImg: { width: '100%', height: 280 },
+  heroWrap: { height: HERO_H, position: 'relative' },
+  heroImg: { width: '100%', height: HERO_H },
   heroOverlay: { ...StyleSheet.absoluteFillObject },
   backBtn: { position: 'absolute', left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
   dotsRow: { position: 'absolute', bottom: 56, alignSelf: 'center', flexDirection: 'row', gap: 6 },
