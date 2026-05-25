@@ -374,29 +374,52 @@ export const serviciosAPI = {
   listar: () => api.get('/servicios-especialista'),
   misServicios: () => api.get('/servicios-especialista/mis-servicios'),
   detalle: (id) => api.get(`/servicios-especialista/${id}`),
+  // Crea el servicio en JSON primero, luego sube fotos con fetch nativo
   crear: async (datos, fotos) => {
-    const fd = new FormData();
-    fd.append('titulo', datos.titulo);
-    if (datos.descripcion) fd.append('descripcion', datos.descripcion);
-    if (datos.cultivos?.length) datos.cultivos.forEach((c) => fd.append('cultivos[]', c));
-    if (datos.precio_desde) fd.append('precio_desde', String(datos.precio_desde));
-    if (datos.precio_hasta) fd.append('precio_hasta', String(datos.precio_hasta));
-    if (datos.modalidad) fd.append('modalidad', datos.modalidad);
-    if (fotos?.length) {
-      fotos.forEach((f, i) => {
-        const ext = f.uri.split('.').pop() || 'jpg';
-        fd.append('fotos', { uri: f.uri, type: `image/${ext}`, name: `foto${i}.${ext}` });
-      });
+    const res = await api.post('/servicios-especialista', {
+      titulo: datos.titulo,
+      descripcion: datos.descripcion || null,
+      cultivos: datos.cultivos || [],
+      precio_desde: datos.precio_desde || null,
+      precio_hasta: datos.precio_hasta || null,
+      modalidad: datos.modalidad || null,
+    });
+    const servicioId = res.data?.id || res.data?.servicio?.id;
+    if (servicioId && fotos?.length) {
+      const token = api.defaults.headers.common['Authorization'];
+      const baseURL = api.defaults.baseURL;
+      for (let i = 0; i < Math.min(fotos.length, 4); i++) {
+        const f = fotos[i];
+        const ext = (f.uri.split('.').pop() || 'jpg').split('?')[0];
+        const fd = new FormData();
+        fd.append('foto', { uri: f.uri, type: `image/${ext}`, name: `foto${i}.${ext}` });
+        await fetch(`${baseURL}/servicios-especialista/${servicioId}/fotos`, {
+          method: 'POST', body: fd, headers: { Authorization: token },
+        }).catch(() => {});
+      }
     }
-    return api.post('/servicios-especialista', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return res;
   },
-  editar: (id, datos) => api.put(`/servicios-especialista/${id}`, datos),
+  editar: (id, datos) => api.put(`/servicios-especialista/${id}`, {
+    titulo: datos.titulo,
+    descripcion: datos.descripcion || null,
+    cultivos: datos.cultivos || [],
+    precio_desde: datos.precio_desde || null,
+    precio_hasta: datos.precio_hasta || null,
+    modalidad: datos.modalidad || null,
+    activo: datos.activo !== undefined ? datos.activo : 1,
+  }),
+  archivar: (id, activo) => api.put(`/servicios-especialista/${id}`, { activo }),
   eliminar: (id) => api.delete(`/servicios-especialista/${id}`),
   agregarFoto: async (servicioId, fotoUri) => {
-    const ext = fotoUri.split('.').pop() || 'jpg';
+    const ext = (fotoUri.split('.').pop() || 'jpg').split('?')[0];
+    const token = api.defaults.headers.common['Authorization'];
+    const baseURL = api.defaults.baseURL;
     const fd = new FormData();
     fd.append('foto', { uri: fotoUri, type: `image/${ext}`, name: `foto.${ext}` });
-    return api.post(`/servicios-especialista/${servicioId}/fotos`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return fetch(`${baseURL}/servicios-especialista/${servicioId}/fotos`, {
+      method: 'POST', body: fd, headers: { Authorization: token },
+    });
   },
   eliminarFoto: (servicioId, fotoId) => api.delete(`/servicios-especialista/${servicioId}/fotos/${fotoId}`),
 };

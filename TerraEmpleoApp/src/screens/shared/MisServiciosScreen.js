@@ -81,28 +81,52 @@ export default function MisServiciosScreen({ navigation }) {
           titulo, descripcion, cultivos,
           precio_desde: precioDesde || null, precio_hasta: precioHasta || null, modalidad,
         });
-        // Subir fotos nuevas si hay
         for (const f of fotos) {
           await serviciosAPI.agregarFoto(editandoId, f.uri);
         }
       } else {
-        await serviciosAPI.crear({ titulo, descripcion, cultivos, precio_desde: precioDesde, precio_hasta: precioHasta, modalidad }, fotos);
+        await serviciosAPI.crear(
+          { titulo, descripcion, cultivos, precio_desde: precioDesde, precio_hasta: precioHasta, modalidad },
+          fotos
+        );
       }
       setModal(false);
       cargar();
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'No se pudo guardar el servicio');
+      const msg = e?.response?.data?.error || e?.message || 'No se pudo guardar el servicio';
+      Alert.alert('Error', msg);
     } finally {
       setGuardando(false);
     }
+  };
+
+  const archivar = (item) => {
+    const nuevaAction = item.activo ? 'archivar' : 'activar';
+    Alert.alert(
+      item.activo ? 'Archivar servicio' : 'Activar servicio',
+      item.activo
+        ? 'El servicio dejará de aparecer en el feed. Puedes reactivarlo cuando quieras.'
+        : '¿Activar este servicio para que aparezca en el feed de empleadores?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: item.activo ? 'Archivar' : 'Activar', onPress: async () => {
+          await serviciosAPI.archivar(item.id, item.activo ? 0 : 1);
+          cargar();
+        }},
+      ]
+    );
   };
 
   const eliminar = (id) => {
     Alert.alert('Eliminar servicio', '¿Estás seguro? Esta acción no se puede deshacer.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        await serviciosAPI.eliminar(id);
-        cargar();
+        try {
+          await serviciosAPI.eliminar(id);
+          cargar();
+        } catch (e) {
+          Alert.alert('Error', e?.response?.data?.error || 'No se pudo eliminar');
+        }
       }},
     ]);
   };
@@ -144,7 +168,14 @@ export default function MisServiciosScreen({ navigation }) {
           keyExtractor={(i) => String(i.id)}
           contentContainerStyle={{ padding: SPACING.md, gap: 12, paddingBottom: 40 }}
           renderItem={({ item }) => (
-            <View style={[st.card, { backgroundColor: colors.surface }]}>
+            <View style={[st.card, { backgroundColor: colors.surface, opacity: item.activo ? 1 : 0.72 }]}>
+              {/* Badge activo/archivado */}
+              {!item.activo && (
+                <View style={st.archivadoBadge}>
+                  <Ionicons name="archive-outline" size={12} color="#6B7280" />
+                  <Text style={st.archivadoBadgeTxt}>Archivado</Text>
+                </View>
+              )}
               {item.fotos?.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={st.fotosScroll}>
                   {item.fotos.map((f, i) => (
@@ -168,8 +199,8 @@ export default function MisServiciosScreen({ navigation }) {
                 ) : null}
                 {(item.precio_desde || item.precio_hasta) && (
                   <Text style={[st.cardPrecio, { color: COLORS.primary }]}>
-                    💰 {item.precio_desde ? `Desde $${Number(item.precio_desde).toLocaleString()}` : ''}
-                    {item.precio_hasta ? ` – $${Number(item.precio_hasta).toLocaleString()}` : ''}
+                    {item.precio_desde ? `Desde $${Number(item.precio_desde).toLocaleString()}` : ''}
+                    {item.precio_hasta ? ` – $${Number(item.precio_hasta).toLocaleString()}` : ''} COP
                   </Text>
                 )}
                 {item.modalidad ? (
@@ -180,11 +211,15 @@ export default function MisServiciosScreen({ navigation }) {
               </View>
               <View style={[st.cardActions, { borderTopColor: colors.border }]}>
                 <TouchableOpacity onPress={() => abrirEditar(item)} style={st.actionBtn} activeOpacity={0.7}>
-                  <Ionicons name="create-outline" size={17} color={COLORS.primary} />
+                  <Ionicons name="create-outline" size={16} color={COLORS.primary} />
                   <Text style={[st.actionTxt, { color: COLORS.primary }]}>Editar</Text>
                 </TouchableOpacity>
+                <TouchableOpacity onPress={() => archivar(item)} style={st.actionBtn} activeOpacity={0.7}>
+                  <Ionicons name={item.activo ? 'archive-outline' : 'eye-outline'} size={16} color="#6B7280" />
+                  <Text style={[st.actionTxt, { color: '#6B7280' }]}>{item.activo ? 'Archivar' : 'Activar'}</Text>
+                </TouchableOpacity>
                 <TouchableOpacity onPress={() => eliminar(item.id)} style={st.actionBtn} activeOpacity={0.7}>
-                  <Ionicons name="trash-outline" size={17} color="#EF4444" />
+                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
                   <Text style={[st.actionTxt, { color: '#EF4444' }]}>Eliminar</Text>
                 </TouchableOpacity>
               </View>
@@ -318,7 +353,9 @@ const st = StyleSheet.create({
   emptySub: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
   emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, marginTop: 4 },
   emptyBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  card: { borderRadius: 16, overflow: 'hidden', ...SHADOWS.medium },
+  card: { borderRadius: 16, overflow: 'hidden', ...SHADOWS.medium, position: 'relative' },
+  archivadoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, position: 'absolute', top: 10, right: 10, zIndex: 2, backgroundColor: '#F3F4F6', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  archivadoBadgeTxt: { fontSize: 11, color: '#6B7280', fontWeight: '600' },
   fotosScroll: { height: 140 },
   fotoThumb: { width: 160, height: 140, resizeMode: 'cover' },
   cardBody: { padding: SPACING.md, gap: 6 },

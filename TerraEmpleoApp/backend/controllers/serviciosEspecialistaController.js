@@ -98,7 +98,7 @@ async function crearServicio(req, res) {
     const { titulo, descripcion, cultivos, precio_desde, precio_hasta, modalidad } = req.body;
     if (!titulo?.trim()) return res.status(400).json({ error: 'El título del servicio es obligatorio' });
 
-    const cultivosJson = Array.isArray(cultivos) ? JSON.stringify(cultivos) : (cultivos || '[]');
+    const cultivosJson = Array.isArray(cultivos) ? JSON.stringify(cultivos) : (typeof cultivos === 'string' ? cultivos : '[]');
     const result = await query(
       `INSERT INTO servicios_especialista (especialista_id, titulo, descripcion, cultivos, precio_desde, precio_hasta, modalidad)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -106,24 +106,8 @@ async function crearServicio(req, res) {
        precio_desde || null, precio_hasta || null, modalidad || null]
     );
     const id = result.insertId;
-
-    // Subir fotos adjuntas (hasta 4)
-    if (req.files?.length) {
-      for (let i = 0; i < Math.min(req.files.length, 4); i++) {
-        const file = req.files[i];
-        const key = `servicios/${req.user.id}/${id}_foto${i + 1}${path.extname(file.originalname || '.jpg')}`;
-        await s3.send(new PutObjectCommand({
-          Bucket: BUCKET, Key: key, Body: file.buffer, ContentType: file.mimetype,
-        }));
-        await query(
-          'INSERT INTO servicio_fotos (servicio_id, url, orden) VALUES (?, ?, ?)',
-          [id, key, i]
-        );
-      }
-    }
-
     const servicio = await query('SELECT * FROM servicios_especialista WHERE id = ?', [id]);
-    res.status(201).json({ servicio: servicio[0], message: 'Servicio creado' });
+    res.status(201).json({ servicio: servicio[0], id, message: 'Servicio creado' });
   } catch (err) {
     console.error('Error creando servicio:', err);
     res.status(500).json({ error: 'Error interno' });
