@@ -211,28 +211,25 @@ export default function PerfilScreen({ navigation }) {
     }
   };
   const subirPortadaTrabajador = async () => {
-    const elegir = async () => {
-      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.85, aspect: [16, 9], allowsEditing: true });
-      if (r.canceled || !r.assets?.[0]) return;
-      setSubiendoPortada(true);
-      try {
-        const formData = new FormData();
-        if (Platform.OS === 'web') {
-          const blob = await (await fetch(r.assets[0].uri)).blob();
-          formData.append('foto', blob, `portada_${Date.now()}.jpg`);
-        } else {
-          formData.append('foto', { uri: r.assets[0].uri, type: 'image/jpeg', name: `portada_${Date.now()}.jpg` });
-        }
-        const res = await authAPI.subirFoto('portada', formData);
-        setFotoPortada(res.data.path);
-        showAlert('¡Listo!', 'Foto de portada actualizada.');
-      } catch (err) {
-        showAlert('Error', err.response?.data?.error || 'No se pudo subir la foto.');
-      } finally {
-        setSubiendoPortada(false);
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.85, aspect: [16, 9], allowsEditing: true });
+    if (r.canceled || !r.assets?.[0]) return;
+    setSubiendoPortada(true);
+    try {
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        const blob = await (await fetch(r.assets[0].uri)).blob();
+        formData.append('foto', blob, `portada_${Date.now()}.jpg`);
+      } else {
+        formData.append('foto', { uri: r.assets[0].uri, type: 'image/jpeg', name: `portada_${Date.now()}.jpg` });
       }
-    };
-    elegir();
+      const res = await authAPI.subirFoto('portada', formData);
+      setFotoPortada(res.data.path);
+      showAlert('¡Listo!', 'Foto de portada actualizada.');
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'No se pudo subir la foto.');
+    } finally {
+      setSubiendoPortada(false);
+    }
   };
 
   const identidadAprobada = u?.validacion_identidad_estado === 'aprobada';
@@ -1128,12 +1125,12 @@ export default function PerfilScreen({ navigation }) {
               <View style={{ width: 40 }} />
               <Text style={tw.heroTopTitle}>Mi Perfil</Text>
               <View style={{ flexDirection: 'row', gap: 6 }}>
-                <AnimatedPressable style={[tw.settingsBtn, { backgroundColor: 'rgba(255,255,255,0.2)' }]} onPress={subirPortadaTrabajador} disabled={subiendoPortada} scaleValue={0.88} haptic>
+                <TouchableOpacity style={[tw.settingsBtn, { backgroundColor: 'rgba(255,255,255,0.2)' }]} onPress={subirPortadaTrabajador} disabled={subiendoPortada} activeOpacity={0.75}>
                   {subiendoPortada ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="image-outline" size={18} color="#fff" />}
-                </AnimatedPressable>
-                <AnimatedPressable style={tw.settingsBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.88} haptic>
+                </TouchableOpacity>
+                <TouchableOpacity style={tw.settingsBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} activeOpacity={0.75}>
                   <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.9)" />
-                </AnimatedPressable>
+                </TouchableOpacity>
               </View>
             </View>
 
