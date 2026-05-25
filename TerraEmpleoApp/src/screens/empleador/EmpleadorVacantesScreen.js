@@ -867,10 +867,10 @@ export default function EmpleadorVacantesScreen({ navigation }) {
                         key={srv.id}
                         activeOpacity={0.92}
                         onPress={() => navigation.navigate('DetalleServicio', { servicio_id: srv.id })}
-                        style={{ width: 200, marginRight: SPACING.sm }}
+                        style={{ width: 190, marginRight: SPACING.sm, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.surface, ...SHADOWS.sm }}
                       >
                         {/* Foto principal estilo Airbnb */}
-                        <View style={{ width: 200, height: 160, borderRadius: 16, overflow: 'hidden', marginBottom: 8, backgroundColor: '#C8884A' }}>
+                        <View style={{ width: 190, height: 150, backgroundColor: '#C8884A' }}>
                           {fotos[0]?.url ? (
                             <Image source={{ uri: fotos[0].url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                           ) : (
@@ -878,7 +878,6 @@ export default function EmpleadorVacantesScreen({ navigation }) {
                               <Ionicons name="briefcase-outline" size={36} color="rgba(255,255,255,0.8)" />
                             </LinearGradient>
                           )}
-                          {/* Dots si hay más fotos */}
                           {fotos.length > 1 && (
                             <View style={{ position: 'absolute', bottom: 8, alignSelf: 'center', flexDirection: 'row', gap: 4 }}>
                               {fotos.slice(0, 4).map((_, i) => (
@@ -886,30 +885,31 @@ export default function EmpleadorVacantesScreen({ navigation }) {
                               ))}
                             </View>
                           )}
-                          {/* Badge especialista */}
                           <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                             <Ionicons name="ribbon-outline" size={10} color="#fff" />
                             <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>Especialista</Text>
                           </View>
                         </View>
-                        {/* Info debajo de la foto */}
-                        <Text style={{ fontWeight: '700', fontSize: 13, color: colors.textPrimary, marginBottom: 2 }} numberOfLines={1}>{srv.titulo}</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                          {srv.foto_selfie ? (
-                            <Image source={{ uri: srv.foto_selfie }} style={{ width: 16, height: 16, borderRadius: 8 }} />
-                          ) : (
-                            <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: COLORS.primary + '40', alignItems: 'center', justifyContent: 'center' }}>
-                              <Text style={{ fontSize: 8, color: COLORS.primary, fontWeight: '700' }}>{(srv.nombre_completo || 'E')[0].toUpperCase()}</Text>
-                            </View>
+                        {/* Info debajo de la foto — dentro de la card */}
+                        <View style={{ padding: 10 }}>
+                          <Text style={{ fontWeight: '700', fontSize: 13, color: colors.textPrimary, marginBottom: 3 }} numberOfLines={1}>{srv.titulo}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                            {srv.foto_selfie ? (
+                              <Image source={{ uri: srv.foto_selfie }} style={{ width: 18, height: 18, borderRadius: 9 }} />
+                            ) : (
+                              <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.primary + '30', alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ fontSize: 9, color: COLORS.primary, fontWeight: '700' }}>{(srv.nombre_completo || 'E')[0].toUpperCase()}</Text>
+                              </View>
+                            )}
+                            <Text style={{ fontSize: 11, color: colors.textMuted, flex: 1 }} numberOfLines={1}>{srv.nombre_completo}</Text>
+                          </View>
+                          {srv.cultivos?.length > 0 && (
+                            <Text style={{ fontSize: 11, color: '#E65100', fontWeight: '600', marginBottom: 2 }} numberOfLines={1}>{srv.cultivos.slice(0, 2).join(' · ')}</Text>
                           )}
-                          <Text style={{ fontSize: 11, color: colors.textMuted }} numberOfLines={1}>{srv.nombre_completo}</Text>
+                          {srv.modalidad ? (
+                            <Text style={{ fontSize: 11, color: colors.textMuted }}>{srv.modalidad}</Text>
+                          ) : null}
                         </View>
-                        {srv.cultivos?.length > 0 && (
-                          <Text style={{ fontSize: 11, color: '#E65100', fontWeight: '600' }} numberOfLines={1}>{srv.cultivos.slice(0, 2).join(' · ')}</Text>
-                        )}
-                        {srv.modalidad ? (
-                          <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>{srv.modalidad}</Text>
-                        ) : null}
                       </TouchableOpacity>
                     );
                   })}
