@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity,
-  Image, Linking, Modal, ActivityIndicator, ActionSheetIOS, Alert,
+  Image, Linking, Modal, ActivityIndicator, ActionSheetIOS, Alert, Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,6 +23,17 @@ import { showAlert } from '../../utils/alertService';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 
 const HERO_H = 260;
+const W = Dimensions.get('window').width;
+const FOTO_COL = 2;
+const FOTO_SIZE = (W - SPACING.md * 2 - SPACING.md * 2 - SPACING.sm) / FOTO_COL;
+
+const EXP_COLORS = [
+  { dot: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE' },
+  { dot: '#0EA5E9', bg: '#F0F9FF', border: '#BAE6FD' },
+  { dot: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+  { dot: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
+  { dot: '#DC2626', bg: '#FFF1F2', border: '#FECDD3' },
+];
 
 const LABELS_EXPERIENCIA = {
   sin_experiencia: 'Sin experiencia', menos_1: 'Menos de 1 año',
@@ -957,305 +969,333 @@ export default function PerfilScreen({ navigation }) {
   const acercaDeTrabajador = perfil?.acerca_de?.trim();
 
   return (
-    <SafeAreaView style={[s.root, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-      <DecorativeBackground intensity="strong" />
+    <SafeAreaView style={[s.root, { backgroundColor: colors.background }]} edges={['bottom']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* Top bar */}
-        <View style={s.topBar}>
-          <View style={{ width: 40 }} />
-          <FadeInView delay={100} translateY={-5}>
-            <Text style={[s.topBarTitle, { color: colors.textPrimary }]}>Perfil del Trabajador</Text>
-          </FadeInView>
-          <AnimatedPressable style={s.shareBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.9} haptic>
-            <Ionicons name="settings-outline" size={20} color={colors.textPrimary} />
-          </AnimatedPressable>
-        </View>
 
-        {/* Avatar — spring bouncy entrance */}
-        <View style={s.profileCenter}>
-          <MotiView
-            from={{ scale: 0.4, opacity: 0, translateY: 30 }}
-            animate={{ scale: 1, opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 150 }}
-          >
-            <TouchableOpacity onPress={abrirCamaraFoto} activeOpacity={0.75}>
-              <View style={s.avatarWrap}>
+        {/* ── HERO ── */}
+        <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 400 }}>
+          <LinearGradient colors={['#1B5E20', '#2E7D32', '#43A047']} style={[tw.hero, { paddingTop: (insets?.top || 0) + 52 }]}>
+            {/* Top bar sobre el gradiente */}
+            <View style={tw.heroTopBar}>
+              <View style={{ width: 40 }} />
+              <Text style={tw.heroTopTitle}>Mi Perfil</Text>
+              <AnimatedPressable style={tw.settingsBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.88} haptic>
+                <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.9)" />
+              </AnimatedPressable>
+            </View>
+
+            {/* Avatar */}
+            <MotiView from={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 150 }}>
+              <TouchableOpacity onPress={abrirCamaraFoto} activeOpacity={0.8} style={tw.avatarOuter}>
                 {u?.foto_selfie && u.foto_selfie.startsWith('http') ? (
-                  <Image source={{ uri: u.foto_selfie }} style={s.avatar} />
+                  <Image source={{ uri: u.foto_selfie }} style={tw.avatar} />
                 ) : (
-                  <View style={s.avatarFallback}><Ionicons name="person" size={52} color={COLORS.textLight} /></View>
+                  <View style={tw.avatarFallback}><Ionicons name="person" size={44} color="rgba(255,255,255,0.7)" /></View>
                 )}
-                {identidadAprobada && <View style={s.verifiedBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>}
-                <View style={s.camaraBadge}>
-                  <Ionicons name={puedeCambiarFoto ? 'camera' : 'time-outline'} size={12} color={COLORS.white} />
-                </View>
-              </View>
-            </TouchableOpacity>
-          </MotiView>
+                {identidadAprobada && <View style={tw.verBadge}><Ionicons name="checkmark" size={12} color="#fff" /></View>}
+                <View style={tw.camBadge}><Ionicons name={puedeCambiarFoto ? 'camera' : 'time-outline'} size={11} color="#fff" /></View>
+              </TouchableOpacity>
+            </MotiView>
 
-          <FadeInView delay={250}>
-            <Text style={[s.fullName, { color: colors.textPrimary }]}>{u?.nombre_completo || 'Usuario'}</Text>
-          </FadeInView>
-
-          {calificacion > 0 ? (
-            <FadeInView delay={300}>
-              <View style={s.ratingRow}>
-                <Ionicons name="star" size={16} color="#FFB300" />
-                <Text style={[s.ratingVal, { color: colors.textPrimary }]}>{calificacion.toFixed(1)}</Text>
-                <Text style={[s.ratingCnt, { color: colors.textSecondary }]}>({totalCalif} reseñas)</Text>
+            <FadeInView delay={220}>
+              <Text style={tw.heroName}>{u?.nombre_completo || 'Tu nombre'}</Text>
+            </FadeInView>
+            <FadeInView delay={260}>
+              <View style={tw.heroPills}>
+                {ubicacionT ? (
+                  <View style={tw.heroPill}><Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.85)" /><Text style={tw.heroPillTxt}>{ubicacionT}</Text></View>
+                ) : null}
+                {disponibilidad ? (
+                  <View style={[tw.heroPill, { backgroundColor: 'rgba(255,255,255,0.18)' }]}><Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.85)" /><Text style={tw.heroPillTxt}>{disponibilidad}</Text></View>
+                ) : null}
               </View>
             </FadeInView>
-          ) : (
-            <FadeInView delay={300}>
-              <Text style={[s.noRating, { color: colors.textMuted }]}>Sin reseñas aún</Text>
-            </FadeInView>
-          )}
 
-          {u?.verificado_sms && (
-            <MotiView
-              from={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 350 }}
-            >
-              <View style={s.verPill}>
-                <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} /><Text style={s.verPillTxt}>VERIFICADO</Text>
+            {/* Floating stats card */}
+            <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: 320 }} style={tw.statsCard}>
+              <View style={tw.statItem}>
+                <Ionicons name="star" size={20} color="#FFB300" />
+                <Text style={tw.statNum}>{calificacion > 0 ? calificacion.toFixed(1) : '—'}</Text>
+                <Text style={tw.statLbl}>Calificación</Text>
+              </View>
+              <View style={tw.statDivider} />
+              <View style={tw.statItem}>
+                <Ionicons name="chatbubble-outline" size={20} color="#2196F3" />
+                <Text style={tw.statNum}>{totalCalif}</Text>
+                <Text style={tw.statLbl}>Reseñas</Text>
+              </View>
+              <View style={tw.statDivider} />
+              <View style={tw.statItem}>
+                <Ionicons name="briefcase-outline" size={20} color="#43A047" />
+                <Text style={tw.statNum}>{experiencia ? experiencia.split(' ').slice(0,2).join(' ') : '—'}</Text>
+                <Text style={tw.statLbl}>Experiencia</Text>
               </View>
             </MotiView>
-          )}
-        </View>
+          </LinearGradient>
+        </MotiView>
 
-        {/* Banner mejora tu perfil */}
-        {(!acercaDeTrabajador || !perfil?.hoja_vida_url || !(perfil?.fotos_trabajo?.length > 0) || !(perfil?.experiencias?.length > 0)) && (
-          <FadeInView delay={80}>
-            <AnimatedPressable
-              style={[mejoraStyles.banner, { backgroundColor: isDark ? '#1a2f22' : '#EBF5ED', borderColor: isDark ? '#2a4c3a' : '#B8DFBC' }]}
-              onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}
-              scaleValue={0.98} haptic
-            >
-              <View style={[mejoraStyles.iconWrap, { backgroundColor: COLORS.primary }]}>
-                <Ionicons name="trending-up" size={18} color="#fff" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[mejoraStyles.title, { color: isDark ? '#7CCC8A' : COLORS.primary }]}>¡Mejora tu perfil!</Text>
-                <View style={mejoraStyles.itemsRow}>
-                  {!acercaDeTrabajador && (
-                    <View style={mejoraStyles.item}>
-                      <Ionicons name="ellipse" size={6} color={COLORS.primary} />
-                      <Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Agrega un "Acerca de ti"</Text>
-                    </View>
-                  )}
-                  {!(perfil?.fotos_trabajo?.length > 0) && (
-                    <View style={mejoraStyles.item}>
-                      <Ionicons name="ellipse" size={6} color={COLORS.primary} />
-                      <Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Sube fotos de tu trabajo</Text>
-                    </View>
-                  )}
-                  {!(perfil?.experiencias?.length > 0) && (
-                    <View style={mejoraStyles.item}>
-                      <Ionicons name="ellipse" size={6} color={COLORS.primary} />
-                      <Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Agrega experiencias laborales</Text>
-                    </View>
-                  )}
-                  {!perfil?.hoja_vida_url && (
-                    <View style={mejoraStyles.item}>
-                      <Ionicons name="ellipse" size={6} color={COLORS.primary} />
-                      <Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Adjunta tu hoja de vida</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
-            </AnimatedPressable>
-          </FadeInView>
-        )}
+        <View style={{ paddingHorizontal: SPACING.md, paddingTop: 52 }}>
 
-        {/* ACERCA DE */}
-        <StaggeredItem index={0}>
-          <View style={s.secWrap}>
-            <View style={s.secHead}>
-              <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="document-text-outline" size={17} color={colors.primary} /></View>
-              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Acerca de mí</Text>
-            </View>
-            {acercaDeTrabajador ? (
-              <Text style={[s.secText, { color: colors.textSecondary }]}>{acercaDeTrabajador}</Text>
-            ) : (
-              <Text style={[s.secTextMuted, { color: colors.textMuted }]}>Aún no has agregado tu sección "Acerca de".</Text>
-            )}
-          </View>
-        </StaggeredItem>
-
-        {perfil?.hoja_vida_url ? (
-          <StaggeredItem index={1}>
-            <View style={s.secWrap}>
-              <View style={s.secHead}>
-                <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="document-attach-outline" size={17} color={colors.primary} /></View>
-                <Text style={[s.secTitle, { color: colors.textPrimary }]}>Hoja de vida</Text>
-              </View>
+          {/* Banner mejora tu perfil */}
+          {(!acercaDeTrabajador || !perfil?.hoja_vida_url || !(perfil?.fotos_trabajo?.length > 0) || !(perfil?.experiencias?.length > 0)) && (
+            <FadeInView delay={80}>
               <AnimatedPressable
-                style={[
-                  s.cvCard,
-                  { backgroundColor: isDark ? '#1a322a' : COLORS.primarySoft, borderColor: isDark ? '#2a4c41' : COLORS.borderLight },
-                ]}
-                onPress={() => abrirDocumento(perfil.hoja_vida_url)}
-                scaleValue={0.98}
-                haptic={false}
+                style={[mejoraStyles.banner, { backgroundColor: isDark ? '#1a2f22' : '#EBF5ED', borderColor: isDark ? '#2a4c3a' : '#B8DFBC' }]}
+                onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}
+                scaleValue={0.98} haptic
               >
-                <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.cvCardTitle, { color: colors.textPrimary }]}>Hoja de vida cargada</Text>
-                  <Text style={[s.cvCardName, { color: colors.textSecondary }]} numberOfLines={1}>{perfil.hoja_vida_nombre || 'Hoja de vida.pdf'}</Text>
+                <View style={[mejoraStyles.iconWrap, { backgroundColor: COLORS.primary }]}>
+                  <Ionicons name="trending-up" size={18} color="#fff" />
                 </View>
-                <Ionicons name="open-outline" size={18} color={COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[mejoraStyles.title, { color: isDark ? '#7CCC8A' : COLORS.primary }]}>¡Mejora tu perfil!</Text>
+                  <View style={mejoraStyles.itemsRow}>
+                    {!acercaDeTrabajador && (
+                      <View style={mejoraStyles.item}><Ionicons name="ellipse" size={6} color={COLORS.primary} /><Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Agrega un "Acerca de ti"</Text></View>
+                    )}
+                    {!(perfil?.fotos_trabajo?.length > 0) && (
+                      <View style={mejoraStyles.item}><Ionicons name="ellipse" size={6} color={COLORS.primary} /><Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Sube fotos de tu trabajo</Text></View>
+                    )}
+                    {!(perfil?.experiencias?.length > 0) && (
+                      <View style={mejoraStyles.item}><Ionicons name="ellipse" size={6} color={COLORS.primary} /><Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Agrega experiencias laborales</Text></View>
+                    )}
+                    {!perfil?.hoja_vida_url && (
+                      <View style={mejoraStyles.item}><Ionicons name="ellipse" size={6} color={COLORS.primary} /><Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Adjunta tu hoja de vida</Text></View>
+                    )}
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
+              </AnimatedPressable>
+            </FadeInView>
+          )}
+
+          {/* ── ACERCA DE ── */}
+          {acercaDeTrabajador ? (
+            <StaggeredItem index={0}>
+              <View style={[tw.card, { backgroundColor: colors.surface }]}>
+                <View style={tw.cardHeader}>
+                  <LinearGradient colors={['#1565C0','#1E88E5']} style={tw.cardIconGrad}>
+                    <Ionicons name="document-text-outline" size={16} color="#fff" />
+                  </LinearGradient>
+                  <Text style={[tw.cardTitle, { color: colors.textPrimary }]}>Acerca de mí</Text>
+                </View>
+                <Text style={[tw.cardBody, { color: colors.textSecondary }]}>{acercaDeTrabajador}</Text>
+              </View>
+            </StaggeredItem>
+          ) : null}
+
+          {/* ── HOJA DE VIDA ── */}
+          {perfil?.hoja_vida_url ? (
+            <StaggeredItem index={1}>
+              <AnimatedPressable style={[tw.cvCard, { backgroundColor: isDark ? '#1a3c2c' : '#E8F5E9' }]} onPress={() => abrirDocumento(perfil.hoja_vida_url)} scaleValue={0.97} haptic={false}>
+                <LinearGradient colors={['#2E7D32','#43A047']} style={tw.cvIconGrad}>
+                  <Ionicons name="document-text" size={18} color="#fff" />
+                </LinearGradient>
+                <View style={{ flex: 1 }}>
+                  <Text style={[tw.cvTitle, { color: colors.textPrimary }]}>Hoja de vida</Text>
+                  <Text style={[tw.cvName, { color: colors.textMuted }]} numberOfLines={1}>{perfil.hoja_vida_nombre || 'Hoja de vida.pdf'}</Text>
+                </View>
+                <View style={tw.cvBadge}><Ionicons name="open-outline" size={14} color="#2E7D32" /><Text style={tw.cvBadgeTxt}>Abrir</Text></View>
+              </AnimatedPressable>
+            </StaggeredItem>
+          ) : null}
+
+          {/* ── CULTIVOS Y HABILIDADES ── */}
+          {(cultivos.length > 0 || habilidades.length > 0) && (
+            <StaggeredItem index={2}>
+              <View style={[tw.card, { backgroundColor: colors.surface }]}>
+                <View style={tw.cardHeader}>
+                  <LinearGradient colors={['#2E7D32','#66BB6A']} style={tw.cardIconGrad}>
+                    <Ionicons name="leaf" size={16} color="#fff" />
+                  </LinearGradient>
+                  <Text style={[tw.cardTitle, { color: colors.textPrimary }]}>Cultivos y Habilidades</Text>
+                </View>
+                {cultivos.length > 0 && (
+                  <>
+                    <Text style={[tw.chipGroupLbl, { color: colors.textMuted }]}>CULTIVOS</Text>
+                    <View style={tw.chipRow}>
+                      {cultivos.map((c, i) => (
+                        <MotiView key={i} from={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 35 }}>
+                          <View style={tw.chipGreen}><Ionicons name="leaf" size={11} color="#2E7D32" /><Text style={tw.chipGreenTxt}>{c}</Text></View>
+                        </MotiView>
+                      ))}
+                    </View>
+                  </>
+                )}
+                {habilidades.length > 0 && (
+                  <>
+                    <Text style={[tw.chipGroupLbl, { color: colors.textMuted, marginTop: cultivos.length > 0 ? 10 : 0 }]}>HABILIDADES</Text>
+                    <View style={tw.chipRow}>
+                      {habilidades.map((h, i) => (
+                        <MotiView key={i} from={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: (cultivos.length + i) * 35 }}>
+                          <View style={[tw.chipOutline, { borderColor: colors.border, backgroundColor: colors.background }]}><Ionicons name="construct-outline" size={11} color={colors.textMuted} /><Text style={[tw.chipOutlineTxt, { color: colors.textSecondary }]}>{h}</Text></View>
+                        </MotiView>
+                      ))}
+                    </View>
+                  </>
+                )}
+              </View>
+            </StaggeredItem>
+          )}
+
+          {/* ── EXPERIENCIA GENERAL Y FORMACIÓN ── */}
+          {(experiencia || estudios || perfil?.titulo_estudio) && (
+            <StaggeredItem index={3}>
+              <View style={[tw.card, { backgroundColor: colors.surface }]}>
+                <View style={tw.cardHeader}>
+                  <LinearGradient colors={['#1565C0','#1976D2']} style={tw.cardIconGrad}>
+                    <Ionicons name="school-outline" size={16} color="#fff" />
+                  </LinearGradient>
+                  <Text style={[tw.cardTitle, { color: colors.textPrimary }]}>Experiencia y Formación</Text>
+                </View>
+                {experiencia && (
+                  <View style={[tw.expRow, { borderBottomColor: colors.border, borderBottomWidth: estudios || perfil?.titulo_estudio ? 1 : 0 }]}>
+                    <View style={[tw.expDot, { backgroundColor: '#D1FAE5' }]}><Ionicons name="time-outline" size={15} color="#059669" /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[tw.expLbl, { color: colors.textMuted }]}>Experiencia agrícola</Text>
+                      <Text style={[tw.expVal, { color: colors.textPrimary }]}>{experiencia}</Text>
+                    </View>
+                  </View>
+                )}
+                {estudios && (
+                  <View style={[tw.expRow, { borderBottomColor: colors.border, borderBottomWidth: perfil?.titulo_estudio ? 1 : 0 }]}>
+                    <View style={[tw.expDot, { backgroundColor: '#DBEAFE' }]}><Ionicons name="school-outline" size={15} color="#2563EB" /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[tw.expLbl, { color: colors.textMuted }]}>Nivel de estudios</Text>
+                      <Text style={[tw.expVal, { color: colors.textPrimary }]}>{estudios}</Text>
+                    </View>
+                  </View>
+                )}
+                {perfil?.titulo_estudio && (
+                  <View style={[tw.expRow, { borderBottomWidth: 0 }]}>
+                    <View style={[tw.expDot, { backgroundColor: '#F3E8FF' }]}><Ionicons name="ribbon-outline" size={15} color="#7C3AED" /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[tw.expLbl, { color: colors.textMuted }]}>Título</Text>
+                      <Text style={[tw.expVal, { color: colors.textPrimary }]}>{perfil.titulo_estudio}</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            </StaggeredItem>
+          )}
+
+          {/* ── EXPERIENCIAS LABORALES — TIMELINE ── */}
+          {(perfil?.experiencias || []).length > 0 && (
+            <StaggeredItem index={4}>
+              <View style={[tw.card, { backgroundColor: colors.surface }]}>
+                <View style={tw.cardHeader}>
+                  <LinearGradient colors={['#7C3AED','#6D28D9']} style={tw.cardIconGrad}>
+                    <Ionicons name="briefcase" size={16} color="#fff" />
+                  </LinearGradient>
+                  <Text style={[tw.cardTitle, { color: colors.textPrimary }]}>Experiencias laborales</Text>
+                  <Text style={[tw.cardCount, { color: colors.textMuted }]}>{perfil.experiencias.length}</Text>
+                </View>
+                {/* Timeline vertical */}
+                <View style={tw.tlWrap}>
+                  {perfil.experiencias.map((exp, i) => (
+                    <MotiView key={exp.id || i} from={{ opacity: 0, translateX: -12 }} animate={{ opacity: 1, translateX: 0 }} transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 80 }}>
+                      <View style={tw.tlRow}>
+                        {/* Línea + dot */}
+                        <View style={tw.tlTrack}>
+                          <View style={[tw.tlDot, { backgroundColor: EXP_COLORS[i % EXP_COLORS.length].dot }]}>
+                            <Ionicons name="business-outline" size={11} color="#fff" />
+                          </View>
+                          {i < perfil.experiencias.length - 1 && <View style={[tw.tlLine, { backgroundColor: colors.border }]} />}
+                        </View>
+                        {/* Contenido */}
+                        <View style={[tw.tlCard, { backgroundColor: EXP_COLORS[i % EXP_COLORS.length].bg, borderColor: EXP_COLORS[i % EXP_COLORS.length].border }]}>
+                          <Text style={[tw.tlEntidad, { color: colors.textPrimary }]}>{exp.entidad}</Text>
+                          {!!exp.duracion && (
+                            <View style={tw.tlDuracionRow}>
+                              <Ionicons name="time-outline" size={12} color={EXP_COLORS[i % EXP_COLORS.length].dot} />
+                              <Text style={[tw.tlDuracion, { color: EXP_COLORS[i % EXP_COLORS.length].dot }]}>{exp.duracion}</Text>
+                            </View>
+                          )}
+                          {!!exp.descripcion && <Text style={[tw.tlDesc, { color: colors.textSecondary }]}>{exp.descripcion}</Text>}
+                        </View>
+                      </View>
+                    </MotiView>
+                  ))}
+                </View>
+              </View>
+            </StaggeredItem>
+          )}
+
+          {/* ── FOTOS DE TRABAJO ── */}
+          {(perfil?.fotos_trabajo || []).length > 0 && (
+            <StaggeredItem index={5}>
+              <View style={[tw.card, { backgroundColor: colors.surface }]}>
+                <View style={tw.cardHeader}>
+                  <LinearGradient colors={['#B45309','#D97706']} style={tw.cardIconGrad}>
+                    <Ionicons name="images-outline" size={16} color="#fff" />
+                  </LinearGradient>
+                  <Text style={[tw.cardTitle, { color: colors.textPrimary }]}>Fotos de trabajo</Text>
+                  <Text style={[tw.cardCount, { color: colors.textMuted }]}>{perfil.fotos_trabajo.length}</Text>
+                </View>
+                <View style={tw.fotosGrid}>
+                  {perfil.fotos_trabajo.map((f, i) => (
+                    <MotiView key={f.id || i} from={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 60 }}>
+                      <View style={tw.fotoWrap}>
+                        <Image source={{ uri: f.url }} style={tw.fotoImg} />
+                        <LinearGradient colors={['transparent','rgba(0,0,0,0.3)']} style={StyleSheet.absoluteFillObject} />
+                      </View>
+                    </MotiView>
+                  ))}
+                </View>
+              </View>
+            </StaggeredItem>
+          )}
+
+          {/* ── DOCUMENTACIÓN ── */}
+          <StaggeredItem index={6}>
+            <View style={[tw.card, { backgroundColor: colors.surface }]}>
+              <View style={tw.cardHeader}>
+                <LinearGradient colors={['#0F766E','#0D9488']} style={tw.cardIconGrad}>
+                  <Ionicons name="shield-checkmark-outline" size={16} color="#fff" />
+                </LinearGradient>
+                <Text style={[tw.cardTitle, { color: colors.textPrimary }]}>Documentación</Text>
+              </View>
+              <View style={tw.verList}>
+                <View style={[tw.verItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <View style={[tw.verIcon, { backgroundColor: '#E8F5E9' }]}><Ionicons name="card-outline" size={17} color="#2E7D32" /></View>
+                  <Text style={[tw.verTxt, { color: colors.textPrimary }]}>Cédula de ciudadanía</Text>
+                  <Ionicons name="checkmark-circle" size={20} color="#2E7D32" />
+                </View>
+                <View style={[tw.verItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <View style={[tw.verIcon, { backgroundColor: u?.verificado_sms ? '#E8F5E9' : '#F3F4F6' }]}><Ionicons name="call-outline" size={17} color={u?.verificado_sms ? '#2E7D32' : '#9CA3AF'} /></View>
+                  <Text style={[tw.verTxt, { color: colors.textPrimary }]}>Teléfono verificado</Text>
+                  <Ionicons name={u?.verificado_sms ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={u?.verificado_sms ? '#2E7D32' : '#9CA3AF'} />
+                </View>
+              </View>
+            </View>
+          </StaggeredItem>
+
+          {/* ── ACCIONES ── */}
+          <StaggeredItem index={7}>
+            <View style={[tw.card, { backgroundColor: colors.surface }]}>
+              <AnimatedPressable style={[tw.actionRow, { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.97} haptic>
+                <View style={[tw.actionIcon, { backgroundColor: '#E8F5E9' }]}><Ionicons name="create-outline" size={17} color="#2E7D32" /></View>
+                <Text style={[tw.actionTxt, { color: colors.textPrimary }]}>Editar perfil</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </AnimatedPressable>
+              <AnimatedPressable style={[tw.actionRow, { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={toggleMode} scaleValue={0.97} haptic>
+                <View style={[tw.actionIcon, { backgroundColor: isDark ? '#1a2f22' : '#E8F5E9' }]}><Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={17} color="#2E7D32" /></View>
+                <Text style={[tw.actionTxt, { color: colors.textPrimary }]}>{isDark ? 'Modo claro' : 'Modo oscuro'}</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </AnimatedPressable>
+              <AnimatedPressable style={[tw.actionRow, { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={() => navigation.navigate('Pqrs')} scaleValue={0.97} haptic>
+                <View style={[tw.actionIcon, { backgroundColor: '#EFF6FF' }]}><Ionicons name="chatbox-ellipses-outline" size={17} color="#2563EB" /></View>
+                <Text style={[tw.actionTxt, { color: colors.textPrimary }]}>Peticiones, Quejas y Sugerencias</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </AnimatedPressable>
+              <AnimatedPressable style={tw.actionRow} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
+                <View style={[tw.actionIcon, { backgroundColor: '#FEE2E2' }]}><Ionicons name="log-out-outline" size={17} color="#EF4444" /></View>
+                <Text style={[tw.actionTxt, { color: '#EF4444' }]}>Cerrar sesión</Text>
               </AnimatedPressable>
             </View>
           </StaggeredItem>
-        ) : null}
 
-        {/* HABILIDADES */}
-        {especialidades.length > 0 && (
-          <StaggeredItem index={2}>
-            <View style={s.secWrap}>
-              <View style={s.secHead}>
-                <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="star-outline" size={17} color={colors.primary} /></View>
-                <Text style={[s.secTitle, { color: colors.textPrimary }]}>Habilidades y Cultivos</Text>
-              </View>
-              <View style={s.chipWrap}>
-                {especialidades.map((e, i) => {
-                  const isCultivo = cultivos.includes(e);
-                  return (
-                    <MotiView
-                      key={i}
-                      from={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 40 }}
-                    >
-                      <View style={isCultivo ? s.chipColor : [s.chipOutline, { borderColor: colors.border }]}>
-                        {isCultivo && <Ionicons name="leaf" size={12} color={COLORS.primary} />}
-                        <Text style={isCultivo ? s.chipColorTxt : [s.chipOutlineTxt, { color: colors.textSecondary }]}>{e}</Text>
-                      </View>
-                    </MotiView>
-                  );
-                })}
-              </View>
-            </View>
-          </StaggeredItem>
-        )}
-
-        {/* EXPERIENCIA — with pulsing timeline dots */}
-        {experiencia && (
-          <StaggeredItem index={3}>
-            <View style={s.secWrap}>
-              <View style={s.secHead}>
-                <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="briefcase-outline" size={17} color={colors.primary} /></View>
-                <Text style={[s.secTitle, { color: colors.textPrimary }]}>Experiencia y Formación</Text>
-              </View>
-              <View style={s.timeline}>
-                <View style={s.tlItem}>
-                  <PulsingDot color={COLORS.primary} />
-                  <View style={[s.tlLine, { backgroundColor: colors.border }]} />
-                  <View style={s.tlContent}>
-                    <Text style={[s.tlTitle, { color: colors.textPrimary }]}>Experiencia Agrícola</Text>
-                    <Text style={[s.tlSub, { color: colors.primary }]}>{experiencia}</Text>
-                    <Text style={[s.tlDesc, { color: colors.textSecondary }]}>Trabajo en campo, cultivos y cosecha</Text>
-                  </View>
-                </View>
-                {estudios && (
-                  <View style={s.tlItem}>
-                    <PulsingDot color={COLORS.primaryLight} delay={300} />
-                    <View style={s.tlContent}>
-                      <Text style={[s.tlTitle, { color: colors.textPrimary }]}>Formación</Text>
-                      <Text style={[s.tlSub, { color: colors.primary }]}>{estudios}</Text>
-                      {perfil?.titulo_estudio && <Text style={[s.tlDesc, { color: colors.textSecondary }]}>{perfil.titulo_estudio}</Text>}
-                    </View>
-                  </View>
-                )}
-              </View>
-            </View>
-          </StaggeredItem>
-        )}
-
-        {/* Stat cards — staggered */}
-        <StaggeredItem index={4}>
-          <View style={s.statRow}>
-            <MotiView
-              from={{ opacity: 0, translateY: 20, scale: 0.9 }}
-              animate={{ opacity: 1, translateY: 0, scale: 1 }}
-              transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: 250 }}
-              style={{ flex: 1 }}
-            >
-              <View style={[s.statCard, { backgroundColor: colors.card, borderColor: colors.border }] }>
-                <Ionicons name="location" size={20} color={COLORS.primary} />
-                <Text style={[s.statLabel, { color: colors.textMuted }]}>UBICACIÓN</Text>
-                <Text style={[s.statVal, { color: colors.textPrimary }]}>{ubicacionT || 'Colombia'}</Text>
-              </View>
-            </MotiView>
-            <MotiView
-              from={{ opacity: 0, translateY: 20, scale: 0.9 }}
-              animate={{ opacity: 1, translateY: 0, scale: 1 }}
-              transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: 350 }}
-              style={{ flex: 1 }}
-            >
-              <View style={[s.statCard, { backgroundColor: colors.card, borderColor: colors.border }] }>
-                <Ionicons name="calendar" size={20} color={COLORS.primary} />
-                <Text style={[s.statLabel, { color: colors.textMuted }]}>DISPONIBILIDAD</Text>
-                <Text style={[s.statVal, { color: colors.textPrimary }]}>{disponibilidad || 'No indicada'}</Text>
-              </View>
-            </MotiView>
-          </View>
-        </StaggeredItem>
-
-        {/* DOCUMENTACIÓN */}
-        <StaggeredItem index={5}>
-          <View style={s.secWrap}>
-            <View style={s.secHead}>
-              <View style={[s.secIcon, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="shield-checkmark-outline" size={17} color={colors.primary} /></View>
-              <Text style={[s.secTitle, { color: colors.textPrimary }]}>Documentación Verificada</Text>
-            </View>
-            <View style={s.verList}>
-              <View style={[s.verItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[s.verIcon, { backgroundColor: isDark ? '#223a32' : COLORS.primarySoft }]}><Ionicons name="card-outline" size={18} color={COLORS.primary} /></View>
-                <Text style={[s.verText, { color: colors.textPrimary }]}>Cédula de Ciudadanía</Text>
-                <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-              </View>
-              <View style={[s.verItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[s.verIcon, { backgroundColor: isDark ? '#223a32' : COLORS.primarySoft }]}><Ionicons name="call-outline" size={18} color={COLORS.primary} /></View>
-                <Text style={[s.verText, { color: colors.textPrimary }]}>Teléfono Verificado</Text>
-                <Ionicons name={u?.verificado_sms ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={u?.verificado_sms ? COLORS.primary : COLORS.textLight} />
-              </View>
-            </View>
-          </View>
-        </StaggeredItem>
-
-        {/* Editar Perfil */}
-        <StaggeredItem index={6}>
-          <View style={s.secWrap}>
-            <AnimatedPressable style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.96} haptic>
-              <Ionicons name="create-outline" size={20} color={COLORS.primary} /><Text style={s.ctaBtnTxt}>Editar Perfil</Text>
-            </AnimatedPressable>
-            <AnimatedPressable
-              style={[s.themeRow, { backgroundColor: isDark ? '#1a322a' : '#F8FAF9', borderColor: isDark ? '#2a4c41' : COLORS.borderLight }]}
-              onPress={toggleMode}
-              scaleValue={0.97}
-              haptic
-            >
-              <View style={[s.themeIcon, { backgroundColor: isDark ? '#244238' : COLORS.primarySoft }]}>
-                <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={17} color={colors.primary} />
-              </View>
-              <Text style={[s.themeTxt, { color: colors.textPrimary }]}>
-                {isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-              </Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-            </AnimatedPressable>
-            <AnimatedPressable style={s.pqrsRow} onPress={() => navigation.navigate('Pqrs')} scaleValue={0.97} haptic>
-              <Ionicons name="chatbox-ellipses-outline" size={16} color={COLORS.textSecondary} />
-              <Text style={s.pqrsRowTxt}>Peticiones, Quejas y Sugerencias</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
-            </AnimatedPressable>
-            <AnimatedPressable style={[s.logoutRow, { backgroundColor: isDark ? '#2a1717' : 'transparent' }]} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
-              <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
-            </AnimatedPressable>
-          </View>
-        </StaggeredItem>
+        </View>
       </ScrollView>
 
       {/* Modal cámara para cambio de foto de perfil */}
@@ -1508,4 +1548,76 @@ const mejoraStyles = StyleSheet.create({
   itemsRow: { gap: 3 },
   item: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   itemText: { fontSize: 12, fontWeight: '500' },
+});
+
+const tw = StyleSheet.create({
+  // Hero
+  hero: { paddingTop: 52, paddingBottom: 90, alignItems: 'center', paddingHorizontal: SPACING.md },
+  heroTopBar: { position: 'absolute', top: 14, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.md },
+  heroTopTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  settingsBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  avatarOuter: { width: 94, height: 94, borderRadius: 47, borderWidth: 3, borderColor: 'rgba(255,255,255,0.6)', overflow: 'visible', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  avatar: { width: 88, height: 88, borderRadius: 44 },
+  avatarFallback: { width: 88, height: 88, borderRadius: 44, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  verBadge: { position: 'absolute', bottom: 2, right: 2, width: 22, height: 22, borderRadius: 11, backgroundColor: '#43A047', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
+  camBadge: { position: 'absolute', bottom: 2, left: 2, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
+  heroName: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 6, textAlign: 'center' },
+  heroPills: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 8 },
+  heroPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  heroPillTxt: { fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: '500' },
+  statsCard: { position: 'absolute', bottom: -44, left: SPACING.md, right: SPACING.md, backgroundColor: '#fff', borderRadius: 18, flexDirection: 'row', paddingVertical: 14, ...SHADOWS.medium },
+  statItem: { flex: 1, alignItems: 'center', gap: 3 },
+  statNum: { fontSize: 16, fontWeight: '800', color: '#111827' },
+  statLbl: { fontSize: 10, color: '#6B7280', fontWeight: '600', letterSpacing: 0.3 },
+  statDivider: { width: 1, backgroundColor: '#E5E7EB', marginVertical: 4 },
+  // Cards
+  card: { borderRadius: 16, padding: SPACING.md, marginBottom: SPACING.sm, ...SHADOWS.light },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 10 },
+  cardIconGrad: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
+  cardCount: { fontSize: 12, fontWeight: '600', backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  cardBody: { fontSize: 14, lineHeight: 21 },
+  // CV
+  cvCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: SPACING.md, marginBottom: SPACING.sm, gap: 12, ...SHADOWS.light },
+  cvIconGrad: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  cvTitle: { fontSize: 14, fontWeight: '700' },
+  cvName: { fontSize: 12, marginTop: 2 },
+  cvBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E8F5E9', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  cvBadgeTxt: { fontSize: 12, color: '#2E7D32', fontWeight: '600' },
+  // Chips
+  chipGroupLbl: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 6 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chipGreen: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#E8F5E9', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  chipGreenTxt: { fontSize: 12, color: '#2E7D32', fontWeight: '600' },
+  chipOutline: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  chipOutlineTxt: { fontSize: 12, fontWeight: '500' },
+  // Experiencia formación
+  expRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 10 },
+  expDot: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  expLbl: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3, marginBottom: 2 },
+  expVal: { fontSize: 14, fontWeight: '700' },
+  // Timeline experiencias laborales
+  tlWrap: { paddingTop: 4 },
+  tlRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
+  tlTrack: { alignItems: 'center', width: 28 },
+  tlDot: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  tlLine: { width: 2, flex: 1, minHeight: 16, borderRadius: 1, marginTop: 4 },
+  tlCard: { flex: 1, borderRadius: 12, borderWidth: 1, padding: 10, marginBottom: 8 },
+  tlEntidad: { fontSize: 14, fontWeight: '700', marginBottom: 3 },
+  tlDuracionRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 },
+  tlDuracion: { fontSize: 12, fontWeight: '600' },
+  tlDesc: { fontSize: 12, lineHeight: 17 },
+  // Fotos
+  fotosGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  fotoWrap: { width: FOTO_SIZE, height: FOTO_SIZE, borderRadius: 12, overflow: 'hidden' },
+  fotoImg: { width: '100%', height: '100%' },
+  // Documentación
+  verList: { gap: 8 },
+  verItem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, padding: 10 },
+  verIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  verTxt: { flex: 1, fontSize: 14, fontWeight: '500' },
+  // Acciones
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  actionIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  actionTxt: { flex: 1, fontSize: 14, fontWeight: '500' },
 });

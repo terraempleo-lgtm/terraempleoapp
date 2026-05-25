@@ -15,6 +15,13 @@ const LABELS_EXPERIENCIA = {
   sin: 'Sin experiencia', sin_experiencia: 'Sin experiencia', menos_1: 'Menos de 1 año',
   '1_3': '1 a 3 años', '3_5': '3 a 5 años', '5_10': '5 a 10 años', mas_10: 'Más de 10 años',
 };
+const EXP_COLORS = [
+  { dot: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE' },
+  { dot: '#0EA5E9', bg: '#F0F9FF', border: '#BAE6FD' },
+  { dot: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+  { dot: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
+  { dot: '#DC2626', bg: '#FFF1F2', border: '#FECDD3' },
+];
 const LABELS_DISPONIBILIDAD = {
   tiempo_completo: 'Tiempo completo', por_dias: 'Por días',
   temporada_cosecha: 'Por temporada / cosecha', fines_semana: 'Fines de semana',
@@ -409,7 +416,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
             </View>
           )}
 
-          {/* Experiencias laborales especialista */}
+          {/* Experiencias laborales especialista — timeline */}
           {(perfil.experiencias || []).length > 0 && (
             <View style={[r.card, { backgroundColor: colors.surface }]}>
               <View style={r.cardHeader}>
@@ -417,17 +424,30 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
                   <Ionicons name="briefcase" size={16} color="#fff" />
                 </LinearGradient>
                 <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Experiencias laborales</Text>
+                <Text style={r.expCount}>{perfil.experiencias.length}</Text>
               </View>
-              {perfil.experiencias.map((exp, i) => (
-                <View key={exp.id || i} style={[r.expRow, { borderBottomColor: colors.border, borderBottomWidth: i < perfil.experiencias.length - 1 ? 1 : 0 }]}>
-                  <View style={[r.expDot, { backgroundColor: '#EDE9FE' }]}><Ionicons name="business-outline" size={15} color="#7C3AED" /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[r.expValue, { color: colors.textPrimary }]}>{exp.entidad}</Text>
-                    {!!exp.duracion && <Text style={[r.expLabel, { color: colors.textMuted }]}>{exp.duracion}</Text>}
-                    {!!exp.descripcion && <Text style={[r.expLabel, { color: colors.textSecondary, marginTop: 2 }]}>{exp.descripcion}</Text>}
+              <View style={r.tlWrap}>
+                {perfil.experiencias.map((exp, i) => (
+                  <View key={exp.id || i} style={r.tlRow}>
+                    <View style={r.tlTrack}>
+                      <View style={[r.tlDot, { backgroundColor: EXP_COLORS[i % EXP_COLORS.length].dot }]}>
+                        <Ionicons name="business-outline" size={11} color="#fff" />
+                      </View>
+                      {i < perfil.experiencias.length - 1 && <View style={[r.tlLine, { backgroundColor: colors.border }]} />}
+                    </View>
+                    <View style={[r.tlCard, { backgroundColor: EXP_COLORS[i % EXP_COLORS.length].bg, borderColor: EXP_COLORS[i % EXP_COLORS.length].border }]}>
+                      <Text style={[r.tlEntidad, { color: colors.textPrimary }]}>{exp.entidad}</Text>
+                      {!!exp.duracion && (
+                        <View style={r.tlDuracionRow}>
+                          <Ionicons name="time-outline" size={12} color={EXP_COLORS[i % EXP_COLORS.length].dot} />
+                          <Text style={[r.tlDuracion, { color: EXP_COLORS[i % EXP_COLORS.length].dot }]}>{exp.duracion}</Text>
+                        </View>
+                      )}
+                      {!!exp.descripcion && <Text style={[r.tlDesc, { color: colors.textSecondary }]}>{exp.descripcion}</Text>}
+                    </View>
                   </View>
-                </View>
-              ))}
+                ))}
+              </View>
             </View>
           )}
 
@@ -683,6 +703,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
         )}
 
         {/* ── EXPERIENCIAS LABORALES (trabajador) ── */}
+        {/* ── EXPERIENCIAS LABORALES (trabajador) — timeline ── */}
         {(perfil.experiencias || []).length > 0 && (
           <View style={[r.card, { backgroundColor: colors.surface }]}>
             <View style={r.cardHeader}>
@@ -690,17 +711,30 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
                 <Ionicons name="briefcase" size={16} color="#fff" />
               </LinearGradient>
               <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Experiencias laborales</Text>
+              <Text style={r.expCount}>{perfil.experiencias.length}</Text>
             </View>
-            {perfil.experiencias.map((exp, i) => (
-              <View key={exp.id || i} style={[r.expRow, { borderBottomColor: colors.border, borderBottomWidth: i < perfil.experiencias.length - 1 ? 1 : 0 }]}>
-                <View style={[r.expDot, { backgroundColor: '#EDE9FE' }]}><Ionicons name="business-outline" size={15} color="#7C3AED" /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[r.expValue, { color: colors.textPrimary }]}>{exp.entidad}</Text>
-                  {!!exp.duracion && <Text style={[r.expLabel, { color: colors.textMuted }]}>{exp.duracion}</Text>}
-                  {!!exp.descripcion && <Text style={[r.expLabel, { color: colors.textSecondary, marginTop: 2 }]}>{exp.descripcion}</Text>}
+            <View style={r.tlWrap}>
+              {perfil.experiencias.map((exp, i) => (
+                <View key={exp.id || i} style={r.tlRow}>
+                  <View style={r.tlTrack}>
+                    <View style={[r.tlDot, { backgroundColor: EXP_COLORS[i % EXP_COLORS.length].dot }]}>
+                      <Ionicons name="business-outline" size={11} color="#fff" />
+                    </View>
+                    {i < perfil.experiencias.length - 1 && <View style={[r.tlLine, { backgroundColor: colors.border }]} />}
+                  </View>
+                  <View style={[r.tlCard, { backgroundColor: EXP_COLORS[i % EXP_COLORS.length].bg, borderColor: EXP_COLORS[i % EXP_COLORS.length].border }]}>
+                    <Text style={[r.tlEntidad, { color: colors.textPrimary }]}>{exp.entidad}</Text>
+                    {!!exp.duracion && (
+                      <View style={r.tlDuracionRow}>
+                        <Ionicons name="time-outline" size={12} color={EXP_COLORS[i % EXP_COLORS.length].dot} />
+                        <Text style={[r.tlDuracion, { color: EXP_COLORS[i % EXP_COLORS.length].dot }]}>{exp.duracion}</Text>
+                      </View>
+                    )}
+                    {!!exp.descripcion && <Text style={[r.tlDesc, { color: colors.textSecondary }]}>{exp.descripcion}</Text>}
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
         )}
 
@@ -869,6 +903,18 @@ const r = StyleSheet.create({
   fotoModal: { flex: 1, backgroundColor: 'rgba(0,0,0,0.93)', justifyContent: 'center', alignItems: 'center' },
   fotoModalImg: { width: W - 24, height: W - 24, borderRadius: RADIUS.lg },
   fotoModalHint: { color: 'rgba(255,255,255,0.45)', marginTop: 16, fontSize: 13 },
+  // Timeline experiencias
+  expCount: { fontSize: 12, fontWeight: '600', backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, color: '#6B7280' },
+  tlWrap: { paddingTop: 4 },
+  tlRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
+  tlTrack: { alignItems: 'center', width: 28 },
+  tlDot: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  tlLine: { width: 2, flex: 1, minHeight: 16, borderRadius: 1, marginTop: 4 },
+  tlCard: { flex: 1, borderRadius: 12, borderWidth: 1, padding: 10, marginBottom: 8 },
+  tlEntidad: { fontSize: 14, fontWeight: '700', marginBottom: 3 },
+  tlDuracionRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 },
+  tlDuracion: { fontSize: 12, fontWeight: '600' },
+  tlDesc: { fontSize: 12, lineHeight: 17 },
 });
 
 const s = StyleSheet.create({
