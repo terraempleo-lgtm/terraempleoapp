@@ -1,5 +1,6 @@
 const { query } = require('../config/database');
 const { signUrl } = require('../config/s3');
+const { crearNotificacion } = require('./notificacionesController');
 
 async function listarEspecialistas(req, res) {
   try {
@@ -183,6 +184,16 @@ async function contactarEspecialista(req, res) {
       'INSERT INTO contactos_especialista (empleador_id, especialista_id, estado) VALUES (?, ?, ?)',
       [empleadorId, especialistaId, 'solicitado']
     );
+
+    // Notificar al especialista
+    const emp = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [empleadorId]);
+    const nombreEmp = emp?.[0]?.nombre_completo || 'Un empleador';
+    await crearNotificacion(
+      especialistaId, 'contacto',
+      '¡Nuevo contacto!',
+      `${nombreEmp} quiere contactarte para un proyecto. Revisa la solicitud.`,
+      {}
+    ).catch(() => {});
 
     res.status(201).json({ estado: 'contacto_solicitado' });
   } catch (err) {

@@ -144,6 +144,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
   const { isOnline } = useNetworkStatus();
 
   const [estadoVerif, setEstadoVerif] = useState(user?.validacion_identidad_estado || 'pendiente');
+  const [perfilCompleto, setPerfilCompleto] = useState(false);
 
   const firstName = (user?.nombre_completo || user?.nombre || 'Usuario').split(' ')[0];
   const estadoIdentidad = estadoVerif;
@@ -236,6 +237,11 @@ export default function TrabajadorVacantesScreen({ navigation }) {
       const { validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at } = res.data.user;
       setEstadoVerif(validacion_identidad_estado || 'pendiente');
       updateUser({ validacion_identidad_estado, foto_selfie, foto_selfie_cambiada_at });
+      const perfil = res.data.perfil || {};
+      const exps = perfil.experiencias || [];
+      const fotos = perfil.fotos_trabajo || [];
+      const completo = !!(perfil.acerca_de && exps.length > 0 && fotos.length > 0 && perfil.hoja_vida_url);
+      setPerfilCompleto(completo);
     }).catch(() => {});
   }, []);
 
@@ -493,6 +499,23 @@ export default function TrabajadorVacantesScreen({ navigation }) {
             </TouchableOpacity>
           ) : null}
         </View>
+      )}
+
+      {!perfilCompleto && (
+        <TouchableOpacity
+          style={s.mejoraCard}
+          onPress={() => navigation.navigate('EditarPerfil')}
+          activeOpacity={0.85}
+        >
+          <View style={s.mejoraIconWrap}>
+            <Ionicons name="star" size={20} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.mejoraTitle}>¡Mejora tu perfil!</Text>
+            <Text style={s.mejoraSubtitle}>Agrega experiencia, fotos y más para destacar ante los empleadores.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#fff" />
+        </TouchableOpacity>
       )}
 
       {/* Search bar */}
@@ -1145,4 +1168,17 @@ const s = StyleSheet.create({
   emptySub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', paddingHorizontal: 40 },
   emptyBtn: { marginTop: SPACING.sm, backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.full },
   emptyBtnTxt: { color: COLORS.white, fontWeight: '600', fontSize: 14 },
+  mejoraCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#2E7D32', borderRadius: RADIUS.lg,
+    marginHorizontal: SPACING.md, marginTop: SPACING.sm, marginBottom: 4,
+    paddingHorizontal: SPACING.md, paddingVertical: 14,
+  },
+  mejoraIconWrap: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  mejoraTitle: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  mejoraSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2 },
 });

@@ -62,6 +62,17 @@ async function crearVacante(req, res) {
     }
 
     res.status(201).json({ message: 'Vacante creada exitosamente', vacanteId });
+
+    // Notificar a todos los trabajadores y especialistas activos (en background)
+    const vacInfo = await query('SELECT titulo, municipio, departamento FROM vacantes WHERE id = ?', [vacanteId]).catch(() => []);
+    const tituloVac = vacInfo?.[0]?.titulo || 'Nueva vacante';
+    const lugarVac = [vacInfo?.[0]?.municipio, vacInfo?.[0]?.departamento].filter(Boolean).join(', ') || 'Colombia';
+    const usuarios = await query(
+      `SELECT id FROM usuarios WHERE rol IN ('trabajador','especialista') AND activo = 1 AND (eliminado IS NULL OR eliminado = 0) AND (baneado IS NULL OR baneado = 0)`
+    ).catch(() => []);
+    for (const u of (usuarios || [])) {
+      crearNotificacion(u.id, 'nueva_vacante', '¡Nueva vacante disponible!', `"${tituloVac}" en ${lugarVac}. ¡Revísala ahora!`, { vacante_id: vacanteId }).catch(() => {});
+    }
   } catch (err) {
     console.error('Error creando vacante:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
