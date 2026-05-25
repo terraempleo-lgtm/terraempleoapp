@@ -791,7 +791,7 @@ export default function PerfilScreen({ navigation }) {
 
   /* ══════════ EMPLEADOR ══════════ */
   if (esEmpleador) {
-    const empresa = perfil?.nombre_empresa_finca || u?.nombre_completo || 'Mi Empresa';
+    const empresa = perfil?.nombre_empresa_finca || u?.nombre_completo || 'Mi Finca';
     const tipoPago = perfil?.tipo_pago ? (LABELS_PAGO[perfil.tipo_pago] || perfil.tipo_pago) : null;
     const ubicacion = [u?.municipio, u?.departamento].filter(Boolean).join(', ') || null;
     const cultivosEmp = (perfil?.cultivos || []).map(c => c.cultivo || c);
@@ -801,354 +801,264 @@ export default function PerfilScreen({ navigation }) {
       perfil?.ofrece_alimentacion && 'Alimentación incluida',
     ].filter(Boolean);
     const acercaDeEmpleador = perfil?.acerca_de?.trim();
+    const veEmp = perfil?.verificacion_empresa_estado || 'sin_enviar';
 
     return (
-      <View style={[s.root, { backgroundColor: colors.background }]}>
-        <DecorativeBackground intensity="strong" />
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-          {/* Banner verificación finca */}
-          {perfil?.verificacion_empresa_estado !== 'aprobada' && (
-            <AnimatedPressable
-              style={[
-                s.verBanner,
-                perfil?.verificacion_empresa_estado === 'pendiente'
-                  ? s.verBannerPendiente
-                  : perfil?.verificacion_empresa_estado === 'rechazada'
-                  ? s.verBannerRechazada
-                  : s.verBannerDefault,
-              ]}
-              onPress={perfil?.verificacion_empresa_estado !== 'pendiente' ? subirDocumentoEmpresa : undefined}
-              activeOpacity={0.85}
-              scaleValue={0.98}
-            >
-              <View style={s.verBannerIconWrap}>
-                <Ionicons
-                  name={
-                    perfil?.verificacion_empresa_estado === 'pendiente' ? 'time-outline'
-                    : perfil?.verificacion_empresa_estado === 'rechazada' ? 'alert-circle-outline'
-                    : 'shield-outline'
-                  }
-                  size={26}
-                  color={
-                    perfil?.verificacion_empresa_estado === 'pendiente' ? '#B45309'
-                    : perfil?.verificacion_empresa_estado === 'rechazada' ? '#B91C1C'
-                    : COLORS.primary
-                  }
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[
-                  s.verBannerTitle,
-                  { color: perfil?.verificacion_empresa_estado === 'pendiente' ? '#92400E'
-                    : perfil?.verificacion_empresa_estado === 'rechazada' ? '#991B1B'
-                    : '#14532D' }
-                ]}>
-                  {perfil?.verificacion_empresa_estado === 'pendiente'
-                    ? 'Verificación en revisión'
-                    : perfil?.verificacion_empresa_estado === 'rechazada'
-                    ? 'Verificación rechazada'
-                    : 'Verifica tu finca para contratar'}
-                </Text>
-                <Text style={[
-                  s.verBannerSub,
-                  { color: perfil?.verificacion_empresa_estado === 'pendiente' ? '#92400E'
-                    : perfil?.verificacion_empresa_estado === 'rechazada' ? '#991B1B'
-                    : '#166534' }
-                ]}>
-                  {perfil?.verificacion_empresa_estado === 'pendiente'
-                    ? 'Tu documento está siendo revisado por el equipo de TerraEmpleo.'
-                    : perfil?.verificacion_empresa_estado === 'rechazada'
-                    ? `Motivo: ${perfil.verificacion_empresa_comentario || 'Documento no válido'}. Toca para reenviar.`
-                    : 'Por la seguridad de los trabajadores que visitan tu finca, sube tu RUT, RNT o factura de servicios públicos. Esta información es confidencial y solo la usamos para verificar tu empresa. Toca para subir.'}
-                </Text>
-              </View>
-              {perfil?.verificacion_empresa_estado !== 'pendiente' && (
-                <Ionicons name="chevron-forward" size={18} color={perfil?.verificacion_empresa_estado === 'rechazada' ? '#B91C1C' : COLORS.primary} />
-              )}
-            </AnimatedPressable>
-          )}
+      <SafeAreaView style={[s.root, { backgroundColor: colors.background }]} edges={['bottom']}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
 
-          {/* Hero */}
-          <View style={s.heroWrap}>
-            {fotoFincaPrincipal ? (
-              <Image source={{ uri: fotoFincaPrincipal }} style={s.heroImg} resizeMode="cover" />
-            ) : (
-              <View style={s.heroPlaceholder}>
-                <MotiView
-                  from={{ scale: 0.6, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 200 }}
-                >
-                  <View style={s.heroLeaf}><Ionicons name="leaf" size={44} color={COLORS.primaryLight} /></View>
-                </MotiView>
-                <Text style={s.heroPlaceholderText}>Toca el botón de cámara para subir la foto de tu finca.</Text>
+          {/* ── HERO ── */}
+          <View style={[empS.hero, { paddingTop: (insets?.top || 0) + 52, overflow: 'hidden' }]}>
+            {fotoFincaPrincipal
+              ? <Image source={{ uri: fotoFincaPrincipal }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+              : <LinearGradient colors={['#1B5E20','#2E7D32','#43A047']} style={StyleSheet.absoluteFillObject} />
+            }
+            <LinearGradient colors={['rgba(0,0,0,0.15)','rgba(0,0,0,0.6)']} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+
+            {/* Top bar */}
+            <View style={empS.heroTopBar}>
+              <View style={{ width: 44 }} />
+              <Text style={empS.heroTitle}>Mi Perfil</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity style={empS.heroBtn} onPress={subirFotoFinca} disabled={subiendoFotoFinca} activeOpacity={0.8}>
+                  {subiendoFotoFinca ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="camera-outline" size={18} color="#fff" />}
+                </TouchableOpacity>
+                <TouchableOpacity style={empS.heroBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} activeOpacity={0.8}>
+                  <Ionicons name="settings-outline" size={18} color="#fff" />
+                </TouchableOpacity>
               </View>
-            )}
-            {esEmpleador && (
-              <TouchableOpacity
-                onPress={subirFotoFinca}
-                disabled={subiendoFotoFinca}
-                style={s.heroFotoBtn}
-              >
-                {subiendoFotoFinca
-                  ? <ActivityIndicator size="small" color="#FFF" />
-                  : <Ionicons name="camera" size={18} color="#FFF" />}
+            </View>
+
+            {/* Avatar + info dentro del hero */}
+            <View style={empS.heroBody}>
+              <TouchableOpacity onPress={abrirCamaraFoto} activeOpacity={0.85} style={empS.avatarWrap}>
+                {u?.foto_selfie?.startsWith('http')
+                  ? <Image source={{ uri: u.foto_selfie }} style={empS.avatar} />
+                  : <View style={empS.avatarFallback}><Ionicons name="person" size={36} color="rgba(255,255,255,0.7)" /></View>
+                }
+                {identidadAprobada && <View style={empS.verBadgeSmall}><Ionicons name="checkmark" size={10} color="#fff" /></View>}
+                <View style={empS.camIcon}><Ionicons name="camera" size={10} color="#fff" /></View>
               </TouchableOpacity>
-            )}
-            <View style={[s.heroBar, { top: insets.top + 8 }]}>
-              <View style={{ width: 40 }} />
-              <FadeInView delay={100} translateY={-5}>
-                <Text style={s.heroBarTitle}>Perfil del Empleador</Text>
-              </FadeInView>
-              <AnimatedPressable style={s.heroCircleBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.9} haptic>
-                <Ionicons name="settings-outline" size={20} color={COLORS.textPrimary} />
-              </AnimatedPressable>
+              <Text style={empS.heroName}>{u?.nombre_completo}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <Ionicons name="home-outline" size={13} color="rgba(255,255,255,0.8)" />
+                <Text style={empS.heroSub}>{empresa}</Text>
+              </View>
+              {ubicacion && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                  <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.7)" />
+                  <Text style={empS.heroLoc}>{ubicacion}</Text>
+                </View>
+              )}
             </View>
           </View>
 
-          {/* ── Banner MEJORA TU PERFIL prominente ── */}
-          {(!perfil?.acerca_de || !perfil?.fotos_finca?.length) && (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}
-              activeOpacity={0.85}
-              style={{ marginHorizontal: SPACING.md, marginBottom: SPACING.md, zIndex: 20 }}
-            >
-              <View style={[s.empMejoraGrad, { backgroundColor: '#FF8F00' }]}>
-                <View style={s.empMejoraLeft}>
-                  <View style={s.empMejoraIconWrap}>
-                    <Ionicons name="rocket" size={22} color="#FF8F00" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.empMejoraTitle}>¡Completa tu perfil!</Text>
-                    <Text style={s.empMejoraSub}>
-                      {!perfil?.acerca_de && !perfil?.fotos_finca?.length
-                        ? 'Agrega descripción y fotos de tu finca para atraer más trabajadores'
-                        : !perfil?.acerca_de
-                        ? 'Agrega una descripción de tu finca'
-                        : 'Sube fotos de tu finca para destacar'}
-                    </Text>
-                  </View>
-                </View>
-                <View style={s.empMejoraArrow}>
-                  <Ionicons name="arrow-forward" size={18} color="#FF8F00" />
-                </View>
+          {/* ── Stats fuera del hero ── */}
+          <MotiView from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, delay: 150 }}
+            style={[empS.statsRow, { marginHorizontal: SPACING.md, marginTop: -22, zIndex: 10 }]}>
+            <View style={[empS.statCard, { backgroundColor: colors.surface }]}>
+              <Text style={[empS.statVal, { color: COLORS.primary }]}>{calificacion > 0 ? calificacion.toFixed(1) : '—'}</Text>
+              <View style={{ flexDirection: 'row', gap: 1, marginVertical: 3 }}>
+                {[1,2,3,4,5].map(i => <Ionicons key={i} name={i <= Math.round(calificacion) ? 'star' : 'star-outline'} size={10} color="#F59E0B" />)}
               </View>
-            </TouchableOpacity>
-          )}
+              <Text style={[empS.statLbl, { color: colors.textMuted }]}>Calificación</Text>
+            </View>
+            <View style={[empS.statCard, { backgroundColor: colors.surface }]}>
+              <Text style={[empS.statVal, { color: '#2563EB' }]}>{u?.total_vacantes || 0}</Text>
+              <Ionicons name="briefcase-outline" size={16} color="#2563EB" style={{ marginVertical: 3 }} />
+              <Text style={[empS.statLbl, { color: colors.textMuted }]}>Vacantes</Text>
+            </View>
+            <View style={[empS.statCard, { backgroundColor: colors.surface }]}>
+              <Text style={[empS.statVal, { color: '#EA580C' }]}>{beneficios.length}</Text>
+              <Ionicons name="gift-outline" size={16} color="#EA580C" style={{ marginVertical: 3 }} />
+              <Text style={[empS.statLbl, { color: colors.textMuted }]}>Beneficios</Text>
+            </View>
+          </MotiView>
 
-          <View style={[s.empCard, { backgroundColor: colors.surface }]}>
-            {/* Avatar centered above card — spring entrance */}
-            <MotiView
-              from={{ scale: 0.5, opacity: 0, translateY: 20 }}
-              animate={{ scale: 1, opacity: 1, translateY: 0 }}
-              transition={{ type: 'spring', ...ANIMATION.spring.bouncy, delay: 100 }}
-            >
-              <View style={s.empAvatarRow}>
-                <View style={s.empAvatarWrap}>
-                  {u?.foto_selfie && u.foto_selfie.startsWith('http') ? (
-                    <Image source={{ uri: u.foto_selfie }} style={[s.empAvatar, { borderColor: colors.surface }]} />
-                  ) : (
-                    <View style={[s.empAvatarFallback, { borderColor: colors.surface, backgroundColor: isDark ? colors.surface : '#F3F4F6' }]}><Ionicons name="person" size={44} color={COLORS.textLight} /></View>
-                  )}
-                  {identidadAprobada && <View style={s.empBadge}><Ionicons name="checkmark" size={14} color={COLORS.white} /></View>}
+          <View style={{ paddingHorizontal: SPACING.md, paddingTop: 16, gap: 12 }}>
+
+            {/* Banner verificación */}
+            {veEmp !== 'aprobada' && (
+              <TouchableOpacity
+                onPress={veEmp !== 'pendiente' ? subirDocumentoEmpresa : undefined}
+                activeOpacity={0.85}
+                style={[empS.alertCard, {
+                  backgroundColor: veEmp === 'pendiente' ? '#FFFBEB' : veEmp === 'rechazada' ? '#FEF2F2' : '#F0FDF4',
+                  borderColor: veEmp === 'pendiente' ? '#FDE68A' : veEmp === 'rechazada' ? '#FECACA' : '#BBF7D0',
+                }]}
+              >
+                <Ionicons name={veEmp === 'pendiente' ? 'time-outline' : veEmp === 'rechazada' ? 'alert-circle-outline' : 'shield-checkmark-outline'} size={22}
+                  color={veEmp === 'pendiente' ? '#D97706' : veEmp === 'rechazada' ? '#DC2626' : COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[empS.alertTitle, { color: veEmp === 'pendiente' ? '#92400E' : veEmp === 'rechazada' ? '#991B1B' : '#14532D' }]}>
+                    {veEmp === 'pendiente' ? 'Verificación en revisión' : veEmp === 'rechazada' ? 'Verificación rechazada' : 'Verifica tu finca'}
+                  </Text>
+                  <Text style={[empS.alertSub, { color: veEmp === 'pendiente' ? '#B45309' : veEmp === 'rechazada' ? '#B91C1C' : '#166534' }]}>
+                    {veEmp === 'pendiente' ? 'Tu documento está siendo revisado.' : veEmp === 'rechazada' ? `${perfil.verificacion_empresa_comentario || 'Documento no válido'}. Toca para reenviar.` : 'Sube tu RUT o RNT para mayor confianza.'}
+                  </Text>
                 </View>
-              </View>
-            </MotiView>
-
-            <FadeInView delay={200}>
-              <Text style={[s.empName, { color: colors.textPrimary }]}>{u?.nombre_completo}</Text>
-            </FadeInView>
-            <FadeInView delay={250}>
-              <Text style={s.empFinca}>🏠 {empresa}</Text>
-            </FadeInView>
-            {ubicacion && (
-              <FadeInView delay={300}>
-                <Text style={[s.empLoc, { color: colors.textSecondary }]}>📍 {ubicacion}</Text>
-              </FadeInView>
+                {veEmp !== 'pendiente' && <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
+              </TouchableOpacity>
             )}
 
-            {/* Stats cards — visual horizontal */}
-            <StaggeredItem index={0}>
-              <View style={s.empStatsGrid}>
-                <View style={[s.empStatCard, { backgroundColor: isDark ? '#1a3a1a' : '#F0FDF4', borderColor: isDark ? '#2a5c3a' : '#BBF7D0' }]}>
-                  <Text style={[s.empStatCardVal, { color: COLORS.primary }]}>{calificacion > 0 ? calificacion.toFixed(1) : '—'}</Text>
-                  <View style={{ flexDirection: 'row', gap: 2, marginVertical: 4 }}>
-                    {[1,2,3,4,5].map(i => <Ionicons key={i} name={i <= Math.round(calificacion) ? 'star' : 'star-outline'} size={11} color={COLORS.primary} />)}
-                  </View>
-                  <Text style={[s.empStatCardLabel, { color: colors.textMuted }]}>Calificación</Text>
+            {/* Banner completa perfil */}
+            {(!perfil?.acerca_de || !perfil?.fotos_finca?.length) && (
+              <TouchableOpacity onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} activeOpacity={0.85}
+                style={[empS.alertCard, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
+                <View style={empS.alertIconWrap}>
+                  <Ionicons name="rocket-outline" size={20} color="#EA580C" />
                 </View>
-                <View style={[s.empStatCard, { backgroundColor: isDark ? '#1a2a3a' : '#EFF6FF', borderColor: isDark ? '#1e3a5f' : '#BFDBFE' }]}>
-                  <Text style={[s.empStatCardVal, { color: '#2563EB' }]}>{u?.total_vacantes || 0}</Text>
-                  <Ionicons name="briefcase-outline" size={18} color="#2563EB" style={{ marginVertical: 4 }} />
-                  <Text style={[s.empStatCardLabel, { color: colors.textMuted }]}>Vacantes</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[empS.alertTitle, { color: '#9A3412' }]}>¡Completa tu perfil!</Text>
+                  <Text style={[empS.alertSub, { color: '#C2410C' }]}>
+                    {!perfil?.acerca_de && !perfil?.fotos_finca?.length ? 'Agrega descripción y fotos para atraer más trabajadores' : !perfil?.acerca_de ? 'Agrega una descripción de tu finca' : 'Sube fotos de tu finca para destacar'}
+                  </Text>
                 </View>
-                <View style={[s.empStatCard, { backgroundColor: isDark ? '#2a1a1a' : '#FFF7ED', borderColor: isDark ? '#5c2a1a' : '#FED7AA' }]}>
-                  <Text style={[s.empStatCardVal, { color: '#EA580C' }]}>{beneficios.length}</Text>
-                  <Ionicons name="gift-outline" size={18} color="#EA580C" style={{ marginVertical: 4 }} />
-                  <Text style={[s.empStatCardLabel, { color: colors.textMuted }]}>Beneficios</Text>
-                </View>
-              </View>
-            </StaggeredItem>
+                <Ionicons name="chevron-forward" size={16} color="#EA580C" />
+              </TouchableOpacity>
+            )}
 
-            {/* Beneficios rápidos */}
+            {/* Beneficios */}
             {beneficios.length > 0 && (
-              <StaggeredItem index={1}>
-                <View style={[s.empBenefRow, { backgroundColor: isDark ? '#1a3a1a' : '#F0FDF4', borderColor: isDark ? '#2a5c3a' : '#BBF7D0' }]}>
+              <View style={[empS.card, { backgroundColor: colors.surface }]}>
+                <View style={empS.cardHeader}>
+                  <LinearGradient colors={[COLORS.primary,'#43A047']} style={empS.cardIconGrad}><Ionicons name="gift-outline" size={15} color="#fff" /></LinearGradient>
+                  <Text style={[empS.cardTitle, { color: colors.textPrimary }]}>Beneficios incluidos</Text>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {beneficios.map((b, i) => (
-                    <View key={i} style={s.empBenefItem}>
-                      <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
-                      <Text style={[s.empBenefTxt, { color: isDark ? '#7CCC8A' : '#166534' }]}>{b}</Text>
+                    <View key={i} style={empS.benefChip}>
+                      <Ionicons name="checkmark-circle" size={14} color={COLORS.primary} />
+                      <Text style={[empS.benefChipTxt, { color: isDark ? '#7CCC8A' : '#166534' }]}>{b}</Text>
                     </View>
                   ))}
                 </View>
-              </StaggeredItem>
+              </View>
             )}
 
             {/* Sobre la finca */}
-            {(perfil?.nombre_empresa_finca || acercaDeEmpleador) && (
-              <StaggeredItem index={1}>
-                <View style={s.secWrap}>
-                  <View style={s.secHead}><View style={s.secIcon}><Ionicons name="leaf-outline" size={16} color={COLORS.primary} /></View><Text style={[s.secTitle, { color: colors.textPrimary }]}>Sobre la Finca</Text></View>
-                  {acercaDeEmpleador ? (
-                    <Text style={[s.secText, { color: colors.textSecondary }]}>{acercaDeEmpleador}</Text>
-                  ) : (
-                    <Text style={[s.secTextMuted, { color: colors.textMuted }]}>
-                      {`${empresa}`}{ubicacion ? `, ubicada en ${ubicacion}` : ''}.
-                      {tipoPago ? ` Pago: ${tipoPago}.` : ''}
-                    </Text>
-                  )}
-                </View>
-              </StaggeredItem>
-            )}
+            <View style={[empS.card, { backgroundColor: colors.surface }]}>
+              <View style={empS.cardHeader}>
+                <LinearGradient colors={['#059669','#10B981']} style={empS.cardIconGrad}><Ionicons name="leaf-outline" size={15} color="#fff" /></LinearGradient>
+                <Text style={[empS.cardTitle, { color: colors.textPrimary }]}>Sobre la Finca</Text>
+              </View>
+              {acercaDeEmpleador
+                ? <Text style={[empS.cardBody, { color: colors.textSecondary }]}>{acercaDeEmpleador}</Text>
+                : <Text style={[empS.cardBody, { color: colors.textMuted, fontStyle: 'italic' }]}>
+                    {empresa}{ubicacion ? `, ubicada en ${ubicacion}` : ''}{tipoPago ? `. Pago: ${tipoPago}` : ''}.
+                  </Text>
+              }
+            </View>
 
             {/* Cultivos + Labores */}
             {(cultivosEmp.length > 0 || labores.length > 0) && (
-              <StaggeredItem index={2}>
-                <View style={s.secWrap}>
-                  <View style={s.secHead}><View style={s.secIcon}><Ionicons name="leaf-outline" size={16} color={COLORS.primary} /></View><Text style={[s.secTitle, { color: colors.textPrimary }]}>Cultivos y Labores</Text></View>
-                  <View style={s.chipWrap}>
-                    {cultivosEmp.map((c, i) => (
-                      <MotiView key={i} from={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                        transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 40 }}>
-                        <View style={s.chipColor}><Ionicons name="leaf" size={12} color={COLORS.primary} /><Text style={s.chipColorTxt}>{c}</Text></View>
-                      </MotiView>
-                    ))}
-                    {labores.map((l, i) => (
-                      <MotiView key={`l${i}`} from={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                        transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: (cultivosEmp.length + i) * 40 }}>
-                        <View style={[s.chipColor, { borderColor: '#F59E0B', backgroundColor: '#FFFBEB' }]}><Text style={[s.chipColorTxt, { color: '#F59E0B' }]}>{l}</Text></View>
-                      </MotiView>
-                    ))}
-                  </View>
+              <View style={[empS.card, { backgroundColor: colors.surface }]}>
+                <View style={empS.cardHeader}>
+                  <LinearGradient colors={['#16A34A','#22C55E']} style={empS.cardIconGrad}><Ionicons name="leaf" size={15} color="#fff" /></LinearGradient>
+                  <Text style={[empS.cardTitle, { color: colors.textPrimary }]}>Cultivos y Labores</Text>
                 </View>
-              </StaggeredItem>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {cultivosEmp.map((c, i) => (
+                    <View key={i} style={empS.chipGreen}><Ionicons name="leaf" size={12} color={COLORS.primary} /><Text style={empS.chipGreenTxt}>{c}</Text></View>
+                  ))}
+                  {labores.map((l, i) => (
+                    <View key={`l${i}`} style={empS.chipAmber}><Text style={empS.chipAmberTxt}>{l}</Text></View>
+                  ))}
+                </View>
+              </View>
             )}
 
-            {/* Galería de fotos de la finca */}
+            {/* Galería */}
             {(perfil?.fotos_finca || []).length > 0 && (
-              <StaggeredItem index={2}>
-                <View style={s.secWrap}>
-                  <View style={s.secHead}>
-                    <View style={s.secIcon}><Ionicons name="images-outline" size={16} color={COLORS.primary} /></View>
-                    <Text style={[s.secTitle, { color: colors.textPrimary }]}>Fotos de la Finca</Text>
-                    <Text style={[s.secCount, { color: colors.textMuted }]}>{perfil.fotos_finca.length} foto{perfil.fotos_finca.length !== 1 ? 's' : ''}</Text>
-                  </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -SPACING.md }}>
-                    <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: SPACING.md }}>
-                      {perfil.fotos_finca.map((f, i) => (
-                        <MotiView key={f.id || i} from={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
-                          transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 60 }}>
-                          <View style={s.fincaFotoWrap}>
-                            <Image source={{ uri: f.url }} style={s.fincaFoto} resizeMode="cover" />
-                            <View style={s.fincaFotoOverlay} />
-                            <View style={s.fincaFotoNumWrap}><Text style={s.fincaFotoNum}>{i + 1}</Text></View>
-                          </View>
-                        </MotiView>
-                      ))}
-                    </View>
-                  </ScrollView>
+              <View style={[empS.card, { backgroundColor: colors.surface }]}>
+                <View style={empS.cardHeader}>
+                  <LinearGradient colors={['#0284C7','#0EA5E9']} style={empS.cardIconGrad}><Ionicons name="images-outline" size={15} color="#fff" /></LinearGradient>
+                  <Text style={[empS.cardTitle, { color: colors.textPrimary }]}>Fotos de la Finca</Text>
+                  <Text style={[empS.cardCount, { color: colors.textMuted }]}>{perfil.fotos_finca.length}</Text>
                 </View>
-              </StaggeredItem>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -SPACING.md }}>
+                  <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: SPACING.md }}>
+                    {perfil.fotos_finca.map((f, i) => (
+                      <View key={f.id || i} style={empS.fotoWrap}>
+                        <Image source={{ uri: f.url }} style={empS.foto} resizeMode="cover" />
+                        <LinearGradient colors={['transparent','rgba(0,0,0,0.25)']} style={StyleSheet.absoluteFillObject} />
+                        <View style={empS.fotoNum}><Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{i + 1}</Text></View>
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Certificados / badges */}
+            {certificados.length > 0 && (
+              <View style={[empS.card, { backgroundColor: colors.surface }]}>
+                <View style={empS.cardHeader}>
+                  <LinearGradient colors={['#D97706','#F59E0B']} style={empS.cardIconGrad}><Ionicons name="ribbon" size={15} color="#fff" /></LinearGradient>
+                  <Text style={[empS.cardTitle, { color: colors.textPrimary }]}>Certificaciones</Text>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                  {certificados.map((c, i) => (
+                    <View key={c.id || i} style={tw.certBadge}>
+                      <LinearGradient colors={['#D97706','#F59E0B']} style={tw.certBadgeIconWrap}><Ionicons name="ribbon" size={22} color="#fff" /></LinearGradient>
+                      <Text style={[tw.certBadgeNombre, { color: colors.textPrimary }]} numberOfLines={2}>{c.nombre}</Text>
+                      {!!c.entidad && <Text style={[tw.certBadgeEntidad, { color: colors.textMuted }]} numberOfLines={1}>{c.entidad}</Text>}
+                      {!!c.anio && <Text style={tw.certBadgeAnio}>{c.anio}</Text>}
+                    </View>
+                  ))}
+                </View>
+              </View>
             )}
 
             {/* Verificación */}
-            <StaggeredItem index={3}>
-              <View style={s.secWrap}>
-                <View style={s.secHead}><View style={s.secIcon}><Ionicons name="shield-checkmark-outline" size={16} color={COLORS.primary} /></View><Text style={[s.secTitle, { color: colors.textPrimary }]}>Verificación</Text></View>
-                <View style={s.verList}>
-                  {(() => {
-                    const ve = perfil?.verificacion_empresa_estado || 'sin_enviar';
-                    const veAprobada = ve === 'aprobada';
-                    const vePendiente = ve === 'pendiente';
-                    const veRechazada = ve === 'rechazada';
-                    const veIcon = veAprobada ? 'checkmark-circle' : vePendiente ? 'time-outline' : veRechazada ? 'close-circle' : 'cloud-upload-outline';
-                    const veColor = veAprobada ? COLORS.primary : vePendiente ? '#F59E0B' : veRechazada ? '#EF4444' : COLORS.textLight;
-                    return (
-                      <TouchableOpacity
-                        style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}
-                        onPress={!veAprobada && !vePendiente ? subirDocumentoEmpresa : undefined}
-                        activeOpacity={!veAprobada && !vePendiente ? 0.7 : 1}
-                        disabled={subiendoDocEmpresa}
-                      >
-                        <View style={s.verIcon}><Ionicons name="document-text-outline" size={18} color={COLORS.primary} /></View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[s.verText, { color: colors.textPrimary }]}>Registro Empresarial</Text>
-                          {!veAprobada && (
-                            <Text style={{ fontSize: 11, color: veColor, marginTop: 1 }}>
-                              {vePendiente ? 'En revisión...' : veRechazada ? `Rechazado: ${perfil.verificacion_empresa_comentario || 'Ver detalles'}` : 'Toca para subir RUT, RNT o factura'}
-                            </Text>
-                          )}
-                        </View>
-                        {subiendoDocEmpresa ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Ionicons name={veIcon} size={20} color={veColor} />}
-                      </TouchableOpacity>
-                    );
-                  })()}
-                  <View style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
-                    <View style={s.verIcon}><Ionicons name="call-outline" size={18} color={COLORS.primary} /></View>
-                    <Text style={[s.verText, { color: colors.textPrimary }]}>Teléfono Verificado</Text>
-                    <Ionicons name={u?.verificado_sms ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={u?.verificado_sms ? COLORS.primary : COLORS.textLight} />
-                  </View>
-                  <View style={[s.verItem, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
-                    <View style={s.verIcon}><Ionicons name="location-outline" size={18} color={COLORS.primary} /></View>
-                    <Text style={[s.verText, { color: colors.textPrimary }]}>Ubicación de la Finca</Text>
-                    <Ionicons name={ubicacion ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={ubicacion ? COLORS.primary : COLORS.textLight} />
-                  </View>
-                </View>
+            <View style={[empS.card, { backgroundColor: colors.surface }]}>
+              <View style={empS.cardHeader}>
+                <LinearGradient colors={['#0F766E','#0D9488']} style={empS.cardIconGrad}><Ionicons name="shield-checkmark-outline" size={15} color="#fff" /></LinearGradient>
+                <Text style={[empS.cardTitle, { color: colors.textPrimary }]}>Verificación</Text>
               </View>
-            </StaggeredItem>
+              {[
+                { icon: 'document-text-outline', label: 'Registro Empresarial', ok: veEmp === 'aprobada', onPress: veEmp !== 'aprobada' && veEmp !== 'pendiente' ? subirDocumentoEmpresa : null, sub: veEmp === 'pendiente' ? 'En revisión...' : veEmp === 'rechazada' ? 'Rechazado — toca para reenviar' : veEmp === 'sin_enviar' ? 'Toca para subir RUT / RNT' : null },
+                { icon: 'call-outline', label: 'Teléfono verificado', ok: !!u?.verificado_sms },
+                { icon: 'location-outline', label: 'Ubicación registrada', ok: !!ubicacion },
+              ].map((row, i) => (
+                <TouchableOpacity key={i} onPress={row.onPress || undefined} activeOpacity={row.onPress ? 0.7 : 1}
+                  style={[empS.verRow, { borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border }]}>
+                  <View style={[empS.verIconWrap, { backgroundColor: row.ok ? '#F0FDF4' : '#F9FAFB' }]}>
+                    <Ionicons name={row.icon} size={16} color={row.ok ? COLORS.primary : colors.textMuted} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[empS.verLabel, { color: colors.textPrimary }]}>{row.label}</Text>
+                    {!!row.sub && <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>{row.sub}</Text>}
+                  </View>
+                  <Ionicons name={row.ok ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={row.ok ? COLORS.primary : colors.textMuted} />
+                </TouchableOpacity>
+              ))}
+            </View>
 
-            {/* Editar Perfil */}
-            <StaggeredItem index={4}>
-              <AnimatedPressable style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.96} haptic>
-                <Ionicons name="create-outline" size={20} color={COLORS.primary} />
-                <Text style={s.ctaBtnTxt}>Editar Perfil</Text>
-              </AnimatedPressable>
-              <AnimatedPressable
-                style={[s.themeRow, { backgroundColor: isDark ? '#1a322a' : '#F8FAF9', borderColor: isDark ? '#2a4c41' : COLORS.borderLight }]}
-                onPress={toggleMode}
-                scaleValue={0.97}
-                haptic
-              >
-                <View style={[s.themeIcon, { backgroundColor: isDark ? '#244238' : COLORS.primarySoft }]}>
-                  <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={17} color={colors.primary} />
-                </View>
-                <Text style={[s.themeTxt, { color: colors.textPrimary }]}>
-                  {isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-                </Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-              </AnimatedPressable>
-              <AnimatedPressable style={s.pqrsRow} onPress={() => navigation.navigate('Pqrs')} scaleValue={0.97} haptic>
-                <Ionicons name="chatbox-ellipses-outline" size={16} color={COLORS.textSecondary} />
-                <Text style={s.pqrsRowTxt}>Peticiones, Quejas y Sugerencias</Text>
-                <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
-              </AnimatedPressable>
-              <AnimatedPressable style={s.logoutRow} onPress={handleLogout} scaleValue={0.97} haptic hapticStyle="light">
-                <Ionicons name="log-out-outline" size={16} color={COLORS.error} /><Text style={s.logoutTxt}>Cerrar sesión</Text>
-              </AnimatedPressable>
-            </StaggeredItem>
+            {/* Acciones */}
+            <View style={[empS.card, { backgroundColor: colors.surface }]}>
+              {[
+                { icon: 'create-outline', label: 'Editar perfil', color: COLORS.primary, bg: '#F0FDF4', onPress: () => navigation.navigate('EditarPerfil', { userData, perfil }) },
+                { icon: isDark ? 'sunny-outline' : 'moon-outline', label: isDark ? 'Modo claro' : 'Modo oscuro', color: colors.primary, bg: isDark ? '#1a2f22' : '#F0FDF4', onPress: toggleMode },
+                { icon: 'chatbox-ellipses-outline', label: 'Peticiones y Quejas', color: '#2563EB', bg: '#EFF6FF', onPress: () => navigation.navigate('Pqrs') },
+              ].map((row, i) => (
+                <TouchableOpacity key={i} onPress={row.onPress} activeOpacity={0.75}
+                  style={[empS.actionRow, { borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border }]}>
+                  <View style={[empS.actionIcon, { backgroundColor: row.bg }]}><Ionicons name={row.icon} size={17} color={row.color} /></View>
+                  <Text style={[empS.actionLabel, { color: colors.textPrimary }]}>{row.label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity onPress={handleLogout} activeOpacity={0.75}
+                style={[empS.actionRow, { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                <View style={[empS.actionIcon, { backgroundColor: '#FEF2F2' }]}><Ionicons name="log-out-outline" size={17} color="#EF4444" /></View>
+                <Text style={[empS.actionLabel, { color: '#EF4444' }]}>Cerrar sesión</Text>
+              </TouchableOpacity>
+            </View>
+
           </View>
         </ScrollView>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -1927,4 +1837,60 @@ const tw = StyleSheet.create({
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   actionIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   actionTxt: { flex: 1, fontSize: 14, fontWeight: '500' },
+});
+
+/* ══════════ EMPLOYER STYLES ══════════ */
+const empS = StyleSheet.create({
+  // Hero
+  hero: { height: HERO_H, justifyContent: 'flex-end' },
+  heroTopBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingBottom: 8 },
+  heroTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#fff', textAlign: 'center' },
+  heroBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  heroBody: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.md, gap: 4 },
+  // Avatar
+  avatarWrap: { width: 72, height: 72, borderRadius: 36, borderWidth: 3, borderColor: '#fff', overflow: 'visible', marginBottom: 6 },
+  avatar: { width: 66, height: 66, borderRadius: 33 },
+  avatarFallback: { width: 66, height: 66, borderRadius: 33, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
+  verBadgeSmall: { position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: '#16A34A', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
+  camIcon: { position: 'absolute', top: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
+  // Hero text
+  heroName: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
+  heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
+  heroLoc: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+  // Stats
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: SPACING.sm },
+  statCard: { flex: 1, borderRadius: 14, padding: 12, alignItems: 'center', ...SHADOWS.medium },
+  statVal: { fontSize: 22, fontWeight: '800', lineHeight: 28 },
+  statLbl: { fontSize: 10, fontWeight: '600', letterSpacing: 0.4, marginTop: 2 },
+  // Alerts
+  alertCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: SPACING.sm },
+  alertIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.06)', alignItems: 'center', justifyContent: 'center' },
+  alertTitle: { fontSize: 13, fontWeight: '700' },
+  alertSub: { fontSize: 11, marginTop: 2, lineHeight: 15 },
+  // Cards
+  card: { borderRadius: 16, padding: SPACING.md, marginBottom: SPACING.sm, ...SHADOWS.light },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 10 },
+  cardIconGrad: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
+  cardCount: { fontSize: 12, fontWeight: '600', backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  cardBody: { fontSize: 14, lineHeight: 21 },
+  // Chips
+  benefChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F0FDF4', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#BBF7D0' },
+  benefChipTxt: { fontSize: 12, fontWeight: '600' },
+  chipGreen: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#E8F5E9', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  chipGreenTxt: { fontSize: 12, color: '#2E7D32', fontWeight: '600' },
+  chipAmber: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFBEB', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  chipAmberTxt: { fontSize: 12, color: '#D97706', fontWeight: '600' },
+  // Fotos
+  fotoWrap: { width: FOTO_SIZE, height: FOTO_SIZE, borderRadius: 12, overflow: 'hidden' },
+  foto: { width: '100%', height: '100%' },
+  fotoNum: { position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 2 },
+  // Verification
+  verRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
+  verIconWrap: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  verLabel: { flex: 1, fontSize: 14, fontWeight: '500' },
+  // Actions
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  actionIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  actionLabel: { flex: 1, fontSize: 14, fontWeight: '500' },
 });
