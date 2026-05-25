@@ -134,8 +134,8 @@ async function editarServicio(req, res) {
     const newTitulo = titulo !== undefined ? titulo : current.titulo;
     const newDescripcion = descripcion !== undefined ? descripcion : current.descripcion;
     const newCultivos = cultivos !== undefined
-      ? (Array.isArray(cultivos) ? JSON.stringify(cultivos) : cultivos)
-      : (current.cultivos || '[]');
+      ? JSON.stringify(parseCultivos(cultivos))
+      : JSON.stringify(parseCultivos(current.cultivos));
     const newPrecioDesde = precio_desde !== undefined ? precio_desde || null : current.precio_desde;
     const newPrecioHasta = precio_hasta !== undefined ? precio_hasta || null : current.precio_hasta;
     const newModalidad = modalidad !== undefined ? modalidad || null : current.modalidad;
