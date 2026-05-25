@@ -72,7 +72,7 @@ export default function DetalleServicioScreen({ route, navigation }) {
     if (!cel) { showAlert('Sin número', 'El especialista no tiene número registrado.'); return; }
     const url = `tel:${cel}`;
     if (Platform.OS === 'web') {
-      Alert.alert('Llamar', `Número: ${cel}`);
+      window.open(url, '_self');
       return;
     }
     Linking.canOpenURL(url).then((ok) => {
