@@ -104,8 +104,15 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
   ].filter(Boolean);
 
   const enviarCalificacion = async () => {
-    if (!vacante_id || !empleadorId) {
+    if (!empleadorId) {
       Alert.alert('No disponible', 'No hay contexto suficiente para calificar a este empleador.');
+      return;
+    }
+    // Especialista: puede calificar sin vacante_id (vía contacto aceptado)
+    if (user?.rol !== 'trabajador' && !vacante_id) {
+      // ok — el backend verifica contactos_especialista
+    } else if (user?.rol === 'trabajador' && !vacante_id) {
+      Alert.alert('No disponible', 'No hay vacante asociada para calificar.');
       return;
     }
     if (estrellas < 1 || estrellas > 5) {
@@ -377,7 +384,7 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
         )}
 
         {/* ── CALIFICAR ── */}
-        {user?.rol === 'trabajador' && empleadorId ? (
+        {(user?.rol === 'trabajador' || user?.rol === 'especialista') && empleadorId ? (
           <View style={[s.card, { backgroundColor: colors.surface }]}>
             <SectionHeader icon="star-half-outline" title="Calificar al Empleador" colors={colors} />
             <View style={s.ratingCard}>

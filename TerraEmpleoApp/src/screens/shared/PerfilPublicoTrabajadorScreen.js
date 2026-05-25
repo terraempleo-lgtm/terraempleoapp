@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
-import { trabajadoresAPI, chatsAPI, vacantesAPI, especialistasAPI, certificadosAPI } from '../../services/api';
+import { trabajadoresAPI, chatsAPI, vacantesAPI, especialistasAPI, certificadosAPI, calificacionesAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { showAlert } from '../../utils/alertService';
 
 const LABELS_EXPERIENCIA = {
@@ -87,6 +88,7 @@ const sh = StyleSheet.create({
 
 export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const { trabajador_id, vacante_id, postulacion_estado, rol: rolParam } = route.params;
+  const { user } = useAuth();
   const [perfil, setPerfil] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [certsBadges, setCertsBadges] = useState([]);
@@ -94,6 +96,9 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const [enviandoSolicitud, setEnviandoSolicitud] = useState(false);
   const [estadoActual, setEstadoActual] = useState(postulacion_estado || null);
   const [fotoPreview, setFotoPreview] = useState(null);
+  const [estrellasCal, setEstrellasCal] = useState(0);
+  const [comentarioCal, setComentarioCal] = useState('');
+  const [enviandoCal, setEnviandoCal] = useState(false);
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
 
@@ -215,6 +220,26 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
       await Linking.openURL(perfil.hoja_vida_url);
     } catch (_) {
       showAlert('Error', 'No se pudo abrir la hoja de vida.');
+    }
+  };
+
+  const enviarCalificacion = async () => {
+    if (estrellasCal < 1) { showAlert('Calificación', 'Selecciona de 1 a 5 estrellas.'); return; }
+    try {
+      setEnviandoCal(true);
+      await calificacionesAPI.calificar({
+        calificado_id: trabajador_id,
+        vacante_id: vacante_id || null,
+        estrellas: estrellasCal,
+        comentario: comentarioCal,
+      });
+      showAlert('¡Gracias!', 'Calificación enviada correctamente.');
+      setEstrellasCal(0);
+      setComentarioCal('');
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'No se pudo enviar la calificación.');
+    } finally {
+      setEnviandoCal(false);
     }
   };
 
@@ -491,6 +516,44 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
+          )}
+          {/* ── CALIFICAR AL ESPECIALISTA (solo empleador con contacto aceptado) ── */}
+          {user?.rol === 'empleador' && estadoActual === 'aceptado' && (
+            <View style={[s.card, { backgroundColor: colors.surface, margin: SPACING.md, marginTop: 0 }]}>
+              <View style={sh.headerRow}>
+                <LinearGradient colors={['#F59E0B','#D97706']} style={sh.iconBox}>
+                  <Ionicons name="star-half-outline" size={18} color="#fff" />
+                </LinearGradient>
+                <Text style={[sh.headerTitle, { color: colors.textPrimary }]}>Calificar al Especialista</Text>
+              </View>
+              <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 10 }}>
+                Tu puntuación pública. El comentario es privado para revisión.
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 4, marginBottom: 8 }}>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Pressable key={i} onPress={() => setEstrellasCal(i + 1)} style={{ padding: 4 }}>
+                    <Ionicons name={i < estrellasCal ? 'star' : 'star-outline'} size={32} color={i < estrellasCal ? '#F59E0B' : '#D1D5DB'} />
+                  </Pressable>
+                ))}
+              </View>
+              {estrellasCal > 0 && (
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 8 }}>
+                  {['', 'Muy malo', 'Malo', 'Regular', 'Bueno', 'Excelente'][estrellasCal]}
+                </Text>
+              )}
+              <Pressable
+                onPress={enviarCalificacion}
+                disabled={enviandoCal || estrellasCal === 0}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  backgroundColor: estrellasCal > 0 ? COLORS.primary : '#9CA3AF',
+                  borderRadius: 14, padding: 14, opacity: enviandoCal ? 0.7 : 1, marginTop: 8,
+                }}
+              >
+                <Ionicons name={enviandoCal ? 'hourglass-outline' : 'star'} size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{enviandoCal ? 'Enviando...' : 'Enviar calificación'}</Text>
+              </Pressable>
             </View>
           )}
         </ScrollView>
@@ -836,6 +899,45 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
             ) : null}
           </View>
         </View>
+
+        {/* ── CALIFICAR AL TRABAJADOR (empleador con postulación aceptada) ── */}
+        {user?.rol === 'empleador' && estadoActual === 'aceptada' && (
+          <View style={[s.card, { backgroundColor: colors.surface, margin: SPACING.md, marginTop: 0 }]}>
+            <View style={sh.headerRow}>
+              <LinearGradient colors={['#F59E0B','#D97706']} style={sh.iconBox}>
+                <Ionicons name="star-half-outline" size={18} color="#fff" />
+              </LinearGradient>
+              <Text style={[sh.headerTitle, { color: colors.textPrimary }]}>Calificar al Trabajador</Text>
+            </View>
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 10 }}>
+              Tu puntuación pública. El comentario es privado para revisión.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 4, marginBottom: 8 }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Pressable key={i} onPress={() => setEstrellasCal(i + 1)} style={{ padding: 4 }}>
+                  <Ionicons name={i < estrellasCal ? 'star' : 'star-outline'} size={32} color={i < estrellasCal ? '#F59E0B' : '#D1D5DB'} />
+                </Pressable>
+              ))}
+            </View>
+            {estrellasCal > 0 && (
+              <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 8 }}>
+                {['', 'Muy malo', 'Malo', 'Regular', 'Bueno', 'Excelente'][estrellasCal]}
+              </Text>
+            )}
+            <Pressable
+              onPress={enviarCalificacion}
+              disabled={enviandoCal || estrellasCal === 0}
+              style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                backgroundColor: estrellasCal > 0 ? COLORS.primary : '#9CA3AF',
+                borderRadius: 14, padding: 14, opacity: enviandoCal ? 0.7 : 1, marginTop: 8,
+              }}
+            >
+              <Ionicons name={enviandoCal ? 'hourglass-outline' : 'star'} size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{enviandoCal ? 'Enviando...' : 'Enviar calificación'}</Text>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
 
       {/* Preview foto fullscreen */}

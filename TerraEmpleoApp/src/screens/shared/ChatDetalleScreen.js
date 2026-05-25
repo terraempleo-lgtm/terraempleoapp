@@ -545,20 +545,22 @@ export default function ChatDetalleScreen({ route, navigation }) {
 
     return (
       <View style={{ backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border }}>
-        {/* Preview imagen pendiente */}
+        {/* Preview imagen pendiente — grande, estilo burbuja */}
         {imagenPendiente ? (
-          <View style={styles.imagenPendienteBar}>
-            <Image source={{ uri: imagenPendiente }} style={styles.imagenPendienteThumb} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.imagenPendienteTxt, { color: colors.textPrimary }]}>Imagen lista para enviar</Text>
-              <Text style={[styles.imagenPendienteSub, { color: colors.textMuted }]}>Toca "Enviar" para publicarla</Text>
+          <View style={[styles.imagenPendientePreview, { backgroundColor: isDark ? colors.background : '#F0F4F1' }]}>
+            <View style={styles.imagenPendienteHeader}>
+              <TouchableOpacity onPress={() => setImagenPendiente(null)} style={styles.imagenPendienteClear} activeOpacity={0.7}>
+                <Ionicons name="close-circle" size={26} color={colors.textMuted} />
+              </TouchableOpacity>
+              <Text style={[styles.imagenPendienteTxt, { color: colors.textPrimary }]}>Vista previa</Text>
+              <TouchableOpacity onPress={enviarImagenPendiente} disabled={enviando} style={styles.imagenPendienteEnviar} activeOpacity={0.8}>
+                {enviando
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <><Ionicons name="send" size={16} color="#fff" /><Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', marginLeft: 4 }}>Enviar</Text></>
+                }
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => setImagenPendiente(null)} style={styles.imagenPendienteClear} activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={22} color={colors.textMuted} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={enviarImagenPendiente} disabled={enviando} style={styles.imagenPendienteEnviar} activeOpacity={0.8}>
-              {enviando ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
-            </TouchableOpacity>
+            <Image source={{ uri: imagenPendiente }} style={styles.imagenPendienteGrande} resizeMode="cover" />
           </View>
         ) : null}
         <View style={styles.inputBar}>
@@ -779,18 +781,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 8,
     gap: 8,
   },
-  imagenPendienteBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 12, paddingVertical: 10,
+  imagenPendientePreview: {
     borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)',
+    paddingBottom: 8,
   },
-  imagenPendienteThumb: { width: 52, height: 52, borderRadius: 10, backgroundColor: '#EEE' },
-  imagenPendienteTxt: { fontSize: 13, fontWeight: '600' },
+  imagenPendienteHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 8, gap: 8,
+  },
+  imagenPendienteGrande: {
+    width: SCREEN_W - 32, height: SCREEN_W - 32,
+    borderRadius: 16, alignSelf: 'center',
+    marginBottom: 4,
+  },
+  imagenPendienteTxt: { flex: 1, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   imagenPendienteSub: { fontSize: 11, marginTop: 2 },
   imagenPendienteClear: { padding: 4 },
   imagenPendienteEnviar: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, height: 36, borderRadius: 18,
+    backgroundColor: COLORS.primary, justifyContent: 'center',
   },
   mediaBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   input: {
