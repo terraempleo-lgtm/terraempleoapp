@@ -201,8 +201,23 @@ export default function PerfilScreen({ navigation }) {
       } else {
         formData.append('foto', { uri, type: 'image/jpeg', name: `finca_${Date.now()}.jpg` });
       }
-      const res = await authAPI.subirFoto('finca_fachada', formData);
-      setFotoFincaPrincipal(res.data.path);
+      let path;
+      if (Platform.OS === 'web') {
+        const { api } = require('../../services/api');
+        const token = api.defaults.headers.common['Authorization']?.replace('Bearer ', '');
+        const fetchRes = await fetch(`${api.defaults.baseURL}/auth/fotos/finca_fachada`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        });
+        const json = await fetchRes.json();
+        if (!fetchRes.ok) throw new Error(json.error || 'Error al subir');
+        path = json.path;
+      } else {
+        const res = await authAPI.subirFoto('finca_fachada', formData);
+        path = res.data.path;
+      }
+      setFotoFincaPrincipal(path);
       showAlert('Foto actualizada', 'La foto de tu finca fue guardada.');
     } catch (err) {
       showAlert('Error', err.response?.data?.error || 'No se pudo subir la foto.');
@@ -222,8 +237,23 @@ export default function PerfilScreen({ navigation }) {
       } else {
         formData.append('foto', { uri: r.assets[0].uri, type: 'image/jpeg', name: `portada_${Date.now()}.jpg` });
       }
-      const res = await authAPI.subirFoto('portada', formData);
-      setFotoPortada(res.data.path);
+      let path;
+      if (Platform.OS === 'web') {
+        const { api } = require('../../services/api');
+        const token = api.defaults.headers.common['Authorization']?.replace('Bearer ', '');
+        const fetchRes = await fetch(`${api.defaults.baseURL}/auth/fotos/portada`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        });
+        const json = await fetchRes.json();
+        if (!fetchRes.ok) throw new Error(json.error || 'Error al subir');
+        path = json.path;
+      } else {
+        const res = await authAPI.subirFoto('portada', formData);
+        path = res.data.path;
+      }
+      setFotoPortada(path);
       showAlert('¡Listo!', 'Foto de portada actualizada.');
     } catch (err) {
       showAlert('Error', err.response?.data?.error || 'No se pudo subir la foto.');
@@ -856,11 +886,7 @@ export default function PerfilScreen({ navigation }) {
               activeOpacity={0.85}
               style={{ marginHorizontal: SPACING.md, marginBottom: SPACING.md }}
             >
-              <LinearGradient
-                colors={['#FF8F00', '#F57F17']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={s.empMejoraGrad}
-              >
+              <View style={[s.empMejoraGrad, { backgroundColor: '#FF8F00' }]}>
                 <View style={s.empMejoraLeft}>
                   <View style={s.empMejoraIconWrap}>
                     <Ionicons name="rocket" size={22} color="#FF8F00" />
@@ -879,7 +905,7 @@ export default function PerfilScreen({ navigation }) {
                 <View style={s.empMejoraArrow}>
                   <Ionicons name="arrow-forward" size={18} color="#FF8F00" />
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           )}
 

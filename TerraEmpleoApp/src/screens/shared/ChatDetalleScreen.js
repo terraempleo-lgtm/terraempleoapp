@@ -240,7 +240,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
   useEffect(() => {
     navigation.setOptions({
       headerTitle: () => (
-        <AnimatedPressable onPress={irAlPerfilRelacionado} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <TouchableOpacity onPress={irAlPerfilRelacionado} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }} activeOpacity={0.7}>
           {chat.otro_foto ? (
             <Image source={{ uri: chat.otro_foto }} style={{ width: 38, height: 38, borderRadius: 19, overflow: 'hidden' }} />
           ) : (
@@ -252,7 +252,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
             <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.textPrimary }}>{chat.otro_nombre}</Text>
             {chat.vacante_titulo && <Text style={{ fontSize: 12, color: COLORS.textSecondary }} numberOfLines={1}>{chat.vacante_titulo}</Text>}
           </View>
-        </AnimatedPressable>
+        </TouchableOpacity>
       ),
       headerTitleAlign: 'left',
       headerLeft: () => (
@@ -381,6 +381,8 @@ export default function ChatDetalleScreen({ route, navigation }) {
     }
   };
 
+  const [imagenPendiente, setImagenPendiente] = useState(null);
+
   const seleccionarImagen = async (desdeCamera = false) => {
     try {
       let result;
@@ -392,10 +394,17 @@ export default function ChatDetalleScreen({ route, navigation }) {
         result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.7 });
       }
       if (result.canceled || !result.assets?.[0]) return;
-      await _subirMedia(result.assets[0].uri, 'imagen');
+      setImagenPendiente(result.assets[0].uri);
     } catch (e) {
       console.warn('Error seleccionando imagen:', e);
     }
+  };
+
+  const enviarImagenPendiente = async () => {
+    if (!imagenPendiente) return;
+    const uri = imagenPendiente;
+    setImagenPendiente(null);
+    await _subirMedia(uri, 'imagen');
   };
 
   const mostrarOpcionesImagen = () => {
@@ -535,8 +544,25 @@ export default function ChatDetalleScreen({ route, navigation }) {
     }
 
     return (
-      <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-        {!texto.trim() && (
+      <View style={{ backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border }}>
+        {/* Preview imagen pendiente */}
+        {imagenPendiente ? (
+          <View style={styles.imagenPendienteBar}>
+            <Image source={{ uri: imagenPendiente }} style={styles.imagenPendienteThumb} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.imagenPendienteTxt, { color: colors.textPrimary }]}>Imagen lista para enviar</Text>
+              <Text style={[styles.imagenPendienteSub, { color: colors.textMuted }]}>Toca "Enviar" para publicarla</Text>
+            </View>
+            <TouchableOpacity onPress={() => setImagenPendiente(null)} style={styles.imagenPendienteClear} activeOpacity={0.7}>
+              <Ionicons name="close-circle" size={22} color={colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={enviarImagenPendiente} disabled={enviando} style={styles.imagenPendienteEnviar} activeOpacity={0.8}>
+              {enviando ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
+            </TouchableOpacity>
+          </View>
+        ) : null}
+        <View style={styles.inputBar}>
+        {!texto.trim() && !imagenPendiente && (
           <TouchableOpacity style={styles.mediaBtn} onPress={mostrarOpcionesImagen} disabled={enviando}>
             <Ionicons name="image-outline" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -580,6 +606,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
             <Ionicons name="mic" size={22} color={COLORS.white} />
           </TouchableOpacity>
         )}
+        </View>
       </View>
     );
   };
@@ -750,7 +777,20 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end',
     paddingHorizontal: 8, paddingVertical: 8,
-    borderTopWidth: 1, gap: 8,
+    gap: 8,
+  },
+  imagenPendienteBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)',
+  },
+  imagenPendienteThumb: { width: 52, height: 52, borderRadius: 10, backgroundColor: '#EEE' },
+  imagenPendienteTxt: { fontSize: 13, fontWeight: '600' },
+  imagenPendienteSub: { fontSize: 11, marginTop: 2 },
+  imagenPendienteClear: { padding: 4 },
+  imagenPendienteEnviar: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center',
   },
   mediaBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   input: {
