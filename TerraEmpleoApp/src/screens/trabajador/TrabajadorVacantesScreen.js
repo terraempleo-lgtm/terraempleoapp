@@ -14,7 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MotiView } from 'moti';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { vacantesAPI, notificacionesAPI, authAPI } from '../../services/api';
+import { vacantesAPI, notificacionesAPI, authAPI, serviciosAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -145,6 +145,8 @@ export default function TrabajadorVacantesScreen({ navigation }) {
 
   const [estadoVerif, setEstadoVerif] = useState(user?.validacion_identidad_estado || 'pendiente');
   const [perfilCompleto, setPerfilCompleto] = useState(false);
+  const esEspecialista = user?.rol === 'especialista';
+  const [misServicios, setMisServicios] = useState([]);
 
   const firstName = (user?.nombre_completo || user?.nombre || 'Usuario').split(' ')[0];
   const estadoIdentidad = estadoVerif;
@@ -245,15 +247,24 @@ export default function TrabajadorVacantesScreen({ navigation }) {
     }).catch(() => {});
   }, []);
 
-  useEffect(() => { cargarVacantes(); cargarNoLeidas(); sincronizarVerificacion(); }, [cargarVacantes, cargarNoLeidas]);
+  const cargarMisServicios = useCallback(async () => {
+    if (!esEspecialista) return;
+    try {
+      const res = await serviciosAPI.misServicios();
+      setMisServicios(res.data.servicios || []);
+    } catch (_) {}
+  }, [esEspecialista]);
+
+  useEffect(() => { cargarVacantes(); cargarNoLeidas(); sincronizarVerificacion(); cargarMisServicios(); }, [cargarVacantes, cargarNoLeidas, cargarMisServicios]);
   useEffect(() => {
     const unsub = navigation.addListener('focus', () => {
       cargarVacantes();
       cargarNoLeidas();
       sincronizarVerificacion();
+      cargarMisServicios();
     });
     return unsub;
-  }, [navigation, cargarVacantes, cargarNoLeidas, sincronizarVerificacion]);
+  }, [navigation, cargarVacantes, cargarNoLeidas, sincronizarVerificacion, cargarMisServicios]);
 
   const onRefresh = () => { setRefreshing(true); cargarVacantes(); };
 
@@ -516,6 +527,53 @@ export default function TrabajadorVacantesScreen({ navigation }) {
           </View>
           <Ionicons name="chevron-forward" size={18} color="#fff" />
         </TouchableOpacity>
+      )}
+
+      {/* ── Sección Mis Servicios (solo especialista) ── */}
+      {esEspecialista && (
+        <View style={[s.serviciosSection, { backgroundColor: colors.surface }]}>
+          <View style={s.serviciosHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.serviciosSectionTitle, { color: colors.textPrimary }]}>Mis Servicios</Text>
+              <Text style={[s.serviciosSectionSub, { color: colors.textMuted }]}>
+                {misServicios.length > 0 ? `${misServicios.length} publicado${misServicios.length > 1 ? 's' : ''}` : 'Publica tu primer servicio'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[s.serviciosVerBtn, { borderColor: COLORS.primary }]}
+              onPress={() => navigation.getParent()?.navigate('Perfil', { screen: 'MisServicios', initial: false })}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.serviciosVerTxt, { color: COLORS.primary }]}>Ver todos</Text>
+            </TouchableOpacity>
+          </View>
+
+          {misServicios.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -SPACING.md }} contentContainerStyle={{ paddingHorizontal: SPACING.md, gap: 10 }}>
+              {misServicios.map((srv) => (
+                <View key={srv.id} style={[s.srvCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  {srv.fotos?.[0]?.url && <Image source={{ uri: srv.fotos[0].url }} style={s.srvFoto} resizeMode="cover" />}
+                  <View style={s.srvBody}>
+                    <Text style={[s.srvTitulo, { color: colors.textPrimary }]} numberOfLines={2}>{srv.titulo}</Text>
+                    {srv.cultivos?.length > 0 && (
+                      <Text style={[s.srvCultivo, { color: COLORS.primary }]} numberOfLines={1}>{srv.cultivos.slice(0, 2).join(' · ')}</Text>
+                    )}
+                    {srv.modalidad ? <Text style={[s.srvModalidad, { color: colors.textMuted }]}>{srv.modalidad}</Text> : null}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          ) : null}
+
+          <TouchableOpacity
+            style={[s.crearServicioBtn, { backgroundColor: COLORS.primary }]}
+            onPress={() => navigation.getParent()?.navigate('Perfil', { screen: 'MisServicios', initial: false })}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="add-circle-outline" size={18} color="#fff" />
+            <Text style={s.crearServicioBtnTxt}>{misServicios.length > 0 ? 'Gestionar servicios' : 'Crear servicio'}</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Search bar */}
@@ -1181,4 +1239,19 @@ const s = StyleSheet.create({
   },
   mejoraTitle: { color: '#fff', fontWeight: '700', fontSize: 14 },
   mejoraSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2 },
+  // Servicios especialista
+  serviciosSection: { marginHorizontal: SPACING.md, marginBottom: SPACING.md, borderRadius: 18, padding: SPACING.md, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 },
+  serviciosHeader: { flexDirection: 'row', alignItems: 'center' },
+  serviciosSectionTitle: { fontSize: 16, fontWeight: '800' },
+  serviciosSectionSub: { fontSize: 12, marginTop: 2 },
+  serviciosVerBtn: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  serviciosVerTxt: { fontSize: 13, fontWeight: '700' },
+  srvCard: { width: 160, borderRadius: 14, overflow: 'hidden', borderWidth: 1 },
+  srvFoto: { width: '100%', height: 90 },
+  srvBody: { padding: 8, gap: 3 },
+  srvTitulo: { fontSize: 13, fontWeight: '700', lineHeight: 17 },
+  srvCultivo: { fontSize: 11, fontWeight: '600' },
+  srvModalidad: { fontSize: 11 },
+  crearServicioBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, padding: 12 },
+  crearServicioBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });
