@@ -5,6 +5,13 @@ const path = require('path');
 
 const BUCKET = process.env.AWS_S3_BUCKET;
 
+function parseCultivos(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') { try { return JSON.parse(val); } catch { return []; } }
+  return [];
+}
+
 async function signFotos(fotos) {
   return Promise.all(fotos.map(async (f) => ({ ...f, url: await signUrl(f.url) })));
 }
@@ -29,7 +36,7 @@ async function listarServicios(req, res) {
       const fotos = await query('SELECT id, url, orden FROM servicio_fotos WHERE servicio_id = ? ORDER BY orden', [s.id]);
       return {
         ...s,
-        cultivos: s.cultivos ? JSON.parse(s.cultivos) : [],
+        cultivos: parseCultivos(s.cultivos),
         foto_selfie: await signUrl(s.foto_selfie),
         fotos: await signFotos(fotos),
       };
@@ -52,7 +59,7 @@ async function misServicios(req, res) {
     );
     const servicios = await Promise.all(rows.map(async (s) => {
       const fotos = await query('SELECT id, url, orden FROM servicio_fotos WHERE servicio_id = ? ORDER BY orden', [s.id]);
-      return { ...s, cultivos: s.cultivos ? JSON.parse(s.cultivos) : [], fotos: await signFotos(fotos) };
+      return { ...s, cultivos: parseCultivos(s.cultivos), fotos: await signFotos(fotos) };
     }));
     res.json({ servicios });
   } catch (err) {
@@ -81,7 +88,7 @@ async function detalleServicio(req, res) {
     res.json({
       servicio: {
         ...s,
-        cultivos: s.cultivos ? JSON.parse(s.cultivos) : [],
+        cultivos: parseCultivos(s.cultivos),
         foto_selfie: await signUrl(s.foto_selfie),
         fotos: await signFotos(fotos),
       },
