@@ -73,6 +73,14 @@ export default function EditarPerfilScreen({ navigation, route }) {
   const [fotosTrabajo, setFotosTrabajo] = useState(initPerfil?.fotos_trabajo || []);
   const [subiendoFotoTrabajo, setSubiendoFotoTrabajo] = useState(false);
 
+  // Experiencias laborales
+  const [experiencias, setExperiencias] = useState(initPerfil?.experiencias || []);
+  const [expModal, setExpModal] = useState(false);
+  const [expEntidad, setExpEntidad] = useState('');
+  const [expDescripcion, setExpDescripcion] = useState('');
+  const [expDuracion, setExpDuracion] = useState('');
+  const [guardandoExp, setGuardandoExp] = useState(false);
+
   // Campos empleador
   const [nombreEmpresa, setNombreEmpresa] = useState(initPerfil?.nombre_empresa_finca || '');
   const [tipoPago, setTipoPago] = useState(initPerfil?.tipo_pago || '');
@@ -440,6 +448,33 @@ export default function EditarPerfilScreen({ navigation, route }) {
     } catch (err) {
       showAlert('Error', 'No se pudo eliminar la foto.');
     }
+  };
+
+  const guardarExperiencia = async () => {
+    if (!expEntidad.trim()) { showAlert('Campo requerido', 'Indica el nombre del lugar o entidad.'); return; }
+    setGuardandoExp(true);
+    try {
+      const res = await authAPI.agregarExperiencia({ entidad: expEntidad, descripcion: expDescripcion, duracion: expDuracion });
+      setExperiencias(prev => [...prev, res.data]);
+      setExpEntidad(''); setExpDescripcion(''); setExpDuracion('');
+      setExpModal(false);
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'No se pudo guardar la experiencia.');
+    } finally {
+      setGuardandoExp(false);
+    }
+  };
+
+  const eliminarExperiencia = (exp) => {
+    Alert.alert('Eliminar experiencia', `¿Eliminar "${exp.entidad}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        try {
+          await authAPI.eliminarExperiencia(exp.id);
+          setExperiencias(prev => prev.filter(e => e.id !== exp.id));
+        } catch { showAlert('Error', 'No se pudo eliminar.'); }
+      }},
+    ]);
   };
 
   const handleGuardar = async () => {
@@ -1028,6 +1063,43 @@ export default function EditarPerfilScreen({ navigation, route }) {
             </View>
           )}
 
+          {/* Experiencias laborales — trabajadores y especialistas */}
+          {(rol === 'trabajador' || rol === 'especialista') && (
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
+                <Ionicons name="briefcase-outline" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary, marginBottom: 0 }]}>Experiencias laborales</Text>
+              </View>
+              <Text style={[styles.fieldHint, { color: colors.textMuted, marginBottom: SPACING.sm }]}>
+                Agrega los lugares o entidades donde has trabajado. Máximo 10.
+              </Text>
+              {experiencias.map((exp) => (
+                <View key={exp.id} style={[expStyles.item, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[expStyles.itemTitle, { color: colors.textPrimary }]}>{exp.entidad}</Text>
+                    {!!exp.duracion && <Text style={[expStyles.itemSub, { color: colors.textMuted }]}>{exp.duracion}</Text>}
+                    {!!exp.descripcion && <Text style={[expStyles.itemDesc, { color: colors.textSecondary }]}>{exp.descripcion}</Text>}
+                  </View>
+                  <AnimatedPressable onPress={() => eliminarExperiencia(exp)} scaleValue={0.9} style={{ padding: 4 }}>
+                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                  </AnimatedPressable>
+                </View>
+              ))}
+              {experiencias.length < 10 && (
+                <AnimatedPressable
+                  style={[ftStyles.addBtn, { borderColor: COLORS.primary }]}
+                  onPress={() => setExpModal(true)}
+                  scaleValue={0.97}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+                  <Text style={[ftStyles.addBtnText, { color: COLORS.primary }]}>
+                    {experiencias.length === 0 ? 'Agregar experiencia' : 'Agregar otra'}
+                  </Text>
+                </AnimatedPressable>
+              )}
+            </View>
+          )}
+
           <Button
             title={loading ? 'Guardando...' : 'Guardar cambios'}
             loadingText="Guardando..."
@@ -1139,6 +1211,49 @@ export default function EditarPerfilScreen({ navigation, route }) {
             <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 }}>
               Tus datos se conservarán 30 días antes de eliminarse permanentemente.
             </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Modal nueva experiencia */}
+      <Modal visible={expModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setExpModal(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', padding: SPACING.md, borderBottomWidth: 1, borderColor: '#E5E7EB' }}>
+            <TouchableOpacity onPress={() => setExpModal(false)} style={{ marginRight: 12 }}>
+              <Ionicons name="close" size={24} color="#374151" />
+            </TouchableOpacity>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: '#111827', flex: 1 }}>Nueva experiencia</Text>
+            <TouchableOpacity onPress={guardarExperiencia} disabled={guardandoExp}>
+              {guardandoExp ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 16 }}>Guardar</Text>}
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: SPACING.md }} keyboardShouldPersistTaps="handled">
+            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Lugar o entidad *</Text>
+            <TextInput
+              value={expEntidad}
+              onChangeText={setExpEntidad}
+              placeholder="Ej: Finca La Esperanza, Cooperativa XYZ..."
+              style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 12, fontSize: 15, color: '#111827', marginBottom: 14 }}
+              maxLength={200}
+            />
+            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Tiempo trabajado</Text>
+            <TextInput
+              value={expDuracion}
+              onChangeText={setExpDuracion}
+              placeholder="Ej: 6 meses, 2 años, 2020–2022..."
+              style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 12, fontSize: 15, color: '#111827', marginBottom: 14 }}
+              maxLength={100}
+            />
+            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Descripción del trabajo</Text>
+            <TextInput
+              value={expDescripcion}
+              onChangeText={setExpDescripcion}
+              placeholder="Describe brevemente las labores realizadas..."
+              multiline
+              numberOfLines={4}
+              style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 12, fontSize: 15, color: '#111827', minHeight: 100, textAlignVertical: 'top' }}
+              maxLength={500}
+            />
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -1267,3 +1382,11 @@ const ftStyles = StyleSheet.create({
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderStyle: 'dashed', borderRadius: RADIUS.md, paddingVertical: 14 },
   addBtnText: { fontSize: 14, fontWeight: '600' },
 });
+
+const expStyles = StyleSheet.create({
+  item: { flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderRadius: RADIUS.md, padding: SPACING.sm, marginBottom: SPACING.sm, gap: 8 },
+  itemTitle: { fontSize: 14, fontWeight: '700' },
+  itemSub: { fontSize: 12, marginTop: 2 },
+  itemDesc: { fontSize: 13, marginTop: 4 },
+});
+

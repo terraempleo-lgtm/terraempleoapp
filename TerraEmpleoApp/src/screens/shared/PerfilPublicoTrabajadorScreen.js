@@ -409,6 +409,28 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
             </View>
           )}
 
+          {/* Experiencias laborales especialista */}
+          {(perfil.experiencias || []).length > 0 && (
+            <View style={[r.card, { backgroundColor: colors.surface }]}>
+              <View style={r.cardHeader}>
+                <LinearGradient colors={['#7C3AED','#6D28D9']} style={r.cardIconGrad}>
+                  <Ionicons name="briefcase" size={16} color="#fff" />
+                </LinearGradient>
+                <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Experiencias laborales</Text>
+              </View>
+              {perfil.experiencias.map((exp, i) => (
+                <View key={exp.id || i} style={[r.expRow, { borderBottomColor: colors.border, borderBottomWidth: i < perfil.experiencias.length - 1 ? 1 : 0 }]}>
+                  <View style={[r.expDot, { backgroundColor: '#EDE9FE' }]}><Ionicons name="business-outline" size={15} color="#7C3AED" /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[r.expValue, { color: colors.textPrimary }]}>{exp.entidad}</Text>
+                    {!!exp.duracion && <Text style={[r.expLabel, { color: colors.textMuted }]}>{exp.duracion}</Text>}
+                    {!!exp.descripcion && <Text style={[r.expLabel, { color: colors.textSecondary, marginTop: 2 }]}>{exp.descripcion}</Text>}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* Fotos de trabajo */}
           {espFotos.length > 0 && (
             <View style={[r.card, { backgroundColor: colors.surface }]}>
@@ -657,6 +679,28 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
                 </View>
               </View>
             )}
+          </View>
+        )}
+
+        {/* ── EXPERIENCIAS LABORALES (trabajador) ── */}
+        {(perfil.experiencias || []).length > 0 && (
+          <View style={[r.card, { backgroundColor: colors.surface }]}>
+            <View style={r.cardHeader}>
+              <LinearGradient colors={['#7C3AED','#6D28D9']} style={r.cardIconGrad}>
+                <Ionicons name="briefcase" size={16} color="#fff" />
+              </LinearGradient>
+              <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Experiencias laborales</Text>
+            </View>
+            {perfil.experiencias.map((exp, i) => (
+              <View key={exp.id || i} style={[r.expRow, { borderBottomColor: colors.border, borderBottomWidth: i < perfil.experiencias.length - 1 ? 1 : 0 }]}>
+                <View style={[r.expDot, { backgroundColor: '#EDE9FE' }]}><Ionicons name="business-outline" size={15} color="#7C3AED" /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[r.expValue, { color: colors.textPrimary }]}>{exp.entidad}</Text>
+                  {!!exp.duracion && <Text style={[r.expLabel, { color: colors.textMuted }]}>{exp.duracion}</Text>}
+                  {!!exp.descripcion && <Text style={[r.expLabel, { color: colors.textSecondary, marginTop: 2 }]}>{exp.descripcion}</Text>}
+                </View>
+              </View>
+            ))}
           </View>
         )}
 

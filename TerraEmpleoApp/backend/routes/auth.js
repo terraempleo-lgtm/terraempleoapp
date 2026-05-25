@@ -56,6 +56,8 @@ router.post('/cambiar-foto-perfil', authMiddleware, upload.single('foto'), authC
 router.post('/hoja-vida', authMiddleware, uploadHojaVida.single('hoja_vida'), authController.subirHojaVida);
 router.post('/fotos-trabajo', authMiddleware, uploadFotoTrabajo.single('foto'), authController.subirFotoTrabajo);
 router.delete('/fotos-trabajo/:fotoId', authMiddleware, authController.eliminarFotoTrabajo);
+router.post('/experiencias', authMiddleware, authController.agregarExperienciaLaboral);
+router.delete('/experiencias/:expId', authMiddleware, authController.eliminarExperienciaLaboral);
 router.delete('/cuenta', authMiddleware, authController.eliminarCuenta);
 
 module.exports = router;

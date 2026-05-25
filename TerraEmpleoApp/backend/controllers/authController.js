@@ -407,6 +407,7 @@ async function getPerfil(req, res) {
         perfil.cultivos = await query('SELECT * FROM trabajador_cultivos WHERE perfil_trabajador_id = ?', [perfil.id]);
         const fotosRows = await query('SELECT id, url FROM trabajador_fotos_trabajo WHERE perfil_trabajador_id = ? ORDER BY orden, id', [perfil.id]);
         perfil.fotos_trabajo = await Promise.all(fotosRows.map(async (f) => ({ id: f.id, url: await signUrl(f.url) })));
+        perfil.experiencias = await query('SELECT id, entidad, descripcion, duracion FROM experiencias_laborales WHERE usuario_id = ? ORDER BY orden, id', [userId]);
       }
     } else if (user.rol === 'empleador') {
       const perfiles = await query('SELECT * FROM perfil_empleador WHERE usuario_id = ?', [userId]);
@@ -426,6 +427,7 @@ async function getPerfil(req, res) {
         perfil.cultivos = await query('SELECT cultivo FROM especialista_cultivos WHERE perfil_especialista_id = ?', [perfil.id]);
         const fotosRows = await query('SELECT id, url FROM especialista_fotos_trabajo WHERE perfil_especialista_id = ? ORDER BY orden, id', [perfil.id]);
         perfil.fotos_trabajo = await Promise.all(fotosRows.map(async (f) => ({ id: f.id, url: await signUrl(f.url) })));
+        perfil.experiencias = await query('SELECT id, entidad, descripcion, duracion FROM experiencias_laborales WHERE usuario_id = ? ORDER BY orden, id', [userId]);
       }
     }
 
@@ -1121,6 +1123,38 @@ async function eliminarCuenta(req, res) {
   }
 }
 
+async function agregarExperienciaLaboral(req, res) {
+  try {
+    const userId = req.user.id;
+    const { entidad, descripcion, duracion } = req.body;
+    if (!entidad || !entidad.trim()) return res.status(400).json({ error: 'El nombre del lugar/entidad es requerido.' });
+    const count = await query('SELECT COUNT(*) as n FROM experiencias_laborales WHERE usuario_id = ?', [userId]);
+    if (Number(count[0].n) >= 10) return res.status(400).json({ error: 'Máximo 10 experiencias.' });
+    const result = await query(
+      'INSERT INTO experiencias_laborales (usuario_id, entidad, descripcion, duracion, orden) VALUES (?, ?, ?, ?, ?)',
+      [userId, entidad.trim(), descripcion?.trim() || null, duracion?.trim() || null, Number(count[0].n)]
+    );
+    res.status(201).json({ id: result.insertId, entidad: entidad.trim(), descripcion: descripcion?.trim() || null, duracion: duracion?.trim() || null });
+  } catch (err) {
+    console.error('Error agregando experiencia:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+async function eliminarExperienciaLaboral(req, res) {
+  try {
+    const userId = req.user.id;
+    const expId = Number(req.params.expId);
+    const rows = await query('SELECT id FROM experiencias_laborales WHERE id = ? AND usuario_id = ?', [expId, userId]);
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'Experiencia no encontrada.' });
+    await query('DELETE FROM experiencias_laborales WHERE id = ?', [expId]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error eliminando experiencia:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
   register,
   login,
@@ -1139,4 +1173,6 @@ module.exports = {
   subirFotoTrabajo,
   eliminarFotoTrabajo,
   eliminarCuenta,
+  agregarExperienciaLaboral,
+  eliminarExperienciaLaboral,
 };

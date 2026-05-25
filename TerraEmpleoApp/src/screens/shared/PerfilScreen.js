@@ -1025,7 +1025,7 @@ export default function PerfilScreen({ navigation }) {
         </View>
 
         {/* Banner mejora tu perfil */}
-        {(!acercaDeTrabajador || !perfil?.hoja_vida_url || !(perfil?.fotos_trabajo?.length > 0)) && (
+        {(!acercaDeTrabajador || !perfil?.hoja_vida_url || !(perfil?.fotos_trabajo?.length > 0) || !(perfil?.experiencias?.length > 0)) && (
           <FadeInView delay={80}>
             <AnimatedPressable
               style={[mejoraStyles.banner, { backgroundColor: isDark ? '#1a2f22' : '#EBF5ED', borderColor: isDark ? '#2a4c3a' : '#B8DFBC' }]}
@@ -1048,6 +1048,12 @@ export default function PerfilScreen({ navigation }) {
                     <View style={mejoraStyles.item}>
                       <Ionicons name="ellipse" size={6} color={COLORS.primary} />
                       <Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Sube fotos de tu trabajo</Text>
+                    </View>
+                  )}
+                  {!(perfil?.experiencias?.length > 0) && (
+                    <View style={mejoraStyles.item}>
+                      <Ionicons name="ellipse" size={6} color={COLORS.primary} />
+                      <Text style={[mejoraStyles.itemText, { color: isDark ? '#9DCBA6' : '#2E7D32' }]}>Agrega experiencias laborales</Text>
                     </View>
                   )}
                   {!perfil?.hoja_vida_url && (

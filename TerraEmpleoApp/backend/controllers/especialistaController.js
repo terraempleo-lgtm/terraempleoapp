@@ -110,10 +110,11 @@ async function getPerfilEspecialista(req, res) {
     const row = rows[0];
     const perfilId = Number(row.perfil_id);
 
-    const [especialidades, cultivos, fotosRows] = await Promise.all([
+    const [especialidades, cultivos, fotosRows, experiencias] = await Promise.all([
       query('SELECT especialidad FROM especialista_especialidades WHERE perfil_especialista_id = ?', [perfilId]),
       query('SELECT cultivo FROM especialista_cultivos WHERE perfil_especialista_id = ?', [perfilId]),
       query('SELECT id, url FROM especialista_fotos_trabajo WHERE perfil_especialista_id = ? ORDER BY orden, id', [perfilId]),
+      query('SELECT id, entidad, descripcion, duracion FROM experiencias_laborales WHERE usuario_id = ? ORDER BY orden, id', [row.id]),
     ]);
 
     const fotoSelfie = row.foto_selfie ? await signUrl(row.foto_selfie).catch(() => null) : null;
@@ -143,6 +144,7 @@ async function getPerfilEspecialista(req, res) {
       especialidades: especialidades.map(e => e.especialidad),
       cultivos: cultivos.map(c => c.cultivo),
       fotos_trabajo: fotosConUrl.filter(f => f.url),
+      experiencias,
     });
   } catch (err) {
     console.error('Error obteniendo perfil especialista:', err);

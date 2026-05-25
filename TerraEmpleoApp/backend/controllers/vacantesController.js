@@ -908,10 +908,12 @@ async function perfilPublicoTrabajador(req, res) {
         [trabajador.perfil_id]
       );
       trabajador.fotos_trabajo = await Promise.all(fotosRows.map(async (f) => ({ id: f.id, url: await signUrl(f.url) })));
+      trabajador.experiencias = await query('SELECT id, entidad, descripcion, duracion FROM experiencias_laborales WHERE usuario_id = ? ORDER BY orden, id', [id]);
     } else {
       trabajador.habilidades = [];
       trabajador.cultivos = [];
       trabajador.fotos_trabajo = [];
+      trabajador.experiencias = [];
     }
 
     // Mostrar celular solo si el empleador tiene una postulación aceptada con este trabajador

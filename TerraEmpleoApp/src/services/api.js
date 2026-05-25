@@ -87,6 +87,8 @@ export const authAPI = {
     return { data };
   },
   eliminarFotoTrabajo: (fotoId) => api.delete(`/auth/fotos-trabajo/${fotoId}`),
+  agregarExperiencia: (data) => api.post('/auth/experiencias', data),
+  eliminarExperiencia: (expId) => api.delete(`/auth/experiencias/${expId}`),
   eliminarCuenta: (motivo) => api.delete('/auth/cuenta', { data: { motivo } }),
 };
 
