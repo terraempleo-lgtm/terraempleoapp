@@ -85,6 +85,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const esEspecialista = rolParam === 'especialista';
   const [enviandoSolicitud, setEnviandoSolicitud] = useState(false);
   const [estadoActual, setEstadoActual] = useState(postulacion_estado || null);
+  const [fotoPreview, setFotoPreview] = useState(null);
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
 
@@ -258,112 +259,150 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     const initEsp = (perfil.nombre_completo || 'E').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
     const espCal = parseFloat(perfil.calificacion_promedio || 0);
     const espTotalCal = Number(perfil.total_calificaciones || 0);
+    const espExp = EXP_LABELS[perfil.anios_experiencia] || null;
+    const hasFooterEsp = !estadoActual || estadoActual === 'aceptada' || estadoActual === 'contacto_solicitado';
     return (
       <View style={[s.root, { backgroundColor: colors.background }]}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: estadoActual === 'contacto_solicitado' ? 110 : !estadoActual ? 110 : 32 }}>
-          <View style={[s.topBar, { paddingTop: insets.top + SPACING.sm, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-            <AnimatedPressable style={[s.iconBtn, { backgroundColor: colors.surface }]} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: hasFooterEsp ? 120 : 40 }}>
+
+          {/* HERO ESPECIALISTA — terracota */}
+          <View style={r.heroOuter}>
+            <LinearGradient colors={['#8B3A2A','#C0694A','#D4845A']} start={{x:0,y:0}} end={{x:1,y:1}} style={[r.heroGradient, { paddingTop: insets.top + 12 }]}>
+              <AnimatedPressable style={r.backBtn} onPress={() => navigation.goBack()}>
+                <Ionicons name="arrow-back" size={20} color="#fff" />
+              </AnimatedPressable>
+              <View style={r.avatarOuter}>
+                {perfil.foto_selfie?.startsWith('http') ? (
+                  <Image source={{ uri: perfil.foto_selfie }} style={r.avatar} />
+                ) : (
+                  <View style={[r.avatarFallback, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                    <Text style={r.avatarInitials}>{initEsp}</Text>
+                  </View>
+                )}
+                {perfil.verificado && <View style={r.verBadge}><Ionicons name="checkmark" size={11} color="#fff" /></View>}
+              </View>
+              <Text style={r.heroName}>{perfil.nombre_completo}</Text>
+              {ubicacion ? (
+                <View style={r.heroMeta}>
+                  <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.8)" />
+                  <Text style={r.heroMetaTxt}>{ubicacion}</Text>
+                </View>
+              ) : null}
+              <View style={r.pillsRow}>
+                <View style={[r.disponPill, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+                  <Ionicons name="ribbon" size={12} color="#FFD700" />
+                  <Text style={r.disponTxt}>Especialista</Text>
+                </View>
+                {perfil.modalidad_trabajo && (
+                  <View style={r.infoPill}>
+                    <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.9)" />
+                    <Text style={r.infoPillTxt}>{MODAL_LABELS[perfil.modalidad_trabajo] || perfil.modalidad_trabajo}</Text>
+                  </View>
+                )}
+                {perfil.radio_cobertura && (
+                  <View style={r.infoPill}>
+                    <Ionicons name="navigate-outline" size={12} color="rgba(255,255,255,0.9)" />
+                    <Text style={r.infoPillTxt}>{RADIO_LABELS[perfil.radio_cobertura] || perfil.radio_cobertura}</Text>
+                  </View>
+                )}
+              </View>
+            </LinearGradient>
+
+            {/* Stats flotantes */}
+            <View style={[r.statsCard, { backgroundColor: colors.surface }]}>
+              <View style={r.statItem}>
+                <View style={[r.statIcon, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="star" size={16} color="#D97706" />
+                </View>
+                <Text style={[r.statNum, { color: colors.textPrimary }]}>{espCal > 0 ? espCal.toFixed(1) : '—'}</Text>
+                <Text style={[r.statLbl, { color: colors.textMuted }]}>Calificación</Text>
+              </View>
+              <View style={[r.statDivider, { backgroundColor: colors.border }]} />
+              <View style={r.statItem}>
+                <View style={[r.statIcon, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="chatbubble-outline" size={16} color="#2563EB" />
+                </View>
+                <Text style={[r.statNum, { color: colors.textPrimary }]}>{espTotalCal}</Text>
+                <Text style={[r.statLbl, { color: colors.textMuted }]}>Reseñas</Text>
+              </View>
+              <View style={[r.statDivider, { backgroundColor: colors.border }]} />
+              <View style={r.statItem}>
+                <View style={[r.statIcon, { backgroundColor: '#FDEAE5' }]}>
+                  <Ionicons name="briefcase-outline" size={16} color="#C0694A" />
+                </View>
+                <Text style={[r.statNum, { color: colors.textPrimary }]} numberOfLines={1}>{espExp ? espExp.split(' ')[0] + (espExp.includes('año') ? ' años' : '') : '—'}</Text>
+                <Text style={[r.statLbl, { color: colors.textMuted }]}>Experiencia</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Descripción */}
+          {perfil.descripcion_servicio ? (
+            <View style={[r.card, { backgroundColor: colors.surface }]}>
+              <View style={r.cardHeader}>
+                <LinearGradient colors={['#8B3A2A','#C0694A']} style={r.cardIconGrad}>
+                  <Ionicons name="person-circle-outline" size={16} color="#fff" />
+                </LinearGradient>
+                <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Sobre el especialista</Text>
+              </View>
+              <Text style={[r.bodyText, { color: colors.textSecondary }]}>{perfil.descripcion_servicio}</Text>
+              <View style={[r.chipRow, { marginTop: SPACING.sm }]}>
+                {perfil.nivel_formacion && <View style={[r.chipNeutral, { backgroundColor: '#FDEAE5', borderColor: '#F5C4B5' }]}><Ionicons name="school-outline" size={11} color="#C0694A" /><Text style={[r.chipNeutralTxt, { color: '#8B3A2A' }]}>{NIVEL_LABELS[perfil.nivel_formacion] || perfil.nivel_formacion}</Text></View>}
+                {perfil.titulo_certificacion && <View style={[r.chipNeutral, { backgroundColor: '#FDEAE5', borderColor: '#F5C4B5' }]}><Ionicons name="ribbon-outline" size={11} color="#C0694A" /><Text style={[r.chipNeutralTxt, { color: '#8B3A2A' }]}>{perfil.titulo_certificacion}</Text></View>}
+              </View>
+            </View>
+          ) : null}
+
+          {/* Hoja de vida */}
+          {perfil.hoja_vida_url ? (
+            <AnimatedPressable onPress={async () => {
+              try { await Linking.openURL(perfil.hoja_vida_url); } catch {}
+            }} activeOpacity={0.88}>
+              <LinearGradient colors={['#8B3A2A','#C0694A']} start={{x:0,y:0}} end={{x:1,y:0}} style={r.cvCard}>
+                <View style={r.cvIconWrap}><Ionicons name="document-text" size={26} color="#fff" /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={r.cvLabel}>Hoja de vida disponible</Text>
+                  <Text style={r.cvName} numberOfLines={1}>{perfil.hoja_vida_nombre || 'Hoja de vida.pdf'}</Text>
+                </View>
+                <View style={r.cvArrow}><Ionicons name="open-outline" size={18} color="#fff" /></View>
+              </LinearGradient>
             </AnimatedPressable>
-            <Text style={[s.topBarTitle, { color: colors.textPrimary }]}>Perfil Especialista</Text>
-            <View style={s.iconBtn} />
-          </View>
-
-          {/* HERO */}
-          <View style={[s.hero, { backgroundColor: colors.surface }]}>
-            <View style={s.avatarWrap}>
-              {perfil.foto_selfie?.startsWith('http') ? (
-                <Image source={{ uri: perfil.foto_selfie }} style={[s.avatar, { borderColor: colors.primary }]} />
-              ) : (
-                <View style={[s.avatarFallback, { borderColor: colors.primary, backgroundColor: colors.primary + '1A' }]}>
-                  <Text style={[s.initials, { color: colors.primary }]}>{initEsp}</Text>
-                </View>
-              )}
-              {perfil.verificado && (
-                <View style={[s.verifiedBadge, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
-                  <Ionicons name="checkmark" size={12} color="#fff" />
-                </View>
-              )}
-            </View>
-            <Text style={[s.fullName, { color: colors.textPrimary }]}>{perfil.nombre_completo}</Text>
-            <Text style={[s.heroSubtitle, { color: colors.textMuted }]}>Especialista · {ubicacion || '—'}</Text>
-
-            {/* Star rating in hero */}
-            {espCal > 0 && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.sm }}>
-                {[1,2,3,4,5].map(i => (
-                  <Ionicons key={i} name={i <= Math.round(espCal) ? 'star' : 'star-outline'} size={16} color={i <= Math.round(espCal) ? '#F59E0B' : '#ccc'} />
-                ))}
-                <Text style={{ fontSize: 13, color: colors.textMuted }}>{espCal.toFixed(1)} ({espTotalCal})</Text>
-              </View>
-            )}
-
-            {perfil.verificado && (
-              <View style={[s.pillRow, { marginBottom: SPACING.md }]}>
-                <View style={[s.verPill, { borderColor: colors.primary }]}>
-                  <Ionicons name="shield-checkmark" size={13} color={colors.primary} />
-                  <Text style={[s.verPillTxt, { color: colors.primary }]}>VERIFICADO</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Stats */}
-            <View style={[s.statsRow, { borderTopColor: colors.border }]}>
-              <View style={s.statItem}>
-                <Text style={[s.statNum, { color: colors.primary }]}>{espCal > 0 ? espCal.toFixed(1) : '—'}</Text>
-                <Text style={[s.statLabel, { color: colors.textMuted }]}>Calificación</Text>
-              </View>
-              <View style={[s.statDivider, { backgroundColor: colors.border }]} />
-              <View style={s.statItem}>
-                <Text style={[s.statNum, { color: colors.primary }]}>{espTotalCal}</Text>
-                <Text style={[s.statLabel, { color: colors.textMuted }]}>Reseñas</Text>
-              </View>
-              <View style={[s.statDivider, { backgroundColor: colors.border }]} />
-              <View style={s.statItem}>
-                <Text style={[s.statNum, s.statNumExp, { color: colors.primary }]}>
-                  {EXP_LABELS[perfil.anios_experiencia] || '—'}
-                </Text>
-                <Text style={[s.statLabel, { color: colors.textMuted }]}>Experiencia</Text>
-              </View>
-            </View>
-          </View>
+          ) : null}
 
           {/* Especialidades */}
           {espEspecialidades.length > 0 && (
-            <View style={[s.card, { backgroundColor: colors.surface }]}>
-              <SectionHeader icon="ribbon-outline" title="Especialidades" colors={colors} />
-              <View style={s.chipWrap}>
+            <View style={[r.card, { backgroundColor: colors.surface }]}>
+              <View style={r.cardHeader}>
+                <LinearGradient colors={['#8B3A2A','#C0694A']} style={r.cardIconGrad}>
+                  <Ionicons name="ribbon-outline" size={16} color="#fff" />
+                </LinearGradient>
+                <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Especialidades</Text>
+              </View>
+              <View style={r.chipRow}>
                 {espEspecialidades.map((e, i) => (
-                  <View key={i} style={[s.chipGreen, { backgroundColor: colors.primary + '15' }]}>
-                    <Text style={[s.chipGreenTxt, { color: colors.primary }]}>{e}</Text>
+                  <View key={i} style={[r.chipGreen, { backgroundColor: '#FDEAE5', borderColor: '#F5C4B5' }]}>
+                    <Ionicons name="star-outline" size={11} color="#C0694A" />
+                    <Text style={[r.chipGreenTxt, { color: '#8B3A2A' }]}>{e}</Text>
                   </View>
                 ))}
               </View>
             </View>
           )}
 
-          {/* Sobre el especialista */}
-          <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="briefcase-outline" title="Sobre el especialista" colors={colors} />
-            {perfil.descripcion_servicio ? (
-              <Text style={[s.bodyText, { color: colors.textSecondary, marginBottom: SPACING.sm }]}>{perfil.descripcion_servicio}</Text>
-            ) : null}
-            <View style={s.chips}>
-              {perfil.nivel_formacion && <View style={[s.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}><Ionicons name="school-outline" size={13} color={colors.primary} /><Text style={[s.infoChipTxt, { color: colors.textSecondary }]}>{NIVEL_LABELS[perfil.nivel_formacion] || perfil.nivel_formacion}</Text></View>}
-              {perfil.modalidad_trabajo && <View style={[s.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}><Ionicons name="calendar-outline" size={13} color={colors.primary} /><Text style={[s.infoChipTxt, { color: colors.textSecondary }]}>{MODAL_LABELS[perfil.modalidad_trabajo] || perfil.modalidad_trabajo}</Text></View>}
-              {perfil.radio_cobertura && <View style={[s.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}><Ionicons name="navigate-outline" size={13} color={colors.primary} /><Text style={[s.infoChipTxt, { color: colors.textSecondary }]}>{RADIO_LABELS[perfil.radio_cobertura] || perfil.radio_cobertura}</Text></View>}
-              {perfil.titulo_certificacion && <View style={[s.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}><Ionicons name="ribbon-outline" size={13} color={colors.primary} /><Text style={[s.infoChipTxt, { color: colors.textSecondary }]}>{perfil.titulo_certificacion}</Text></View>}
-            </View>
-          </View>
-
           {/* Cultivos */}
           {espCultivos.length > 0 && (
-            <View style={[s.card, { backgroundColor: colors.surface }]}>
-              <SectionHeader icon="leaf-outline" title="Cultivos y producciones" colors={colors} />
-              <View style={s.chipWrap}>
+            <View style={[r.card, { backgroundColor: colors.surface }]}>
+              <View style={r.cardHeader}>
+                <LinearGradient colors={['#2E7D32','#43A047']} style={r.cardIconGrad}>
+                  <Ionicons name="leaf-outline" size={16} color="#fff" />
+                </LinearGradient>
+                <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Cultivos y producciones</Text>
+              </View>
+              <View style={r.chipRow}>
                 {espCultivos.map((c, i) => (
-                  <View key={i} style={[s.chipNeutral, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Text style={[s.chipNeutralTxt, { color: colors.textSecondary }]}>{c}</Text>
+                  <View key={i} style={[r.chipGreen, { backgroundColor: COLORS.primary + '15', borderColor: COLORS.primary + '30' }]}>
+                    <Ionicons name="leaf" size={11} color={COLORS.primary} />
+                    <Text style={[r.chipGreenTxt, { color: COLORS.primary }]}>{c}</Text>
                   </View>
                 ))}
               </View>
@@ -372,12 +411,33 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
 
           {/* Fotos de trabajo */}
           {espFotos.length > 0 && (
-            <View style={[s.card, { backgroundColor: colors.surface }]}>
-              <SectionHeader icon="images-outline" title="Fotos de trabajo" colors={colors} />
-              <FotosTrabajoGrid fotos={espFotos} colors={colors} />
+            <View style={[r.card, { backgroundColor: colors.surface }]}>
+              <View style={r.cardHeader}>
+                <LinearGradient colors={['#B45309','#D97706']} style={r.cardIconGrad}>
+                  <Ionicons name="images-outline" size={16} color="#fff" />
+                </LinearGradient>
+                <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Fotos de trabajo</Text>
+              </View>
+              <View style={r.fotosGrid}>
+                {espFotos.map((f, i) => (
+                  <TouchableOpacity key={f.id || i} onPress={() => setFotoPreview(f.url)} activeOpacity={0.88} style={r.fotoWrap}>
+                    <Image source={{ uri: f.url }} style={r.fotoImg} />
+                    <LinearGradient colors={['transparent','rgba(0,0,0,0.35)']} style={r.fotoOverlay} />
+                    <Ionicons name="expand-outline" size={14} color="rgba(255,255,255,0.9)" style={r.fotoExpandIcon} />
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
         </ScrollView>
+
+        {/* Preview foto fullscreen */}
+        <Modal visible={!!fotoPreview} transparent animationType="fade" onRequestClose={() => setFotoPreview(null)}>
+          <Pressable style={r.fotoModal} onPress={() => setFotoPreview(null)}>
+            {fotoPreview && <Image source={{ uri: fotoPreview }} style={r.fotoModalImg} resizeMode="contain" />}
+            <Text style={r.fotoModalHint}>Toca para cerrar</Text>
+          </Pressable>
+        </Modal>
 
         {/* Footer CTA */}
         {estadoActual === 'aceptada' ? (
@@ -411,7 +471,6 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   }
 
   const fotosTrabajo = perfil.fotos_trabajo || [];
-  const [fotoPreview, setFotoPreview] = useState(null);
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
