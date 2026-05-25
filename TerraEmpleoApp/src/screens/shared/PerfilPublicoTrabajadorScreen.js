@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-  ActivityIndicator, Linking, Pressable, Alert, Share, Dimensions, Modal,
+  ActivityIndicator, Linking, Pressable, Alert, Share, Dimensions, Modal, ImageBackground,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -85,7 +86,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const [enviandoSolicitud, setEnviandoSolicitud] = useState(false);
   const [estadoActual, setEstadoActual] = useState(postulacion_estado || null);
   const insets = useSafeAreaInsets();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
 
   useEffect(() => {
     cargarPerfil();
@@ -409,267 +410,251 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     );
   }
 
+  const fotosTrabajo = perfil.fotos_trabajo || [];
+  const [fotoPreview, setFotoPreview] = useState(null);
+
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: hasFooter ? 110 : 32 }}
-      >
-        {/* Top bar */}
-              <View style={[s.topBar, { paddingTop: insets.top + SPACING.sm, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-          <AnimatedPressable style={[s.iconBtn, { backgroundColor: colors.surface }]} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
-          </AnimatedPressable>
-          <Text style={[s.topBarTitle, { color: colors.textPrimary }]}>Perfil del Candidato</Text>
-          <View style={s.iconBtn} />
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: hasFooter ? 120 : 40 }}>
 
-        {/* HERO — avatar + identidad */}
-        <View style={[s.hero, { backgroundColor: colors.surface }]}>
-          {/* Avatar */}
-          <View style={s.avatarWrap}>
-            {perfil.foto_selfie && perfil.foto_selfie.startsWith('http') ? (
-              <Image source={{ uri: perfil.foto_selfie }} style={[s.avatar, { borderColor: colors.primary }]} />
-            ) : (
-              <View style={[s.avatarFallback, { borderColor: colors.primary, backgroundColor: colors.primary + '1A' }]}>
-                <Text style={[s.initials, { color: colors.primary }]}>{initials}</Text>
-              </View>
-            )}
-            {perfil.validacion_identidad_estado === 'aprobada' && (
-              <View style={[s.verifiedBadge, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
-                <Ionicons name="checkmark" size={12} color="#fff" />
-              </View>
-            )}
-          </View>
+        {/* ── HERO CON GRADIENTE ── */}
+        <View style={r.heroOuter}>
+          <LinearGradient colors={['#1B5E20','#2E7D32','#43A047']} start={{x:0,y:0}} end={{x:1,y:1}} style={[r.heroGradient, { paddingTop: insets.top + 12 }]}>
+            {/* Back btn */}
+            <AnimatedPressable style={r.backBtn} onPress={() => navigation.goBack()}>
+              <Ionicons name="arrow-back" size={20} color="#fff" />
+            </AnimatedPressable>
 
-          {/* Nombre */}
-          <Text style={[s.fullName, { color: colors.textPrimary }]}>{perfil.nombre_completo}</Text>
-
-          {/* Subtítulo: disponibilidad */}
-          {disponibilidad ? (
-            <Text style={[s.heroSubtitle, { color: colors.textSecondary }]}>{disponibilidad}</Text>
-          ) : null}
-
-          {/* Ubicación */}
-          {ubicacion ? (
-            <View style={s.metaRow}>
-              <Ionicons name="location-outline" size={14} color={colors.textMuted} />
-              <Text style={[s.metaText, { color: colors.textMuted }]}>{ubicacion}</Text>
+            {/* Avatar */}
+            <View style={r.avatarOuter}>
+              {perfil.foto_selfie?.startsWith('http') ? (
+                <Image source={{ uri: perfil.foto_selfie }} style={r.avatar} />
+              ) : (
+                <View style={[r.avatarFallback, { backgroundColor: '#fff2' }]}>
+                  <Text style={r.avatarInitials}>{initials}</Text>
+                </View>
+              )}
+              {perfil.validacion_identidad_estado === 'aprobada' && (
+                <View style={r.verBadge}><Ionicons name="checkmark" size={11} color="#fff" /></View>
+              )}
             </View>
-          ) : null}
 
-          {/* Disponibilidad chip verde */}
-          <View style={s.pillRow}>
-            <View style={[s.disponPill, { backgroundColor: COLORS.badgeActive }]}>
-              <View style={[s.disponDot, { backgroundColor: COLORS.badgeActiveText }]} />
-              <Text style={[s.disponPillTxt, { color: COLORS.badgeActiveText }]}>Disponible</Text>
-            </View>
-            {perfil.verificado_sms ? (
-              <View style={[s.verPill, { borderColor: colors.primary }]}>
-                <Ionicons name="shield-checkmark" size={13} color={colors.primary} />
-                <Text style={[s.verPillTxt, { color: colors.primary }]}>VERIFICADO</Text>
+            {/* Nombre */}
+            <Text style={r.heroName}>{perfil.nombre_completo}</Text>
+
+            {/* Ubicación */}
+            {ubicacion ? (
+              <View style={r.heroMeta}>
+                <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.8)" />
+                <Text style={r.heroMetaTxt}>{ubicacion}</Text>
               </View>
             ) : null}
-          </View>
 
-          {/* Stats row */}
-          <View style={[s.statsRow, { borderTopColor: colors.border }]}>
-            <View style={s.statItem}>
-              <Text style={[s.statNum, { color: colors.primary }]}>
-                {cal > 0 ? cal.toFixed(1) : '—'}
-              </Text>
-              <Text style={[s.statLabel, { color: colors.textMuted }]}>Calificación</Text>
+            {/* Pills */}
+            <View style={r.pillsRow}>
+              <View style={r.disponPill}>
+                <View style={r.disponDot} />
+                <Text style={r.disponTxt}>Disponible</Text>
+              </View>
+              {disponibilidad ? (
+                <View style={r.infoPill}>
+                  <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.9)" />
+                  <Text style={r.infoPillTxt}>{disponibilidad}</Text>
+                </View>
+              ) : null}
             </View>
-            <View style={[s.statDivider, { backgroundColor: colors.border }]} />
-            <View style={s.statItem}>
-              <Text style={[s.statNum, { color: colors.primary }]}>{totalCal}</Text>
-              <Text style={[s.statLabel, { color: colors.textMuted }]}>Reseñas</Text>
+          </LinearGradient>
+
+          {/* Stats flotantes */}
+          <View style={[r.statsCard, { backgroundColor: colors.surface }]}>
+            <View style={r.statItem}>
+              <View style={[r.statIcon, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="star" size={16} color="#D97706" />
+              </View>
+              <Text style={[r.statNum, { color: colors.textPrimary }]}>{cal > 0 ? cal.toFixed(1) : '—'}</Text>
+              <Text style={[r.statLbl, { color: colors.textMuted }]}>Calificación</Text>
             </View>
-            <View style={[s.statDivider, { backgroundColor: colors.border }]} />
-            <View style={s.statItem}>
-                    <Text style={[s.statNum, s.statNumExp, { color: colors.primary }]}> 
-                      {experiencia || '—'}
-              </Text>
-                    <Text style={[s.statLabel, { color: colors.textMuted }]}>Experiencia</Text>
+            <View style={[r.statDivider, { backgroundColor: colors.border }]} />
+            <View style={r.statItem}>
+              <View style={[r.statIcon, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="chatbubble-outline" size={16} color="#2563EB" />
+              </View>
+              <Text style={[r.statNum, { color: colors.textPrimary }]}>{totalCal}</Text>
+              <Text style={[r.statLbl, { color: colors.textMuted }]}>Reseñas</Text>
+            </View>
+            <View style={[r.statDivider, { backgroundColor: colors.border }]} />
+            <View style={r.statItem}>
+              <View style={[r.statIcon, { backgroundColor: '#D1FAE5' }]}>
+                <Ionicons name="briefcase-outline" size={16} color="#059669" />
+              </View>
+              <Text style={[r.statNum, { color: colors.textPrimary }]} numberOfLines={1}>{experiencia ? experiencia.split(' ')[0] + (experiencia.includes('año') ? ' años' : '') : '—'}</Text>
+              <Text style={[r.statLbl, { color: colors.textMuted }]}>Experiencia</Text>
             </View>
           </View>
         </View>
 
-        {/* Estrellas de calificación */}
-        {cal > 0 && (
-          <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="star-outline" title="Calificación" colors={colors} />
-            <View style={s.ratingWrap}>
-              <Text style={[s.ratingBig, { color: colors.primary }]}>{cal.toFixed(1)}</Text>
-              <View style={s.starsRow}>
-                {[1, 2, 3, 4, 5].map(i => (
-                  <Ionicons
-                    key={i}
-                    name={i <= Math.round(cal) ? 'star' : 'star-outline'}
-                    size={22}
-                    color={i <= Math.round(cal) ? COLORS.star : COLORS.starEmpty}
-                  />
-                ))}
-              </View>
-              <Text style={[s.ratingCnt, { color: colors.textMuted }]}>{totalCal} reseña{totalCal !== 1 ? 's' : ''}</Text>
+        {/* ── ACERCA DE ── */}
+        {acercaDe ? (
+          <View style={[r.card, { backgroundColor: colors.surface }]}>
+            <View style={r.cardHeader}>
+              <LinearGradient colors={['#2E7D32','#43A047']} style={r.cardIconGrad}>
+                <Ionicons name="person-circle-outline" size={16} color="#fff" />
+              </LinearGradient>
+              <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Acerca de</Text>
             </View>
-          </View>
-        )}
-
-        {/* Acerca de */}
-        <View style={[s.card, { backgroundColor: colors.surface }]}>
-          <SectionHeader icon="person-circle-outline" title="Acerca de" colors={colors} />
-          {acercaDe ? (
-            <Text style={[s.bodyText, { color: colors.textSecondary }]}>{acercaDe}</Text>
-          ) : (
-            <Text style={[s.bodyText, { color: colors.textMuted }]}>Este trabajador aún no ha agregado una descripción personal.</Text>
-          )}
-        </View>
-
-        {/* Hoja de vida */}
-        {perfil.hoja_vida_url ? (
-          <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="document-text-outline" title="Hoja de vida" colors={colors} />
-            <AnimatedPressable
-              style={[s.cvBtn, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}
-              onPress={abrirHojaVida}
-            >
-              <View style={[s.cvIconBox, { backgroundColor: colors.primary + '20' }]}>
-                <Ionicons name="document-text" size={20} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.cvTitle, { color: colors.textPrimary }]}>Ver hoja de vida</Text>
-                <Text style={[s.cvName, { color: colors.textMuted }]} numberOfLines={1}>
-                  {perfil.hoja_vida_nombre || 'Hoja de vida.pdf'}
-                </Text>
-              </View>
-              <Ionicons name="open-outline" size={18} color={colors.primary} />
-            </AnimatedPressable>
+            <Text style={[r.bodyText, { color: colors.textSecondary }]}>{acercaDe}</Text>
           </View>
         ) : null}
 
-        {/* Cultivos */}
-        {cultivos.length > 0 && (
-          <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="leaf-outline" title="Cultivos" colors={colors} />
-            <View style={s.chipWrap}>
-              {cultivos.map((c, i) => (
-                <View key={i} style={[s.chipGreen, { backgroundColor: colors.primary + '15' }]}>
-                  <Text style={[s.chipGreenTxt, { color: colors.primary }]}>{c}</Text>
+        {/* ── HOJA DE VIDA ── */}
+        {perfil.hoja_vida_url ? (
+          <AnimatedPressable onPress={abrirHojaVida} activeOpacity={0.88}>
+            <LinearGradient colors={['#1B5E20','#2E7D32']} start={{x:0,y:0}} end={{x:1,y:0}} style={r.cvCard}>
+              <View style={r.cvIconWrap}>
+                <Ionicons name="document-text" size={26} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={r.cvLabel}>Hoja de vida disponible</Text>
+                <Text style={r.cvName} numberOfLines={1}>{perfil.hoja_vida_nombre || 'Hoja de vida.pdf'}</Text>
+              </View>
+              <View style={r.cvArrow}>
+                <Ionicons name="open-outline" size={18} color="#fff" />
+              </View>
+            </LinearGradient>
+          </AnimatedPressable>
+        ) : null}
+
+        {/* ── CULTIVOS & HABILIDADES ── */}
+        {(cultivos.length > 0 || habilidades.length > 0) && (
+          <View style={[r.card, { backgroundColor: colors.surface }]}>
+            <View style={r.cardHeader}>
+              <LinearGradient colors={['#2E7D32','#43A047']} style={r.cardIconGrad}>
+                <Ionicons name="leaf-outline" size={16} color="#fff" />
+              </LinearGradient>
+              <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Cultivos y Habilidades</Text>
+            </View>
+            {cultivos.length > 0 && (
+              <>
+                <Text style={[r.chipGroupLabel, { color: colors.textMuted }]}>Cultivos</Text>
+                <View style={r.chipRow}>
+                  {cultivos.map((c, i) => (
+                    <View key={i} style={[r.chipGreen, { backgroundColor: COLORS.primary + '15', borderColor: COLORS.primary + '30' }]}>
+                      <Ionicons name="leaf" size={11} color={COLORS.primary} />
+                      <Text style={[r.chipGreenTxt, { color: COLORS.primary }]}>{c}</Text>
+                    </View>
+                  ))}
                 </View>
+              </>
+            )}
+            {habilidades.length > 0 && (
+              <>
+                <Text style={[r.chipGroupLabel, { color: colors.textMuted, marginTop: cultivos.length > 0 ? 10 : 0 }]}>Habilidades</Text>
+                <View style={r.chipRow}>
+                  {habilidades.map((h, i) => (
+                    <View key={i} style={[r.chipNeutral, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                      <Ionicons name="construct-outline" size={11} color={colors.textMuted} />
+                      <Text style={[r.chipNeutralTxt, { color: colors.textSecondary }]}>{h}</Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+          </View>
+        )}
+
+        {/* ── EXPERIENCIA Y FORMACIÓN ── */}
+        {(experiencia || estudios || perfil.titulo_estudio) && (
+          <View style={[r.card, { backgroundColor: colors.surface }]}>
+            <View style={r.cardHeader}>
+              <LinearGradient colors={['#1565C0','#1976D2']} style={r.cardIconGrad}>
+                <Ionicons name="briefcase-outline" size={16} color="#fff" />
+              </LinearGradient>
+              <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Experiencia y Formación</Text>
+            </View>
+            {experiencia && (
+              <View style={[r.expRow, { borderBottomColor: colors.border, borderBottomWidth: estudios || perfil.titulo_estudio ? 1 : 0 }]}>
+                <View style={[r.expDot, { backgroundColor: '#D1FAE5' }]}><Ionicons name="time-outline" size={15} color="#059669" /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[r.expLabel, { color: colors.textMuted }]}>Experiencia agrícola</Text>
+                  <Text style={[r.expValue, { color: colors.textPrimary }]}>{experiencia}</Text>
+                </View>
+              </View>
+            )}
+            {estudios && (
+              <View style={[r.expRow, { borderBottomColor: colors.border, borderBottomWidth: perfil.titulo_estudio ? 1 : 0 }]}>
+                <View style={[r.expDot, { backgroundColor: '#DBEAFE' }]}><Ionicons name="school-outline" size={15} color="#2563EB" /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[r.expLabel, { color: colors.textMuted }]}>Nivel de estudios</Text>
+                  <Text style={[r.expValue, { color: colors.textPrimary }]}>{estudios}</Text>
+                </View>
+              </View>
+            )}
+            {perfil.titulo_estudio && (
+              <View style={[r.expRow, { borderBottomWidth: 0 }]}>
+                <View style={[r.expDot, { backgroundColor: '#F3E8FF' }]}><Ionicons name="ribbon-outline" size={15} color="#7C3AED" /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[r.expLabel, { color: colors.textMuted }]}>Título</Text>
+                  <Text style={[r.expValue, { color: colors.textPrimary }]}>{perfil.titulo_estudio}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── FOTOS DE TRABAJO ── */}
+        {fotosTrabajo.length > 0 && (
+          <View style={[r.card, { backgroundColor: colors.surface }]}>
+            <View style={r.cardHeader}>
+              <LinearGradient colors={['#B45309','#D97706']} style={r.cardIconGrad}>
+                <Ionicons name="images-outline" size={16} color="#fff" />
+              </LinearGradient>
+              <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Fotos de trabajo</Text>
+              <Text style={[r.chipGroupLabel, { color: colors.textMuted, marginLeft: 'auto', marginBottom: 0 }]}>{fotosTrabajo.length} foto{fotosTrabajo.length !== 1 ? 's' : ''}</Text>
+            </View>
+            <View style={r.fotosGrid}>
+              {fotosTrabajo.map((f, i) => (
+                <TouchableOpacity key={f.id || i} onPress={() => setFotoPreview(f.url)} activeOpacity={0.88} style={r.fotoWrap}>
+                  <Image source={{ uri: f.url }} style={r.fotoImg} />
+                  <LinearGradient colors={['transparent','rgba(0,0,0,0.35)']} style={r.fotoOverlay} />
+                  <Ionicons name="expand-outline" size={14} color="rgba(255,255,255,0.9)" style={r.fotoExpandIcon} />
+                </TouchableOpacity>
               ))}
             </View>
           </View>
         )}
 
-        {/* Habilidades */}
-        {habilidades.length > 0 && (
-          <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="construct-outline" title="Habilidades" colors={colors} />
-            <View style={s.chipWrap}>
-              {habilidades.map((h, i) => (
-                <View key={i} style={[s.chipNeutral, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <Text style={[s.chipNeutralTxt, { color: colors.textSecondary }]}>{h}</Text>
-                </View>
-              ))}
-            </View>
+        {/* ── DISPONIBILIDAD & UBICACIÓN ── */}
+        <View style={[r.card, { backgroundColor: colors.surface }]}>
+          <View style={r.cardHeader}>
+            <LinearGradient colors={['#0F766E','#0D9488']} style={r.cardIconGrad}>
+              <Ionicons name="information-circle-outline" size={16} color="#fff" />
+            </LinearGradient>
+            <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Información</Text>
           </View>
-        )}
-
-        {/* Experiencia y formación */}
-        {(experiencia || estudios) && (
-          <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="briefcase-outline" title="Experiencia y Formación" colors={colors} />
-            {experiencia ? (
-              <View style={[s.infoRow, { borderBottomColor: colors.border }]}>
-                <View style={[s.infoIconBox, { backgroundColor: colors.primary + '15' }]}>
-                  <Ionicons name="time-outline" size={18} color={colors.primary} />
-                </View>
-                <View style={s.infoContent}>
-                  <Text style={[s.infoLabel, { color: colors.textMuted }]}>Experiencia agrícola</Text>
-                  <Text style={[s.infoValue, { color: colors.textPrimary }]}>{experiencia}</Text>
-                </View>
+          <View style={r.infoGrid}>
+            {ubicacion ? (
+              <View style={[r.infoChip, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Ionicons name="location-outline" size={14} color={COLORS.primary} />
+                <Text style={[r.infoChipTxt, { color: colors.textSecondary }]}>{ubicacion}</Text>
               </View>
             ) : null}
-            {estudios ? (
-              <View style={[s.infoRow, { borderBottomColor: perfil.titulo_estudio ? colors.border : 'transparent' }]}>
-                <View style={[s.infoIconBox, { backgroundColor: colors.primary + '15' }]}>
-                  <Ionicons name="school-outline" size={18} color={colors.primary} />
-                </View>
-                <View style={s.infoContent}>
-                  <Text style={[s.infoLabel, { color: colors.textMuted }]}>Nivel de estudios</Text>
-                  <Text style={[s.infoValue, { color: colors.textPrimary }]}>{estudios}</Text>
-                </View>
+            {disponibilidad ? (
+              <View style={[r.infoChip, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Ionicons name="calendar-outline" size={14} color={COLORS.primary} />
+                <Text style={[r.infoChipTxt, { color: colors.textSecondary }]}>{disponibilidad}</Text>
               </View>
             ) : null}
-            {perfil.titulo_estudio ? (
-              <View style={[s.infoRow, { borderBottomColor: 'transparent' }]}>
-                <View style={[s.infoIconBox, { backgroundColor: colors.primary + '15' }]}>
-                  <Ionicons name="ribbon-outline" size={18} color={colors.primary} />
-                </View>
-                <View style={s.infoContent}>
-                  <Text style={[s.infoLabel, { color: colors.textMuted }]}>Título</Text>
-                  <Text style={[s.infoValue, { color: colors.textPrimary }]}>{perfil.titulo_estudio}</Text>
-                </View>
-              </View>
-            ) : null}
-          </View>
-        )}
-
-        {/* Info extra: ubicación y disponibilidad */}
-        <View style={[s.card, { backgroundColor: colors.surface }]}>
-          <SectionHeader icon="information-circle-outline" title="Información" colors={colors} />
-          {ubicacion ? (
-            <View style={[s.infoRow, { borderBottomColor: colors.border }]}>
-              <View style={[s.infoIconBox, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="location-outline" size={18} color={colors.primary} />
-              </View>
-              <View style={s.infoContent}>
-                <Text style={[s.infoLabel, { color: colors.textMuted }]}>Ubicación</Text>
-                <Text style={[s.infoValue, { color: colors.textPrimary }]}>{ubicacion}</Text>
-              </View>
-            </View>
-          ) : null}
-          {disponibilidad ? (
-            <View style={[s.infoRow, { borderBottomColor: 'transparent' }]}>
-              <View style={[s.infoIconBox, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-              </View>
-              <View style={s.infoContent}>
-                <Text style={[s.infoLabel, { color: colors.textMuted }]}>Disponibilidad</Text>
-                <Text style={[s.infoValue, { color: colors.textPrimary }]}>{disponibilidad}</Text>
-              </View>
-            </View>
-          ) : null}
-        </View>
-
-        {/* Fotos de trabajo */}
-        {(perfil.fotos_trabajo || []).length > 0 && (
-          <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="images-outline" title="Fotos de trabajo" colors={colors} />
-            <FotosTrabajoGrid fotos={perfil.fotos_trabajo} colors={colors} />
-          </View>
-        )}
-
-        {/* Documentación verificada */}
-        <View style={[s.card, { backgroundColor: colors.surface }]}>
-          <SectionHeader icon="shield-checkmark-outline" title="Documentación Verificada" colors={colors} />
-          <View style={[s.docItem, { borderColor: colors.border }]}>
-            <View style={[s.docIconBox, { backgroundColor: colors.primary + '15' }]}>
-              <Ionicons name="card-outline" size={18} color={colors.primary} />
-            </View>
-            <Text style={[s.docText, { color: colors.textPrimary }]}>Cédula de Ciudadanía</Text>
-            <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-          </View>
-          <View style={[s.docItem, { borderColor: colors.border }]}>
-            <View style={[s.docIconBox, { backgroundColor: colors.primary + '15' }]}>
-              <Ionicons name="ribbon-outline" size={18} color={colors.primary} />
-            </View>
-            <Text style={[s.docText, { color: colors.textPrimary }]}>Certificados de Competencia</Text>
-            <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
           </View>
         </View>
       </ScrollView>
+
+      {/* Preview foto fullscreen */}
+      <Modal visible={!!fotoPreview} transparent animationType="fade" onRequestClose={() => setFotoPreview(null)}>
+        <Pressable style={r.fotoModal} onPress={() => setFotoPreview(null)}>
+          {fotoPreview && <Image source={{ uri: fotoPreview }} style={r.fotoModalImg} resizeMode="contain" />}
+          <Text style={r.fotoModalHint}>Toca para cerrar</Text>
+        </Pressable>
+      </Modal>
 
       {/* Footer actions */}
       {isPendiente && (
@@ -723,6 +708,65 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     </View>
   );
 }
+
+// ── Estilos del rediseño del perfil público trabajador ──
+const FOTO_W = (W - SPACING.md * 2 - SPACING.sm) / 2;
+const r = StyleSheet.create({
+  heroOuter: { marginBottom: SPACING.md },
+  heroGradient: { paddingHorizontal: SPACING.md, paddingBottom: 70, alignItems: 'center' },
+  backBtn: { alignSelf: 'flex-start', width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.md },
+  avatarOuter: { position: 'relative', marginBottom: SPACING.sm },
+  avatar: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: '#fff' },
+  avatarFallback: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: 'rgba(255,255,255,0.5)', justifyContent: 'center', alignItems: 'center' },
+  avatarInitials: { fontSize: 32, fontWeight: '800', color: '#fff' },
+  verBadge: { position: 'absolute', bottom: 2, right: 2, width: 24, height: 24, borderRadius: 12, backgroundColor: '#16A34A', borderWidth: 2, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+  heroName: { fontSize: 24, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 4 },
+  heroMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: SPACING.sm },
+  heroMetaTxt: { fontSize: 13, color: 'rgba(255,255,255,0.85)' },
+  pillsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  disponPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 5 },
+  disponDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ADE80' },
+  disponTxt: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  infoPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 5 },
+  infoPillTxt: { fontSize: 12, color: 'rgba(255,255,255,0.9)' },
+  statsCard: { marginHorizontal: SPACING.md, marginTop: -44, borderRadius: RADIUS.xl, padding: SPACING.md, flexDirection: 'row', ...SHADOWS.card },
+  statItem: { flex: 1, alignItems: 'center', gap: 4 },
+  statIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
+  statNum: { fontSize: 15, fontWeight: '800' },
+  statLbl: { fontSize: 11, fontWeight: '500' },
+  statDivider: { width: 1, height: 48, alignSelf: 'center' },
+  card: { marginHorizontal: SPACING.md, marginBottom: SPACING.sm, borderRadius: RADIUS.xl, padding: SPACING.md, ...SHADOWS.card },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.md },
+  cardIconGrad: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '800' },
+  bodyText: { fontSize: 14, lineHeight: 22 },
+  cvCard: { marginHorizontal: SPACING.md, marginBottom: SPACING.sm, borderRadius: RADIUS.xl, padding: SPACING.md, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  cvIconWrap: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  cvLabel: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  cvName: { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
+  cvArrow: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  chipGroupLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  chipGreen: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
+  chipGreenTxt: { fontSize: 12, fontWeight: '600' },
+  chipNeutral: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
+  chipNeutralTxt: { fontSize: 12, fontWeight: '500' },
+  expRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingVertical: SPACING.sm },
+  expDot: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  expLabel: { fontSize: 11, fontWeight: '600', marginBottom: 2 },
+  expValue: { fontSize: 14, fontWeight: '700' },
+  fotosGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  fotoWrap: { width: FOTO_W, height: FOTO_W * 0.75, borderRadius: RADIUS.lg, overflow: 'hidden', position: 'relative' },
+  fotoImg: { width: '100%', height: '100%' },
+  fotoOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%' },
+  fotoExpandIcon: { position: 'absolute', bottom: 6, right: 6 },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  infoChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.lg, borderWidth: 1 },
+  infoChipTxt: { fontSize: 13, fontWeight: '500' },
+  fotoModal: { flex: 1, backgroundColor: 'rgba(0,0,0,0.93)', justifyContent: 'center', alignItems: 'center' },
+  fotoModalImg: { width: W - 24, height: W - 24, borderRadius: RADIUS.lg },
+  fotoModalHint: { color: 'rgba(255,255,255,0.45)', marginTop: 16, fontSize: 13 },
+});
 
 const s = StyleSheet.create({
   root: { flex: 1 },
