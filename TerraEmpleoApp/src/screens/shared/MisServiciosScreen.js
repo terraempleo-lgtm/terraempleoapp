@@ -46,6 +46,7 @@ export default function MisServiciosScreen({ navigation }) {
     } catch (e) {
       const d = e?.response?.data;
       const msg = `${e?.response?.status} - ${d?.error || e?.message} | ${d?.detail || ''} | code: ${d?.code || ''}`;
+      console.error('Error cargando servicios:', msg, e);
       Alert.alert('Error cargando servicios', msg);
     } finally {
       setCargando(false);
@@ -103,7 +104,14 @@ export default function MisServiciosScreen({ navigation }) {
   };
 
   const archivar = (item) => {
-    const nuevaAction = item.activo ? 'archivar' : 'activar';
+    const confirmar = () => {
+      serviciosAPI.archivar(item.id, item.activo ? 0 : 1)
+        .then(() => cargar())
+        .catch((e) => {
+          const msg = e?.response?.data?.error || e?.response?.data?.detail || e?.message || 'No se pudo actualizar';
+          Alert.alert('Error al archivar', `${e?.response?.status || ''} ${msg}`);
+        });
+    };
     Alert.alert(
       item.activo ? 'Archivar servicio' : 'Activar servicio',
       item.activo
@@ -111,25 +119,23 @@ export default function MisServiciosScreen({ navigation }) {
         : '¿Activar este servicio para que aparezca en el feed de empleadores?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: item.activo ? 'Archivar' : 'Activar', onPress: async () => {
-          await serviciosAPI.archivar(item.id, item.activo ? 0 : 1);
-          cargar();
-        }},
+        { text: item.activo ? 'Archivar' : 'Activar', onPress: confirmar },
       ]
     );
   };
 
   const eliminar = (id) => {
+    const confirmar = () => {
+      serviciosAPI.eliminar(id)
+        .then(() => cargar())
+        .catch((e) => {
+          const msg = e?.response?.data?.error || e?.response?.data?.detail || e?.message || 'No se pudo eliminar';
+          Alert.alert('Error al eliminar', `${e?.response?.status || ''} ${msg}`);
+        });
+    };
     Alert.alert('Eliminar servicio', '¿Estás seguro? Esta acción no se puede deshacer.', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        try {
-          await serviciosAPI.eliminar(id);
-          cargar();
-        } catch (e) {
-          Alert.alert('Error', e?.response?.data?.error || 'No se pudo eliminar');
-        }
-      }},
+      { text: 'Eliminar', style: 'destructive', onPress: confirmar },
     ]);
   };
 
