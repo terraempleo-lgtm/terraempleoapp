@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { vacantesAPI, notificacionesAPI, authAPI, trabajadoresAPI, especialistasAPI } from '../../services/api';
+import { vacantesAPI, notificacionesAPI, authAPI, trabajadoresAPI, especialistasAPI, serviciosAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import CamaraFoto from '../../components/CamaraFoto';
@@ -370,6 +370,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
   const [estadoVerif, setEstadoVerif] = useState(user?.validacion_identidad_estado || 'pendiente');
   const [trabajadores, setTrabajadores] = useState([]);
   const [especialistas, setEspecialistas] = useState([]);
+  const [servicios, setServicios] = useState([]);
   const [enviandoContactoId, setEnviandoContactoId] = useState(null);
   const [contactosEstado, setContactosEstado] = useState({});
   const [vacanteActiva, setVacanteActiva] = useState(null);
@@ -415,10 +416,11 @@ export default function EmpleadorVacantesScreen({ navigation }) {
 
   const cargar = useCallback(async () => {
     try {
-      const [resVac, resTrab, resEsp] = await Promise.allSettled([
+      const [resVac, resTrab, resEsp, resSrv] = await Promise.allSettled([
         vacantesAPI.misVacantes(),
         trabajadoresAPI.listar({ orden: 'match', limit: 10 }),
         especialistasAPI.listar({ limit: 6 }),
+        serviciosAPI.listar(),
       ]);
       const misVac = resVac.status === 'fulfilled' ? (resVac.value.data.vacantes || []) : [];
       setVacantes(misVac);
@@ -432,6 +434,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
         setContactosEstado(prev => ({ ...est, ...prev }));
       }
       if (resEsp.status === 'fulfilled') setEspecialistas(resEsp.value.data?.especialistas || []);
+      if (resSrv.status === 'fulfilled') setServicios(resSrv.value.data?.servicios || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -846,6 +849,50 @@ export default function EmpleadorVacantesScreen({ navigation }) {
                 <Text style={[talentStyles.infoCardDesc, { color: '#2E7D32' }]}>Ingenieros, tecnólogos, técnicos y recolectores disponibles para trabajar en tu finca.</Text>
               </View>
             </View>
+
+            {/* Servicios de especialistas — scroll horizontal */}
+            {servicios.length > 0 && (
+              <View style={{ marginBottom: SPACING.md }}>
+                <View style={talentStyles.subHeader}>
+                  <View style={[talentStyles.espBadge, { backgroundColor: '#FFF3E0' }]}>
+                    <Ionicons name="briefcase" size={11} color="#E65100" />
+                    <Text style={[talentStyles.espBadgeText, { color: '#E65100' }]}>Servicios de especialistas</Text>
+                  </View>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={talentStyles.hScroll}>
+                  {servicios.slice(0, 8).map((srv) => (
+                    <TouchableOpacity
+                      key={srv.id}
+                      activeOpacity={0.85}
+                      onPress={() => navigation.navigate('Trabajadores', { screen: 'DetalleServicio', params: { servicio_id: srv.id } })}
+                      style={{ width: 220, marginRight: SPACING.sm, borderRadius: RADIUS.lg, overflow: 'hidden', backgroundColor: colors.surface, ...SHADOWS.sm }}
+                    >
+                      {srv.fotos?.[0]?.url ? (
+                        <Image source={{ uri: srv.fotos[0].url }} style={{ width: '100%', height: 110, backgroundColor: '#ddd' }} resizeMode="cover" />
+                      ) : (
+                        <View style={{ width: '100%', height: 110, backgroundColor: '#C8884A', alignItems: 'center', justifyContent: 'center' }}>
+                          <Ionicons name="briefcase-outline" size={32} color="#fff" />
+                        </View>
+                      )}
+                      <View style={{ padding: SPACING.sm }}>
+                        <Text style={{ fontWeight: '700', fontSize: 13, color: colors.textPrimary, marginBottom: 2 }} numberOfLines={1}>{srv.titulo}</Text>
+                        <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 4 }} numberOfLines={1}>{srv.nombre_completo}</Text>
+                        {srv.cultivos?.length > 0 && (
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                            {srv.cultivos.slice(0, 2).map((c, i) => (
+                              <View key={i} style={{ backgroundColor: '#FFF3E0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                                <Text style={{ fontSize: 10, color: '#E65100' }}>{c}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                        {srv.modalidad ? <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>{srv.modalidad}</Text> : null}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
 
             {/* Especialistas — scroll horizontal */}
             {especialistas.length > 0 && (
