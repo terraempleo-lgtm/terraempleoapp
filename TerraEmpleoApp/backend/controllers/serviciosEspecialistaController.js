@@ -23,7 +23,8 @@ async function listarServicios(req, res) {
       SELECT s.id, s.titulo, s.descripcion, s.cultivos, s.precio_desde, s.precio_hasta,
              s.modalidad, s.activo, s.created_at,
              u.id as especialista_id, u.nombre_completo, u.foto_selfie, u.celular,
-             pe.titulo_profesional, pe.municipio, pe.departamento
+             u.municipio, u.departamento,
+             pe.titulo_certificacion, pe.nivel_formacion, pe.anios_experiencia
       FROM servicios_especialista s
       JOIN usuarios u ON u.id = s.especialista_id
       LEFT JOIN perfil_especialista pe ON pe.usuario_id = u.id
@@ -77,7 +78,8 @@ async function detalleServicio(req, res) {
       SELECT s.id, s.titulo, s.descripcion, s.cultivos, s.precio_desde, s.precio_hasta,
              s.modalidad, s.activo, s.created_at,
              u.id as especialista_id, u.nombre_completo, u.foto_selfie, u.celular,
-             pe.titulo_profesional, pe.municipio, pe.departamento, pe.calificacion_promedio
+             u.municipio, u.departamento,
+             pe.titulo_certificacion, pe.nivel_formacion, pe.anios_experiencia
       FROM servicios_especialista s
       JOIN usuarios u ON u.id = s.especialista_id
       LEFT JOIN perfil_especialista pe ON pe.usuario_id = u.id
