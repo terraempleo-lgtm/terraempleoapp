@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -10,32 +10,25 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import AnimatedPressable from './AnimatedPressable';
-import { COLORS, FONTS, ANIMATION } from '../../theme';
+import { COLORS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
 
-const TAB_BAR_HEIGHT = 65;
-
-const TabItem = ({ route, isFocused, onPress, onLongPress, iconName, label, colors, badge }) => {
+const TabItem = ({ isFocused, onPress, onLongPress, iconName, label, colors, badge }) => {
   const scale = useSharedValue(1);
-  const translateY = useSharedValue(0);
+  const bgOpacity = useSharedValue(0);
 
   useEffect(() => {
-    if (isFocused) {
-      scale.value = withSpring(1.1, ANIMATION.spring.bouncy);
-      translateY.value = withSpring(-2, ANIMATION.spring.gentle);
-    } else {
-      scale.value = withSpring(1, ANIMATION.spring.gentle);
-      translateY.value = withSpring(0, ANIMATION.spring.gentle);
-    }
+    scale.value = withSpring(isFocused ? 1.12 : 1, { damping: 14, stiffness: 200 });
+    bgOpacity.value = withTiming(isFocused ? 1 : 0, { duration: 180 });
   }, [isFocused]);
 
   const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }, { translateY: translateY.value }],
+    transform: [{ scale: scale.value }],
   }));
 
-  const dotStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(isFocused ? 1 : 0, { duration: ANIMATION.duration.fast }),
-    transform: [{ scale: withSpring(isFocused ? 1 : 0.5, ANIMATION.spring.bouncy) }],
+  const pillStyle = useAnimatedStyle(() => ({
+    opacity: bgOpacity.value,
+    transform: [{ scaleX: withSpring(isFocused ? 1 : 0.6, { damping: 16 }) }],
   }));
 
   return (
@@ -44,34 +37,34 @@ const TabItem = ({ route, isFocused, onPress, onLongPress, iconName, label, colo
       onLongPress={onLongPress}
       haptic={true}
       hapticStyle={Haptics.ImpactFeedbackStyle.Light}
-      scaleValue={0.92}
+      scaleValue={0.9}
       style={styles.tabItem}
     >
-      <View style={{ position: 'relative' }}>
+      <View style={styles.iconWrap}>
+        {/* Pill background for active */}
+        <Animated.View style={[styles.activePill, { backgroundColor: COLORS.primary + '20' }, pillStyle]} />
+
         <Animated.View style={iconStyle}>
           <Ionicons
             name={iconName}
-            size={24}
+            size={22}
             color={isFocused ? colors.primary : colors.textMuted}
           />
         </Animated.View>
+
         {badge ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
           </View>
         ) : null}
       </View>
-      <Animated.Text
-        style={[
-          styles.tabLabel,
-          { color: isFocused ? colors.primary : colors.textMuted },
-          isFocused && styles.tabLabelActive,
-        ]}
+
+      <Text
+        style={[styles.tabLabel, { color: isFocused ? colors.primary : colors.textMuted }]}
         numberOfLines={1}
       >
         {label}
-      </Animated.Text>
-      <Animated.View style={[styles.activeDot, dotStyle]} />
+      </Text>
     </AnimatedPressable>
   );
 };
@@ -79,17 +72,21 @@ const TabItem = ({ route, isFocused, onPress, onLongPress, iconName, label, colo
 const AnimatedTabBar = ({ state, descriptors, navigation }) => {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 10 : 6);
+  const bottomInset = insets.bottom || (Platform.OS === 'ios' ? 16 : 8);
 
   return (
     <View style={[
-      styles.container,
-      {
-        backgroundColor: isDark ? '#0f201a' : COLORS.white,
-        borderTopColor: isDark ? '#1f3a30' : COLORS.borderLight,
-      },
+      styles.outerContainer,
+      { paddingBottom: bottomInset, backgroundColor: 'transparent' },
     ]}>
-      <View style={[styles.tabBar, { paddingBottom: bottomInset, height: TAB_BAR_HEIGHT + bottomInset }] }>
+      <View style={[
+        styles.container,
+        {
+          backgroundColor: isDark ? '#0f201aee' : '#ffffffee',
+          borderColor: isDark ? '#1f3a3044' : '#e5e7eb88',
+          shadowColor: isDark ? '#000' : '#2E7D32',
+        },
+      ]}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const label = options.tabBarLabel ?? options.title ?? route.name;
@@ -101,41 +98,32 @@ const AnimatedTabBar = ({ state, descriptors, navigation }) => {
               target: route.key,
               canPreventDefault: true,
             });
-
             if (!isFocused && !event.defaultPrevented) {
               navigation.navigate(route.name, route.params);
             }
           };
 
           const onLongPress = () => {
-            navigation.emit({
-              type: 'tabLongPress',
-              target: route.key,
-            });
+            navigation.emit({ type: 'tabLongPress', target: route.key });
           };
 
-          let iconName;
+          let iconName = 'ellipse';
           const tabBarIcon = options.tabBarIcon;
           if (tabBarIcon) {
-            const iconResult = tabBarIcon({ focused: isFocused, color: colors.primary, size: 24 });
+            const iconResult = tabBarIcon({ focused: isFocused, color: colors.primary, size: 22 });
             iconName = iconResult?.props?.name || 'ellipse';
-          } else {
-            iconName = 'ellipse';
           }
-
-          const badge = options.tabBarBadge;
 
           return (
             <TabItem
               key={route.key}
-              route={route}
               isFocused={isFocused}
               onPress={onPress}
               onLongPress={onLongPress}
               iconName={iconName}
               label={label}
               colors={colors}
-              badge={badge}
+              badge={options.tabBarBadge}
             />
           );
         })}
@@ -145,66 +133,71 @@ const AnimatedTabBar = ({ state, descriptors, navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    backgroundColor: 'transparent',
+  },
   container: {
-    position: 'relative',
-    zIndex: 40,
-    backgroundColor: COLORS.white,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
+    flexDirection: 'row',
+    width: '100%',
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
       },
-      android: {
-        elevation: 16,
-      },
+      android: { elevation: 12 },
+      web: { boxShadow: '0 4px 20px rgba(46,125,50,0.10)' },
     }),
-  },
-  tabBar: {
-    flexDirection: 'row',
-    height: TAB_BAR_HEIGHT,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 8,
-    paddingTop: 6,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 4,
     gap: 2,
   },
+  iconWrap: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 44,
+    height: 32,
+  },
+  activePill: {
+    position: 'absolute',
+    width: 44,
+    height: 32,
+    borderRadius: 16,
+  },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
-    marginTop: 2,
-  },
-  tabLabelActive: {
-    fontWeight: '700',
-  },
-  activeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: COLORS.primary,
-    marginTop: 2,
   },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -8,
+    top: -2,
+    right: 0,
     backgroundColor: '#E53935',
     borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    minWidth: 16,
+    height: 16,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
-    borderWidth: 2,
-    borderColor: COLORS.white,
+    borderWidth: 1.5,
+    borderColor: '#fff',
   },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  badgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
 });
 
 export default AnimatedTabBar;

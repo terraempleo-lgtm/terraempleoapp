@@ -176,6 +176,7 @@ const tabScreenOptions = ({ route }) => ({
   tabBarActiveTintColor: COLORS.primary,
   tabBarInactiveTintColor: COLORS.textLight,
   tabBar: (props) => <AnimatedTabBar {...props} />,
+  tabBarStyle: { position: 'absolute' },
   headerShown: false,
 });
 
