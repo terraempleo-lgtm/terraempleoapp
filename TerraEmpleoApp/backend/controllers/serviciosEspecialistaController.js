@@ -57,7 +57,7 @@ async function misServicios(req, res) {
     res.json({ servicios });
   } catch (err) {
     console.error('Error listando mis servicios:', err);
-    res.status(500).json({ error: 'Error interno' });
+    res.status(500).json({ error: 'Error interno', detail: err.message, code: err.code });
   }
 }
 

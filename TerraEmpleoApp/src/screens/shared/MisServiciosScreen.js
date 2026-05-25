@@ -45,7 +45,8 @@ export default function MisServiciosScreen({ navigation }) {
       Alert.alert('Debug', `Status: ${res.status} | Servicios: ${res.data?.servicios?.length ?? 'null'} | Data: ${JSON.stringify(res.data).slice(0,200)}`);
       setServicios(res.data.servicios || []);
     } catch (e) {
-      const msg = `${e?.response?.status} - ${e?.response?.data?.error || e?.message || 'Error desconocido'}`;
+      const d = e?.response?.data;
+      const msg = `${e?.response?.status} - ${d?.error || e?.message} | ${d?.detail || ''} | code: ${d?.code || ''}`;
       Alert.alert('Error cargando servicios', msg);
     } finally {
       setCargando(false);
