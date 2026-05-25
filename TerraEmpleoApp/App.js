@@ -436,6 +436,8 @@ function EmpleadorVacantesStack() {
           options={{ title: 'Explorar ofertas' }} />
         <Stack.Screen name="DetalleVacanteReferencia" component={DetalleVacanteReferenciaScreen}
           options={{ title: 'Detalle de referencia' }} />
+        <Stack.Screen name="DetalleServicio" component={DetalleServicioScreen}
+          options={{ headerShown: false }} />
       </Stack.Navigator>
     </S>
   );

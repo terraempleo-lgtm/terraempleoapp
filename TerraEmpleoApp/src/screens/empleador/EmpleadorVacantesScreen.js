@@ -850,7 +850,7 @@ export default function EmpleadorVacantesScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Servicios de especialistas — scroll horizontal */}
+            {/* Servicios de especialistas — cards estilo Airbnb */}
             {servicios.length > 0 && (
               <View style={{ marginBottom: SPACING.md }}>
                 <View style={talentStyles.subHeader}>
@@ -859,37 +859,60 @@ export default function EmpleadorVacantesScreen({ navigation }) {
                     <Text style={[talentStyles.espBadgeText, { color: '#E65100' }]}>Servicios de especialistas</Text>
                   </View>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={talentStyles.hScroll}>
-                  {servicios.slice(0, 8).map((srv) => (
-                    <TouchableOpacity
-                      key={srv.id}
-                      activeOpacity={0.85}
-                      onPress={() => navigation.navigate('Trabajadores', { screen: 'DetalleServicio', params: { servicio_id: srv.id } })}
-                      style={{ width: 220, marginRight: SPACING.sm, borderRadius: RADIUS.lg, overflow: 'hidden', backgroundColor: colors.surface, ...SHADOWS.sm }}
-                    >
-                      {srv.fotos?.[0]?.url ? (
-                        <Image source={{ uri: srv.fotos[0].url }} style={{ width: '100%', height: 110, backgroundColor: '#ddd' }} resizeMode="cover" />
-                      ) : (
-                        <View style={{ width: '100%', height: 110, backgroundColor: '#C8884A', alignItems: 'center', justifyContent: 'center' }}>
-                          <Ionicons name="briefcase-outline" size={32} color="#fff" />
-                        </View>
-                      )}
-                      <View style={{ padding: SPACING.sm }}>
-                        <Text style={{ fontWeight: '700', fontSize: 13, color: colors.textPrimary, marginBottom: 2 }} numberOfLines={1}>{srv.titulo}</Text>
-                        <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 4 }} numberOfLines={1}>{srv.nombre_completo}</Text>
-                        {srv.cultivos?.length > 0 && (
-                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-                            {srv.cultivos.slice(0, 2).map((c, i) => (
-                              <View key={i} style={{ backgroundColor: '#FFF3E0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                                <Text style={{ fontSize: 10, color: '#E65100' }}>{c}</Text>
-                              </View>
-                            ))}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[talentStyles.hScroll, { paddingBottom: 4 }]}>
+                  {servicios.slice(0, 8).map((srv) => {
+                    const fotos = srv.fotos || [];
+                    return (
+                      <TouchableOpacity
+                        key={srv.id}
+                        activeOpacity={0.92}
+                        onPress={() => navigation.navigate('DetalleServicio', { servicio_id: srv.id })}
+                        style={{ width: 200, marginRight: SPACING.sm }}
+                      >
+                        {/* Foto principal estilo Airbnb */}
+                        <View style={{ width: 200, height: 160, borderRadius: 16, overflow: 'hidden', marginBottom: 8, backgroundColor: '#C8884A' }}>
+                          {fotos[0]?.url ? (
+                            <Image source={{ uri: fotos[0].url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                          ) : (
+                            <LinearGradient colors={['#A0522D', '#C8884A']} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                              <Ionicons name="briefcase-outline" size={36} color="rgba(255,255,255,0.8)" />
+                            </LinearGradient>
+                          )}
+                          {/* Dots si hay más fotos */}
+                          {fotos.length > 1 && (
+                            <View style={{ position: 'absolute', bottom: 8, alignSelf: 'center', flexDirection: 'row', gap: 4 }}>
+                              {fotos.slice(0, 4).map((_, i) => (
+                                <View key={i} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: i === 0 ? '#fff' : 'rgba(255,255,255,0.5)' }} />
+                              ))}
+                            </View>
+                          )}
+                          {/* Badge especialista */}
+                          <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Ionicons name="ribbon-outline" size={10} color="#fff" />
+                            <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>Especialista</Text>
                           </View>
+                        </View>
+                        {/* Info debajo de la foto */}
+                        <Text style={{ fontWeight: '700', fontSize: 13, color: colors.textPrimary, marginBottom: 2 }} numberOfLines={1}>{srv.titulo}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                          {srv.foto_selfie ? (
+                            <Image source={{ uri: srv.foto_selfie }} style={{ width: 16, height: 16, borderRadius: 8 }} />
+                          ) : (
+                            <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: COLORS.primary + '40', alignItems: 'center', justifyContent: 'center' }}>
+                              <Text style={{ fontSize: 8, color: COLORS.primary, fontWeight: '700' }}>{(srv.nombre_completo || 'E')[0].toUpperCase()}</Text>
+                            </View>
+                          )}
+                          <Text style={{ fontSize: 11, color: colors.textMuted }} numberOfLines={1}>{srv.nombre_completo}</Text>
+                        </View>
+                        {srv.cultivos?.length > 0 && (
+                          <Text style={{ fontSize: 11, color: '#E65100', fontWeight: '600' }} numberOfLines={1}>{srv.cultivos.slice(0, 2).join(' · ')}</Text>
                         )}
-                        {srv.modalidad ? <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>{srv.modalidad}</Text> : null}
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                        {srv.modalidad ? (
+                          <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>{srv.modalidad}</Text>
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
