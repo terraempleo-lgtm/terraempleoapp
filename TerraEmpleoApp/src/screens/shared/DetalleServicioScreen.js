@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-  ActivityIndicator, Dimensions, Modal, Pressable,
+  ActivityIndicator, Dimensions, Modal, Pressable, Linking, Platform, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,28 +41,37 @@ export default function DetalleServicioScreen({ route, navigation }) {
     }
   };
 
-  const contactarEspecialista = async () => {
+  const irAlChat = async () => {
     if (!servicio) return;
     try {
       setContactando(true);
-      const res = await especialistasAPI.contactar(servicio.especialista_id, {});
-      const estado = res.data?.estado;
+      const res = await especialistasAPI.contactarDirecto(servicio.especialista_id);
       const chatId = res.data?.chat_id;
       if (chatId) {
         navigation.navigate('Mensajes', {
           screen: 'ChatDetalle',
           params: { chat: { id: chatId, otro_nombre: servicio.nombre_completo, otro_foto: servicio.foto_selfie } },
         });
-      } else if (estado === 'contacto_solicitado') {
-        showAlert('Solicitud enviada', 'Si el especialista acepta, se habilitará el chat.');
-      } else {
-        showAlert('Listo', 'Ya tienes contacto con este especialista.');
       }
     } catch (e) {
-      showAlert('Error', e.response?.data?.error || 'No se pudo enviar la solicitud');
+      showAlert('Error', e.response?.data?.error || 'No se pudo abrir el chat');
     } finally {
       setContactando(false);
     }
+  };
+
+  const llamarEspecialista = () => {
+    const cel = servicio?.celular;
+    if (!cel) { showAlert('Sin número', 'El especialista no tiene número registrado.'); return; }
+    const url = `tel:${cel}`;
+    if (Platform.OS === 'web') {
+      Alert.alert('Llamar', `Número: ${cel}`);
+      return;
+    }
+    Linking.canOpenURL(url).then((ok) => {
+      if (ok) Linking.openURL(url);
+      else showAlert('Error', 'No se pudo realizar la llamada.');
+    });
   };
 
   if (cargando) return (
@@ -228,17 +237,25 @@ export default function DetalleServicioScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* CTA Contactar — solo para empleadores */}
+      {/* CTA — solo para empleadores */}
       {user?.rol === 'empleador' && (
         <View style={[st.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <TouchableOpacity
-            style={[st.ctaBtn, { backgroundColor: COLORS.primary, opacity: contactando ? 0.7 : 1 }]}
-            onPress={contactarEspecialista}
+            style={[st.ctaBtnCall, { borderColor: COLORS.primary }]}
+            onPress={llamarEspecialista}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="call" size={20} color={COLORS.primary} />
+            <Text style={[st.ctaTxtCall, { color: COLORS.primary }]}>Llamar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[st.ctaBtn, { backgroundColor: COLORS.primary, opacity: contactando ? 0.7 : 1, flex: 1 }]}
+            onPress={irAlChat}
             disabled={contactando}
             activeOpacity={0.85}
           >
             {contactando ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />}
-            <Text style={st.ctaTxt}>{contactando ? 'Contactando...' : 'Contactar especialista'}</Text>
+            <Text style={st.ctaTxt}>{contactando ? 'Abriendo...' : 'Ir al chat'}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -288,9 +305,11 @@ const st = StyleSheet.create({
   galeriaItem: { borderRadius: 10, overflow: 'hidden' },
   galeriaImg: { width: (W - SPACING.md * 2 - SPACING.md * 2 - 8) / 2, height: 120 },
   // Footer
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: SPACING.md, borderTopWidth: 1 },
-  ctaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 16, padding: 15 },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: SPACING.md, borderTopWidth: 1, flexDirection: 'row', gap: 10 },
+  ctaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, padding: 15 },
   ctaTxt: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  ctaBtnCall: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 16, padding: 15, borderWidth: 2, paddingHorizontal: 18 },
+  ctaTxtCall: { fontWeight: '700', fontSize: 15 },
   // Foto fullscreen
   fotoFullscreen: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'center' },
   fotoFull: { width: W, height: W * 1.2 },

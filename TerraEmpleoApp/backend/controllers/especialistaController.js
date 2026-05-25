@@ -203,6 +203,53 @@ async function contactarEspecialista(req, res) {
   }
 }
 
+// Contactar desde oferta de servicio — crea chat directo sin esperar aceptación
+async function contactarDesdeServicio(req, res) {
+  try {
+    const empleadorId = req.user.id;
+    const especialistaId = Number(req.params.id);
+
+    if (!Number.isFinite(especialistaId)) return res.status(400).json({ error: 'ID inválido' });
+
+    const esps = await query('SELECT id FROM usuarios WHERE id = ? AND rol = ? AND activo = 1', [especialistaId, 'especialista']);
+    if (!esps?.length) return res.status(404).json({ error: 'Especialista no encontrado' });
+
+    // Si ya existe contacto aceptado, devolver chat existente
+    const existente = await query(
+      'SELECT id, estado, chat_id FROM contactos_especialista WHERE empleador_id = ? AND especialista_id = ?',
+      [empleadorId, especialistaId]
+    );
+
+    if (existente?.length > 0) {
+      const c = existente[0];
+      if (c.chat_id) return res.json({ chat_id: Number(c.chat_id), nuevo: false });
+      // Tiene contacto pero sin chat — crear chat ahora
+      const chatId = await crearChat(empleadorId, especialistaId);
+      await query('UPDATE contactos_especialista SET estado = ?, chat_id = ? WHERE id = ?', ['aceptado', chatId, c.id]);
+      return res.json({ chat_id: chatId, nuevo: true });
+    }
+
+    // Crear contacto + chat en estado aceptado directamente
+    const chatId = await crearChat(empleadorId, especialistaId);
+    await query(
+      'INSERT INTO contactos_especialista (empleador_id, especialista_id, estado, chat_id) VALUES (?, ?, ?, ?)',
+      [empleadorId, especialistaId, 'aceptado', chatId]
+    );
+
+    const emp = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [empleadorId]);
+    const nombreEmp = emp?.[0]?.nombre_completo || 'Un empleador';
+    await crearNotificacion(
+      especialistaId, 'contacto', '¡Nuevo mensaje!',
+      `${nombreEmp} te envió un mensaje sobre tu servicio.`, {}
+    ).catch(() => {});
+
+    res.status(201).json({ chat_id: chatId, nuevo: true });
+  } catch (err) {
+    console.error('Error contactando desde servicio:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 async function getContactoEstado(req, res) {
   try {
     const empleadorId = req.user.id;
@@ -303,4 +350,4 @@ async function responderSolicitudContacto(req, res) {
   }
 }
 
-module.exports = { listarEspecialistas, getPerfilEspecialista, contactarEspecialista, getContactoEstado, misSolicitudesContacto, responderSolicitudContacto };
+module.exports = { listarEspecialistas, getPerfilEspecialista, contactarEspecialista, contactarDesdeServicio, getContactoEstado, misSolicitudesContacto, responderSolicitudContacto };

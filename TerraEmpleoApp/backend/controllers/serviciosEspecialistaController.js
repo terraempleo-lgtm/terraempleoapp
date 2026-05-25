@@ -15,7 +15,7 @@ async function listarServicios(req, res) {
     const rows = await query(`
       SELECT s.id, s.titulo, s.descripcion, s.cultivos, s.precio_desde, s.precio_hasta,
              s.modalidad, s.activo, s.created_at,
-             u.id as especialista_id, u.nombre_completo, u.foto_selfie,
+             u.id as especialista_id, u.nombre_completo, u.foto_selfie, u.celular,
              pe.titulo_profesional, pe.municipio, pe.departamento
       FROM servicios_especialista s
       JOIN usuarios u ON u.id = s.especialista_id
@@ -67,7 +67,7 @@ async function detalleServicio(req, res) {
     const [s] = await query(`
       SELECT s.id, s.titulo, s.descripcion, s.cultivos, s.precio_desde, s.precio_hasta,
              s.modalidad, s.activo, s.created_at,
-             u.id as especialista_id, u.nombre_completo, u.foto_selfie,
+             u.id as especialista_id, u.nombre_completo, u.foto_selfie, u.celular,
              pe.titulo_profesional, pe.municipio, pe.departamento, pe.calificacion_promedio
       FROM servicios_especialista s
       JOIN usuarios u ON u.id = s.especialista_id
