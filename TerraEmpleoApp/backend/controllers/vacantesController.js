@@ -884,7 +884,7 @@ async function perfilPublicoTrabajador(req, res) {
     const empleadorId = req.user.id;
 
     const users = await query(`
-      SELECT u.id, u.nombre_completo, u.departamento, u.municipio, u.foto_selfie,
+      SELECT u.id, u.nombre_completo, u.departamento, u.municipio, u.foto_selfie, u.foto_portada,
         u.calificacion_promedio, u.total_calificaciones, u.verificado_sms, u.validacion_identidad_estado,
         pt.acerca_de, pt.hoja_vida_url, pt.hoja_vida_nombre,
         pt.nivel_estudios, pt.titulo_estudio, pt.anios_experiencia, pt.disponibilidad,
@@ -903,6 +903,7 @@ async function perfilPublicoTrabajador(req, res) {
     trabajador.total_calificaciones = Number(trabajador.total_calificaciones || 0);
     trabajador.verificado_sms = Number(trabajador.verificado_sms) === 1;
     trabajador.foto_selfie = await signUrl(trabajador.foto_selfie);
+    trabajador.foto_portada = await signUrl(trabajador.foto_portada);
     trabajador.hoja_vida_url = await signUrl(trabajador.hoja_vida_url);
 
     if (trabajador.perfil_id) {

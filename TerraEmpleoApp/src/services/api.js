@@ -184,6 +184,35 @@ export const especialistasAPI = {
   responderSolicitud: (id, accion) => api.put(`/especialistas/solicitudes/${id}/responder`, { accion }),
 };
 
+// Certificados
+export const certificadosAPI = {
+  listar: () => api.get('/certificados'),
+  listarDeUsuario: (id) => api.get(`/certificados/usuario/${id}`),
+  crear: async (nombre, entidad, anio, archivoUri, archivoNombre, archivoMime) => {
+    const form = new FormData();
+    form.append('nombre', nombre);
+    if (entidad) form.append('entidad', entidad);
+    if (anio) form.append('anio', String(anio));
+    if (archivoUri) {
+      if (typeof document !== 'undefined') {
+        const blob = await fetch(archivoUri).then(r => r.blob());
+        form.append('archivo', new File([blob], archivoNombre || 'cert.pdf', { type: archivoMime || 'application/pdf' }));
+        const token = api.defaults.headers.common['Authorization']?.replace('Bearer ', '');
+        const res = await fetch(`${api.defaults.baseURL}/certificados`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: form,
+        });
+        return res.json();
+      } else {
+        form.append('archivo', { uri: archivoUri, name: archivoNombre || 'cert.pdf', type: archivoMime || 'application/pdf' });
+      }
+    }
+    return api.post('/certificados', form, { transformRequest: [(d) => d] }).then(r => r.data);
+  },
+  eliminar: (id) => api.delete(`/certificados/${id}`),
+};
+
 // Notificaciones
 export const notificacionesAPI = {
   listar: (params) => api.get('/notificaciones', params ? { params } : undefined),

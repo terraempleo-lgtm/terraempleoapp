@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
-import { trabajadoresAPI, chatsAPI, vacantesAPI, especialistasAPI } from '../../services/api';
+import { trabajadoresAPI, chatsAPI, vacantesAPI, especialistasAPI, certificadosAPI } from '../../services/api';
 import { showAlert } from '../../utils/alertService';
 
 const LABELS_EXPERIENCIA = {
@@ -89,6 +89,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const { trabajador_id, vacante_id, postulacion_estado, rol: rolParam } = route.params;
   const [perfil, setPerfil] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [certsBadges, setCertsBadges] = useState([]);
   const esEspecialista = rolParam === 'especialista';
   const [enviandoSolicitud, setEnviandoSolicitud] = useState(false);
   const [estadoActual, setEstadoActual] = useState(postulacion_estado || null);
@@ -111,6 +112,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
         const res = await trabajadoresAPI.perfilPublico(trabajador_id);
         setPerfil(res.data.trabajador);
       }
+      certificadosAPI.listarDeUsuario(trabajador_id).then(r => setCertsBadges(r.data?.certificados || [])).catch(() => {});
     } catch { showAlert('Error', 'No se pudo cargar el perfil'); }
     finally { setCargando(false); }
   };
@@ -540,7 +542,12 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
 
         {/* ── HERO CON GRADIENTE ── */}
         <View style={r.heroOuter}>
-          <LinearGradient colors={['#1B5E20','#2E7D32','#43A047']} start={{x:0,y:0}} end={{x:1,y:1}} style={[r.heroGradient, { paddingTop: insets.top + 12 }]}>
+          <View style={[r.heroGradient, { paddingTop: insets.top + 12, overflow: 'hidden' }]}>
+            {perfil.foto_portada?.startsWith('http')
+              ? <Image source={{ uri: perfil.foto_portada }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+              : <LinearGradient colors={['#1B5E20','#2E7D32','#43A047']} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFillObject} />
+            }
+            <LinearGradient colors={['rgba(0,0,0,0.25)','rgba(0,0,0,0.55)']} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
             {/* Back btn */}
             <AnimatedPressable style={r.backBtn} onPress={() => navigation.goBack()}>
               <Ionicons name="arrow-back" size={20} color="#fff" />
@@ -584,7 +591,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
                 </View>
               ) : null}
             </View>
-          </LinearGradient>
+          </View>
 
           {/* Stats flotantes */}
           <View style={[r.statsCard, { backgroundColor: colors.surface }]}>
@@ -783,6 +790,30 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
         )}
 
         {/* ── DISPONIBILIDAD & UBICACIÓN ── */}
+        {/* Certificados / Badges */}
+        {certsBadges.length > 0 && (
+          <View style={[r.card, { backgroundColor: colors.surface }]}>
+            <View style={r.cardHeader}>
+              <LinearGradient colors={['#D97706','#F59E0B']} style={r.cardIconGrad}>
+                <Ionicons name="ribbon" size={16} color="#fff" />
+              </LinearGradient>
+              <Text style={[r.cardTitle, { color: colors.textPrimary }]}>Certificados y Logros</Text>
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+              {certsBadges.map((c, i) => (
+                <View key={c.id || i} style={pbCertStyles.badge}>
+                  <LinearGradient colors={['#D97706','#F59E0B']} style={pbCertStyles.badgeIconWrap}>
+                    <Ionicons name="ribbon" size={22} color="#fff" />
+                  </LinearGradient>
+                  <Text style={pbCertStyles.badgeNombre} numberOfLines={2}>{c.nombre}</Text>
+                  {!!c.entidad && <Text style={pbCertStyles.badgeEntidad} numberOfLines={1}>{c.entidad}</Text>}
+                  {!!c.anio && <Text style={pbCertStyles.badgeAnio}>{c.anio}</Text>}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         <View style={[r.card, { backgroundColor: colors.surface }]}>
           <View style={r.cardHeader}>
             <LinearGradient colors={['#0F766E','#0D9488']} style={r.cardIconGrad}>
@@ -1073,4 +1104,12 @@ const s = StyleSheet.create({
   infoChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.sm, paddingVertical: 6, borderRadius: RADIUS.full, borderWidth: 1 },
   infoChipTxt: { fontSize: 12, fontWeight: '600' },
   bioText: { fontSize: 14, lineHeight: 22 },
+});
+
+const pbCertStyles = StyleSheet.create({
+  badge: { width: 100, alignItems: 'center', padding: 10, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1.5, borderColor: '#FDE68A' },
+  badgeIconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  badgeNombre: { fontSize: 11, fontWeight: '700', color: '#92400E', textAlign: 'center', lineHeight: 14 },
+  badgeEntidad: { fontSize: 10, color: '#B45309', textAlign: 'center', marginTop: 2 },
+  badgeAnio: { fontSize: 10, color: '#D97706', fontWeight: '600', marginTop: 2 },
 });

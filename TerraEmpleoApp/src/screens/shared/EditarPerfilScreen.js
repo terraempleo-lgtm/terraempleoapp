@@ -16,7 +16,7 @@ import {
   ESPECIALIDADES_OPTIONS, NIVEL_FORMACION_OPTIONS, MODALIDAD_ESPECIALISTA_OPTIONS,
   RADIO_COBERTURA_OPTIONS, EXPERIENCIA_ESPECIALISTA_OPTIONS,
 } from '../../data/options';
-import { authAPI } from '../../services/api';
+import { authAPI, certificadosAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -73,6 +73,15 @@ export default function EditarPerfilScreen({ navigation, route }) {
   const [fotosTrabajo, setFotosTrabajo] = useState(initPerfil?.fotos_trabajo || []);
   const [subiendoFotoTrabajo, setSubiendoFotoTrabajo] = useState(false);
   const [fotosFinca, setFotosFinca] = useState(initPerfil?.fotos_finca || []);
+
+  // Certificados
+  const [certificados, setCertificados] = useState([]);
+  const [certModal, setCertModal] = useState(false);
+  const [certNombre, setCertNombre] = useState('');
+  const [certEntidad, setCertEntidad] = useState('');
+  const [certAnio, setCertAnio] = useState('');
+  const [certArchivo, setCertArchivo] = useState(null);
+  const [guardandoCert, setGuardandoCert] = useState(false);
 
   // Experiencias laborales
   const [experiencias, setExperiencias] = useState(initPerfil?.experiencias || []);
@@ -248,6 +257,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
   };
 
   useEffect(() => {
+    certificadosAPI.listar().then(r => setCertificados(r.data?.certificados || [])).catch(() => {});
     return () => {
       if (successTimerRef.current) {
         clearTimeout(successTimerRef.current);
@@ -498,6 +508,47 @@ export default function EditarPerfilScreen({ navigation, route }) {
         try {
           await authAPI.eliminarExperiencia(exp.id);
           setExperiencias(prev => prev.filter(e => e.id !== exp.id));
+        } catch { showAlert('Error', 'No se pudo eliminar.'); }
+      }},
+    ]);
+  };
+
+  const abrirArchivoCert = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true });
+    if (!result.canceled && result.assets?.[0]) setCertArchivo(result.assets[0]);
+  };
+
+  const guardarCertificado = async () => {
+    if (!certNombre.trim()) { showAlert('Campo requerido', 'Ingresa el nombre del certificado.'); return; }
+    setGuardandoCert(true);
+    try {
+      const data = await certificadosAPI.crear(
+        certNombre, certEntidad, certAnio,
+        certArchivo?.uri, certArchivo?.name, certArchivo?.mimeType
+      );
+      const nuevo = data.certificado || data;
+      setCertificados(prev => [nuevo, ...prev]);
+      setCertNombre(''); setCertEntidad(''); setCertAnio(''); setCertArchivo(null);
+      setCertModal(false);
+    } catch (err) {
+      showAlert('Error', 'No se pudo guardar el certificado.');
+    } finally {
+      setGuardandoCert(false);
+    }
+  };
+
+  const eliminarCertificado = (cert) => {
+    if (Platform.OS === 'web') {
+      if (!window.confirm(`¿Eliminar "${cert.nombre}"?`)) return;
+      certificadosAPI.eliminar(cert.id).then(() => setCertificados(prev => prev.filter(c => c.id !== cert.id))).catch(() => showAlert('Error', 'No se pudo eliminar.'));
+      return;
+    }
+    Alert.alert('Eliminar certificado', `¿Eliminar "${cert.nombre}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        try {
+          await certificadosAPI.eliminar(cert.id);
+          setCertificados(prev => prev.filter(c => c.id !== cert.id));
         } catch { showAlert('Error', 'No se pudo eliminar.'); }
       }},
     ]);
@@ -1157,6 +1208,38 @@ export default function EditarPerfilScreen({ navigation, route }) {
             </View>
           )}
 
+          {/* Certificados y logros */}
+          {(rol === 'trabajador' || rol === 'especialista') && (
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
+                <Ionicons name="ribbon-outline" size={20} color="#D97706" style={{ marginRight: 8 }} />
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary, marginBottom: 0 }]}>Certificados y Logros</Text>
+              </View>
+              <Text style={[styles.fieldHint, { color: colors.textMuted, marginBottom: SPACING.sm }]}>
+                Agrega tus certificados, cursos o logros. Se mostrarán como medallas en tu perfil.
+              </Text>
+              <View style={certStyles.badgesWrap}>
+                {certificados.map((c) => (
+                  <AnimatedPressable key={c.id} onPress={() => eliminarCertificado(c)} scaleValue={0.93} style={certStyles.badge}>
+                    <View style={certStyles.badgeIcon}>
+                      <Ionicons name="ribbon" size={20} color="#fff" />
+                    </View>
+                    <Text style={certStyles.badgeNombre} numberOfLines={2}>{c.nombre}</Text>
+                    {!!c.entidad && <Text style={certStyles.badgeEntidad} numberOfLines={1}>{c.entidad}</Text>}
+                    {!!c.anio && <Text style={certStyles.badgeAnio}>{c.anio}</Text>}
+                    <View style={certStyles.badgeDelete}>
+                      <Ionicons name="close-circle" size={16} color="#EF4444" />
+                    </View>
+                  </AnimatedPressable>
+                ))}
+                <AnimatedPressable style={certStyles.addBadge} onPress={() => setCertModal(true)} scaleValue={0.93}>
+                  <Ionicons name="add" size={28} color="#D97706" />
+                  <Text style={certStyles.addBadgeTxt}>Agregar</Text>
+                </AnimatedPressable>
+              </View>
+            </View>
+          )}
+
           <Button
             title={loading ? 'Guardando...' : 'Guardar cambios'}
             loadingText="Guardando..."
@@ -1315,6 +1398,57 @@ export default function EditarPerfilScreen({ navigation, route }) {
         </SafeAreaView>
       </Modal>
 
+      {/* Modal certificado */}
+      <Modal visible={certModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setCertModal(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', padding: SPACING.md, borderBottomWidth: 1, borderColor: '#E5E7EB' }}>
+            <TouchableOpacity onPress={() => setCertModal(false)} style={{ marginRight: 12 }}>
+              <Ionicons name="close" size={24} color="#374151" />
+            </TouchableOpacity>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: '#111827', flex: 1 }}>Nuevo certificado</Text>
+            <TouchableOpacity onPress={guardarCertificado} disabled={guardandoCert}>
+              {guardandoCert ? <ActivityIndicator size="small" color="#D97706" /> : <Text style={{ color: '#D97706', fontWeight: '700', fontSize: 16 }}>Guardar</Text>}
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: SPACING.md }} keyboardShouldPersistTaps="handled">
+            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Nombre del certificado *</Text>
+            <TextInput
+              value={certNombre}
+              onChangeText={setCertNombre}
+              placeholder="Ej: Buenas prácticas agrícolas, SENA Café..."
+              style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 12, fontSize: 15, color: '#111827', marginBottom: 14 }}
+              maxLength={200}
+            />
+            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Entidad que lo otorgó</Text>
+            <TextInput
+              value={certEntidad}
+              onChangeText={setCertEntidad}
+              placeholder="Ej: SENA, ICA, Federación Nacional de Cafeteros..."
+              style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 12, fontSize: 15, color: '#111827', marginBottom: 14 }}
+              maxLength={200}
+            />
+            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Año de obtención</Text>
+            <TextInput
+              value={certAnio}
+              onChangeText={setCertAnio}
+              placeholder="Ej: 2023"
+              keyboardType="numeric"
+              maxLength={4}
+              style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 12, fontSize: 15, color: '#111827', marginBottom: 14 }}
+            />
+            <TouchableOpacity
+              onPress={abrirArchivoCert}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: '#D97706', borderStyle: 'dashed', borderRadius: 10, padding: 14, marginBottom: 8 }}
+            >
+              <Ionicons name="document-attach-outline" size={22} color="#D97706" />
+              <Text style={{ color: '#D97706', fontWeight: '600', flex: 1 }}>{certArchivo ? certArchivo.name : 'Adjuntar archivo (PDF o imagen)'}</Text>
+              {certArchivo && <Ionicons name="checkmark-circle" size={20} color="#16A34A" />}
+            </TouchableOpacity>
+            <Text style={{ fontSize: 11, color: '#9CA3AF' }}>Opcional. Máx. 10 MB</Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
       <PickerModal visible={showDeptPicker} onClose={() => setShowDeptPicker(false)}
         title="Departamento" options={DEPARTAMENTOS} selectedValue={departamento}
         onSelect={(v) => { setDepartamento(v); setMunicipio(''); }} />
@@ -1445,5 +1579,30 @@ const expStyles = StyleSheet.create({
   itemTitle: { fontSize: 14, fontWeight: '700' },
   itemSub: { fontSize: 12, marginTop: 2 },
   itemDesc: { fontSize: 13, marginTop: 4 },
+});
+
+const BADGE_SIZE = 100;
+const certStyles = StyleSheet.create({
+  badgesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  badge: {
+    width: BADGE_SIZE, alignItems: 'center', padding: 10,
+    backgroundColor: '#FFFBEB', borderRadius: 16,
+    borderWidth: 1.5, borderColor: '#FDE68A',
+  },
+  badgeIcon: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: '#D97706', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 6,
+  },
+  badgeNombre: { fontSize: 11, fontWeight: '700', color: '#92400E', textAlign: 'center', lineHeight: 14 },
+  badgeEntidad: { fontSize: 10, color: '#B45309', textAlign: 'center', marginTop: 2 },
+  badgeAnio: { fontSize: 10, color: '#D97706', fontWeight: '600', marginTop: 2 },
+  badgeDelete: { position: 'absolute', top: 4, right: 4 },
+  addBadge: {
+    width: BADGE_SIZE, height: BADGE_SIZE, borderRadius: 16,
+    borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#D97706',
+    alignItems: 'center', justifyContent: 'center', gap: 4,
+  },
+  addBadgeTxt: { fontSize: 12, color: '#D97706', fontWeight: '600' },
 });
 

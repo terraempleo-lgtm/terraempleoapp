@@ -8,7 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { authAPI, calificacionesAPI } from '../../services/api';
+import { authAPI, calificacionesAPI, certificadosAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -128,6 +128,7 @@ export default function PerfilScreen({ navigation }) {
   const [fotoPortada, setFotoPortada] = useState(null);
   const [subiendoPortada, setSubiendoPortada] = useState(false);
   const [resenias, setResenias] = useState([]);
+  const [certificados, setCertificados] = useState([]);
 
   const u = userData || user;
   const esTrabajador = u?.rol === 'trabajador';
@@ -376,6 +377,10 @@ export default function PerfilScreen({ navigation }) {
         try {
           const rRes = await calificacionesAPI.obtener(uid);
           setResenias(rRes.data?.calificaciones || []);
+        } catch (_) {}
+        try {
+          const cRes = await certificadosAPI.listar();
+          setCertificados(cRes.data?.certificados || []);
         } catch (_) {}
       }
     } catch (err) { console.error(err); }
@@ -906,7 +911,7 @@ export default function PerfilScreen({ navigation }) {
             <TouchableOpacity
               onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}
               activeOpacity={0.85}
-              style={{ marginHorizontal: SPACING.md, marginBottom: SPACING.md }}
+              style={{ marginHorizontal: SPACING.md, marginBottom: SPACING.md, zIndex: 20 }}
             >
               <View style={[s.empMejoraGrad, { backgroundColor: '#FF8F00' }]}>
                 <View style={s.empMejoraLeft}>
@@ -1446,6 +1451,34 @@ export default function PerfilScreen({ navigation }) {
             </StaggeredItem>
           )}
 
+          {/* ── CERTIFICADOS / BADGES ── */}
+          {certificados.length > 0 && (
+            <StaggeredItem index={5}>
+              <View style={[tw.card, { backgroundColor: colors.surface }]}>
+                <View style={tw.cardHeader}>
+                  <LinearGradient colors={['#D97706','#F59E0B']} style={tw.cardIconGrad}>
+                    <Ionicons name="ribbon" size={16} color="#fff" />
+                  </LinearGradient>
+                  <Text style={[tw.cardTitle, { color: colors.textPrimary }]}>Certificados y Logros</Text>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                  {certificados.map((c, i) => (
+                    <MotiView key={c.id || i} from={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', damping: 16, delay: i * 60 }}>
+                      <View style={tw.certBadge}>
+                        <LinearGradient colors={['#D97706','#F59E0B']} style={tw.certBadgeIconWrap}>
+                          <Ionicons name="ribbon" size={22} color="#fff" />
+                        </LinearGradient>
+                        <Text style={[tw.certBadgeNombre, { color: colors.textPrimary }]} numberOfLines={2}>{c.nombre}</Text>
+                        {!!c.entidad && <Text style={[tw.certBadgeEntidad, { color: colors.textMuted }]} numberOfLines={1}>{c.entidad}</Text>}
+                        {!!c.anio && <Text style={[tw.certBadgeAnio]}>{c.anio}</Text>}
+                      </View>
+                    </MotiView>
+                  ))}
+                </View>
+              </View>
+            </StaggeredItem>
+          )}
+
           {/* ── RESEÑAS ── */}
           {resenias.length > 0 && (
             <StaggeredItem index={5}>
@@ -1840,6 +1873,11 @@ const tw = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
   cardCount: { fontSize: 12, fontWeight: '600', backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   cardBody: { fontSize: 14, lineHeight: 21 },
+  certBadge: { width: 100, alignItems: 'center', padding: 10, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1.5, borderColor: '#FDE68A' },
+  certBadgeIconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  certBadgeNombre: { fontSize: 11, fontWeight: '700', textAlign: 'center', lineHeight: 14 },
+  certBadgeEntidad: { fontSize: 10, textAlign: 'center', marginTop: 2 },
+  certBadgeAnio: { fontSize: 10, color: '#D97706', fontWeight: '600', marginTop: 2 },
   reseniaRow: { paddingVertical: 12 },
   reseniaHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   reseniaAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
