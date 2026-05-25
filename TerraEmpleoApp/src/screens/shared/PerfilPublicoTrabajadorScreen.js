@@ -153,7 +153,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   const solicitarContacto = async () => {
     if (enviandoSolicitud) return;
     if (!vacante_id) {
-      Alert.alert('Sin vacante activa', 'Necesitas publicar una vacante antes de poder contactar trabajadores.');
+      showAlert('Sin vacante activa', 'Necesitas publicar al menos una vacante activa antes de poder contactar trabajadores.');
       return;
     }
     try {
@@ -239,16 +239,16 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
       const chatId = Number(res?.data?.chat_id || 0);
       if (estado) setEstadoActual(estado);
       if (estado === 'aceptada' && chatId) {
-        Alert.alert('Listo', 'El chat ya está habilitado con este especialista.');
+        showAlert('Listo', 'El chat ya está habilitado con este especialista.');
         navigation.navigate('Mensajes', {
           screen: 'ChatDetalle',
           params: { chat: { id: chatId, otro_nombre: perfil?.nombre_completo, otro_foto: perfil?.foto_selfie } },
         });
         return;
       }
-      Alert.alert('Listo', 'Solicitud enviada. Si el especialista acepta, se habilitará el chat.');
+      showAlert('Listo', 'Solicitud enviada. Si el especialista acepta, se habilitará el chat.');
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud');
+      showAlert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud');
     } finally {
       setEnviandoSolicitud(false);
     }
