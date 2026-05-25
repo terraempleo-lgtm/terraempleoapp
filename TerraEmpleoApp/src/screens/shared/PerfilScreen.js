@@ -125,6 +125,9 @@ export default function PerfilScreen({ navigation }) {
   const cameraRef = useRef(null);
   const [permission, requestPermission] = useCameraPermissions();
 
+  const [fotoPortada, setFotoPortada] = useState(null);
+  const [subiendoPortada, setSubiendoPortada] = useState(false);
+
   const u = userData || user;
   const esTrabajador = u?.rol === 'trabajador';
   const esEmpleador = u?.rol === 'empleador';
@@ -231,6 +234,31 @@ export default function PerfilScreen({ navigation }) {
       setSubiendoFotoFinca(false);
     }
   };
+  const subirPortadaTrabajador = async () => {
+    const elegir = async () => {
+      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.85, aspect: [16, 9], allowsEditing: true });
+      if (r.canceled || !r.assets?.[0]) return;
+      setSubiendoPortada(true);
+      try {
+        const formData = new FormData();
+        if (Platform.OS === 'web') {
+          const blob = await (await fetch(r.assets[0].uri)).blob();
+          formData.append('foto', blob, `portada_${Date.now()}.jpg`);
+        } else {
+          formData.append('foto', { uri: r.assets[0].uri, type: 'image/jpeg', name: `portada_${Date.now()}.jpg` });
+        }
+        const res = await authAPI.subirFoto('portada', formData);
+        setFotoPortada(res.data.path);
+        showAlert('¡Listo!', 'Foto de portada actualizada.');
+      } catch (err) {
+        showAlert('Error', err.response?.data?.error || 'No se pudo subir la foto.');
+      } finally {
+        setSubiendoPortada(false);
+      }
+    };
+    elegir();
+  };
+
   const identidadAprobada = u?.validacion_identidad_estado === 'aprobada';
 
   const diasDesdeUltimoCambio = u?.foto_selfie_cambiada_at
@@ -335,6 +363,9 @@ export default function PerfilScreen({ navigation }) {
 
       if (res.data?.user?.rol === 'empleador') {
         setFotoFincaPrincipal(res.data?.perfil?.foto_finca_fachada || null);
+      }
+      if (res.data?.user?.foto_portada) {
+        setFotoPortada(res.data.user.foto_portada);
       }
     } catch (err) { console.error(err); }
   };
@@ -845,6 +876,40 @@ export default function PerfilScreen({ navigation }) {
             </View>
           </View>
 
+          {/* ── Banner MEJORA TU PERFIL prominente ── */}
+          {(!perfil?.acerca_de || !perfil?.fotos_finca?.length) && (
+            <AnimatedPressable
+              onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}
+              scaleValue={0.97} haptic
+              style={{ marginHorizontal: SPACING.md, marginBottom: SPACING.md }}
+            >
+              <LinearGradient
+                colors={['#FF8F00', '#F57F17']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={s.empMejoraGrad}
+              >
+                <View style={s.empMejoraLeft}>
+                  <View style={s.empMejoraIconWrap}>
+                    <Ionicons name="rocket" size={22} color="#FF8F00" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.empMejoraTitle}>¡Completa tu perfil!</Text>
+                    <Text style={s.empMejoraSub}>
+                      {!perfil?.acerca_de && !perfil?.fotos_finca?.length
+                        ? 'Agrega descripción y fotos de tu finca para atraer más trabajadores'
+                        : !perfil?.acerca_de
+                        ? 'Agrega una descripción de tu finca'
+                        : 'Sube fotos de tu finca para destacar'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={s.empMejoraArrow}>
+                  <Ionicons name="arrow-forward" size={18} color="#FF8F00" />
+                </View>
+              </LinearGradient>
+            </AnimatedPressable>
+          )}
+
           <View style={[s.empCard, { backgroundColor: colors.surface }]}>
             {/* Avatar centered above card — spring entrance */}
             <MotiView
@@ -876,34 +941,45 @@ export default function PerfilScreen({ navigation }) {
               </FadeInView>
             )}
 
-            {/* 3 stats with animated numbers */}
+            {/* Stats cards — visual horizontal */}
             <StaggeredItem index={0}>
-              <View style={[s.empStats, { backgroundColor: isDark ? colors.surface : '#F8FAF9', borderColor: colors.border }]}>
-                <View style={s.empStatItem}>
-                  <AnimatedNumber
-                    value={calificacion > 0 ? `★ ${calificacion.toFixed(1)}` : '—'}
-                    style={[s.empStatVal, { color: colors.textPrimary }]}
-                  />
-                  <Text style={[s.empStatLabel, { color: colors.textSecondary }]}>RATING</Text>
+              <View style={s.empStatsGrid}>
+                <View style={[s.empStatCard, { backgroundColor: isDark ? '#1a3a1a' : '#F0FDF4', borderColor: isDark ? '#2a5c3a' : '#BBF7D0' }]}>
+                  <Text style={[s.empStatCardVal, { color: COLORS.primary }]}>{calificacion > 0 ? calificacion.toFixed(1) : '—'}</Text>
+                  <View style={{ flexDirection: 'row', gap: 2, marginVertical: 4 }}>
+                    {[1,2,3,4,5].map(i => <Ionicons key={i} name={i <= Math.round(calificacion) ? 'star' : 'star-outline'} size={11} color={COLORS.primary} />)}
+                  </View>
+                  <Text style={[s.empStatCardLabel, { color: colors.textMuted }]}>Calificación</Text>
                 </View>
-                <View style={[s.empStatDiv, { backgroundColor: colors.border }]} />
-                <View style={s.empStatItem}>
-                  <AnimatedNumber value={u?.total_vacantes || 0} style={[s.empStatVal, { color: colors.textPrimary }]} />
-                  <Text style={[s.empStatLabel, { color: colors.textSecondary }]}>VACANTES</Text>
+                <View style={[s.empStatCard, { backgroundColor: isDark ? '#1a2a3a' : '#EFF6FF', borderColor: isDark ? '#1e3a5f' : '#BFDBFE' }]}>
+                  <Text style={[s.empStatCardVal, { color: '#2563EB' }]}>{u?.total_vacantes || 0}</Text>
+                  <Ionicons name="briefcase-outline" size={18} color="#2563EB" style={{ marginVertical: 4 }} />
+                  <Text style={[s.empStatCardLabel, { color: colors.textMuted }]}>Vacantes</Text>
                 </View>
-                <View style={[s.empStatDiv, { backgroundColor: colors.border }]} />
-                <View style={s.empStatItem}>
-                  <AnimatedNumber
-                    value={u?.verificado_sms ? '✓' : '—'}
-                    style={[s.empStatVal, { color: COLORS.primary }]}
-                  />
-                  <Text style={[s.empStatLabel, { color: colors.textSecondary }]}>VERIFICADO</Text>
+                <View style={[s.empStatCard, { backgroundColor: isDark ? '#2a1a1a' : '#FFF7ED', borderColor: isDark ? '#5c2a1a' : '#FED7AA' }]}>
+                  <Text style={[s.empStatCardVal, { color: '#EA580C' }]}>{beneficios.length}</Text>
+                  <Ionicons name="gift-outline" size={18} color="#EA580C" style={{ marginVertical: 4 }} />
+                  <Text style={[s.empStatCardLabel, { color: colors.textMuted }]}>Beneficios</Text>
                 </View>
               </View>
             </StaggeredItem>
 
+            {/* Beneficios rápidos */}
+            {beneficios.length > 0 && (
+              <StaggeredItem index={1}>
+                <View style={[s.empBenefRow, { backgroundColor: isDark ? '#1a3a1a' : '#F0FDF4', borderColor: isDark ? '#2a5c3a' : '#BBF7D0' }]}>
+                  {beneficios.map((b, i) => (
+                    <View key={i} style={s.empBenefItem}>
+                      <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
+                      <Text style={[s.empBenefTxt, { color: isDark ? '#7CCC8A' : '#166534' }]}>{b}</Text>
+                    </View>
+                  ))}
+                </View>
+              </StaggeredItem>
+            )}
+
             {/* Sobre la finca */}
-            {perfil?.nombre_empresa_finca && (
+            {(perfil?.nombre_empresa_finca || acercaDeEmpleador) && (
               <StaggeredItem index={1}>
                 <View style={s.secWrap}>
                   <View style={s.secHead}><View style={s.secIcon}><Ionicons name="leaf-outline" size={16} color={COLORS.primary} /></View><Text style={[s.secTitle, { color: colors.textPrimary }]}>Sobre la Finca</Text></View>
@@ -911,38 +987,29 @@ export default function PerfilScreen({ navigation }) {
                     <Text style={[s.secText, { color: colors.textSecondary }]}>{acercaDeEmpleador}</Text>
                   ) : (
                     <Text style={[s.secTextMuted, { color: colors.textMuted }]}>
-                      {`Finca ${empresa}`}{ubicacion ? `, ubicada en ${ubicacion}` : ''}.
-                      {tipoPago ? ` Modalidad de pago: ${tipoPago}.` : ''}
-                      {beneficios.length > 0 ? ` Ofrecemos ${beneficios.join(' y ').toLowerCase()}.` : ''}
+                      {`${empresa}`}{ubicacion ? `, ubicada en ${ubicacion}` : ''}.
+                      {tipoPago ? ` Pago: ${tipoPago}.` : ''}
                     </Text>
                   )}
                 </View>
               </StaggeredItem>
             )}
 
-            {/* Cultivos */}
-            {cultivosEmp.length > 0 && (
+            {/* Cultivos + Labores */}
+            {(cultivosEmp.length > 0 || labores.length > 0) && (
               <StaggeredItem index={2}>
                 <View style={s.secWrap}>
-                  <Text style={[s.secTitle, { color: colors.textPrimary }]}>Cultivos Principales</Text>
+                  <View style={s.secHead}><View style={s.secIcon}><Ionicons name="leaf-outline" size={16} color={COLORS.primary} /></View><Text style={[s.secTitle, { color: colors.textPrimary }]}>Cultivos y Labores</Text></View>
                   <View style={s.chipWrap}>
                     {cultivosEmp.map((c, i) => (
-                      <MotiView
-                        key={i}
-                        from={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 40 }}
-                      >
+                      <MotiView key={i} from={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 40 }}>
                         <View style={s.chipColor}><Ionicons name="leaf" size={12} color={COLORS.primary} /><Text style={s.chipColorTxt}>{c}</Text></View>
                       </MotiView>
                     ))}
                     {labores.map((l, i) => (
-                      <MotiView
-                        key={`l${i}`}
-                        from={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: (cultivosEmp.length + i) * 40 }}
-                      >
+                      <MotiView key={`l${i}`} from={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: (cultivosEmp.length + i) * 40 }}>
                         <View style={[s.chipColor, { borderColor: '#F59E0B', backgroundColor: '#FFFBEB' }]}><Text style={[s.chipColorTxt, { color: '#F59E0B' }]}>{l}</Text></View>
                       </MotiView>
                     ))}
@@ -963,12 +1030,8 @@ export default function PerfilScreen({ navigation }) {
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -SPACING.md }}>
                     <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: SPACING.md }}>
                       {perfil.fotos_finca.map((f, i) => (
-                        <MotiView
-                          key={f.id || i}
-                          from={{ opacity: 0, scale: 0.85 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 60 }}
-                        >
+                        <MotiView key={f.id || i} from={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
+                          transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 60 }}>
                           <View style={s.fincaFotoWrap}>
                             <Image source={{ uri: f.url }} style={s.fincaFoto} resizeMode="cover" />
                             <View style={s.fincaFotoOverlay} />
@@ -985,7 +1048,7 @@ export default function PerfilScreen({ navigation }) {
             {/* Verificación */}
             <StaggeredItem index={3}>
               <View style={s.secWrap}>
-                <Text style={[s.secTitle, { color: colors.textPrimary }]}>Información Verificada</Text>
+                <View style={s.secHead}><View style={s.secIcon}><Ionicons name="shield-checkmark-outline" size={16} color={COLORS.primary} /></View><Text style={[s.secTitle, { color: colors.textPrimary }]}>Verificación</Text></View>
                 <View style={s.verList}>
                   {(() => {
                     const ve = perfil?.verificacion_empresa_estado || 'sin_enviar';
@@ -1006,13 +1069,11 @@ export default function PerfilScreen({ navigation }) {
                           <Text style={[s.verText, { color: colors.textPrimary }]}>Registro Empresarial</Text>
                           {!veAprobada && (
                             <Text style={{ fontSize: 11, color: veColor, marginTop: 1 }}>
-                              {vePendiente ? 'En revisión...' : veRechazada ? `Rechazado: ${perfil.verificacion_empresa_comentario || 'Ver detalles'}` : 'Toca para subir RUT, RNT o factura de servicios públicos'}
+                              {vePendiente ? 'En revisión...' : veRechazada ? `Rechazado: ${perfil.verificacion_empresa_comentario || 'Ver detalles'}` : 'Toca para subir RUT, RNT o factura'}
                             </Text>
                           )}
                         </View>
-                        {subiendoDocEmpresa
-                          ? <ActivityIndicator size="small" color={COLORS.primary} />
-                          : <Ionicons name={veIcon} size={20} color={veColor} />}
+                        {subiendoDocEmpresa ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Ionicons name={veIcon} size={20} color={veColor} />}
                       </TouchableOpacity>
                     );
                   })()}
@@ -1029,28 +1090,6 @@ export default function PerfilScreen({ navigation }) {
                 </View>
               </View>
             </StaggeredItem>
-
-            {/* Banner mejora perfil empleador */}
-            {(!perfil?.acerca_de || !perfil?.fotos_finca?.length) && (
-              <StaggeredItem index={3}>
-                <AnimatedPressable
-                  style={[mejoraStyles.card, { backgroundColor: isDark ? '#1B3A2A' : '#E8F5E9', borderColor: isDark ? '#2a5c3a' : '#A5D6A7' }]}
-                  onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}
-                  scaleValue={0.97} haptic
-                >
-                  <View style={[mejoraStyles.iconWrap, { backgroundColor: COLORS.primary }]}>
-                    <Ionicons name="star" size={18} color="#fff" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[mejoraStyles.title, { color: isDark ? '#7CCC8A' : COLORS.primary }]}>¡Mejora tu perfil!</Text>
-                    <Text style={[mejoraStyles.sub, { color: isDark ? '#a0c8a8' : '#388E3C' }]}>
-                      Agrega descripción y fotos de tu finca para atraer más trabajadores.
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
-                </AnimatedPressable>
-              </StaggeredItem>
-            )}
 
             {/* Editar Perfil */}
             <StaggeredItem index={4}>
@@ -1100,14 +1139,26 @@ export default function PerfilScreen({ navigation }) {
 
         {/* ── HERO ── */}
         <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 400 }}>
-          <LinearGradient colors={['#1B5E20', '#2E7D32', '#43A047']} style={[tw.hero, { paddingTop: (insets?.top || 0) + 52 }]}>
+          <View style={[tw.hero, { paddingTop: (insets?.top || 0) + 52, overflow: 'hidden' }]}>
+            {/* Portada */}
+            {fotoPortada
+              ? <Image source={{ uri: fotoPortada }} style={tw.heroPortadaImg} resizeMode="cover" />
+              : <LinearGradient colors={['#1B5E20', '#2E7D32', '#43A047']} style={StyleSheet.absoluteFill} />
+            }
+            <LinearGradient colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0.55)']} style={StyleSheet.absoluteFill} pointerEvents="none" />
+
             {/* Top bar sobre el gradiente */}
             <View style={tw.heroTopBar}>
               <View style={{ width: 40 }} />
               <Text style={tw.heroTopTitle}>Mi Perfil</Text>
-              <AnimatedPressable style={tw.settingsBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.88} haptic>
-                <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.9)" />
-              </AnimatedPressable>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <AnimatedPressable style={[tw.settingsBtn, { backgroundColor: 'rgba(255,255,255,0.2)' }]} onPress={subirPortadaTrabajador} disabled={subiendoPortada} scaleValue={0.88} haptic>
+                  {subiendoPortada ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="image-outline" size={18} color="#fff" />}
+                </AnimatedPressable>
+                <AnimatedPressable style={tw.settingsBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.88} haptic>
+                  <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.9)" />
+                </AnimatedPressable>
+              </View>
             </View>
 
             {/* Avatar */}
@@ -1157,7 +1208,7 @@ export default function PerfilScreen({ navigation }) {
                 <Text style={tw.statLbl}>Experiencia</Text>
               </View>
             </MotiView>
-          </LinearGradient>
+          </View>
         </MotiView>
 
         <View style={{ paddingHorizontal: SPACING.md, paddingTop: 52 }}>
@@ -1650,6 +1701,25 @@ const s = StyleSheet.create({
   empStatLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textLight, letterSpacing: 0.8 },
   empStatDiv: { width: 1, backgroundColor: COLORS.borderLight },
 
+  /* Mejora perfil banner (empleador) */
+  empMejoraGrad: { flexDirection: 'row', alignItems: 'center', borderRadius: RADIUS.xl, padding: SPACING.md, ...SHADOWS.medium },
+  empMejoraLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 },
+  empMejoraIconWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+  empMejoraTitle: { color: '#fff', fontSize: 15, fontWeight: '800', marginBottom: 2 },
+  empMejoraSub: { color: 'rgba(255,255,255,0.88)', fontSize: 12, lineHeight: 16 },
+  empMejoraArrow: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+
+  /* Stats grid cards */
+  empStatsGrid: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md },
+  empStatCard: { flex: 1, borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING.sm, alignItems: 'center' },
+  empStatCardVal: { fontSize: 20, fontWeight: '900' },
+  empStatCardLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, marginTop: 2 },
+
+  /* Beneficios row */
+  empBenefRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.md },
+  empBenefItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  empBenefTxt: { fontSize: 13, fontWeight: '600' },
+
   espRolePill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full, marginTop: 6 },
   espRolePillTxt: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
 
@@ -1687,6 +1757,7 @@ const mejoraStyles = StyleSheet.create({
 const tw = StyleSheet.create({
   // Hero
   hero: { paddingTop: 52, paddingBottom: 90, alignItems: 'center', paddingHorizontal: SPACING.md },
+  heroPortadaImg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   heroTopBar: { position: 'absolute', top: 14, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.md },
   heroTopTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
   settingsBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },

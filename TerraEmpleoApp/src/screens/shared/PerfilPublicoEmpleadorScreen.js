@@ -157,7 +157,7 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
       >
         {/* HERO / FOTOS */}
         <View style={s.heroWrap}>
-          {avatarFoto || tieneFotos ? (
+          {tieneFotos ? (
             <>
               <ScrollView
                 horizontal
@@ -178,14 +178,26 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
                 </View>
               )}
             </>
+          ) : avatarFoto ? (
+            <Image source={{ uri: avatarFoto }} style={s.heroImg} resizeMode="cover" />
           ) : (
             <LinearGradient
-              colors={[colors.primary + 'CC', colors.primaryDark || '#1B5E20']}
+              colors={['#1B5E20', '#2E7D32', '#43A047']}
               style={s.heroPlaceholder}
             >
               <Ionicons name="leaf" size={70} color="rgba(255,255,255,0.15)" />
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 8 }}>Sin fotos de la finca</Text>
             </LinearGradient>
           )}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.55)']}
+            style={s.heroBottomGradient}
+            pointerEvents="none"
+          />
+          <View style={s.heroTitleOverlay} pointerEvents="none">
+            <Text style={s.heroTitleText} numberOfLines={1}>{nombreFinca}</Text>
+            {ubicacion ? <Text style={s.heroSubText}>{ubicacion}</Text> : null}
+          </View>
 
           {/* Fade Superior para el botón back */}
           <LinearGradient
@@ -387,6 +399,10 @@ const s = StyleSheet.create({
   heroImg: { width: SCREEN_WIDTH, height: 260 },
   heroPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   heroGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 100 },
+  heroBottomGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 },
+  heroTitleOverlay: { position: 'absolute', bottom: 12, left: 60, right: 56 },
+  heroTitleText: { color: '#fff', fontSize: 20, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  heroSubText: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 2, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
   heroBackBtn: { position: 'absolute', left: SPACING.md, zIndex: 10 },
   blurCircle: {
     width: 40, height: 40, borderRadius: 20, 

@@ -23,6 +23,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
 import { getVacancyPayDisplay } from '../../utils/vacantesPago';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedPressable, StaggeredItem } from '../../components/animated';
 import { showAlert } from '../../utils/alertService';
 import { encolarPostulacion } from '../../utils/postulacionesQueue';
@@ -229,7 +230,24 @@ export default function DetalleVacanteScreen({ route, navigation }) {
             )}
           </Animated.View>
 
-          <View style={styles.heroGradient} />
+          {/* Gradient + título sobre el hero */}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.65)']}
+            style={styles.heroGradient}
+            pointerEvents="none"
+          />
+          <View style={styles.heroTitleBar} pointerEvents="none">
+            {Boolean(vacante.urgente) && (
+              <View style={styles.heroUrgentPill}>
+                <Ionicons name="flash" size={11} color="#fff" />
+                <Text style={styles.heroUrgentTxt}>URGENTE</Text>
+              </View>
+            )}
+            <Text style={styles.heroTitle} numberOfLines={2}>{vacante.titulo}</Text>
+            {vacante.nombre_empresa_finca ? (
+              <Text style={styles.heroSubtitle}>{vacante.nombre_empresa_finca}</Text>
+            ) : null}
+          </View>
 
           {/* Botones sobre la imagen */}
           <View style={[styles.heroButtons, { top: insets.top + 8 }]}>
@@ -268,69 +286,121 @@ export default function DetalleVacanteScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* Tarjeta de contenido con animación de entrada */}
+        {/* ── CONTENIDO ── */}
         <MotiView
-          from={{ opacity: 0, translateY: 30 }}
+          from={{ opacity: 0, translateY: 24 }}
           animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 18, stiffness: 150, delay: 200 }}
+          transition={{ type: 'spring', damping: 20, stiffness: 160, delay: 150 }}
         >
+          {/* Cabecera flotante sobre el hero */}
           <View style={[styles.contentCard, { backgroundColor: colors.background }]}>
+
+            {/* Badge row */}
             <View style={styles.badgeRow}>
-              {Boolean(vacante.urgente) ? (
+              {Boolean(vacante.urgente) && (
                 <View style={styles.urgentBadge}>
+                  <Ionicons name="flash" size={11} color={COLORS.primary} />
                   <Text style={styles.urgentText}>URGENTE</Text>
                 </View>
-              ) : null}
+              )}
               {vacante.created_at && (
                 <Text style={[styles.timeText, { color: colors.textMuted }]}>
-                  Publicado {(() => {
+                  {(() => {
                     const d = Math.floor((Date.now() - new Date(vacante.created_at)) / 86400000);
-                    if (d === 0) return 'hoy';
-                    if (d === 1) return 'hace 1 día';
-                    return `hace ${d} días`;
+                    return d === 0 ? 'Publicado hoy' : d === 1 ? 'Hace 1 día' : `Hace ${d} días`;
                   })()}
                 </Text>
               )}
             </View>
 
-            {/* Empresa info card */}
-            {Boolean(vacante.nombre_empresa_finca) ? (
-              <View style={[styles.empresaCard, { backgroundColor: isDark ? colors.card : COLORS.primaryMuted, borderColor: colors.border }]}>
-                {perfilEmpleador?.foto_finca_fachada ? (
-                  <Image source={{ uri: perfilEmpleador.foto_finca_fachada }} style={styles.empresaAvatar} resizeMode="cover" />
-                ) : (
-                  <View style={styles.empresaIconWrap}>
-                    <Ionicons name="business-outline" size={20} color={colors.primary} />
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.empresaNombre, { color: colors.textPrimary }]}>{vacante.nombre_empresa_finca}</Text>
-                  {(vacante.municipio || vacante.departamento) && (
-                    <View style={styles.empresaLocRow}>
-                      <Ionicons name="location-outline" size={13} color={colors.textMuted} />
-                      <Text style={[styles.empresaLocText, { color: colors.textMuted }]}>{[vacante.municipio, vacante.departamento].filter(Boolean).join(', ')}</Text>
-                    </View>
-                  )}
-                  {(perfilEmpleador?.calificacion_promedio > 0) && (
-                    <View style={styles.empresaStarsRow}>
-                      {[1,2,3,4,5].map(i => (
-                        <Ionicons key={i} name={i <= Math.round(perfilEmpleador.calificacion_promedio) ? 'star' : 'star-outline'} size={13} color="#F59E0B" />
-                      ))}
-                      <Text style={styles.empresaStarsTxt}>{Number(perfilEmpleador.calificacion_promedio).toFixed(1)}</Text>
-                    </View>
-                  )}
-                </View>
-                {perfilEmpleador?.verificacion_empresa_estado === 'aprobada' && (
-                  <View style={styles.empresaVerBadge}>
-                    <Ionicons name="shield-checkmark" size={15} color={COLORS.primary} />
-                  </View>
-                )}
-              </View>
-            ) : null}
+            {/* Título prominente */}
+            <Text style={[styles.title, { color: colors.textPrimary }]}>{vacante.titulo}</Text>
 
-            {/* Fotos de la finca del empleador */}
+            {/* Tarjeta pago — destaca el salario */}
+            <StaggeredItem index={0}>
+              <LinearGradient
+                colors={isDark ? ['#1a3a1a', '#1e4620'] : ['#2E7D32', '#43A047']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={styles.pagoCard}
+              >
+                <View style={styles.pagoLeft}>
+                  <Text style={styles.pagoLabel}>SALARIO</Text>
+                  <Text style={styles.pagoValor}>{pago.valor}</Text>
+                  {pago.modo ? <Text style={styles.pagoModo}>{pago.modo}</Text> : null}
+                </View>
+                <View style={styles.pagoIconCircle}>
+                  <Ionicons name="cash" size={28} color="rgba(255,255,255,0.9)" />
+                </View>
+              </LinearGradient>
+            </StaggeredItem>
+
+            {/* Empresa info card — clickable */}
+            {Boolean(vacante.nombre_empresa_finca || perfilEmpleador) && (
+              <StaggeredItem index={1}>
+                <AnimatedPressable
+                  style={[styles.empresaCard, { backgroundColor: isDark ? colors.card : '#F8FAF8', borderColor: isDark ? colors.border : '#C8E6C9' }]}
+                  onPress={() => perfilEmpleador && navigation.navigate('PerfilPublicoEmpleador', { empleador_id: vacante.empleador_id, vacante_id: vacante.id })}
+                  scaleValue={0.97} haptic
+                >
+                  {perfilEmpleador?.foto_selfie ? (
+                    <Image source={{ uri: perfilEmpleador.foto_selfie }} style={styles.empresaAvatar} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.empresaIconWrap}>
+                      <Ionicons name="leaf" size={22} color={COLORS.primary} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.empresaNombre, { color: colors.textPrimary }]}>{vacante.nombre_empresa_finca || 'Finca'}</Text>
+                    {(vacante.municipio || vacante.departamento) && (
+                      <View style={styles.empresaLocRow}>
+                        <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+                        <Text style={[styles.empresaLocText, { color: colors.textMuted }]}>{[vacante.municipio, vacante.departamento].filter(Boolean).join(', ')}</Text>
+                      </View>
+                    )}
+                    {perfilEmpleador?.calificacion_promedio > 0 && (
+                      <View style={styles.empresaStarsRow}>
+                        {[1,2,3,4,5].map(i => (
+                          <Ionicons key={i} name={i <= Math.round(perfilEmpleador.calificacion_promedio) ? 'star' : 'star-outline'} size={12} color="#F59E0B" />
+                        ))}
+                        <Text style={styles.empresaStarsTxt}>{Number(perfilEmpleador.calificacion_promedio).toFixed(1)}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    {perfilEmpleador && (
+                      <View style={styles.empresaVerPill}>
+                        <Text style={styles.empresaVerTxt}>Ver perfil</Text>
+                        <Ionicons name="chevron-forward" size={12} color={COLORS.primary} />
+                      </View>
+                    )}
+                  </View>
+                </AnimatedPressable>
+              </StaggeredItem>
+            )}
+
+            {/* Quick info pills */}
+            <StaggeredItem index={2}>
+              <View style={styles.quickPillsWrap}>
+                <View style={[styles.quickPill, { backgroundColor: isDark ? colors.card : '#EFF6FF', borderColor: isDark ? colors.border : '#BFDBFE' }]}>
+                  <Ionicons name="location" size={15} color="#3B82F6" />
+                  <Text style={[styles.quickPillTxt, { color: isDark ? colors.textSecondary : '#1D4ED8' }]}>{[vacante.municipio, vacante.departamento].filter(Boolean).join(', ') || 'Colombia'}</Text>
+                </View>
+                <View style={[styles.quickPill, { backgroundColor: isDark ? colors.card : '#FEF3C7', borderColor: isDark ? colors.border : '#FDE68A' }]}>
+                  <Ionicons name="calendar-clear" size={15} color="#D97706" />
+                  <Text style={[styles.quickPillTxt, { color: isDark ? colors.textSecondary : '#92400E' }]}>{fechaInicioTexto}</Text>
+                </View>
+                {vacante.duracion ? (
+                  <View style={[styles.quickPill, { backgroundColor: isDark ? colors.card : '#F3E8FF', borderColor: isDark ? colors.border : '#DDD6FE' }]}>
+                    <Ionicons name="time" size={15} color="#7C3AED" />
+                    <Text style={[styles.quickPillTxt, { color: isDark ? colors.textSecondary : '#5B21B6' }]}>{vacante.duracion}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </StaggeredItem>
+
+            {/* Fotos de la finca */}
             {(perfilEmpleador?.fotos_finca || []).length > 0 && (
-              <StaggeredItem index={0}>
+              <StaggeredItem index={3}>
                 <View style={styles.sectionBlock}>
                   <View style={styles.sectionHeaderRow}>
                     <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
@@ -340,16 +410,12 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                   </View>
                   <FlatList
                     data={perfilEmpleador.fotos_finca}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
+                    horizontal showsHorizontalScrollIndicator={false}
                     keyExtractor={(item, i) => item.id?.toString() || i.toString()}
                     contentContainerStyle={{ gap: 10 }}
                     renderItem={({ item, index: i }) => (
-                      <MotiView
-                        from={{ opacity: 0, scale: 0.88 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ type: 'spring', damping: 16, stiffness: 130, delay: i * 60 }}
-                      >
+                      <MotiView from={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: 'spring', damping: 16, stiffness: 130, delay: i * 60 }}>
                         <Image source={{ uri: item.url }} style={styles.fincaThumb} resizeMode="cover" />
                       </MotiView>
                     )}
@@ -358,10 +424,25 @@ export default function DetalleVacanteScreen({ route, navigation }) {
               </StaggeredItem>
             )}
 
-            {/* Descripción de la finca */}
-            {perfilEmpleador?.acerca_de ? (
-              <StaggeredItem index={0}>
+            {/* Descripción vacante */}
+            {vacante.descripcion && (
+              <StaggeredItem index={4}>
                 <View style={styles.sectionBlock}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
+                      <Ionicons name="document-text-outline" size={17} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Descripción del trabajo</Text>
+                  </View>
+                  <Text style={[styles.description, { color: colors.textSecondary }]}>{vacante.descripcion}</Text>
+                </View>
+              </StaggeredItem>
+            )}
+
+            {/* Sobre la Finca */}
+            {perfilEmpleador?.acerca_de && (
+              <StaggeredItem index={4}>
+                <View style={[styles.sectionBlock, { backgroundColor: isDark ? colors.card : '#F0FDF4', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.md }]}>
                   <View style={styles.sectionHeaderRow}>
                     <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
                       <Ionicons name="leaf-outline" size={17} color={colors.primary} />
@@ -371,137 +452,103 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                   <Text style={[styles.description, { color: colors.textSecondary }]}>{perfilEmpleador.acerca_de}</Text>
                 </View>
               </StaggeredItem>
-            ) : null}
+            )}
 
-            <Text style={[styles.title, { color: colors.textPrimary }]}>{vacante.titulo}</Text>
-
-            {vacante.descripcion && (
-              <StaggeredItem index={0}>
+            {/* Cultivos + Labores en fila */}
+            {((vacante.cultivos || []).length > 0 || labores.length > 0) && (
+              <StaggeredItem index={5}>
                 <View style={styles.sectionBlock}>
-                  <View style={styles.sectionHeaderRow}>
-                    <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
-                      <Ionicons name="document-text-outline" size={17} color={colors.primary} />
-                    </View>
-                    <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Descripción</Text>
-                  </View>
-                  <Text style={[styles.description, { color: colors.textSecondary }]}>{vacante.descripcion}</Text>
+                  {(vacante.cultivos || []).length > 0 && (
+                    <>
+                      <View style={styles.sectionHeaderRow}>
+                        <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
+                          <Ionicons name="leaf-outline" size={17} color={colors.primary} />
+                        </View>
+                        <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Cultivos</Text>
+                      </View>
+                      <View style={[styles.chipsRow, { marginBottom: SPACING.md }]}>
+                        {(vacante.cultivos || []).map((c, i) => (
+                          <View key={`c${i}`} style={styles.chipGreen}>
+                            <Ionicons name="leaf" size={12} color={colors.primary} />
+                            <Text style={[styles.chipGreenText, { color: colors.primary }]}>{c.cultivo || c}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  )}
+                  {labores.length > 0 && (
+                    <>
+                      <View style={styles.sectionHeaderRow}>
+                        <View style={[styles.sectionIconBg, { backgroundColor: isDark ? colors.card : '#F1F5F9' }]}>
+                          <Ionicons name="construct-outline" size={17} color={colors.textSecondary} />
+                        </View>
+                        <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Labores</Text>
+                      </View>
+                      <View style={styles.chipsRow}>
+                        {labores.map((r, i) => (
+                          <View key={i} style={[styles.reqChip, { backgroundColor: isDark ? colors.card : '#F8FAFC', borderColor: colors.border }]}>
+                            <Ionicons name="construct-outline" size={13} color={colors.textSecondary} />
+                            <Text style={[styles.reqChipText, { color: colors.textSecondary }]}>{r}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  )}
                 </View>
               </StaggeredItem>
             )}
 
-            {/* Info principal */}
-            <StaggeredItem index={1}>
-              <View style={[styles.infoBlock, { backgroundColor: isDark ? colors.surface : '#FAFAF9', borderColor: colors.border }]}>
-                <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
-                  <View style={[styles.infoCircle, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="location-outline" size={16} color={colors.primary} /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Ubicación</Text>
-                    <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{[vacante.municipio, vacante.departamento].filter(Boolean).join(', ') || 'Colombia'}</Text>
-                  </View>
-                </View>
-                <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
-                  <View style={[styles.infoCircle, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="cash-outline" size={16} color={colors.primary} /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Salario</Text>
-                    <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{pago.valor}</Text>
-                  </View>
-                </View>
-                <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
-                  <View style={[styles.infoCircle, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="calendar-clear-outline" size={16} color={colors.primary} /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Fecha de inicio</Text>
-                    <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{fechaInicioTexto}</Text>
-                  </View>
-                </View>
-                {vacante.duracion ? (
-                  <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-                    <View style={[styles.infoCircle, { backgroundColor: COLORS.primarySoft }]}><Ionicons name="calendar-outline" size={16} color={colors.primary} /></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Duración</Text>
-                      <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{vacante.duracion}</Text>
-                    </View>
-                  </View>
-                ) : null}
-              </View>
-            </StaggeredItem>
-
-            {requisitosTexto ? (
-              <StaggeredItem index={2}>
-                <View style={styles.sectionBlock}>
+            {/* Requisitos */}
+            {requisitosTexto && (
+              <StaggeredItem index={6}>
+                <View style={[styles.sectionBlock, { backgroundColor: isDark ? colors.card : '#FFFBEB', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.md }]}>
                   <View style={styles.sectionHeaderRow}>
-                    <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
-                      <Ionicons name="clipboard-outline" size={17} color={colors.primary} />
+                    <View style={[styles.sectionIconBg, { backgroundColor: '#FEF3C7' }]}>
+                      <Ionicons name="clipboard-outline" size={17} color="#D97706" />
                     </View>
                     <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Requisitos</Text>
                   </View>
                   <Text style={[styles.description, { color: colors.textSecondary }]}>{requisitosTexto}</Text>
                 </View>
               </StaggeredItem>
-            ) : null}
-
-            {(vacante.cultivos || []).length > 0 && (
-              <StaggeredItem index={3}>
-                <View style={styles.sectionBlock}>
-                  <View style={styles.sectionHeaderRow}>
-                    <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
-                      <Ionicons name="leaf-outline" size={17} color={colors.primary} />
-                    </View>
-                    <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Cultivos</Text>
-                  </View>
-                  <View style={styles.chipsRow}>
-                    {(vacante.cultivos || []).map((c, i) => (
-                      <View key={`c${i}`} style={styles.chipGreen}>
-                        <Ionicons name="leaf" size={12} color={colors.primary} />
-                        <Text style={[styles.chipGreenText, { color: colors.primary }]}>{c.cultivo || c}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </StaggeredItem>
             )}
 
-            {labores.length > 0 && (
-              <StaggeredItem index={4}>
-                <View style={styles.sectionBlock}>
-                  <View style={styles.sectionHeaderRow}>
-                    <View style={[styles.sectionIconBg, { backgroundColor: isDark ? colors.card : '#F1F5F9' }]}>
-                      <Ionicons name="construct-outline" size={17} color={colors.textSecondary} />
-                    </View>
-                    <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Labores solicitadas</Text>
-                  </View>
-                  <View style={styles.chipsRow}>
-                    {labores.map((r, i) => (
-                      <View key={i} style={[styles.reqChip, { backgroundColor: isDark ? colors.card : '#F8FAFC', borderColor: colors.border }]}>
-                        <Ionicons name="construct-outline" size={13} color={colors.textSecondary} />
-                        <Text style={[styles.reqChipText, { color: colors.textSecondary }]}>{r}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </StaggeredItem>
-            )}
-
+            {/* Beneficios — cards coloridas */}
             {(beneficios.length > 0 || vacante.otros_beneficios) && (
-              <StaggeredItem index={5}>
-                <View style={[styles.benefCard, { backgroundColor: isDark ? colors.card : COLORS.primarySoft }]}>
+              <StaggeredItem index={7}>
+                <View style={styles.sectionBlock}>
                   <View style={styles.sectionHeaderRow}>
-                    <View style={[styles.sectionIconBg, { backgroundColor: isDark ? colors.surface : COLORS.primaryMuted }]}>
-                      <Ionicons name="gift-outline" size={17} color={colors.primary} />
+                    <View style={[styles.sectionIconBg, { backgroundColor: '#FEE2E2' }]}>
+                      <Ionicons name="gift-outline" size={17} color="#DC2626" />
                     </View>
-                    <Text style={[styles.benefTitle, { color: colors.primary }]}>Beneficios adicionales</Text>
+                    <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Beneficios incluidos</Text>
                   </View>
-                  {beneficios.map((b, i) => (
-                    <View key={i} style={styles.benefRow}>
-                      <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-                      <Text style={[styles.benefText, { color: isDark ? colors.textSecondary : COLORS.primaryDark }]}>{b.desc}</Text>
-                    </View>
-                  ))}
-                  {vacante.otros_beneficios && (
-                    <View style={styles.benefRow}>
-                      <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-                      <Text style={[styles.benefText, { color: isDark ? colors.textSecondary : COLORS.primaryDark }]}>{vacante.otros_beneficios}</Text>
-                    </View>
-                  )}
+                  <View style={styles.benefGrid}>
+                    {beneficios.map((b, i) => (
+                      <MotiView key={i}
+                        from={{ opacity: 0, scale: 0.85 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: 'spring', damping: 14, stiffness: 120, delay: i * 80 }}
+                      >
+                        <View style={[styles.benefGridCard, { backgroundColor: isDark ? colors.card : (i === 0 ? '#F0FDF4' : '#EFF6FF'), borderColor: isDark ? colors.border : (i === 0 ? '#BBF7D0' : '#BFDBFE') }]}>
+                          <View style={[styles.benefGridIcon, { backgroundColor: i === 0 ? '#DCFCE7' : '#DBEAFE' }]}>
+                            <Ionicons name={b.icon} size={22} color={i === 0 ? '#16A34A' : '#2563EB'} />
+                          </View>
+                          <Text style={[styles.benefGridLabel, { color: colors.textPrimary }]}>{b.label}</Text>
+                          <Text style={[styles.benefGridDesc, { color: colors.textMuted }]}>{b.desc}</Text>
+                        </View>
+                      </MotiView>
+                    ))}
+                    {vacante.otros_beneficios && (
+                      <View style={[styles.benefGridCard, { backgroundColor: isDark ? colors.card : '#FFF7ED', borderColor: isDark ? colors.border : '#FED7AA' }]}>
+                        <View style={[styles.benefGridIcon, { backgroundColor: '#FFEDD5' }]}>
+                          <Ionicons name="star-outline" size={22} color="#EA580C" />
+                        </View>
+                        <Text style={[styles.benefGridLabel, { color: colors.textPrimary }]}>Extra</Text>
+                        <Text style={[styles.benefGridDesc, { color: colors.textMuted }]}>{vacante.otros_beneficios}</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
               </StaggeredItem>
             )}
@@ -677,10 +724,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   heroPlaceholderText: { fontSize: 14, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
-  heroGradient: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 80,
-    backgroundColor: 'transparent',
-  },
+  heroGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 160 },
+  heroTitleBar: { position: 'absolute', bottom: 44, left: SPACING.lg, right: SPACING.lg },
+  heroUrgentPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.primary, alignSelf: 'flex-start', borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 6 },
+  heroUrgentTxt: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  heroTitle: { color: '#fff', fontSize: 22, fontWeight: '900', lineHeight: 28, textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  heroSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '600', marginTop: 4, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
   heroButtons: {
     position: 'absolute', left: SPACING.md, right: SPACING.md,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -725,12 +774,37 @@ const styles = StyleSheet.create({
   /* Badge row */
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.md },
   urgentBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: COLORS.primarySoft,
     paddingHorizontal: 12, paddingVertical: 5,
     borderRadius: RADIUS.full,
     borderWidth: 1.5, borderColor: COLORS.primary,
   },
   urgentText: { fontSize: 11, fontWeight: '700', color: COLORS.primary, letterSpacing: 0.3 },
+
+  /* Pago destacado */
+  pagoCard: { flexDirection: 'row', alignItems: 'center', borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: SPACING.md, ...SHADOWS.medium },
+  pagoLeft: { flex: 1 },
+  pagoLabel: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.7)', letterSpacing: 1, marginBottom: 4 },
+  pagoValor: { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
+  pagoModo: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 3 },
+  pagoIconCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
+
+  /* Quick pills */
+  quickPillsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: SPACING.lg },
+  quickPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 7 },
+  quickPillTxt: { fontSize: 13, fontWeight: '600' },
+
+  /* Empresa ver perfil */
+  empresaVerPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: COLORS.primarySoft, borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 5 },
+  empresaVerTxt: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
+
+  /* Benefits grid */
+  benefGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  benefGridCard: { flex: 1, minWidth: 130, borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', gap: 6 },
+  benefGridIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  benefGridLabel: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  benefGridDesc: { fontSize: 12, textAlign: 'center', lineHeight: 16 },
   timeText: { fontSize: 13 },
 
   title: { fontSize: 24, fontWeight: '800', marginBottom: SPACING.lg, lineHeight: 32 },

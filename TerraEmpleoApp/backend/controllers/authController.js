@@ -434,7 +434,7 @@ async function getPerfil(req, res) {
     }
 
     // Firmar URLs de S3
-    await signFields(user, ['foto_selfie', 'foto_cedula', 'foto_selfie_cedula']);
+    await signFields(user, ['foto_selfie', 'foto_cedula', 'foto_selfie_cedula', 'foto_portada']);
     if (perfil) {
       await signFields(perfil, ['hoja_vida_url', 'foto_finca_fachada']);
     }
@@ -638,7 +638,8 @@ async function subirFotos(req, res) {
     const columnasUsuario = {
       selfie: 'foto_selfie',
       cedula: 'foto_cedula',
-      selfie_cedula: 'foto_selfie_cedula'
+      selfie_cedula: 'foto_selfie_cedula',
+      portada: 'foto_portada',
     };
     const columnasEmpleador = {
       finca_fachada: 'foto_finca_fachada',
