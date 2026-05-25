@@ -13,7 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { showAlert } from '../../utils/alertService';
 
 const W = Dimensions.get('window').width;
-const HERO_H = 300;
+const HERO_H = Math.round(Dimensions.get('window').height * 0.42);
 
 export default function DetalleServicioScreen({ route, navigation }) {
   const { servicio_id, servicio: servicioParam } = route.params || {};
