@@ -147,243 +147,273 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
     setActivePhotoIndex(Math.round(index));
   };
 
+  const cultivosFinca = perfilEmpleador?.cultivos?.length > 0 ? perfilEmpleador.cultivos : (vacante?.cultivos || []);
+  const laboresFinca = perfilEmpleador?.labores?.length > 0 ? perfilEmpleador.labores : (vacante?.labores || []);
+  const tieneAlojamiento = perfilEmpleador?.ofrece_alojamiento || vacante?.ofrece_alojamiento;
+  const tieneAlimentacion = perfilEmpleador?.ofrece_alimentacion || vacante?.ofrece_alimentacion;
+  const otrosBeneficios = perfilEmpleador?.beneficios_extra || vacante?.beneficios_extra;
+  const tipoPago = perfilEmpleador?.tipo_pago || vacante?.tipo_pago;
+
+  const TIPO_PAGO_LABEL = { jornal: 'Jornal (diario)', quincenal: 'Quincenal', mensual: 'Mensual', destajo: 'Por destajo', a_convenir: 'A convenir' };
+
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 60 }}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollEventThrottle={16}
       >
-        {/* HERO / FOTOS */}
+        {/* ── HERO ── */}
         <View style={s.heroWrap}>
           {tieneFotos ? (
-            <>
-              <ScrollView
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={handleScrollPhoto}
-                style={{ flex: 1 }}
-              >
-                {fotosArray.map((url, i) => (
-                  <Image key={i} source={{ uri: url }} style={s.heroImg} resizeMode="cover" />
-                ))}
-              </ScrollView>
-              {fotosArray.length > 1 && (
-                <View style={s.paginationWrap}>
-                  {fotosArray.map((_, i) => (
-                    <View key={i} style={[s.dot, i === activePhotoIndex ? { backgroundColor: '#fff', width: 14 } : { backgroundColor: 'rgba(255,255,255,0.5)' }]} />
-                  ))}
-                </View>
-              )}
-            </>
-          ) : avatarFoto ? (
-            <Image source={{ uri: avatarFoto }} style={s.heroImg} resizeMode="cover" />
-          ) : (
-            <LinearGradient
-              colors={['#1B5E20', '#2E7D32', '#43A047']}
-              style={s.heroPlaceholder}
+            <ScrollView
+              horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handleScrollPhoto}
+              style={{ width: SCREEN_WIDTH, height: 280 }}
             >
-              <Ionicons name="leaf" size={70} color="rgba(255,255,255,0.15)" />
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 8 }}>Sin fotos de la finca</Text>
+              {fotosArray.map((url, i) => (
+                <Image key={i} source={{ uri: url }} style={{ width: SCREEN_WIDTH, height: 280 }} resizeMode="cover" />
+              ))}
+            </ScrollView>
+          ) : avatarFoto ? (
+            <Image source={{ uri: avatarFoto }} style={{ width: SCREEN_WIDTH, height: 280 }} resizeMode="cover" />
+          ) : (
+            <LinearGradient colors={['#1B5E20', '#2E7D32', '#43A047']} style={{ width: SCREEN_WIDTH, height: 280, justifyContent: 'center', alignItems: 'center' }}>
+              <Ionicons name="leaf" size={80} color="rgba(255,255,255,0.12)" />
             </LinearGradient>
           )}
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.55)']}
-            style={s.heroBottomGradient}
-            pointerEvents="none"
-          />
-          <View style={s.heroTitleOverlay} pointerEvents="none">
-            <Text style={s.heroTitleText} numberOfLines={1}>{nombreFinca}</Text>
-            {ubicacion ? <Text style={s.heroSubText}>{ubicacion}</Text> : null}
+
+          {/* Gradiente inferior */}
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={s.heroBottomGradient} pointerEvents="none" />
+
+          {/* Nombre finca sobre hero */}
+          <View style={s.heroTitleBar} pointerEvents="none">
+            <Text style={s.heroTitle} numberOfLines={1}>{nombreFinca}</Text>
+            {ubicacion ? (
+              <View style={s.heroSubRow}>
+                <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.85)" />
+                <Text style={s.heroSub}>{ubicacion}</Text>
+              </View>
+            ) : null}
+            {tipoPago ? (
+              <View style={s.heroPagoPill}>
+                <Ionicons name="cash-outline" size={12} color="rgba(255,255,255,0.9)" />
+                <Text style={s.heroPagoPillTxt}>{TIPO_PAGO_LABEL[tipoPago] || tipoPago}</Text>
+              </View>
+            ) : null}
           </View>
 
-          {/* Fade Superior para el botón back */}
-          <LinearGradient
-            colors={['rgba(0,0,0,0.5)', 'transparent']}
-            style={[s.heroGradient, { paddingTop: insets.top + 8 }]}
-            pointerEvents="none"
-          />
-          <AnimatedPressable
-            style={[s.heroBackBtn, { top: insets.top + 8 }]}
-            onPress={() => navigation.goBack()}
-          >
-            <View style={s.blurCircle}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
+          {/* Dots paginación */}
+          {fotosArray.length > 1 && (
+            <View style={s.paginationWrap}>
+              {fotosArray.map((_, i) => (
+                <View key={i} style={[s.dot, i === activePhotoIndex ? { backgroundColor: '#fff', width: 14 } : { backgroundColor: 'rgba(255,255,255,0.45)' }]} />
+              ))}
             </View>
+          )}
+
+          {/* Top gradient + back */}
+          <LinearGradient colors={['rgba(0,0,0,0.45)', 'transparent']} style={s.heroTopGradient} pointerEvents="none" />
+          <AnimatedPressable style={[s.heroBackBtn, { top: insets.top + 8 }]} onPress={() => navigation.goBack()}>
+            <View style={s.blurCircle}><Ionicons name="arrow-back" size={22} color="#fff" /></View>
           </AnimatedPressable>
         </View>
 
-        {/* INFO PRINCIPAL */}
-        <View style={[s.identityCard, { backgroundColor: colors.surface, ...SHADOWS.card }]}>
-          {/* Avatar superpuesto */}
-          <View style={[s.avatarWrap, { borderColor: colors.surface }]}>
-            {avatarFoto || tieneFotos ? (
-              <Image source={{ uri: avatarFoto || fotosArray[0] }} style={[s.avatar, { borderColor: colors.primary }]} />
-            ) : (
-              <View style={[s.avatarFallback, { backgroundColor: colors.primary + '18', borderColor: colors.primary }]}>
-                <Text style={[s.avatarInitials, { color: colors.primary }]}>{initials}</Text>
+        {/* ── IDENTITY CARD ── */}
+        <View style={[s.identityCard, { backgroundColor: colors.surface }]}>
+          <View style={s.identityTop}>
+            <View style={[s.avatarWrap, { borderColor: colors.surface }]}>
+              {avatarFoto ? (
+                <Image source={{ uri: avatarFoto }} style={s.avatar} />
+              ) : (
+                <LinearGradient colors={['#2E7D32', '#43A047']} style={s.avatarFallback}>
+                  <Text style={s.avatarInitials}>{initials}</Text>
+                </LinearGradient>
+              )}
+            </View>
+            <View style={{ flex: 1, paddingLeft: 14 }}>
+              <Text style={[s.nombreFinca, { color: colors.textPrimary }]} numberOfLines={1}>{nombreFinca}</Text>
+              <View style={s.propietarioRow}>
+                <Ionicons name="person-circle-outline" size={14} color={colors.textSecondary} />
+                <Text style={[s.nombrePropietario, { color: colors.textSecondary }]} numberOfLines={1}>{nombrePropietario}</Text>
               </View>
-            )}
-          </View>
 
-          <View style={s.identityHeader}>
-            <Text style={[s.nombreFinca, { color: colors.textPrimary }]} numberOfLines={2}>
-              {nombreFinca}
-            </Text>
-            <View style={s.propietarioRow}>
-              <Ionicons name="person-outline" size={14} color={colors.textSecondary} />
-              <Text style={[s.nombrePropietario, { color: colors.textSecondary }]}>{nombrePropietario}</Text>
-            </View>
-            {ubicacion ? (
-              <View style={s.metaRow}>
-                <Ionicons name="location" size={14} color={COLORS.error || '#D32F2F'} />
-                <Text style={[s.metaText, { color: colors.textMuted }]}>{ubicacion}</Text>
+              {/* Rating inline */}
+              <View style={s.ratingInline}>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Ionicons key={i} name={i < Math.round(calificacionPromedio) ? 'star' : 'star-outline'} size={13} color="#F59E0B" />
+                ))}
+                <Text style={[s.ratingVal, { color: colors.textPrimary }]}>
+                  {calificacionPromedio > 0 ? calificacionPromedio.toFixed(1) : '—'}
+                </Text>
+                {totalCalificaciones > 0 && (
+                  <Text style={[s.ratingCount, { color: colors.textMuted }]}>({totalCalificaciones})</Text>
+                )}
               </View>
-            ) : null}
-          </View>
-
-          {/* STATS */}
-          <View style={[s.statsRow, { borderColor: colors.border }]}>
-            <View style={s.statItem}>
-              <Text style={[s.statNum, { color: colors.primary }]}>{vacante?.activa ? '1' : '0'}</Text>
-              <Text style={[s.statLabel, { color: colors.textMuted }]}>Vacante{vacante?.activa ? '' : 's'}</Text>
-            </View>
-            <View style={[s.statDivider, { backgroundColor: colors.border }]} />
-            <View style={s.statItem}>
-              <Text style={[s.statNum, { color: colors.primary }]}>{vacante?.cultivos?.length || 0}</Text>
-              <Text style={[s.statLabel, { color: colors.textMuted }]}>Cultivos</Text>
-            </View>
-            <View style={[s.statDivider, { backgroundColor: colors.border }]} />
-            <View style={s.statItem}>
-              <Text style={[s.statNum, { color: colors.primary }]}>{beneficios.length}</Text>
-              <Text style={[s.statLabel, { color: colors.textMuted }]}>Beneficios</Text>
             </View>
           </View>
 
-          <View style={[s.ratingPublicRow, { borderTopColor: colors.border }]}> 
-            <Text style={[s.ratingPublicTitle, { color: colors.textSecondary }]}>Calificación pública</Text>
-            <View style={s.ratingPublicValueWrap}>
-              <Ionicons name="star" size={16} color={COLORS.star} />
-              <Text style={[s.ratingPublicValue, { color: colors.textPrimary }]}> 
-                {calificacionPromedio > 0 ? calificacionPromedio.toFixed(1) : 'Sin calificaciones'}
-              </Text>
+          {/* STATS GRID */}
+          <View style={s.statsGrid}>
+            <View style={[s.statCard, { backgroundColor: '#E8F5E9' }]}>
+              <View style={[s.statCardIcon, { backgroundColor: '#2E7D32' }]}><Ionicons name="briefcase-outline" size={15} color="#fff" /></View>
+              <Text style={[s.statCardNum, { color: '#2E7D32' }]}>{vacante?.activa ? '1' : '0'}</Text>
+              <Text style={[s.statCardLabel, { color: '#2E7D32' }]}>Vacantes</Text>
             </View>
-            {totalCalificaciones > 0 ? (
-              <Text style={[s.ratingPublicCount, { color: colors.textMuted }]}>{totalCalificaciones} reseña{totalCalificaciones !== 1 ? 's' : ''}</Text>
-            ) : null}
+            <View style={[s.statCard, { backgroundColor: '#E3F2FD' }]}>
+              <View style={[s.statCardIcon, { backgroundColor: '#1565C0' }]}><Ionicons name="leaf-outline" size={15} color="#fff" /></View>
+              <Text style={[s.statCardNum, { color: '#1565C0' }]}>{cultivosFinca.length}</Text>
+              <Text style={[s.statCardLabel, { color: '#1565C0' }]}>Cultivos</Text>
+            </View>
+            <View style={[s.statCard, { backgroundColor: '#FFF3E0' }]}>
+              <View style={[s.statCardIcon, { backgroundColor: '#E65100' }]}><Ionicons name="gift-outline" size={15} color="#fff" /></View>
+              <Text style={[s.statCardNum, { color: '#E65100' }]}>{beneficios.length}</Text>
+              <Text style={[s.statCardLabel, { color: '#E65100' }]}>Beneficios</Text>
+            </View>
           </View>
         </View>
 
-        {/* VACANTE ACTUAL */}
+        {/* ── DESCRIPCIÓN ── */}
+        {acercaDe ? (
+          <View style={[s.card, { backgroundColor: colors.surface }]}>
+            <SectionHeader icon="document-text-outline" title="Sobre la Finca" colors={colors} />
+            <Text style={[s.descTxt, { color: colors.textSecondary }]}>{acercaDe}</Text>
+          </View>
+        ) : null}
+
+        {/* ── VACANTE ACTUAL ── */}
         {vacante?.titulo && (
           <View style={[s.card, { backgroundColor: colors.surface }]}>
             <SectionHeader icon="briefcase-outline" title="Vacante Publicada" colors={colors} />
             <AnimatedPressable
               onPress={() => navigation.navigate('DetalleVacante', { vacante: { id: vacante.id, titulo: vacante.titulo } })}
-              style={[s.vacanteItem, { borderColor: colors.border, backgroundColor: isDark ? colors.background : '#F8FAFC' }]}
+              style={[s.vacanteItem, { borderColor: vacante.activa ? COLORS.primary + '40' : colors.border, backgroundColor: vacante.activa ? COLORS.primary + '08' : (isDark ? colors.background : '#F8FAFC') }]}
             >
-              <View style={s.vacanteLeft}>
-                <View style={[s.dotContainer, { backgroundColor: vacante.activa ? '#E8F5E9' : '#FFEBEE' }]}>
-                  <View style={[s.dotStatus, { backgroundColor: vacante.activa ? COLORS.success : COLORS.error }]} />
-                </View>
-                <Text style={[s.vacanteItemTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-                  {vacante.titulo}
-                </Text>
-              </View>
-              <View style={[s.vacanteBadge, { backgroundColor: vacante.activa ? COLORS.success + '15' : COLORS.error + '15' }]}>
-                <Text style={[s.vacanteBadgeTxt, { color: vacante.activa ? COLORS.success : COLORS.error }]}>
+              <LinearGradient
+                colors={vacante.activa ? ['#2E7D32', '#43A047'] : ['#9E9E9E', '#757575']}
+                style={s.vacanteIconGrad}
+              >
+                <Ionicons name="briefcase" size={14} color="#fff" />
+              </LinearGradient>
+              <Text style={[s.vacanteItemTitle, { color: colors.textPrimary }]} numberOfLines={1}>{vacante.titulo}</Text>
+              <View style={[s.vacanteBadge, { backgroundColor: vacante.activa ? '#D1FAE5' : '#FEE2E2' }]}>
+                <Text style={[s.vacanteBadgeTxt, { color: vacante.activa ? COLORS.primary : COLORS.error }]}>
                   {vacante.activa ? 'Activa' : 'Cerrada'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={{ marginLeft: 4 }} />
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
             </AnimatedPressable>
           </View>
         )}
 
-        {/* CULTIVOS */}
-        {vacante?.cultivos?.length > 0 && (
+        {/* ── CULTIVOS Y LABORES ── */}
+        {(cultivosFinca.length > 0 || laboresFinca.length > 0) && (
           <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="leaf-outline" title="Cultivos de la Finca" colors={colors} />
-            <View style={s.chipWrap}>
-              {vacante.cultivos.map((c, i) => (
-                <View key={i} style={[s.chip, { backgroundColor: colors.primary + '15' }]}>
-                  <Text style={[s.chipTxt, { color: colors.primaryDark || colors.primary }]}>{c.cultivo}</Text>
-                </View>
-              ))}
-            </View>
+            <SectionHeader icon="leaf-outline" title="Cultivos y Labores" colors={colors} />
+            {cultivosFinca.length > 0 && (
+              <View style={s.chipWrap}>
+                {cultivosFinca.map((c, i) => (
+                  <View key={i} style={s.chipGreen}>
+                    <Ionicons name="leaf" size={11} color="#2E7D32" />
+                    <Text style={s.chipGreenTxt}>{c.cultivo || c}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            {laboresFinca.length > 0 && (
+              <View style={[s.chipWrap, { marginTop: cultivosFinca.length > 0 ? 8 : 0 }]}>
+                {laboresFinca.map((l, i) => (
+                  <View key={i} style={[s.chipGreen, { backgroundColor: '#FFF3E0', borderColor: '#FFE0B2' }]}>
+                    <Ionicons name="construct-outline" size={11} color="#E65100" />
+                    <Text style={[s.chipGreenTxt, { color: '#E65100' }]}>{l.labor || l}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
 
-        {/* FOTOS DE FINCA */}
-        {fotosFinca.length > 0 && (
+        {/* ── FOTOS DE FINCA ── */}
+        {fotosFinca.length > 1 && (
           <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="images-outline" title="Fotos de la Finca" colors={colors} />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <SectionHeader icon="images-outline" title="Galería de la Finca" colors={colors} />
+            <View style={s.galeria}>
               {fotosFinca.map((url, i) => (
-                <Image key={i} source={{ uri: url }} style={{ width: '47%', aspectRatio: 1, borderRadius: RADIUS.md }} />
+                <Image key={i} source={{ uri: url }} style={s.galeriaImg} resizeMode="cover" />
               ))}
             </View>
           </View>
         )}
 
-        {/* BENEFICIOS */}
-        {beneficios.length > 0 && (
+        {/* ── BENEFICIOS ── */}
+        {(tieneAlojamiento || tieneAlimentacion || otrosBeneficios) && (
           <View style={[s.card, { backgroundColor: colors.surface }]}>
             <SectionHeader icon="gift-outline" title="Beneficios que Ofrece" colors={colors} />
-            <View style={s.listWrap}>
-              {beneficios.map((b, i) => (
-                <View key={i} style={s.listItemRow}>
-                  <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                  <Text style={[s.listItemTxt, { color: colors.textSecondary }]}>{b}</Text>
+            <View style={s.benefGrid}>
+              {tieneAlojamiento && (
+                <View style={[s.benefCard, { backgroundColor: '#E8F5E9' }]}>
+                  <View style={[s.benefIcon, { backgroundColor: '#2E7D32' }]}><Ionicons name="home" size={18} color="#fff" /></View>
+                  <Text style={[s.benefLabel, { color: '#1B5E20' }]}>Alojamiento</Text>
+                  <Text style={[s.benefSub, { color: '#2E7D32' }]}>Incluido</Text>
                 </View>
-              ))}
+              )}
+              {tieneAlimentacion && (
+                <View style={[s.benefCard, { backgroundColor: '#E3F2FD' }]}>
+                  <View style={[s.benefIcon, { backgroundColor: '#1565C0' }]}><Ionicons name="restaurant" size={18} color="#fff" /></View>
+                  <Text style={[s.benefLabel, { color: '#0D47A1' }]}>Alimentación</Text>
+                  <Text style={[s.benefSub, { color: '#1565C0' }]}>Incluida</Text>
+                </View>
+              )}
+              {otrosBeneficios && (
+                <View style={[s.benefCard, { backgroundColor: '#FFF3E0' }]}>
+                  <View style={[s.benefIcon, { backgroundColor: '#E65100' }]}><Ionicons name="star" size={18} color="#fff" /></View>
+                  <Text style={[s.benefLabel, { color: '#BF360C' }]}>Extras</Text>
+                  <Text style={[s.benefSub, { color: '#E65100' }]} numberOfLines={2}>{otrosBeneficios}</Text>
+                </View>
+              )}
             </View>
           </View>
         )}
 
-        {/* CALIFICAR EMPLEADOR (Si el trabajador aplica a vacante) */}
-        {user?.rol === 'trabajador' && vacante_id && empleadorId ? (
+        {/* ── CALIFICAR ── */}
+        {user?.rol === 'trabajador' && empleadorId ? (
           <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <SectionHeader icon="star-half-outline" title="Calificar Empleador" colors={colors} />
-            <Text style={[s.helpText, { color: colors.textSecondary }]}>
-              Solo se mostrará tu puntuación de estrellas al público. Tu comentario es interno para revisión administrativa.
-            </Text>
-            <View style={{ marginVertical: SPACING.md }}>
-              <StarRating rating={estrellas} onRate={setEstrellas} size={36} />
+            <SectionHeader icon="star-half-outline" title="Calificar al Empleador" colors={colors} />
+            <View style={s.ratingCard}>
+              <Text style={[s.ratingHint, { color: colors.textMuted }]}>
+                Tu puntuación pública. El comentario es privado para revisión.
+              </Text>
+              <View style={s.starsRow}>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Pressable key={i} onPress={() => setEstrellas(i + 1)} style={{ padding: 4 }}>
+                    <Ionicons name={i < estrellas ? 'star' : 'star-outline'} size={34} color={i < estrellas ? '#F59E0B' : '#D1D5DB'} />
+                  </Pressable>
+                ))}
+              </View>
+              {estrellas > 0 && (
+                <Text style={[s.ratingLabel, { color: colors.textSecondary }]}>
+                  {['', 'Muy malo', 'Malo', 'Regular', 'Bueno', 'Excelente'][estrellas]}
+                </Text>
+              )}
             </View>
             <Input
               value={comentario}
               onChangeText={setComentario}
-              placeholder="Comentario interno (opcional)..."
-              multiline
-              numberOfLines={3}
-              style={{ backgroundColor: colors.background }}
+              placeholder="Comentario privado (opcional)..."
+              multiline numberOfLines={3}
+              style={{ backgroundColor: colors.background, marginTop: SPACING.md }}
             />
             <AnimatedPressable
-              style={[s.btnCalificar, { backgroundColor: colors.primary, opacity: enviandoCalificacion ? 0.7 : 1 }]}
+              style={[s.btnCalificar, { backgroundColor: estrellas > 0 ? colors.primary : '#9CA3AF', opacity: enviandoCalificacion ? 0.7 : 1 }]}
               onPress={enviarCalificacion}
-              disabled={enviandoCalificacion}
+              disabled={enviandoCalificacion || estrellas === 0}
             >
               <Ionicons name={enviandoCalificacion ? 'hourglass-outline' : 'star'} size={18} color="#fff" />
-              <Text style={s.btnCalificarText}>
-                {enviandoCalificacion ? 'Enviando...' : 'Enviar calificación'}
-              </Text>
+              <Text style={s.btnCalificarText}>{enviandoCalificacion ? 'Enviando...' : 'Enviar calificación'}</Text>
             </AnimatedPressable>
           </View>
         ) : null}
-
-        {/* VolVER */}
-        <View style={{ paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl, marginTop: SPACING.md }}>
-          <AnimatedPressable
-            style={[s.btnVolver, { backgroundColor: isDark ? colors.surface : '#fff', borderColor: colors.border }]}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="chatbubbles-outline" size={20} color={colors.textSecondary} />
-            <Text style={[s.btnVolverText, { color: colors.textSecondary }]}>Volver al chat</Text>
-          </AnimatedPressable>
-        </View>
 
       </Animated.ScrollView>
     </View>
@@ -395,134 +425,91 @@ const s = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   /* HERO */
-  heroWrap: { width: '100%', height: 260, position: 'relative', backgroundColor: '#e2e8f0' },
-  heroImg: { width: SCREEN_WIDTH, height: 260 },
-  heroPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  heroGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 100 },
-  heroBottomGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 },
-  heroTitleOverlay: { position: 'absolute', bottom: 12, left: 60, right: 56 },
-  heroTitleText: { color: '#fff', fontSize: 20, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  heroSubText: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 2, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+  heroWrap: { width: '100%', height: 280, position: 'relative' },
+  heroTopGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 90, zIndex: 2 },
+  heroBottomGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 130, zIndex: 2 },
+  heroTitleBar: { position: 'absolute', bottom: 18, left: SPACING.md, right: SPACING.md, zIndex: 3, gap: 4 },
+  heroTitle: { color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: -0.5, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  heroSubRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  heroSub: { color: 'rgba(255,255,255,0.88)', fontSize: 13, fontWeight: '500' },
+  heroPagoPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full, marginTop: 4 },
+  heroPagoPillTxt: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '600' },
   heroBackBtn: { position: 'absolute', left: SPACING.md, zIndex: 10 },
-  blurCircle: {
-    width: 40, height: 40, borderRadius: 20, 
-    backgroundColor: 'rgba(0,0,0,0.3)', 
-    justifyContent: 'center', alignItems: 'center'
-  },
-  paginationWrap: {
-    position: 'absolute', bottom: 30, left: 0, right: 0,
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6
-  },
+  blurCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center' },
+  paginationWrap: { position: 'absolute', bottom: 52, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, zIndex: 3 },
   dot: { width: 8, height: 8, borderRadius: 4 },
 
-  /* INFO PRINCIPAL */
+  /* IDENTITY CARD */
   identityCard: {
-    marginHorizontal: SPACING.lg,
-    marginTop: -20,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
-    paddingTop: 45, // espacio para el avatar
-    marginBottom: SPACING.lg,
-    position: 'relative',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    marginHorizontal: SPACING.md, marginTop: -24,
+    borderRadius: RADIUS.xl, padding: SPACING.md,
+    marginBottom: SPACING.md, zIndex: 10,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)',
+    ...SHADOWS.medium,
   },
-  avatarWrap: {
-    position: 'absolute', top: -36, left: SPACING.lg,
-    borderWidth: 4, borderRadius: 40,
-    ...SHADOWS.small,
-  },
-  avatar: { width: 72, height: 72, borderRadius: 36, borderWidth: 1 },
-  avatarFallback: {
-    width: 72, height: 72, borderRadius: 36, borderWidth: 1,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  avatarInitials: { fontSize: 24, fontWeight: '800' },
-  identityHeader: { gap: 6 },
-  nombreFinca: { fontSize: 24, fontWeight: '800', lineHeight: 28, letterSpacing: -0.5 },
-  propietarioRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  nombrePropietario: { fontSize: 16, fontWeight: '500' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  metaText: { fontSize: 14, fontWeight: '500' },
+  identityTop: { flexDirection: 'row', alignItems: 'center' },
+  avatarWrap: { borderWidth: 3, borderRadius: 38, ...SHADOWS.small },
+  avatar: { width: 68, height: 68, borderRadius: 34 },
+  avatarFallback: { width: 68, height: 68, borderRadius: 34, justifyContent: 'center', alignItems: 'center' },
+  avatarInitials: { color: '#fff', fontSize: 22, fontWeight: '900' },
+  nombreFinca: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3, marginBottom: 2 },
+  propietarioRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
+  nombrePropietario: { fontSize: 13, fontWeight: '500' },
+  ratingInline: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  ratingVal: { fontSize: 13, fontWeight: '700', marginLeft: 4 },
+  ratingCount: { fontSize: 12 },
 
-  /* ESTADÍSTICAS */
-  statsRow: {
-    flexDirection: 'row', borderTopWidth: 1.5,
-    marginTop: SPACING.lg, paddingTop: SPACING.md,
-    justifyContent: 'space-around'
-  },
-  ratingPublicRow: {
-    marginTop: SPACING.sm,
-    borderTopWidth: 1,
-    paddingTop: SPACING.sm,
-  },
-  ratingPublicTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 4,
-  },
-  ratingPublicValueWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  ratingPublicValue: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  ratingPublicCount: {
-    marginTop: 2,
-    fontSize: 12,
-  },
-  statItem: { alignItems: 'center', gap: 2 },
-  statNum: { fontSize: 22, fontWeight: '800' },
-  statLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  statDivider: { width: 1, marginVertical: 6, opacity: 0.6 },
+  /* STATS GRID */
+  statsGrid: { flexDirection: 'row', gap: 8, marginTop: SPACING.md },
+  statCard: { flex: 1, borderRadius: RADIUS.lg, padding: 10, alignItems: 'center', gap: 4 },
+  statCardIcon: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
+  statCardNum: { fontSize: 20, fontWeight: '900' },
+  statCardLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
 
   /* CARDS GLOBALES */
   card: {
-    marginHorizontal: SPACING.lg, marginBottom: SPACING.lg,
-    borderRadius: RADIUS.xl, padding: SPACING.lg,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.03)',
+    marginHorizontal: SPACING.md, marginBottom: SPACING.md,
+    borderRadius: RADIUS.xl, padding: SPACING.md,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)',
     ...SHADOWS.small,
   },
-  
-  /* VACANTES */
+  descTxt: { fontSize: 14, lineHeight: 22 },
+
+  /* VACANTE */
   vacanteItem: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 10,
     padding: SPACING.sm, borderRadius: RADIUS.lg, borderWidth: 1,
   },
-  vacanteLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
-  dotContainer: { width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  dotStatus: { width: 8, height: 8, borderRadius: 4, margin: 0 },
-  vacanteItemTitle: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
-  vacanteBadge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: RADIUS.full },
-  vacanteBadgeTxt: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
+  vacanteIconGrad: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  vacanteItemTitle: { flex: 1, fontSize: 14, fontWeight: '700' },
+  vacanteBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full },
+  vacanteBadgeTxt: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
 
-  /* CULTIVOS CHIPS */
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: RADIUS.full },
-  chipTxt: { fontSize: 14, fontWeight: '700' },
+  /* CHIPS */
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipGreen: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: RADIUS.full, backgroundColor: '#E8F5E9', borderWidth: 1, borderColor: '#C8E6C9' },
+  chipGreenTxt: { fontSize: 13, fontWeight: '700', color: '#2E7D32' },
 
-  /* LISTAS GENÉRICAS */
-  listWrap: { gap: 12 },
-  listItemRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  listItemTxt: { fontSize: 15, fontWeight: '500' },
+  /* GALERÍA */
+  galeria: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  galeriaImg: { width: '47.5%', aspectRatio: 1, borderRadius: RADIUS.md },
 
-  /* EXTRAS */
-  helpText: { fontSize: 14, lineHeight: 20 },
+  /* BENEFICIOS */
+  benefGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  benefCard: { flex: 1, minWidth: '44%', borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'flex-start', gap: 6 },
+  benefIcon: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  benefLabel: { fontSize: 13, fontWeight: '800' },
+  benefSub: { fontSize: 12, fontWeight: '500' },
+
+  /* CALIFICAR */
+  ratingCard: { backgroundColor: 'rgba(245,158,11,0.06)', borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', gap: 8 },
+  ratingHint: { fontSize: 12, textAlign: 'center', lineHeight: 17 },
+  starsRow: { flexDirection: 'row', gap: 4 },
+  ratingLabel: { fontSize: 13, fontWeight: '700' },
   btnCalificar: {
     marginTop: SPACING.md, borderRadius: RADIUS.full,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: SPACING.sm, paddingVertical: 14, ...SHADOWS.button,
   },
   btnCalificarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  btnVolver: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderRadius: RADIUS.full, paddingVertical: 14, gap: 8,
-    ...SHADOWS.small
-  },
-  btnVolverText: { fontSize: 16, fontWeight: '600' },
 });

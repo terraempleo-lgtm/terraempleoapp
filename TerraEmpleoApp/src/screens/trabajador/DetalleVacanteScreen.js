@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert, Modal,
   Image, Dimensions, FlatList, ActivityIndicator,
-  Platform, TextInput, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback, Share,
+  Platform, TextInput, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback, TouchableOpacity, Share,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -563,14 +563,18 @@ export default function DetalleVacanteScreen({ route, navigation }) {
             <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
             <Text style={styles.postBtnDoneText}>Ya estás postulado</Text>
           </View>
+        ) : vacante?.activa === false || vacante?.activa === 0 ? (
+          <View style={styles.postBtnDoneWrap}>
+            <Ionicons name="lock-closed-outline" size={22} color="#9CA3AF" />
+            <Text style={[styles.postBtnDoneText, { color: '#9CA3AF' }]}>Vacante cerrada</Text>
+          </View>
         ) : (
           user?.rol === 'trabajador' && (
-            <AnimatedPressable
+            <TouchableOpacity
               style={styles.postBtn}
               onPress={() => setShowPostModal(true)}
               disabled={loading}
-              scaleValue={ANIMATION.scale.pressed}
-              haptic
+              activeOpacity={0.82}
             >
               {loading ? (
                 <ActivityIndicator size="small" color={COLORS.white} />
@@ -580,7 +584,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                   <Text style={styles.postBtnText}>Postularme</Text>
                 </>
               )}
-            </AnimatedPressable>
+            </TouchableOpacity>
           )
         )}
       </View>

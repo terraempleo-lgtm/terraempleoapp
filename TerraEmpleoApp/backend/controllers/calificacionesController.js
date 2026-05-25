@@ -49,27 +49,24 @@ async function calificar(req, res) {
         [empId, espId]
       );
     } else {
-      // trabajador ↔ empleador: requiere postulación aceptada
-      const vacanteId = Number(vacante_id);
-      if (!vacante_id || !Number.isFinite(vacanteId)) {
-        return res.status(400).json({ error: 'vacante_id es obligatorio para calificar trabajador/empleador' });
-      }
-
+      // trabajador ↔ empleador: requiere postulación aceptada (vacante_id opcional, busca cualquiera)
       if (rolCalificador === 'empleador') {
         relacion = await query(
           `SELECT p.id FROM postulaciones p
            JOIN vacantes v ON v.id = p.vacante_id
-           WHERE p.vacante_id = ? AND v.empleador_id = ? AND p.trabajador_id = ? AND p.estado = 'aceptada'
+           WHERE v.empleador_id = ? AND p.trabajador_id = ? AND p.estado = 'aceptada'
+           ${vacante_id ? 'AND p.vacante_id = ?' : ''}
            LIMIT 1`,
-          [vacanteId, calificadorId, calificado_id]
+          vacante_id ? [calificadorId, calificado_id, Number(vacante_id)] : [calificadorId, calificado_id]
         );
       } else {
         relacion = await query(
           `SELECT p.id FROM postulaciones p
            JOIN vacantes v ON v.id = p.vacante_id
-           WHERE p.vacante_id = ? AND p.trabajador_id = ? AND v.empleador_id = ? AND p.estado = 'aceptada'
+           WHERE p.trabajador_id = ? AND v.empleador_id = ?  AND p.estado = 'aceptada'
+           ${vacante_id ? 'AND p.vacante_id = ?' : ''}
            LIMIT 1`,
-          [vacanteId, calificadorId, calificado_id]
+          vacante_id ? [calificadorId, calificado_id, Number(vacante_id)] : [calificadorId, calificado_id]
         );
       }
     }
@@ -78,8 +75,7 @@ async function calificar(req, res) {
       return res.status(403).json({ error: 'Solo puedes calificar después de una relación aceptada' });
     }
 
-    // Para especialistas usamos vacante_id = NULL
-    const vacanteGuardar = esEspecialistaCaso ? null : Number(vacante_id);
+    const vacanteGuardar = (esEspecialistaCaso || !vacante_id) ? null : Number(vacante_id);
 
     const existente = await query(
       'SELECT id FROM calificaciones WHERE calificador_id = ? AND calificado_id = ? AND (vacante_id = ? OR (vacante_id IS NULL AND ? IS NULL)) LIMIT 1',
