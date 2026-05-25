@@ -34,6 +34,7 @@ export default function MisServiciosScreen({ navigation }) {
   const [precioHasta, setPrecioHasta] = useState('');
   const [modalidad, setModalidad] = useState('');
   const [fotos, setFotos] = useState([]);
+  const [fotosExistentes, setFotosExistentes] = useState([]);
   const [editandoId, setEditandoId] = useState(null);
 
   useFocusEffect(useCallback(() => { cargar(); }, []));
@@ -63,12 +64,21 @@ export default function MisServiciosScreen({ navigation }) {
     setTitulo(s.titulo); setDescripcion(s.descripcion || '');
     setCultivos(s.cultivos || []); setPrecioDesde(s.precio_desde ? String(s.precio_desde) : '');
     setPrecioHasta(s.precio_hasta ? String(s.precio_hasta) : '');
-    setModalidad(s.modalidad || ''); setFotos([]); setEditandoId(s.id);
+    setModalidad(s.modalidad || ''); setFotos([]); setFotosExistentes(s.fotos || []); setEditandoId(s.id);
     setModal(true);
   };
 
+  const eliminarFotoExistente = async (foto) => {
+    try {
+      await serviciosAPI.eliminarFoto(editandoId, foto.id);
+      setFotosExistentes(prev => prev.filter(f => f.id !== foto.id));
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo eliminar la foto');
+    }
+  };
+
   const agregarFoto = async () => {
-    if (fotos.length >= 4) { Alert.alert('Máximo 4 fotos'); return; }
+    if (fotosExistentes.length + fotos.length >= 4) { Alert.alert('Máximo 4 fotos'); return; }
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.8 });
     if (!res.canceled && res.assets?.[0]) {
       setFotos(prev => [...prev, res.assets[0]]);
@@ -337,15 +347,23 @@ export default function MisServiciosScreen({ navigation }) {
               <Text style={[st.label, { color: colors.textSecondary }]}>Fotos del trabajo (máx. 4)</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
+                  {fotosExistentes.map((f) => (
+                    <View key={`ex-${f.id}`} style={st.fotoPreviewWrap}>
+                      <Image source={{ uri: f.url }} style={st.fotoPreview} />
+                      <TouchableOpacity style={st.fotoRemove} onPress={() => eliminarFotoExistente(f)}>
+                        <Ionicons name="close-circle" size={20} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                   {fotos.map((f, i) => (
-                    <View key={i} style={st.fotoPreviewWrap}>
+                    <View key={`new-${i}`} style={st.fotoPreviewWrap}>
                       <Image source={{ uri: f.uri }} style={st.fotoPreview} />
                       <TouchableOpacity style={st.fotoRemove} onPress={() => setFotos(prev => prev.filter((_, j) => j !== i))}>
                         <Ionicons name="close-circle" size={20} color="#EF4444" />
                       </TouchableOpacity>
                     </View>
                   ))}
-                  {fotos.length < 4 && (
+                  {fotosExistentes.length + fotos.length < 4 && (
                     <TouchableOpacity onPress={agregarFoto} style={[st.fotoAdd, { borderColor: colors.border, backgroundColor: colors.surface }]} activeOpacity={0.8}>
                       <Ionicons name="camera-outline" size={28} color={COLORS.primary} />
                       <Text style={[st.fotoAddTxt, { color: COLORS.primary }]}>Agregar</Text>

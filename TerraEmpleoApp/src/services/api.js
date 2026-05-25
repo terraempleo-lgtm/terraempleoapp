@@ -390,9 +390,15 @@ export const serviciosAPI = {
       const baseURL = api.defaults.baseURL;
       for (let i = 0; i < Math.min(fotos.length, 4); i++) {
         const f = fotos[i];
-        const ext = (f.uri.split('.').pop() || 'jpg').split('?')[0];
+        const ext = (f.uri.split('.').pop() || 'jpg').split('?')[0].toLowerCase();
+        const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
         const fd = new FormData();
-        fd.append('foto', { uri: f.uri, type: `image/${ext}`, name: `foto${i}.${ext}` });
+        if (typeof document !== 'undefined') {
+          const blob = await fetch(f.uri).then(r => r.blob());
+          fd.append('foto', blob, `foto${i}.${ext}`);
+        } else {
+          fd.append('foto', { uri: f.uri, type: mime, name: `foto${i}.${ext}` });
+        }
         await fetch(`${baseURL}/servicios-especialista/${servicioId}/fotos`, {
           method: 'POST', body: fd, headers: { Authorization: token },
         }).catch(() => {});
@@ -412,14 +418,23 @@ export const serviciosAPI = {
   archivar: (id, activo) => api.put(`/servicios-especialista/${id}`, { activo }),
   eliminar: (id) => api.delete(`/servicios-especialista/${id}`),
   agregarFoto: async (servicioId, fotoUri) => {
-    const ext = (fotoUri.split('.').pop() || 'jpg').split('?')[0];
+    const ext = (fotoUri.split('.').pop() || 'jpg').split('?')[0].toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
     const token = api.defaults.headers.common['Authorization'];
     const baseURL = api.defaults.baseURL;
     const fd = new FormData();
-    fd.append('foto', { uri: fotoUri, type: `image/${ext}`, name: `foto.${ext}` });
-    return fetch(`${baseURL}/servicios-especialista/${servicioId}/fotos`, {
+    if (typeof document !== 'undefined') {
+      const blob = await fetch(fotoUri).then(r => r.blob());
+      fd.append('foto', blob, `foto.${ext}`);
+    } else {
+      fd.append('foto', { uri: fotoUri, type: mime, name: `foto.${ext}` });
+    }
+    const res = await fetch(`${baseURL}/servicios-especialista/${servicioId}/fotos`, {
       method: 'POST', body: fd, headers: { Authorization: token },
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw { response: { data, status: res.status } };
+    return { data };
   },
   eliminarFoto: (servicioId, fotoId) => api.delete(`/servicios-especialista/${servicioId}/fotos/${fotoId}`),
 };
