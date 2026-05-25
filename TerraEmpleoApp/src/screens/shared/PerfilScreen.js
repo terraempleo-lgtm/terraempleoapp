@@ -951,6 +951,37 @@ export default function PerfilScreen({ navigation }) {
               </StaggeredItem>
             )}
 
+            {/* Galería de fotos de la finca */}
+            {(perfil?.fotos_finca || []).length > 0 && (
+              <StaggeredItem index={2}>
+                <View style={s.secWrap}>
+                  <View style={s.secHead}>
+                    <View style={s.secIcon}><Ionicons name="images-outline" size={16} color={COLORS.primary} /></View>
+                    <Text style={[s.secTitle, { color: colors.textPrimary }]}>Fotos de la Finca</Text>
+                    <Text style={[s.secCount, { color: colors.textMuted }]}>{perfil.fotos_finca.length} foto{perfil.fotos_finca.length !== 1 ? 's' : ''}</Text>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -SPACING.md }}>
+                    <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: SPACING.md }}>
+                      {perfil.fotos_finca.map((f, i) => (
+                        <MotiView
+                          key={f.id || i}
+                          from={{ opacity: 0, scale: 0.85 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: i * 60 }}
+                        >
+                          <View style={s.fincaFotoWrap}>
+                            <Image source={{ uri: f.url }} style={s.fincaFoto} resizeMode="cover" />
+                            <View style={s.fincaFotoOverlay} />
+                            <View style={s.fincaFotoNumWrap}><Text style={s.fincaFotoNum}>{i + 1}</Text></View>
+                          </View>
+                        </MotiView>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+              </StaggeredItem>
+            )}
+
             {/* Verificación */}
             <StaggeredItem index={3}>
               <View style={s.secWrap}>
@@ -1502,6 +1533,14 @@ const s = StyleSheet.create({
   secHead: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
   secIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center' },
   secTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.sm },
+  secCount: { fontSize: 12, fontWeight: '600', marginLeft: 'auto' },
+
+  /* Finca photo gallery */
+  fincaFotoWrap: { width: 160, height: 110, borderRadius: RADIUS.lg, overflow: 'hidden', ...SHADOWS.medium },
+  fincaFoto: { width: 160, height: 110 },
+  fincaFotoOverlay: { position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.08)' },
+  fincaFotoNumWrap: { position: 'absolute', bottom: 6, right: 8, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  fincaFotoNum: { color: '#fff', fontSize: 11, fontWeight: '700' },
 
   /* Chips */
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

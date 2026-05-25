@@ -256,7 +256,7 @@ export default function ChatDetalleScreen({ route, navigation }) {
       ),
       headerTitleAlign: 'left',
       headerLeft: () => (
-        <AnimatedPressable onPress={() => navigation.goBack()} style={{ marginLeft: 16 }} scaleValue={0.9} haptic>
+        <AnimatedPressable onPress={() => navigation.navigate('ChatsHome')} style={{ marginLeft: 16 }} scaleValue={0.9} haptic>
           <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </AnimatedPressable>
       ),

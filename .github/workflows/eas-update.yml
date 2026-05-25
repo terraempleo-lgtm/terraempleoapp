@@ -13,14 +13,6 @@ on:
       - 'TerraEmpleoApp/src/**'
       - 'TerraEmpleoApp/assets/**'
       - 'TerraEmpleoApp/App.js'
-    paths-ignore:
-      - 'TerraEmpleoApp/app.json'
-      - 'TerraEmpleoApp/eas.json'
-      - 'TerraEmpleoApp/package.json'
-      - 'TerraEmpleoApp/package-lock.json'
-      - 'TerraEmpleoApp/backend/**'
-      - '.github/**'
-      - '**.md'
 
 jobs:
   eas-update:

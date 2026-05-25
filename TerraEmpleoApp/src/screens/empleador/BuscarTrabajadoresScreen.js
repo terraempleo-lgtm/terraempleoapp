@@ -573,7 +573,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
       {!vacanteContacto && (
         <TouchableOpacity
           style={styles.noVacanteBanner}
-          onPress={() => navigation.navigate('CrearVacante')}
+          onPress={() => navigation.getParent()?.navigate('MisVacantes', { screen: 'CrearVacante' })}
           activeOpacity={0.85}
         >
           <View style={styles.noVacanteIcon}>

@@ -141,8 +141,15 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   };
 
   const irAlChat = async () => {
-    if (!vacante_id) return;
     try {
+      if (esEspecialista) {
+        const res = await especialistasAPI.contactoEstado(trabajador_id);
+        const chatId = res.data.chat_id;
+        if (!chatId) { showAlert('Sin chat', 'El especialista aún no ha aceptado el contacto.'); return; }
+        navigation.navigate('Mensajes', { screen: 'ChatDetalle', params: { chat: { id: chatId, otro_nombre: perfil?.nombre_completo, otro_foto: perfil?.foto_selfie } } });
+        return;
+      }
+      if (!vacante_id) return;
       const res = await chatsAPI.chatPorVacanteTrabajador(vacante_id, trabajador_id);
       navigation.navigate('Mensajes', { screen: 'ChatDetalle', params: { chat: { id: res.data.chat_id, otro_nombre: perfil?.nombre_completo, otro_foto: perfil?.foto_selfie } } });
     } catch { showAlert('Error', 'No se encontró el chat'); }

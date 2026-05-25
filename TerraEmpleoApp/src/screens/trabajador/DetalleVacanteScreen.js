@@ -17,7 +17,7 @@ import Animated, {
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { vacantesAPI } from '../../services/api';
+import { vacantesAPI, empleadoresAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { formatVacancyStartDate } from '../../utils/vacantesFecha';
@@ -45,6 +45,7 @@ export default function DetalleVacanteScreen({ route, navigation }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [liked, setLiked] = useState(false);
   const [vacanteDetalle, setVacanteDetalle] = useState(null);
+  const [perfilEmpleador, setPerfilEmpleador] = useState(null);
   // Usar datos completos del API cuando estén disponibles, sino el objeto parcial del param
   const vacante = vacanteDetalle || vacanteParam;
   const flatListRef = useRef(null);
@@ -80,6 +81,12 @@ export default function DetalleVacanteScreen({ route, navigation }) {
         const detalle = detalleRes.data.vacante;
         if (detalle) setVacanteDetalle(detalle);
         setFotos(detalle?.fotos || []);
+        if (detalle?.empleador_id) {
+          try {
+            const empRes = await empleadoresAPI.perfilPublico(detalle.empleador_id);
+            if (empRes.data?.empleador) setPerfilEmpleador(empRes.data.empleador);
+          } catch (_) {}
+        }
         const yaPostulado = (postulacionesRes.data.postulaciones || []).some(
           (p) => Number(p.vacante_id) === Number(vacanteParam.id)
         );
@@ -289,9 +296,13 @@ export default function DetalleVacanteScreen({ route, navigation }) {
             {/* Empresa info card */}
             {Boolean(vacante.nombre_empresa_finca) ? (
               <View style={[styles.empresaCard, { backgroundColor: isDark ? colors.card : COLORS.primaryMuted, borderColor: colors.border }]}>
-                <View style={styles.empresaIconWrap}>
-                  <Ionicons name="business-outline" size={20} color={colors.primary} />
-                </View>
+                {perfilEmpleador?.foto_finca_fachada ? (
+                  <Image source={{ uri: perfilEmpleador.foto_finca_fachada }} style={styles.empresaAvatar} resizeMode="cover" />
+                ) : (
+                  <View style={styles.empresaIconWrap}>
+                    <Ionicons name="business-outline" size={20} color={colors.primary} />
+                  </View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.empresaNombre, { color: colors.textPrimary }]}>{vacante.nombre_empresa_finca}</Text>
                   {(vacante.municipio || vacante.departamento) && (
@@ -300,8 +311,66 @@ export default function DetalleVacanteScreen({ route, navigation }) {
                       <Text style={[styles.empresaLocText, { color: colors.textMuted }]}>{[vacante.municipio, vacante.departamento].filter(Boolean).join(', ')}</Text>
                     </View>
                   )}
+                  {(perfilEmpleador?.calificacion_promedio > 0) && (
+                    <View style={styles.empresaStarsRow}>
+                      {[1,2,3,4,5].map(i => (
+                        <Ionicons key={i} name={i <= Math.round(perfilEmpleador.calificacion_promedio) ? 'star' : 'star-outline'} size={13} color="#F59E0B" />
+                      ))}
+                      <Text style={styles.empresaStarsTxt}>{Number(perfilEmpleador.calificacion_promedio).toFixed(1)}</Text>
+                    </View>
+                  )}
                 </View>
+                {perfilEmpleador?.verificacion_empresa_estado === 'aprobada' && (
+                  <View style={styles.empresaVerBadge}>
+                    <Ionicons name="shield-checkmark" size={15} color={COLORS.primary} />
+                  </View>
+                )}
               </View>
+            ) : null}
+
+            {/* Fotos de la finca del empleador */}
+            {(perfilEmpleador?.fotos_finca || []).length > 0 && (
+              <StaggeredItem index={0}>
+                <View style={styles.sectionBlock}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
+                      <Ionicons name="images-outline" size={17} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Fotos de la Finca</Text>
+                  </View>
+                  <FlatList
+                    data={perfilEmpleador.fotos_finca}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    keyExtractor={(item, i) => item.id?.toString() || i.toString()}
+                    contentContainerStyle={{ gap: 10 }}
+                    renderItem={({ item, index: i }) => (
+                      <MotiView
+                        from={{ opacity: 0, scale: 0.88 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: 'spring', damping: 16, stiffness: 130, delay: i * 60 }}
+                      >
+                        <Image source={{ uri: item.url }} style={styles.fincaThumb} resizeMode="cover" />
+                      </MotiView>
+                    )}
+                  />
+                </View>
+              </StaggeredItem>
+            )}
+
+            {/* Descripción de la finca */}
+            {perfilEmpleador?.acerca_de ? (
+              <StaggeredItem index={0}>
+                <View style={styles.sectionBlock}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={[styles.sectionIconBg, { backgroundColor: COLORS.primarySoft }]}>
+                      <Ionicons name="leaf-outline" size={17} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Sobre la Finca</Text>
+                  </View>
+                  <Text style={[styles.description, { color: colors.textSecondary }]}>{perfilEmpleador.acerca_de}</Text>
+                </View>
+              </StaggeredItem>
             ) : null}
 
             <Text style={[styles.title, { color: colors.textPrimary }]}>{vacante.titulo}</Text>
@@ -677,9 +746,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primarySoft,
     justifyContent: 'center', alignItems: 'center', flexShrink: 0,
   },
+  empresaAvatar: { width: 48, height: 48, borderRadius: RADIUS.md, flexShrink: 0 },
   empresaNombre: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
   empresaLocRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   empresaLocText: { fontSize: 13 },
+  empresaStarsRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 3 },
+  empresaStarsTxt: { fontSize: 12, fontWeight: '700', color: '#F59E0B', marginLeft: 3 },
+  empresaVerBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primarySoft, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  fincaThumb: { width: 150, height: 100, borderRadius: RADIUS.lg },
 
   /* Section headers */
   sectionBlock: { marginBottom: SPACING.lg },

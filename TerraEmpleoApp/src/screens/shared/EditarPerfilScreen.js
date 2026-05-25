@@ -73,7 +73,6 @@ export default function EditarPerfilScreen({ navigation, route }) {
   const [fotosTrabajo, setFotosTrabajo] = useState(initPerfil?.fotos_trabajo || []);
   const [subiendoFotoTrabajo, setSubiendoFotoTrabajo] = useState(false);
   const [fotosFinca, setFotosFinca] = useState(initPerfil?.fotos_finca || []);
-  const [subiendoFotoFinca, setSubiendoFotoFinca] = useState(false);
 
   // Experiencias laborales
   const [experiencias, setExperiencias] = useState(initPerfil?.experiencias || []);
