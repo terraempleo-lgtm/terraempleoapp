@@ -8,7 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { authAPI } from '../../services/api';
+import { authAPI, calificacionesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -127,6 +127,7 @@ export default function PerfilScreen({ navigation }) {
 
   const [fotoPortada, setFotoPortada] = useState(null);
   const [subiendoPortada, setSubiendoPortada] = useState(false);
+  const [resenias, setResenias] = useState([]);
 
   const u = userData || user;
   const esTrabajador = u?.rol === 'trabajador';
@@ -370,6 +371,13 @@ export default function PerfilScreen({ navigation }) {
       if (res.data?.user?.foto_portada) {
         setFotoPortada(res.data.user.foto_portada);
       }
+      const uid = res.data?.user?.id;
+      if (uid) {
+        try {
+          const rRes = await calificacionesAPI.obtener(uid);
+          setResenias(rRes.data?.calificaciones || []);
+        } catch (_) {}
+      }
     } catch (err) { console.error(err); }
   };
 
@@ -464,29 +472,32 @@ export default function PerfilScreen({ navigation }) {
                 </View>
               </FadeInView>
 
-              <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: 320 }} style={tw.statsCard}>
-                <View style={tw.statItem}>
-                  <Ionicons name="star" size={20} color="#FFB300" />
-                  <Text style={tw.statNum}>{calificacion > 0 ? calificacion.toFixed(1) : '—'}</Text>
-                  <Text style={tw.statLbl}>Calificación</Text>
-                </View>
-                <View style={tw.statDivider} />
-                <View style={tw.statItem}>
-                  <Ionicons name="ribbon-outline" size={20} color="#C0694A" />
-                  <Text style={tw.statNum}>{espEspecialidades.length || '—'}</Text>
-                  <Text style={tw.statLbl}>Especialidades</Text>
-                </View>
-                <View style={tw.statDivider} />
-                <View style={tw.statItem}>
-                  <Ionicons name="briefcase-outline" size={20} color="#43A047" />
-                  <Text style={tw.statNum}>{espExp}</Text>
-                  <Text style={tw.statLbl}>Experiencia</Text>
-                </View>
-              </MotiView>
             </View>
           </MotiView>
 
-          <View style={{ paddingHorizontal: SPACING.md, paddingTop: 52 }}>
+          {/* Stats card especialista */}
+          <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: 320 }}
+            style={[tw.statsCard, { marginHorizontal: SPACING.md, marginTop: -28, zIndex: 10 }]}>
+            <View style={tw.statItem}>
+              <Ionicons name="star" size={20} color="#FFB300" />
+              <Text style={tw.statNum}>{calificacion > 0 ? calificacion.toFixed(1) : '—'}</Text>
+              <Text style={tw.statLbl}>Calificación</Text>
+            </View>
+            <View style={tw.statDivider} />
+            <View style={tw.statItem}>
+              <Ionicons name="ribbon-outline" size={20} color="#C0694A" />
+              <Text style={tw.statNum}>{espEspecialidades.length || '—'}</Text>
+              <Text style={tw.statLbl}>Especialidades</Text>
+            </View>
+            <View style={tw.statDivider} />
+            <View style={tw.statItem}>
+              <Ionicons name="briefcase-outline" size={20} color="#43A047" />
+              <Text style={tw.statNum}>{espExp}</Text>
+              <Text style={tw.statLbl}>Experiencia</Text>
+            </View>
+          </MotiView>
+
+          <View style={{ paddingHorizontal: SPACING.md, paddingTop: 16 }}>
 
             {/* Banner mejora perfil especialista */}
             {(!perfil?.descripcion_servicio || !(perfil?.fotos_trabajo?.length > 0) || !(perfil?.experiencias?.length > 0) || !perfil?.hoja_vida_url) && (
@@ -1198,30 +1209,32 @@ export default function PerfilScreen({ navigation }) {
               </View>
             </FadeInView>
 
-            {/* Floating stats card */}
-            <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: 320 }} style={tw.statsCard}>
-              <View style={tw.statItem}>
-                <Ionicons name="star" size={20} color="#FFB300" />
-                <Text style={tw.statNum}>{calificacion > 0 ? calificacion.toFixed(1) : '—'}</Text>
-                <Text style={tw.statLbl}>Calificación</Text>
-              </View>
-              <View style={tw.statDivider} />
-              <View style={tw.statItem}>
-                <Ionicons name="chatbubble-outline" size={20} color="#2196F3" />
-                <Text style={tw.statNum}>{totalCalif}</Text>
-                <Text style={tw.statLbl}>Reseñas</Text>
-              </View>
-              <View style={tw.statDivider} />
-              <View style={tw.statItem}>
-                <Ionicons name="briefcase-outline" size={20} color="#43A047" />
-                <Text style={tw.statNum}>{experiencia ? experiencia.split(' ').slice(0,2).join(' ') : '—'}</Text>
-                <Text style={tw.statLbl}>Experiencia</Text>
-              </View>
-            </MotiView>
           </View>
         </MotiView>
 
-        <View style={{ paddingHorizontal: SPACING.md, paddingTop: 52 }}>
+        {/* Stats card — fuera del hero, solapada con margen negativo */}
+        <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', ...ANIMATION.spring.gentle, delay: 320 }}
+          style={[tw.statsCard, { marginHorizontal: SPACING.md, marginTop: -28, zIndex: 10 }]}>
+          <View style={tw.statItem}>
+            <Ionicons name="star" size={20} color="#FFB300" />
+            <Text style={tw.statNum}>{calificacion > 0 ? calificacion.toFixed(1) : '—'}</Text>
+            <Text style={tw.statLbl}>Calificación</Text>
+          </View>
+          <View style={tw.statDivider} />
+          <View style={tw.statItem}>
+            <Ionicons name="people-outline" size={20} color="#2196F3" />
+            <Text style={tw.statNum}>{totalCalif}</Text>
+            <Text style={tw.statLbl}>Reseñas</Text>
+          </View>
+          <View style={tw.statDivider} />
+          <View style={tw.statItem}>
+            <Ionicons name="briefcase-outline" size={20} color="#43A047" />
+            <Text style={tw.statNum}>{experiencia ? experiencia.split(' ').slice(0,2).join(' ') : '—'}</Text>
+            <Text style={tw.statLbl}>Experiencia</Text>
+          </View>
+        </MotiView>
+
+        <View style={{ paddingHorizontal: SPACING.md, paddingTop: 16 }}>
 
           {/* Banner mejora tu perfil */}
           {(!acercaDeTrabajador || !perfil?.hoja_vida_url || !(perfil?.fotos_trabajo?.length > 0) || !(perfil?.experiencias?.length > 0)) && (
@@ -1429,6 +1442,41 @@ export default function PerfilScreen({ navigation }) {
                     </MotiView>
                   ))}
                 </View>
+              </View>
+            </StaggeredItem>
+          )}
+
+          {/* ── RESEÑAS ── */}
+          {resenias.length > 0 && (
+            <StaggeredItem index={5}>
+              <View style={[tw.card, { backgroundColor: colors.surface }]}>
+                <View style={tw.cardHeader}>
+                  <LinearGradient colors={['#F59E0B','#D97706']} style={tw.cardIconGrad}>
+                    <Ionicons name="star" size={16} color="#fff" />
+                  </LinearGradient>
+                  <Text style={[tw.cardTitle, { color: colors.textPrimary }]}>Reseñas</Text>
+                  <Text style={[tw.cardCount, { color: colors.textMuted }]}>{resenias.length}</Text>
+                </View>
+                {resenias.slice(0, 5).map((r, i) => (
+                  <View key={r.id || i} style={[tw.reseniaRow, { borderTopColor: colors.border, borderTopWidth: i === 0 ? 0 : 1 }]}>
+                    <View style={tw.reseniaHeader}>
+                      <View style={tw.reseniaAvatar}>
+                        <Text style={tw.reseniaAvatarTxt}>{(r.nombre_calificador || '?')[0].toUpperCase()}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[tw.reseniaNombre, { color: colors.textPrimary }]}>{r.nombre_calificador || 'Anónimo'}</Text>
+                        <View style={{ flexDirection: 'row', gap: 2, marginTop: 2 }}>
+                          {[1,2,3,4,5].map(s => (
+                            <Ionicons key={s} name={s <= r.estrellas ? 'star' : 'star-outline'} size={12} color="#FFB300" />
+                          ))}
+                        </View>
+                      </View>
+                      <Text style={[tw.reseniaFecha, { color: colors.textMuted }]}>
+                        {new Date(r.created_at).toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'2-digit' })}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
               </View>
             </StaggeredItem>
           )}
@@ -1780,7 +1828,7 @@ const tw = StyleSheet.create({
   heroPills: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 8 },
   heroPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   heroPillTxt: { fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: '500' },
-  statsCard: { position: 'absolute', bottom: -44, left: SPACING.md, right: SPACING.md, backgroundColor: '#fff', borderRadius: 18, flexDirection: 'row', paddingVertical: 14, ...SHADOWS.medium },
+  statsCard: { backgroundColor: '#fff', borderRadius: 18, flexDirection: 'row', paddingVertical: 14, ...SHADOWS.medium },
   statItem: { flex: 1, alignItems: 'center', gap: 3 },
   statNum: { fontSize: 16, fontWeight: '800', color: '#111827' },
   statLbl: { fontSize: 10, color: '#6B7280', fontWeight: '600', letterSpacing: 0.3 },
@@ -1792,6 +1840,12 @@ const tw = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
   cardCount: { fontSize: 12, fontWeight: '600', backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   cardBody: { fontSize: 14, lineHeight: 21 },
+  reseniaRow: { paddingVertical: 12 },
+  reseniaHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  reseniaAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  reseniaAvatarTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  reseniaNombre: { fontSize: 13, fontWeight: '600' },
+  reseniaFecha: { fontSize: 11 },
   // CV
   cvCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: SPACING.md, marginBottom: SPACING.sm, gap: 12, ...SHADOWS.light },
   cvIconGrad: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
