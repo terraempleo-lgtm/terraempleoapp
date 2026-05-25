@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
-import { vacantesAPI, calificacionesAPI } from '../../services/api';
+import { vacantesAPI, calificacionesAPI, empleadoresAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Input, StarRating } from '../../components/ui';
 import { showAlert } from '../../utils/alertService';
@@ -53,54 +53,54 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
 
   const [loading, setLoading] = useState(true);
   const [vacante, setVacante] = useState(null);
+  const [perfilEmpleador, setPerfilEmpleador] = useState(null);
   const [estrellas, setEstrellas] = useState(0);
   const [comentario, setComentario] = useState('');
   const [enviandoCalificacion, setEnviandoCalificacion] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
+  const empleadorIdParam = Number(route?.params?.empleador_id || chat_data?.otro_usuario_id);
+
   useEffect(() => {
     let mounted = true;
-
     const cargar = async () => {
-      if (!vacante_id) {
-        setLoading(false);
-        return;
-      }
       try {
-        const res = await vacantesAPI.detalle(vacante_id);
+        const [vacanteRes, empleadorRes] = await Promise.allSettled([
+          vacante_id ? vacantesAPI.detalle(vacante_id) : Promise.resolve(null),
+          empleadorIdParam ? empleadoresAPI.perfilPublico(empleadorIdParam) : Promise.resolve(null),
+        ]);
         if (!mounted) return;
-        setVacante(res.data?.vacante || null);
-      } catch (_) {
-        if (!mounted) return;
-        setVacante(null);
-      } finally {
+        if (vacanteRes.status === 'fulfilled' && vacanteRes.value) setVacante(vacanteRes.value.data?.vacante || null);
+        if (empleadorRes.status === 'fulfilled' && empleadorRes.value) setPerfilEmpleador(empleadorRes.value.data?.empleador || null);
+      } catch (_) {} finally {
         if (mounted) setLoading(false);
       }
     };
-
     cargar();
     return () => { mounted = false; };
-  }, [vacante_id]);
+  }, [vacante_id, empleadorIdParam]);
 
-  const nombreFinca = vacante?.nombre_empresa_finca || chat_data?.otro_nombre || 'Finca';
-  const nombrePropietario = vacante?.nombre_empleador || chat_data?.otro_nombre || 'Empleador';
-  const empleadorId = Number(route?.params?.empleador_id || chat_data?.otro_usuario_id || vacante?.empleador_id);
-  const calificacionPromedio = Number(vacante?.calificacion_promedio || 0);
-  const totalCalificaciones = Number(vacante?.total_calificaciones || 0);
-  const ubicacion = [vacante?.municipio, vacante?.departamento].filter(Boolean).join(', ');
-  
-  const fotosArray = vacante?.fotos?.length > 0 
-    ? vacante.fotos.map(f => f.url) 
-    : (vacante?.foto_portada ? [vacante.foto_portada] : []);
+  const nombreFinca = perfilEmpleador?.nombre_empresa_finca || vacante?.nombre_empresa_finca || chat_data?.otro_nombre || 'Finca';
+  const nombrePropietario = perfilEmpleador?.nombre_completo || vacante?.nombre_empleador || chat_data?.otro_nombre || 'Empleador';
+  const empleadorId = Number(empleadorIdParam || vacante?.empleador_id);
+  const calificacionPromedio = Number(perfilEmpleador?.calificacion_promedio || vacante?.calificacion_promedio || 0);
+  const totalCalificaciones = Number(perfilEmpleador?.total_calificaciones || vacante?.total_calificaciones || 0);
+  const ubicacion = [perfilEmpleador?.municipio || vacante?.municipio, perfilEmpleador?.departamento || vacante?.departamento].filter(Boolean).join(', ');
 
-  const avatarFoto = vacante?.foto_empleador || chat_data?.otro_foto;
-  
+  // Fotos: primero fotos de finca del perfil, luego fotos de vacante
+  const fotosFinca = perfilEmpleador?.fotos_finca?.filter(f => f.url).map(f => f.url) || [];
+  const fotosVacante = vacante?.fotos?.length > 0 ? vacante.fotos.map(f => f.url) : (vacante?.foto_portada ? [vacante.foto_portada] : []);
+  const fotosArray = fotosFinca.length > 0 ? fotosFinca : fotosVacante;
+
+  const avatarFoto = perfilEmpleador?.foto_selfie || vacante?.foto_empleador || chat_data?.otro_foto;
+  const acercaDe = perfilEmpleador?.acerca_de || vacante?.acerca_de;
+
   const tieneFotos = fotosArray.length > 0;
 
   const beneficios = [
-    vacante?.ofrece_alojamiento && 'Alojamiento incluido',
-    vacante?.ofrece_alimentacion && 'Alimentación incluida',
-    vacante?.beneficios_extra,
+    (perfilEmpleador?.ofrece_alojamiento || vacante?.ofrece_alojamiento) && 'Alojamiento incluido',
+    (perfilEmpleador?.ofrece_alimentacion || vacante?.ofrece_alimentacion) && 'Alimentación incluida',
+    perfilEmpleador?.beneficios_extra || vacante?.beneficios_extra,
   ].filter(Boolean);
 
   const enviarCalificacion = async () => {
@@ -299,6 +299,18 @@ export default function PerfilPublicoEmpleadorScreen({ route, navigation }) {
                 <View key={i} style={[s.chip, { backgroundColor: colors.primary + '15' }]}>
                   <Text style={[s.chipTxt, { color: colors.primaryDark || colors.primary }]}>{c.cultivo}</Text>
                 </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* FOTOS DE FINCA */}
+        {fotosFinca.length > 0 && (
+          <View style={[s.card, { backgroundColor: colors.surface }]}>
+            <SectionHeader icon="images-outline" title="Fotos de la Finca" colors={colors} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {fotosFinca.map((url, i) => (
+                <Image key={i} source={{ uri: url }} style={{ width: '47%', aspectRatio: 1, borderRadius: RADIUS.md }} />
               ))}
             </View>
           </View>

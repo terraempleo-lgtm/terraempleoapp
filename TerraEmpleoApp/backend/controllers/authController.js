@@ -418,6 +418,8 @@ async function getPerfil(req, res) {
         perfil.ofrece_alimentacion = toBool(perfil.ofrece_alimentacion);
         perfil.cultivos = await query('SELECT * FROM empleador_cultivos WHERE perfil_empleador_id = ?', [perfil.id]);
         perfil.labores = await query('SELECT * FROM empleador_labores WHERE perfil_empleador_id = ?', [perfil.id]);
+        const fotosFincaRows = await query('SELECT id, url FROM empleador_fotos_finca WHERE perfil_empleador_id = ? ORDER BY orden, id', [perfil.id]);
+        perfil.fotos_finca = await Promise.all(fotosFincaRows.map(async (f) => ({ id: f.id, url: await signUrl(f.url) })));
       }
     } else if (user.rol === 'especialista') {
       const perfiles = await query('SELECT * FROM perfil_especialista WHERE usuario_id = ?', [userId]);
@@ -1107,6 +1109,47 @@ async function eliminarFotoTrabajo(req, res) {
   }
 }
 
+async function subirFotoFinca(req, res) {
+  try {
+    const userId = req.user.id;
+    if (req.user.rol !== 'empleador') return res.status(403).json({ error: 'Solo empleadores pueden subir fotos de finca.' });
+    if (!req.file) return res.status(400).json({ error: 'No se recibió imagen.' });
+    const fileUrl = req.file.location || req.file.path;
+    const perfiles = await query('SELECT id FROM perfil_empleador WHERE usuario_id = ?', [userId]);
+    if (!perfiles || perfiles.length === 0) return res.status(404).json({ error: 'Perfil no encontrado.' });
+    const perfilId = perfiles[0].id;
+    const count = await query('SELECT COUNT(*) as n FROM empleador_fotos_finca WHERE perfil_empleador_id = ?', [perfilId]);
+    if (Number(count[0].n) >= 4) return res.status(400).json({ error: 'Máximo 4 fotos permitidas.' });
+    await query('INSERT INTO empleador_fotos_finca (perfil_empleador_id, url, orden) VALUES (?, ?, ?)', [perfilId, fileUrl, Number(count[0].n)]);
+    const inserted = await query('SELECT id FROM empleador_fotos_finca WHERE perfil_empleador_id = ? AND url = ? ORDER BY id DESC LIMIT 1', [perfilId, fileUrl]);
+    const signedUrl = await signUrl(fileUrl);
+    res.json({ foto: { id: inserted[0].id, url: signedUrl } });
+  } catch (err) {
+    console.error('Error subiendo foto de finca:', err);
+    res.status(500).json({ error: 'No se pudo subir la foto.' });
+  }
+}
+
+async function eliminarFotoFinca(req, res) {
+  try {
+    const userId = req.user.id;
+    if (req.user.rol !== 'empleador') return res.status(403).json({ error: 'Solo empleadores pueden eliminar fotos de finca.' });
+    const { fotoId } = req.params;
+    const { deleteFromS3 } = require('../config/s3');
+    const perfiles = await query('SELECT id FROM perfil_empleador WHERE usuario_id = ?', [userId]);
+    if (!perfiles || perfiles.length === 0) return res.status(404).json({ error: 'Perfil no encontrado.' });
+    const perfilId = perfiles[0].id;
+    const fotos = await query('SELECT * FROM empleador_fotos_finca WHERE id = ? AND perfil_empleador_id = ?', [fotoId, perfilId]);
+    if (!fotos || fotos.length === 0) return res.status(404).json({ error: 'Foto no encontrada.' });
+    await deleteFromS3(fotos[0].url);
+    await query('DELETE FROM empleador_fotos_finca WHERE id = ?', [fotoId]);
+    res.json({ message: 'Foto eliminada.' });
+  } catch (err) {
+    console.error('Error eliminando foto de finca:', err);
+    res.status(500).json({ error: 'No se pudo eliminar la foto.' });
+  }
+}
+
 async function eliminarCuenta(req, res) {
   try {
     const userId = req.user.id;
@@ -1172,6 +1215,8 @@ module.exports = {
   solicitarRecuperacionEmail,
   subirFotoTrabajo,
   eliminarFotoTrabajo,
+  subirFotoFinca,
+  eliminarFotoFinca,
   eliminarCuenta,
   agregarExperienciaLaboral,
   eliminarExperienciaLaboral,

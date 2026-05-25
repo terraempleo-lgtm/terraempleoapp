@@ -202,9 +202,10 @@ export default function MisPostulacionesScreen({ navigation }) {
         const chatId = res.data?.chat_id;
         showAlert('¡Solicitud aceptada!', 'Ya puedes chatear con el empleador.');
         if (chatId) {
+          // Navegar a ChatsHome para que "atrás" en el chat vuelva a la bandeja
           navigation.navigate('Mensajes', {
-            screen: 'ChatDetalle',
-            params: { chat: { id: chatId } },
+            screen: 'ChatsHome',
+            params: { abrirChatId: chatId },
           });
         }
       } else {

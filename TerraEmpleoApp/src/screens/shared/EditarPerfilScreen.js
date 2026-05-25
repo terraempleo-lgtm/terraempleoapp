@@ -72,6 +72,8 @@ export default function EditarPerfilScreen({ navigation, route }) {
   const [hojaVidaNombreEsp, setHojaVidaNombreEsp] = useState(initPerfil?.hoja_vida_nombre || '');
   const [fotosTrabajo, setFotosTrabajo] = useState(initPerfil?.fotos_trabajo || []);
   const [subiendoFotoTrabajo, setSubiendoFotoTrabajo] = useState(false);
+  const [fotosFinca, setFotosFinca] = useState(initPerfil?.fotos_finca || []);
+  const [subiendoFotoFinca, setSubiendoFotoFinca] = useState(false);
 
   // Experiencias laborales
   const [experiencias, setExperiencias] = useState(initPerfil?.experiencias || []);
@@ -445,6 +447,31 @@ export default function EditarPerfilScreen({ navigation, route }) {
     try {
       await authAPI.eliminarFotoTrabajo(foto.id);
       setFotosTrabajo(prev => prev.filter(f => f.id !== foto.id));
+    } catch (err) {
+      showAlert('Error', 'No se pudo eliminar la foto.');
+    }
+  };
+
+  const abrirFotoFincaGaleria = async () => {
+    try {
+      if (fotosFinca.length >= 4) { showAlert('Límite', 'Máximo 4 fotos de finca.'); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8, allowsMultipleSelection: false });
+      if (result.canceled || !result.assets?.length) return;
+      const uri = result.assets[0].uri;
+      setSubiendoFotoFinca(true);
+      const res = await authAPI.subirFotoFinca(uri);
+      setFotosFinca(prev => [...prev, res.data.foto]);
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'No se pudo subir la foto.');
+    } finally {
+      setSubiendoFotoFinca(false);
+    }
+  };
+
+  const eliminarFotoFincaItem = async (foto) => {
+    try {
+      await authAPI.eliminarFotoFinca(foto.id);
+      setFotosFinca(prev => prev.filter(f => f.id !== foto.id));
     } catch (err) {
       showAlert('Error', 'No se pudo eliminar la foto.');
     }
@@ -949,6 +976,37 @@ export default function EditarPerfilScreen({ navigation, route }) {
               <Text style={[styles.fotoFincaSub, { color: colors.textSecondary }]}>
                 Esta foto aparece en tu perfil público y en el mapa de empleadores
               </Text>
+            </View>
+          )}
+
+          {rol === 'empleador' && (
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Fotos de la finca</Text>
+              <Text style={[styles.fotoFincaSub, { color: colors.textSecondary, marginBottom: 12 }]}>
+                Sube hasta 4 fotos de tu finca para que los trabajadores la conozcan mejor
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                {fotosFinca.map((foto) => (
+                  <View key={foto.id} style={{ width: 80, height: 80, borderRadius: 10, overflow: 'hidden' }}>
+                    <Image source={{ uri: foto.url }} style={{ width: 80, height: 80 }} />
+                    <TouchableOpacity
+                      style={{ position: 'absolute', top: 3, right: 3, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, padding: 3 }}
+                      onPress={() => eliminarFotoFincaItem(foto)}
+                    >
+                      <Ionicons name="close" size={12} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {fotosFinca.length < 4 && (
+                  <TouchableOpacity
+                    onPress={abrirFotoFincaGaleria}
+                    disabled={subiendoFotoFinca}
+                    style={{ width: 80, height: 80, borderRadius: 10, borderWidth: 1.5, borderStyle: 'dashed', borderColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    {subiendoFotoFinca ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Ionicons name="add" size={28} color={COLORS.primary} />}
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           )}
 

@@ -157,11 +157,22 @@ export default function ChatDetalleScreen({ route, navigation }) {
   const irAlPerfilRelacionado = useCallback(() => {
     const otroUsuarioId = Number(chat?.otro_usuario_id);
     const vacanteId = Number(chat?.vacante_id);
+    const otroRol = chat?.otro_rol;
     if (!user?.rol || !otroUsuarioId) { navigation.goBack(); return; }
     if (user.rol === 'empleador') {
-      navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: otroUsuarioId, vacante_id: Number.isFinite(vacanteId) ? vacanteId : undefined, postulacion_estado: 'aceptada' });
-    } else if (user.rol === 'trabajador') {
-      navigation.navigate('PerfilPublicoEmpleador', { empleador_id: otroUsuarioId, vacante_id: Number.isFinite(vacanteId) ? vacanteId : undefined, chat_data: chat });
+      // El otro puede ser trabajador o especialista
+      navigation.navigate('PerfilPublicoTrabajador', {
+        trabajador_id: otroUsuarioId,
+        vacante_id: Number.isFinite(vacanteId) && vacanteId > 0 ? vacanteId : undefined,
+        postulacion_estado: 'aceptada',
+        rol: otroRol || 'trabajador',
+      });
+    } else if (user.rol === 'trabajador' || user.rol === 'especialista') {
+      navigation.navigate('PerfilPublicoEmpleador', {
+        empleador_id: otroUsuarioId,
+        vacante_id: Number.isFinite(vacanteId) && vacanteId > 0 ? vacanteId : undefined,
+        chat_data: chat,
+      });
     } else { navigation.goBack(); }
   }, [chat, user, navigation]);
 

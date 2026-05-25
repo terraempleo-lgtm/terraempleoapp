@@ -58,6 +58,8 @@ router.post('/fotos-trabajo', authMiddleware, uploadFotoTrabajo.single('foto'), 
 router.delete('/fotos-trabajo/:fotoId', authMiddleware, authController.eliminarFotoTrabajo);
 router.post('/experiencias', authMiddleware, authController.agregarExperienciaLaboral);
 router.delete('/experiencias/:expId', authMiddleware, authController.eliminarExperienciaLaboral);
+router.post('/fotos-finca', authMiddleware, uploadFotoTrabajo.single('foto'), authController.subirFotoFinca);
+router.delete('/fotos-finca/:fotoId', authMiddleware, authController.eliminarFotoFinca);
 router.delete('/cuenta', authMiddleware, authController.eliminarCuenta);
 
 module.exports = router;

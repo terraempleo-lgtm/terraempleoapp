@@ -508,6 +508,18 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Fotos de finca del empleador (hasta 4)
+  await query(`
+    CREATE TABLE IF NOT EXISTS empleador_fotos_finca (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      perfil_empleador_id INT NOT NULL,
+      url VARCHAR(500) NOT NULL,
+      orden INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (perfil_empleador_id) REFERENCES perfil_empleador(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Crear usuario admin por defecto
   const bcrypt = require('bcryptjs');
   const adminExists = await query('SELECT id FROM usuarios WHERE rol = ? AND celular = ?', ['admin', '0000000000']);

@@ -67,6 +67,26 @@ export const authAPI = {
     transformRequest: [(data) => data],
   }),
   reenviarVerificacion: () => api.post('/auth/verificacion/reenviar'),
+  subirFotoFinca: async (uri) => {
+    const form = new FormData();
+    const ext = (uri.split('.').pop() || 'jpg').toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    if (typeof document !== 'undefined') {
+      const blob = await fetch(uri).then(r => r.blob());
+      form.append('foto', blob, `foto_finca_${Date.now()}.${ext}`);
+    } else {
+      form.append('foto', { uri, type: mime, name: `foto_finca_${Date.now()}.${ext}` });
+    }
+    const res = await fetch(`${api.defaults.baseURL}/auth/fotos-finca`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authToken}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw { response: { data, status: res.status } };
+    return { data };
+  },
+  eliminarFotoFinca: (fotoId) => api.delete(`/auth/fotos-finca/${fotoId}`),
   subirFotoTrabajo: async (uri) => {
     const form = new FormData();
     const ext = (uri.split('.').pop() || 'jpg').toLowerCase();
@@ -147,6 +167,11 @@ export const trabajadoresAPI = {
   recomendados: (params) => api.get('/trabajadores/recomendados', { params }),
   perfilPublico: (id) => api.get(`/trabajadores/${id}/perfil`),
   contactar: (id, data) => api.post(`/trabajadores/${id}/contactar`, data),
+};
+
+// Empleadores
+export const empleadoresAPI = {
+  perfilPublico: (id) => api.get(`/empleadores/${id}/perfil`),
 };
 
 // Especialistas

@@ -504,7 +504,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
       {!perfilCompleto && (
         <TouchableOpacity
           style={s.mejoraCard}
-          onPress={() => navigation.navigate('EditarPerfil')}
+          onPress={() => navigation.getParent()?.navigate('Perfil', { screen: 'EditarPerfil' })}
           activeOpacity={0.85}
         >
           <View style={s.mejoraIconWrap}>

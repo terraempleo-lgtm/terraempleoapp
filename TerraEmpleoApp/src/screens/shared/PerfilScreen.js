@@ -999,6 +999,28 @@ export default function PerfilScreen({ navigation }) {
               </View>
             </StaggeredItem>
 
+            {/* Banner mejora perfil empleador */}
+            {(!perfil?.acerca_de || !perfil?.fotos_finca?.length) && (
+              <StaggeredItem index={3}>
+                <AnimatedPressable
+                  style={[mejoraStyles.card, { backgroundColor: isDark ? '#1B3A2A' : '#E8F5E9', borderColor: isDark ? '#2a5c3a' : '#A5D6A7' }]}
+                  onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}
+                  scaleValue={0.97} haptic
+                >
+                  <View style={[mejoraStyles.iconWrap, { backgroundColor: COLORS.primary }]}>
+                    <Ionicons name="star" size={18} color="#fff" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[mejoraStyles.title, { color: isDark ? '#7CCC8A' : COLORS.primary }]}>¡Mejora tu perfil!</Text>
+                    <Text style={[mejoraStyles.sub, { color: isDark ? '#a0c8a8' : '#388E3C' }]}>
+                      Agrega descripción y fotos de tu finca para atraer más trabajadores.
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+                </AnimatedPressable>
+              </StaggeredItem>
+            )}
+
             {/* Editar Perfil */}
             <StaggeredItem index={4}>
               <AnimatedPressable style={s.ctaBtn} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.96} haptic>
