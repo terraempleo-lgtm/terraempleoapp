@@ -232,6 +232,12 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
 
   const solicitarContactoEspecialista = async () => {
     if (enviandoSolicitud) return;
+    if (!vacante_id) {
+      Alert.alert('Sin vacante activa', 'Necesitas publicar al menos una vacante activa antes de poder contactar especialistas.', [
+        { text: 'Entendido', style: 'default' },
+      ]);
+      return;
+    }
     try {
       setEnviandoSolicitud(true);
       const res = await especialistasAPI.contactar(trabajador_id, { vacante_id });
