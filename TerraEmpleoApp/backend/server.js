@@ -21,6 +21,7 @@ const pqrsRoutes = require('./routes/pqrs');
 const especialistasRoutes = require('./routes/especialistas');
 const empleadoresRoutes = require('./routes/empleadores');
 const certificadosRoutes = require('./routes/certificados');
+const serviciosEspecialistaRoutes = require('./routes/serviciosEspecialista');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -82,6 +83,7 @@ app.use('/api/pqrs', pqrsRoutes);
 app.use('/api/especialistas', especialistasRoutes);
 app.use('/api/empleadores', empleadoresRoutes);
 app.use('/api/certificados', certificadosRoutes);
+app.use('/api/servicios-especialista', serviciosEspecialistaRoutes);
 
 // Endpoint base de API para diagnóstico rápido
 app.get('/api', (req, res) => {

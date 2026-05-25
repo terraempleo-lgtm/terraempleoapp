@@ -719,6 +719,11 @@ export default function PerfilScreen({ navigation }) {
             {/* Acciones */}
             <StaggeredItem index={8}>
               <View style={[tw.card, { backgroundColor: colors.surface }]}>
+                <AnimatedPressable style={[tw.actionRow, { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={() => navigation.navigate('MisServicios')} scaleValue={0.97} haptic>
+                  <View style={[tw.actionIcon, { backgroundColor: '#FFF7ED' }]}><Ionicons name="briefcase-outline" size={17} color="#D97706" /></View>
+                  <Text style={[tw.actionTxt, { color: colors.textPrimary }]}>Mis Servicios</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </AnimatedPressable>
                 <AnimatedPressable style={[tw.actionRow, { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.97} haptic>
                   <View style={[tw.actionIcon, { backgroundColor: '#FEF3ED' }]}><Ionicons name="create-outline" size={17} color="#C0694A" /></View>
                   <Text style={[tw.actionTxt, { color: colors.textPrimary }]}>Editar perfil</Text>
@@ -1453,6 +1458,11 @@ export default function PerfilScreen({ navigation }) {
           {/* ── ACCIONES ── */}
           <StaggeredItem index={7}>
             <View style={[tw.card, { backgroundColor: colors.surface }]}>
+              <AnimatedPressable style={[tw.actionRow, { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={() => navigation.navigate('MisServicios')} scaleValue={0.97} haptic>
+                <View style={[tw.actionIcon, { backgroundColor: '#FFF7ED' }]}><Ionicons name="briefcase-outline" size={17} color="#D97706" /></View>
+                <Text style={[tw.actionTxt, { color: colors.textPrimary }]}>Mis Servicios</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </AnimatedPressable>
               <AnimatedPressable style={[tw.actionRow, { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.97} haptic>
                 <View style={[tw.actionIcon, { backgroundColor: '#E8F5E9' }]}><Ionicons name="create-outline" size={17} color="#2E7D32" /></View>
                 <Text style={[tw.actionTxt, { color: colors.textPrimary }]}>Editar perfil</Text>

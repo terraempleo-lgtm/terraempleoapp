@@ -369,4 +369,35 @@ export const pqrsAPI = {
   responderUsuario: (id, respuesta_usuario) => api.put(`/pqrs/${id}/responder`, { respuesta_usuario }),
 };
 
+export const serviciosAPI = {
+  listar: () => api.get('/servicios-especialista'),
+  misServicios: () => api.get('/servicios-especialista/mis-servicios'),
+  detalle: (id) => api.get(`/servicios-especialista/${id}`),
+  crear: async (datos, fotos) => {
+    const fd = new FormData();
+    fd.append('titulo', datos.titulo);
+    if (datos.descripcion) fd.append('descripcion', datos.descripcion);
+    if (datos.cultivos?.length) datos.cultivos.forEach((c) => fd.append('cultivos[]', c));
+    if (datos.precio_desde) fd.append('precio_desde', String(datos.precio_desde));
+    if (datos.precio_hasta) fd.append('precio_hasta', String(datos.precio_hasta));
+    if (datos.modalidad) fd.append('modalidad', datos.modalidad);
+    if (fotos?.length) {
+      fotos.forEach((f, i) => {
+        const ext = f.uri.split('.').pop() || 'jpg';
+        fd.append('fotos', { uri: f.uri, type: `image/${ext}`, name: `foto${i}.${ext}` });
+      });
+    }
+    return api.post('/servicios-especialista', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  editar: (id, datos) => api.put(`/servicios-especialista/${id}`, datos),
+  eliminar: (id) => api.delete(`/servicios-especialista/${id}`),
+  agregarFoto: async (servicioId, fotoUri) => {
+    const ext = fotoUri.split('.').pop() || 'jpg';
+    const fd = new FormData();
+    fd.append('foto', { uri: fotoUri, type: `image/${ext}`, name: `foto.${ext}` });
+    return api.post(`/servicios-especialista/${servicioId}/fotos`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  eliminarFoto: (servicioId, fotoId) => api.delete(`/servicios-especialista/${servicioId}/fotos/${fotoId}`),
+};
+
 export default api;

@@ -534,6 +534,34 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Servicios que ofrecen los especialistas
+  await query(`
+    CREATE TABLE IF NOT EXISTS servicios_especialista (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      especialista_id INT NOT NULL,
+      titulo VARCHAR(200) NOT NULL,
+      descripcion TEXT DEFAULT NULL,
+      cultivos JSON DEFAULT NULL,
+      precio_desde DECIMAL(10,2) DEFAULT NULL,
+      precio_hasta DECIMAL(10,2) DEFAULT NULL,
+      modalidad VARCHAR(100) DEFAULT NULL,
+      activo TINYINT(1) DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (especialista_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS servicio_fotos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      servicio_id INT NOT NULL,
+      url VARCHAR(500) NOT NULL,
+      orden INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (servicio_id) REFERENCES servicios_especialista(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Crear usuario admin por defecto
   const bcrypt = require('bcryptjs');
   const adminExists = await query('SELECT id FROM usuarios WHERE rol = ? AND celular = ?', ['admin', '0000000000']);

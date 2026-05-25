@@ -5,10 +5,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedPressable } from '../../components/animated';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
-import { trabajadoresAPI, vacantesAPI, especialistasAPI } from '../../services/api';
+import { trabajadoresAPI, vacantesAPI, especialistasAPI, serviciosAPI } from '../../services/api';
 
 const LIME = '#C8F056';
 const LIME_TEXT = '#2A5C00';
@@ -238,6 +239,71 @@ const MODALIDAD_LABELS_ESP = {
   asesoria_puntual: 'Asesoría puntual',
 };
 
+function ServicioCard({ item, onPress, colors }) {
+  const foto = item.fotos?.[0]?.url;
+  const initials = (item.nombre_completo || '?').charAt(0).toUpperCase();
+  return (
+    <TouchableOpacity onPress={() => onPress(item)} activeOpacity={0.9}
+      style={[scardSt.card, { backgroundColor: colors.surface }]}>
+      {/* Foto o gradiente */}
+      <View style={scardSt.fotoWrap}>
+        {foto
+          ? <Image source={{ uri: foto }} style={scardSt.foto} resizeMode="cover" />
+          : <LinearGradient colors={['#1B5E20','#43A047']} style={scardSt.foto} />
+        }
+        <View style={scardSt.espBadge}>
+          <Ionicons name="person-circle-outline" size={11} color="#fff" />
+          <Text style={scardSt.espBadgeTxt}>Especialista</Text>
+        </View>
+      </View>
+      {/* Info */}
+      <View style={scardSt.body}>
+        <Text style={[scardSt.titulo, { color: colors.textPrimary }]} numberOfLines={2}>{item.titulo}</Text>
+        {item.cultivos?.length > 0 && (
+          <View style={scardSt.chips}>
+            {item.cultivos.slice(0, 2).map((c, i) => (
+              <View key={i} style={scardSt.chip}>
+                <Text style={scardSt.chipTxt}>{c}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        {item.modalidad ? (
+          <View style={[scardSt.chip, { backgroundColor: '#E0F2FE' }]}>
+            <Text style={[scardSt.chipTxt, { color: '#0284C7' }]}>{item.modalidad}</Text>
+          </View>
+        ) : null}
+        {/* Especialista row */}
+        <View style={scardSt.espRow}>
+          {item.foto_selfie
+            ? <Image source={{ uri: item.foto_selfie }} style={scardSt.avatar} />
+            : <View style={[scardSt.avatar, { backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>{initials}</Text>
+              </View>
+          }
+          <Text style={[scardSt.espNombre, { color: colors.textSecondary }]} numberOfLines={1}>{item.nombre_completo}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const scardSt = StyleSheet.create({
+  card: { width: 200, borderRadius: 16, overflow: 'hidden', ...SHADOWS.medium, marginRight: 0 },
+  fotoWrap: { height: 130, position: 'relative' },
+  foto: { width: '100%', height: '100%' },
+  espBadge: { position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(46,125,50,0.9)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  espBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  body: { padding: 10, gap: 6 },
+  titulo: { fontSize: 14, fontWeight: '800', lineHeight: 19 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  chip: { backgroundColor: COLORS.primary + '15', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  chipTxt: { fontSize: 10, fontWeight: '600', color: COLORS.primary },
+  espRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  avatar: { width: 22, height: 22, borderRadius: 11 },
+  espNombre: { fontSize: 11, flex: 1 },
+});
+
 function EspecialistaCard({ item, onPress, onContactar, loadingId, estadoContacto, colors }) {
   const initials = getInitials(item.nombre_completo);
   const avatarBg = getAvatarColor(item.nombre_completo);
@@ -359,6 +425,7 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
   const { colors, isDark } = useAppTheme();
   const [trabajadores, setTrabajadores] = useState([]);
   const [especialistas, setEspecialistas] = useState([]);
+  const [servicios, setServicios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [enviandoContactoId, setEnviandoContactoId] = useState(null);
@@ -373,15 +440,18 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
     try {
       const params = { orden: ord };
       if (disp) params.disponibilidad = disp;
-      const [resTrab, resEsp] = await Promise.allSettled([
+      const [resTrab, resEsp, resSrv] = await Promise.allSettled([
         trabajadoresAPI.listar(params),
         especialistasAPI.listar({ limit: 10 }),
+        serviciosAPI.listar(),
       ]);
       const data = resTrab.status === 'fulfilled' ? resTrab.value.data : {};
       const lista = data?.trabajadores || [];
       const listaEsp = resEsp.status === 'fulfilled' ? (resEsp.value.data?.especialistas || []) : [];
+      const listaSrv = resSrv.status === 'fulfilled' ? (resSrv.value.data?.servicios || []) : [];
       setTrabajadores(lista);
       setEspecialistas(listaEsp);
+      setServicios(listaSrv);
       if (typeof data?.empleador_tiene_ubicacion === 'boolean') {
         setEmpleadorTieneUbicacion(data.empleador_tiene_ubicacion);
       }
@@ -653,6 +723,32 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
           <Ionicons name="map-outline" size={18} color={COLORS.white} />
         </AnimatedPressable>
       </View>
+
+      {/* ── OFERTAS DE ESPECIALISTAS (arriba del feed) ── */}
+      {servicios.length > 0 && (
+        <View style={styles.espSection}>
+          <View style={styles.espHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.espSectionTitle, { color: colors.textPrimary }]}>
+                Servicios de especialistas
+              </Text>
+              <Text style={[styles.espSectionSub, { color: colors.textMuted }]}>
+                Expertos que trabajan en fincas como la tuya
+              </Text>
+            </View>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.espScroll, { gap: 10 }]}>
+            {servicios.map((srv) => (
+              <ServicioCard
+                key={srv.id}
+                item={srv}
+                colors={colors}
+                onPress={() => navigation.navigate('DetalleServicio', { servicio_id: srv.id, servicio: srv })}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Especialistas destacados */}
       {especialistas.length > 0 && (

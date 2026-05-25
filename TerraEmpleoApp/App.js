@@ -46,6 +46,8 @@ import ChatDetalleScreen from './src/screens/shared/ChatDetalleScreen';
 import PerfilPublicoTrabajadorScreen from './src/screens/shared/PerfilPublicoTrabajadorScreen';
 import PerfilPublicoEmpleadorScreen from './src/screens/shared/PerfilPublicoEmpleadorScreen';
 import PqrsScreen from './src/screens/shared/PqrsScreen';
+import MisServiciosScreen from './src/screens/shared/MisServiciosScreen';
+import DetalleServicioScreen from './src/screens/shared/DetalleServicioScreen';
 
 // ── Trabajador — lazy en web ──────────────────────────────────────────────
 const TrabajadorVacantesScreen    = lazyWeb(() => import('./src/screens/trabajador/TrabajadorVacantesScreen'));
@@ -183,6 +185,7 @@ function PerfilStack() {
       <Stack.Screen name="PerfilHome" component={PerfilScreen} options={{ headerShown: false }} />
       <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Pqrs" component={PqrsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="MisServicios" component={MisServiciosScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -373,6 +376,11 @@ function BuscarTrabajadoresStack() {
         <Stack.Screen
           name="PerfilPublicoTrabajador"
           component={PerfilPublicoTrabajadorScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="DetalleServicio"
+          component={DetalleServicioScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
