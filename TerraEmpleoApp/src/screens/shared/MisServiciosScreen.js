@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  Image, Alert, ActivityIndicator, Modal, Pressable, FlatList, Dimensions,
+  Image, Alert, ActivityIndicator, Modal, Pressable, FlatList, Dimensions, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -103,40 +103,52 @@ export default function MisServiciosScreen({ navigation }) {
     }
   };
 
+  const ejecutarArchivar = async (item) => {
+    try {
+      await serviciosAPI.archivar(item.id, item.activo ? 0 : 1);
+      await cargar();
+    } catch (e) {
+      const msg = e?.response?.data?.error || e?.response?.data?.detail || e?.message || 'Error desconocido';
+      console.error('Error archivar:', e?.response?.status, msg);
+      Alert.alert('Error al archivar', `${e?.response?.status || ''} ${msg}`);
+    }
+  };
+
   const archivar = (item) => {
-    const confirmar = () => {
-      serviciosAPI.archivar(item.id, item.activo ? 0 : 1)
-        .then(() => cargar())
-        .catch((e) => {
-          const msg = e?.response?.data?.error || e?.response?.data?.detail || e?.message || 'No se pudo actualizar';
-          Alert.alert('Error al archivar', `${e?.response?.status || ''} ${msg}`);
-        });
-    };
-    Alert.alert(
-      item.activo ? 'Archivar servicio' : 'Activar servicio',
-      item.activo
-        ? 'El servicio dejará de aparecer en el feed. Puedes reactivarlo cuando quieras.'
-        : '¿Activar este servicio para que aparezca en el feed de empleadores?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: item.activo ? 'Archivar' : 'Activar', onPress: confirmar },
-      ]
-    );
+    const texto = item.activo
+      ? '¿Archivar este servicio? Dejará de aparecer en el feed.'
+      : '¿Activar este servicio para que aparezca en el feed?';
+    if (Platform.OS === 'web') {
+      if (window.confirm(texto)) ejecutarArchivar(item);
+    } else {
+      Alert.alert(
+        item.activo ? 'Archivar servicio' : 'Activar servicio',
+        texto,
+        [{ text: 'Cancelar', style: 'cancel' }, { text: item.activo ? 'Archivar' : 'Activar', onPress: () => ejecutarArchivar(item) }]
+      );
+    }
+  };
+
+  const ejecutarEliminar = async (id) => {
+    try {
+      await serviciosAPI.eliminar(id);
+      setServicios(prev => prev.filter(s => s.id !== id));
+    } catch (e) {
+      const msg = e?.response?.data?.error || e?.response?.data?.detail || e?.message || 'Error desconocido';
+      console.error('Error eliminar:', e?.response?.status, msg);
+      Alert.alert('Error al eliminar', `${e?.response?.status || ''} ${msg}`);
+    }
   };
 
   const eliminar = (id) => {
-    const confirmar = () => {
-      serviciosAPI.eliminar(id)
-        .then(() => cargar())
-        .catch((e) => {
-          const msg = e?.response?.data?.error || e?.response?.data?.detail || e?.message || 'No se pudo eliminar';
-          Alert.alert('Error al eliminar', `${e?.response?.status || ''} ${msg}`);
-        });
-    };
-    Alert.alert('Eliminar servicio', '¿Estás seguro? Esta acción no se puede deshacer.', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: confirmar },
-    ]);
+    if (Platform.OS === 'web') {
+      if (window.confirm('¿Eliminar este servicio? Esta acción no se puede deshacer.')) ejecutarEliminar(id);
+    } else {
+      Alert.alert('Eliminar servicio', '¿Estás seguro? Esta acción no se puede deshacer.', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => ejecutarEliminar(id) },
+      ]);
+    }
   };
 
   const toggleCultivo = (c) => {
