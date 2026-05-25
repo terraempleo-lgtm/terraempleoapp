@@ -276,6 +276,8 @@ function TrabajadorVacantesStack() {
           options={{ headerShown: false }} />
         <Stack.Screen name="Notificaciones" component={NotificacionesScreen}
           options={{ headerShown: false }} />
+        <Stack.Screen name="PerfilPublicoEmpleador" component={PerfilPublicoEmpleadorScreen}
+          options={{ title: 'Perfil de la Finca' }} />
       </Stack.Navigator>
     </S>
   );
@@ -289,6 +291,8 @@ function VacantesMapaStack() {
           options={{ headerShown: false }} />
         <Stack.Screen name="DetalleVacante" component={DetalleVacanteScreen}
           options={{ title: 'Detalle de Vacante' }} />
+        <Stack.Screen name="PerfilPublicoEmpleador" component={PerfilPublicoEmpleadorScreen}
+          options={{ title: 'Perfil de la Finca' }} />
       </Stack.Navigator>
     </S>
   );

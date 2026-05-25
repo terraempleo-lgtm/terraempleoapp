@@ -186,33 +186,9 @@ export default function PerfilScreen({ navigation }) {
 
   const [subiendoFotoFinca, setSubiendoFotoFinca] = useState(false);
 
-  const subirFotoFinca = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Cancelar', 'Tomar foto', 'Elegir de galería'], cancelButtonIndex: 0 },
-        async (idx) => {
-          if (idx === 1) {
-            const r = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.8 });
-            if (!r.canceled && r.assets?.[0]) await _uploadFotoFinca(r.assets[0].uri);
-          } else if (idx === 2) {
-            const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.8 });
-            if (!r.canceled && r.assets?.[0]) await _uploadFotoFinca(r.assets[0].uri);
-          }
-        }
-      );
-    } else {
-      Alert.alert('Foto de la finca', 'Elige cómo subir la foto de tu finca', [
-        { text: 'Tomar foto', onPress: async () => {
-          const r = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.8 });
-          if (!r.canceled && r.assets?.[0]) await _uploadFotoFinca(r.assets[0].uri);
-        }},
-        { text: 'Elegir de galería', onPress: async () => {
-          const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.8 });
-          if (!r.canceled && r.assets?.[0]) await _uploadFotoFinca(r.assets[0].uri);
-        }},
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
-    }
+  const subirFotoFinca = async () => {
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.8 });
+    if (!r.canceled && r.assets?.[0]) await _uploadFotoFinca(r.assets[0].uri);
   };
 
   const _uploadFotoFinca = async (uri) => {
@@ -878,9 +854,9 @@ export default function PerfilScreen({ navigation }) {
 
           {/* ── Banner MEJORA TU PERFIL prominente ── */}
           {(!perfil?.acerca_de || !perfil?.fotos_finca?.length) && (
-            <AnimatedPressable
+            <TouchableOpacity
               onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })}
-              scaleValue={0.97} haptic
+              activeOpacity={0.85}
               style={{ marginHorizontal: SPACING.md, marginBottom: SPACING.md }}
             >
               <LinearGradient
@@ -907,7 +883,7 @@ export default function PerfilScreen({ navigation }) {
                   <Ionicons name="arrow-forward" size={18} color="#FF8F00" />
                 </View>
               </LinearGradient>
-            </AnimatedPressable>
+            </TouchableOpacity>
           )}
 
           <View style={[s.empCard, { backgroundColor: colors.surface }]}>

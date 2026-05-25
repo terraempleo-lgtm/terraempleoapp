@@ -399,6 +399,10 @@ export default function ChatDetalleScreen({ route, navigation }) {
   };
 
   const mostrarOpcionesImagen = () => {
+    if (Platform.OS === 'web') {
+      seleccionarImagen(false);
+      return;
+    }
     Alert.alert('Enviar imagen', 'Elige una opción', [
       { text: 'Galería', onPress: () => seleccionarImagen(false) },
       { text: 'Cámara', onPress: () => seleccionarImagen(true) },
