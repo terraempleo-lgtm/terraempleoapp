@@ -42,9 +42,11 @@ export default function MisServiciosScreen({ navigation }) {
     try {
       setCargando(true);
       const res = await serviciosAPI.misServicios();
+      Alert.alert('Debug', `Status: ${res.status} | Servicios: ${res.data?.servicios?.length ?? 'null'} | Data: ${JSON.stringify(res.data).slice(0,200)}`);
       setServicios(res.data.servicios || []);
     } catch (e) {
-      console.warn('Error cargando servicios:', e?.message);
+      const msg = `${e?.response?.status} - ${e?.response?.data?.error || e?.message || 'Error desconocido'}`;
+      Alert.alert('Error cargando servicios', msg);
     } finally {
       setCargando(false);
     }
@@ -85,10 +87,11 @@ export default function MisServiciosScreen({ navigation }) {
           await serviciosAPI.agregarFoto(editandoId, f.uri);
         }
       } else {
-        await serviciosAPI.crear(
+        const r = await serviciosAPI.crear(
           { titulo, descripcion, cultivos, precio_desde: precioDesde, precio_hasta: precioHasta, modalidad },
           fotos
         );
+        Alert.alert('Debug crear', `Status: ${r?.status} | id: ${r?.data?.id} | servicio.id: ${r?.data?.servicio?.id} | msg: ${r?.data?.message}`);
       }
       setModal(false);
       cargar();

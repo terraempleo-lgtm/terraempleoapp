@@ -95,6 +95,7 @@ async function detalleServicio(req, res) {
 // POST /api/servicios-especialista
 async function crearServicio(req, res) {
   try {
+    console.log('crearServicio body:', JSON.stringify(req.body));
     const { titulo, descripcion, cultivos, precio_desde, precio_hasta, modalidad } = req.body;
     if (!titulo?.trim()) return res.status(400).json({ error: 'El título del servicio es obligatorio' });
 
@@ -117,14 +118,25 @@ async function crearServicio(req, res) {
 // PUT /api/servicios-especialista/:id
 async function editarServicio(req, res) {
   try {
-    const { titulo, descripcion, cultivos, precio_desde, precio_hasta, modalidad, activo } = req.body;
-    const existing = await query('SELECT id FROM servicios_especialista WHERE id = ? AND especialista_id = ?', [req.params.id, req.user.id]);
+    const existing = await query('SELECT * FROM servicios_especialista WHERE id = ? AND especialista_id = ?', [req.params.id, req.user.id]);
     if (!existing.length) return res.status(404).json({ error: 'Servicio no encontrado' });
 
-    const cultivosJson = Array.isArray(cultivos) ? JSON.stringify(cultivos) : (cultivos || '[]');
+    const current = existing[0];
+    const { titulo, descripcion, cultivos, precio_desde, precio_hasta, modalidad, activo } = req.body;
+
+    const newTitulo = titulo !== undefined ? titulo : current.titulo;
+    const newDescripcion = descripcion !== undefined ? descripcion : current.descripcion;
+    const newCultivos = cultivos !== undefined
+      ? (Array.isArray(cultivos) ? JSON.stringify(cultivos) : cultivos)
+      : (current.cultivos || '[]');
+    const newPrecioDesde = precio_desde !== undefined ? precio_desde || null : current.precio_desde;
+    const newPrecioHasta = precio_hasta !== undefined ? precio_hasta || null : current.precio_hasta;
+    const newModalidad = modalidad !== undefined ? modalidad || null : current.modalidad;
+    const newActivo = activo !== undefined ? activo : current.activo;
+
     await query(
       `UPDATE servicios_especialista SET titulo=?, descripcion=?, cultivos=?, precio_desde=?, precio_hasta=?, modalidad=?, activo=? WHERE id=?`,
-      [titulo, descripcion || null, cultivosJson, precio_desde || null, precio_hasta || null, modalidad || null, activo !== undefined ? activo : 1, req.params.id]
+      [newTitulo, newDescripcion || null, newCultivos, newPrecioDesde, newPrecioHasta, newModalidad, newActivo, req.params.id]
     );
     res.json({ message: 'Servicio actualizado' });
   } catch (err) {
