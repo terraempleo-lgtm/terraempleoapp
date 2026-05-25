@@ -191,4 +191,21 @@ async function contactarEspecialista(req, res) {
   }
 }
 
-module.exports = { listarEspecialistas, getPerfilEspecialista, contactarEspecialista };
+async function getContactoEstado(req, res) {
+  try {
+    const empleadorId = req.user.id;
+    const especialistaId = Number(req.params.id);
+    const rows = await query(
+      'SELECT estado, chat_id FROM contactos_especialista WHERE empleador_id = ? AND especialista_id = ?',
+      [empleadorId, especialistaId]
+    );
+    if (!rows || rows.length === 0) return res.json({ estado: null });
+    const c = rows[0];
+    res.json({ estado: c.estado === 'solicitado' ? 'contacto_solicitado' : c.estado === 'aceptado' ? 'aceptada' : c.estado, chat_id: c.chat_id ? Number(c.chat_id) : null });
+  } catch (err) {
+    console.error('Error obteniendo estado contacto:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+}
+
+module.exports = { listarEspecialistas, getPerfilEspecialista, contactarEspecialista, getContactoEstado };

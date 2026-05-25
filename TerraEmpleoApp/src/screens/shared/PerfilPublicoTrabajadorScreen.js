@@ -116,6 +116,17 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
   };
 
   const syncEstadoPostulacion = async () => {
+    // Especialista: consultar tabla contactos_especialista
+    if (esEspecialista) {
+      try {
+        const res = await especialistasAPI.contactoEstado(trabajador_id);
+        setEstadoActual(res.data.estado || null);
+      } catch {
+        setEstadoActual(null);
+      }
+      return;
+    }
+    // Trabajador normal: requiere vacante
     if (!vacante_id) {
       setEstadoActual(postulacion_estado || null);
       return;
