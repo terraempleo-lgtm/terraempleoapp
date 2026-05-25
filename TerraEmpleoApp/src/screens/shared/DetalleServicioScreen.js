@@ -26,6 +26,12 @@ export default function DetalleServicioScreen({ route, navigation }) {
   const [fotoIdx, setFotoIdx] = useState(0);
   const [fotoModal, setFotoModal] = useState(null);
   const [contactando, setContactando] = useState(false);
+  const carouselRef = useRef(null);
+
+  const onCarouselScroll = (e) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / W);
+    setFotoIdx(idx);
+  };
 
   useEffect(() => {
     if (!servicio && servicio_id) cargar();
@@ -88,12 +94,6 @@ export default function DetalleServicioScreen({ route, navigation }) {
   );
 
   const fotos = servicio.fotos || [];
-  const carouselRef = useRef(null);
-
-  const onCarouselScroll = (e) => {
-    const idx = Math.round(e.nativeEvent.contentOffset.x / W);
-    setFotoIdx(idx);
-  };
 
   return (
     <View style={[st.root, { backgroundColor: colors.background }]}>
