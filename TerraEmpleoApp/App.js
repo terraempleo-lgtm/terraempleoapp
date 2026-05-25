@@ -281,6 +281,8 @@ function TrabajadorVacantesStack() {
           options={{ headerShown: false }} />
         <Stack.Screen name="PerfilPublicoEmpleador" component={PerfilPublicoEmpleadorScreen}
           options={{ title: 'Perfil de la Finca' }} />
+        <Stack.Screen name="DetalleServicio" component={DetalleServicioScreen}
+          options={{ headerShown: false }} />
       </Stack.Navigator>
     </S>
   );
@@ -324,7 +326,10 @@ function EmpleadorTabs() {
       <Tab.Screen name="MisVacantes" component={EmpleadorVacantesStack}
         options={{ tabBarLabel: 'Mis Vacantes' }} />
       <Tab.Screen name="Trabajadores" component={BuscarTrabajadoresStack}
-        options={{ tabBarLabel: 'Trabajadores' }} />
+        options={{ tabBarLabel: 'Trabajadores' }}
+        listeners={({ navigation }) => ({
+          tabPress: () => navigation.navigate('Trabajadores', { screen: 'BuscarTrabajadoresHome' }),
+        })} />
       <Tab.Screen name="Mapa" component={TrabajadoresMapaTabStack}
         options={{ tabBarLabel: 'Mapa' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}

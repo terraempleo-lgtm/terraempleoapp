@@ -34,10 +34,12 @@ async function listarServicios(req, res) {
 
     const servicios = await Promise.all(rows.map(async (s) => {
       const fotos = await query('SELECT id, url, orden FROM servicio_fotos WHERE servicio_id = ? ORDER BY orden', [s.id]);
+      let foto_selfie = s.foto_selfie;
+      try { foto_selfie = await signUrl(s.foto_selfie); } catch (_) {}
       return {
         ...s,
         cultivos: parseCultivos(s.cultivos),
-        foto_selfie: await signUrl(s.foto_selfie),
+        foto_selfie,
         fotos: await signFotos(fotos),
       };
     }));
@@ -45,7 +47,7 @@ async function listarServicios(req, res) {
     res.json({ servicios });
   } catch (err) {
     console.error('Error listando servicios:', err);
-    res.status(500).json({ error: 'Error interno' });
+    res.status(500).json({ error: 'Error interno', detail: err.message, code: err.code });
   }
 }
 

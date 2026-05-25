@@ -551,7 +551,12 @@ export default function TrabajadorVacantesScreen({ navigation }) {
           {misServicios.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -SPACING.md }} contentContainerStyle={{ paddingHorizontal: SPACING.md, gap: 10 }}>
               {misServicios.map((srv) => (
-                <View key={srv.id} style={[s.srvCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <TouchableOpacity
+                  key={srv.id}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('DetalleServicio', { servicio_id: srv.id })}
+                  style={[s.srvCard, { backgroundColor: colors.background, borderColor: colors.border }]}
+                >
                   {srv.fotos?.[0]?.url && <Image source={{ uri: srv.fotos[0].url }} style={s.srvFoto} resizeMode="cover" />}
                   <View style={s.srvBody}>
                     <Text style={[s.srvTitulo, { color: colors.textPrimary }]} numberOfLines={2}>{srv.titulo}</Text>
@@ -560,7 +565,7 @@ export default function TrabajadorVacantesScreen({ navigation }) {
                     )}
                     {srv.modalidad ? <Text style={[s.srvModalidad, { color: colors.textMuted }]}>{srv.modalidad}</Text> : null}
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
           ) : null}
