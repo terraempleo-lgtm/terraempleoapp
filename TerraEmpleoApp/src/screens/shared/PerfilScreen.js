@@ -441,7 +441,7 @@ export default function PerfilScreen({ navigation }) {
                 : <LinearGradient colors={['#8B3A2A', '#C0694A', '#D4845A']} style={StyleSheet.absoluteFill} />
               }
               <LinearGradient colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0.55)']} style={StyleSheet.absoluteFill} pointerEvents="none" />
-              <View style={tw.heroTopBar}>
+              <View style={[tw.heroTopBar, { top: (insets?.top || 0) + 14 }]}>
                 <View style={{ width: 40 }} />
                 <Text style={tw.heroTopTitle}>Mi Perfil</Text>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -821,7 +821,7 @@ export default function PerfilScreen({ navigation }) {
             <LinearGradient colors={['rgba(0,0,0,0.15)','rgba(0,0,0,0.6)']} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
 
             {/* Top bar */}
-            <View style={empS.heroTopBar}>
+            <View style={[empS.heroTopBar, { top: (insets?.top || 0) }]}>
               <View style={{ width: 44 }} />
               <Text style={empS.heroTitle}>Mi Perfil</Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -1091,7 +1091,7 @@ export default function PerfilScreen({ navigation }) {
             <LinearGradient colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0.55)']} style={StyleSheet.absoluteFill} pointerEvents="none" />
 
             {/* Top bar sobre el gradiente */}
-            <View style={tw.heroTopBar}>
+            <View style={[tw.heroTopBar, { top: (insets?.top || 0) + 14 }]}>
               <View style={{ width: 40 }} />
               <Text style={tw.heroTopTitle}>Mi Perfil</Text>
               <View style={{ flexDirection: 'row', gap: 6 }}>
