@@ -315,7 +315,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
     const hasFooterEsp = !estadoActual || estadoActual === 'aceptada' || estadoActual === 'contacto_solicitado';
     return (
       <View style={[s.root, { backgroundColor: colors.background }]}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: hasFooterEsp ? 120 : 40 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: hasFooterEsp ? 200 : 100 }}>
 
           {/* HERO ESPECIALISTA — terracota */}
           <View style={r.heroOuter}>
@@ -568,21 +568,21 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
 
         {/* Footer CTA */}
         {estadoActual === 'aceptada' ? (
-          <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm + 70, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
             <AnimatedPressable style={[s.primaryBtn, { backgroundColor: colors.primary }]} onPress={irAlChat}>
               <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
               <Text style={s.primaryBtnTxt}>Ir al chat</Text>
             </AnimatedPressable>
           </View>
         ) : estadoActual === 'contacto_solicitado' ? (
-          <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm + 70, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
             <View style={[s.infoPill, { backgroundColor: COLORS.warningSoft, borderColor: COLORS.warning + '40' }]}>
               <Ionicons name="hourglass-outline" size={16} color={COLORS.warning} />
               <Text style={[s.infoPillTxt, { color: COLORS.warning }]}>Solicitud enviada. Esperando respuesta del especialista.</Text>
             </View>
           </View>
         ) : !estadoActual ? (
-          <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm + 70, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
             <AnimatedPressable
               style={[s.primaryBtn, { backgroundColor: colors.primary }]}
               onPress={solicitarContactoEspecialista}
@@ -601,7 +601,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: hasFooter ? 120 : 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: hasFooter ? 200 : 100 }}>
 
         {/* ── HERO CON GRADIENTE ── */}
         <View style={r.heroOuter}>
@@ -950,7 +950,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
 
       {/* Footer actions */}
       {isPendiente && (
-        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm + 70, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <AnimatedPressable
             style={[s.rejectBtn, { borderColor: colors.border }]}
             onPress={() => cambiarEstado('rechazada')}
@@ -967,7 +967,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
         </View>
       )}
       {estadoActual === 'aceptada' && (
-        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm + 70, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <AnimatedPressable
             style={[s.primaryBtn, { backgroundColor: colors.primary }]}
             onPress={irAlChat}
@@ -978,7 +978,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
         </View>
       )}
       {!estadoActual && (
-        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm + 70, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <AnimatedPressable
             style={[s.primaryBtn, { backgroundColor: colors.primary }]}
             onPress={solicitarContacto}
@@ -990,7 +990,7 @@ export default function PerfilPublicoTrabajadorScreen({ route, navigation }) {
         </View>
       )}
       {isSolicitudContacto && (
-        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+        <View style={[s.footer, { paddingBottom: insets.bottom + SPACING.sm + 70, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <View style={[s.infoPill, { backgroundColor: COLORS.warningSoft, borderColor: COLORS.warning + '40' }]}>
             <Ionicons name="hourglass-outline" size={16} color={COLORS.warning} />
             <Text style={[s.infoPillTxt, { color: COLORS.warning }]}>Solicitud enviada. Esperando respuesta del trabajador.</Text>

@@ -97,7 +97,7 @@ export default function DetalleServicioScreen({ route, navigation }) {
 
   return (
     <View style={[st.root, { backgroundColor: colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 190 }}>
 
         {/* ── HERO CARRUSEL ── */}
         <View style={st.heroWrap}>
@@ -257,7 +257,7 @@ export default function DetalleServicioScreen({ route, navigation }) {
 
       {/* CTA — solo para empleadores */}
       {user?.rol === 'empleador' && (
-        <View style={[st.footer, { paddingBottom: insets.bottom + SPACING.sm, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+        <View style={[st.footer, { paddingBottom: insets.bottom + SPACING.sm + 70, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <TouchableOpacity
             style={[st.ctaBtnCall, { borderColor: COLORS.primary }]}
             onPress={llamarEspecialista}
