@@ -356,6 +356,9 @@ export const adminAPI = {
   resolverReporte: (id, data) => api.put(`/admin/reportes/${id}`, data),
   getPqrs: (estado) => api.get('/admin/pqrs', { params: estado ? { estado } : {} }),
   responderPqrs: (id, data) => api.put(`/admin/pqrs/${id}`, data),
+  getServicios: () => api.get('/admin/servicios'),
+  updateServicio: (id, data) => api.put(`/admin/servicios/${id}`, data),
+  deleteServicio: (id) => api.delete(`/admin/servicios/${id}`),
 };
 
 export const reportesAPI = {

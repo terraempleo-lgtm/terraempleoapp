@@ -36,4 +36,9 @@ const pqrsController = require('../controllers/pqrsController');
 router.get('/pqrs', pqrsController.listarPqrs);
 router.put('/pqrs/:id', pqrsController.responderPqrs);
 
+// Servicios de especialistas
+router.get('/servicios', adminController.listarServiciosAdmin);
+router.put('/servicios/:id', adminController.editarServicioAdmin);
+router.delete('/servicios/:id', adminController.eliminarServicioAdmin);
+
 module.exports = router;

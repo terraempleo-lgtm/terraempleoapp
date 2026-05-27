@@ -80,6 +80,7 @@ const AdminPostulantesVacanteScreen  = lazyWeb(() => import('./src/screens/admin
 const AdminMatchesScreen             = lazyWeb(() => import('./src/screens/admin/AdminMatchesScreen'));
 const AdminReportesScreen            = lazyWeb(() => import('./src/screens/admin/AdminReportesScreen'));
 const AdminPqrsScreen                = lazyWeb(() => import('./src/screens/admin/AdminPqrsScreen'));
+const AdminServiciosScreen           = lazyWeb(() => import('./src/screens/admin/AdminServiciosScreen'));
 
 // Fallback mientras carga un chunk lazy
 const LazyFallback = () => (
@@ -163,6 +164,7 @@ const tabScreenOptions = ({ route }) => ({
       case 'Usuarios': iconName = focused ? 'people' : 'people-outline'; break;
       case 'Verificacion': iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline'; break;
       case 'AdminVacantes': iconName = focused ? 'briefcase' : 'briefcase-outline'; break;
+      case 'AdminServicios': iconName = focused ? 'cube' : 'cube-outline'; break;
       case 'AdminPqrs': iconName = focused ? 'chatbox-ellipses' : 'chatbox-ellipses-outline'; break;
       case 'Trabajadores': iconName = focused ? 'people' : 'people-outline'; break;
       case 'ParaTi': iconName = focused ? 'sparkles' : 'sparkles-outline'; break;
@@ -499,6 +501,17 @@ function AdminPqrsStack() {
   );
 }
 
+function AdminServiciosStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="AdminServiciosHome" component={AdminServiciosScreen}
+          options={{ headerShown: false }} />
+      </Stack.Navigator>
+    </S>
+  );
+}
+
 function AdminTabs() {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
@@ -510,6 +523,8 @@ function AdminTabs() {
         options={{ tabBarLabel: 'Verificación' }} />
       <Tab.Screen name="AdminVacantes" component={AdminVacantesStack}
         options={{ tabBarLabel: 'Vacantes' }} />
+      <Tab.Screen name="AdminServicios" component={AdminServiciosStack}
+        options={{ tabBarLabel: 'Servicios' }} />
       <Tab.Screen name="AdminReportes" component={AdminReportesStack}
         options={{ tabBarLabel: 'Reportes' }} />
       <Tab.Screen name="AdminPqrs" component={AdminPqrsStack}

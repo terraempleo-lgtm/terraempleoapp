@@ -319,6 +319,8 @@ async function eliminarUsuario(req, res) {
     }
     await query('UPDATE usuarios SET eliminado = 1, activo = 0 WHERE id = ?', [id]);
     await query('UPDATE vacantes SET eliminado = 1 WHERE empleador_id = ?', [id]);
+    await query('DELETE FROM servicio_fotos WHERE servicio_id IN (SELECT id FROM servicios_especialista WHERE especialista_id = ?)', [id]);
+    await query('DELETE FROM servicios_especialista WHERE especialista_id = ?', [id]);
     res.json({ message: 'Usuario eliminado' });
   } catch (err) {
     console.error('Error eliminando usuario:', err);
@@ -576,9 +578,73 @@ async function revisarVerificacionEmpresa(req, res) {
   }
 }
 
+// ── Admin: Servicios de especialistas ──
+
+async function listarServiciosAdmin(req, res) {
+  try {
+    const rows = await query(`
+      SELECT s.id, s.titulo, s.descripcion, s.cultivos, s.precio_desde, s.precio_hasta,
+             s.modalidad, s.activo, s.created_at,
+             u.id as especialista_id, u.nombre_completo, u.celular
+      FROM servicios_especialista s
+      JOIN usuarios u ON u.id = s.especialista_id
+      WHERE u.eliminado = 0
+      ORDER BY s.created_at DESC
+    `);
+    const servicios = rows.map(s => ({
+      ...s,
+      cultivos: (() => { try { return JSON.parse(s.cultivos || '[]'); } catch { return []; } })(),
+    }));
+    res.json({ servicios });
+  } catch (err) {
+    console.error('Error admin listando servicios:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+async function editarServicioAdmin(req, res) {
+  try {
+    const { id } = req.params;
+    const [existing] = await query('SELECT * FROM servicios_especialista WHERE id = ?', [id]);
+    if (!existing) return res.status(404).json({ error: 'Servicio no encontrado' });
+
+    const { titulo, descripcion, precio_desde, precio_hasta, modalidad, activo } = req.body;
+    await query(
+      `UPDATE servicios_especialista SET
+        titulo = COALESCE(?, titulo),
+        descripcion = COALESCE(?, descripcion),
+        precio_desde = COALESCE(?, precio_desde),
+        precio_hasta = COALESCE(?, precio_hasta),
+        modalidad = COALESCE(?, modalidad),
+        activo = COALESCE(?, activo)
+       WHERE id = ?`,
+      [titulo ?? null, descripcion ?? null, precio_desde ?? null, precio_hasta ?? null, modalidad ?? null, activo ?? null, id]
+    );
+    res.json({ message: 'Servicio actualizado' });
+  } catch (err) {
+    console.error('Error admin editando servicio:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+async function eliminarServicioAdmin(req, res) {
+  try {
+    const { id } = req.params;
+    const [existing] = await query('SELECT id FROM servicios_especialista WHERE id = ?', [id]);
+    if (!existing) return res.status(404).json({ error: 'Servicio no encontrado' });
+    await query('DELETE FROM servicio_fotos WHERE servicio_id = ?', [id]);
+    await query('DELETE FROM servicios_especialista WHERE id = ?', [id]);
+    res.json({ message: 'Servicio eliminado' });
+  } catch (err) {
+    console.error('Error admin eliminando servicio:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
   dashboard, listarUsuarios, listarCedulasPendientes, getUsuarioDetalle, getDocumentosIdentidadUsuario, revisarValidacionIdentidadUsuario, actualizarUsuario, toggleUsuario, eliminarUsuario,
   listarTodasVacantes, listarTodasPostulaciones, eliminarVacante,
   crearVacanteComoAdmin, listarEmpleadores, verPostulacionesAdmin, cambiarEstadoVacante, actualizarVacante,
   eliminarEmpleador, listarEmpresasPendientes, revisarVerificacionEmpresa,
+  listarServiciosAdmin, editarServicioAdmin, eliminarServicioAdmin,
 };
