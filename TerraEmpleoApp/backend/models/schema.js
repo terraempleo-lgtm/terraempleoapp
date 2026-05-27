@@ -562,6 +562,116 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // ── Cuaderno del empleador (control y seguimiento de trabajadores) ─────────
+  // Una jornada = un día de trabajo asociado opcionalmente a una vacante.
+  await query(`
+    CREATE TABLE IF NOT EXISTS cuaderno_jornadas (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      empleador_id INT NOT NULL,
+      vacante_id INT DEFAULT NULL,
+      fecha DATE NOT NULL,
+      titulo VARCHAR(200) DEFAULT NULL,
+      finca VARCHAR(200) DEFAULT NULL,
+      tipo_trabajo VARCHAR(150) DEFAULT NULL,
+      tipo_pago_default ENUM('jornal','por_kilo','mixto') DEFAULT 'jornal',
+      precio_jornal DECIMAL(12,2) DEFAULT NULL,
+      precio_kilo DECIMAL(12,2) DEFAULT NULL,
+      costos_generales DECIMAL(12,2) DEFAULT 0,
+      observaciones TEXT DEFAULT NULL,
+      estado ENUM('planeada','en_curso','cerrada') NOT NULL DEFAULT 'planeada',
+      cerrada_at TIMESTAMP NULL DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_cuad_emp_fecha (empleador_id, fecha),
+      INDEX idx_cuad_vacante (vacante_id),
+      FOREIGN KEY (empleador_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+      FOREIGN KEY (vacante_id) REFERENCES vacantes(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Asistencia del trabajador a una jornada.
+  // trabajador_id puede ser NULL si el empleador agrega un trabajador externo (manual_nombre).
+  await query(`
+    CREATE TABLE IF NOT EXISTS cuaderno_asistencias (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      jornada_id INT NOT NULL,
+      trabajador_id INT DEFAULT NULL,
+      manual_nombre VARCHAR(200) DEFAULT NULL,
+      manual_telefono VARCHAR(30) DEFAULT NULL,
+      estado ENUM('pendiente','llego','llego_tarde','no_llego','cancelo') NOT NULL DEFAULT 'pendiente',
+      hora_llegada TIME DEFAULT NULL,
+      notas VARCHAR(400) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_cuad_asis_jornada (jornada_id),
+      INDEX idx_cuad_asis_trabajador (trabajador_id),
+      FOREIGN KEY (jornada_id) REFERENCES cuaderno_jornadas(id) ON DELETE CASCADE,
+      FOREIGN KEY (trabajador_id) REFERENCES usuarios(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Registro de trabajo: producción, horas y pago calculado por asistencia.
+  await query(`
+    CREATE TABLE IF NOT EXISTS cuaderno_registros_trabajo (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      asistencia_id INT NOT NULL UNIQUE,
+      jornada_id INT NOT NULL,
+      cantidad_kg DECIMAL(10,2) DEFAULT NULL,
+      horas DECIMAL(5,2) DEFAULT NULL,
+      tipo_pago ENUM('jornal','por_kilo','mixto') DEFAULT 'jornal',
+      precio_jornal DECIMAL(12,2) DEFAULT NULL,
+      precio_kilo DECIMAL(12,2) DEFAULT NULL,
+      pago_total DECIMAL(12,2) DEFAULT 0,
+      pagado TINYINT(1) NOT NULL DEFAULT 0,
+      pagado_at TIMESTAMP NULL DEFAULT NULL,
+      estado ENUM('completo','parcial','cancelado') NOT NULL DEFAULT 'completo',
+      notas VARCHAR(400) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_cuad_reg_jornada (jornada_id),
+      FOREIGN KEY (asistencia_id) REFERENCES cuaderno_asistencias(id) ON DELETE CASCADE,
+      FOREIGN KEY (jornada_id) REFERENCES cuaderno_jornadas(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Calificación rápida interna (privada del empleador) + observaciones.
+  await query(`
+    CREATE TABLE IF NOT EXISTS cuaderno_calificaciones_internas (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      asistencia_id INT NOT NULL UNIQUE,
+      jornada_id INT NOT NULL,
+      empleador_id INT NOT NULL,
+      trabajador_id INT DEFAULT NULL,
+      nivel ENUM('bien','regular','mal') NOT NULL,
+      comentario VARCHAR(500) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_cuad_calif_trab (trabajador_id),
+      INDEX idx_cuad_calif_emp (empleador_id),
+      FOREIGN KEY (asistencia_id) REFERENCES cuaderno_asistencias(id) ON DELETE CASCADE,
+      FOREIGN KEY (jornada_id) REFERENCES cuaderno_jornadas(id) ON DELETE CASCADE,
+      FOREIGN KEY (empleador_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+      FOREIGN KEY (trabajador_id) REFERENCES usuarios(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Notas privadas del empleador sobre un trabajador (independiente de jornada).
+  await query(`
+    CREATE TABLE IF NOT EXISTS cuaderno_notas_trabajador (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      empleador_id INT NOT NULL,
+      trabajador_id INT DEFAULT NULL,
+      manual_nombre VARCHAR(200) DEFAULT NULL,
+      nota TEXT NOT NULL,
+      tipo ENUM('observacion','incidencia','recordatorio') NOT NULL DEFAULT 'observacion',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_cuad_notas_emp (empleador_id),
+      INDEX idx_cuad_notas_trab (trabajador_id),
+      FOREIGN KEY (empleador_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+      FOREIGN KEY (trabajador_id) REFERENCES usuarios(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Crear usuario admin por defecto
   const bcrypt = require('bcryptjs');
   const adminExists = await query('SELECT id FROM usuarios WHERE rol = ? AND celular = ?', ['admin', '0000000000']);
