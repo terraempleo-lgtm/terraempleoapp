@@ -588,7 +588,6 @@ async function listarServiciosAdmin(req, res) {
              u.id as especialista_id, u.nombre_completo, u.celular
       FROM servicios_especialista s
       JOIN usuarios u ON u.id = s.especialista_id
-      WHERE u.eliminado = 0
       ORDER BY s.created_at DESC
     `);
     const servicios = rows.map(s => ({
