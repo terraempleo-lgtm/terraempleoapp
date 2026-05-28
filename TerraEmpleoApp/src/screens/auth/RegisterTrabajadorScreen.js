@@ -170,6 +170,8 @@ export default function RegisterTrabajadorScreen({ navigation }) {
         if (!cedula.trim()) errs.cedula = 'Falta la cédula (paso 3)';
         if (!aceptaHabeasData) errs.habeas = 'Debe aceptar el tratamiento de datos (paso 3)';
         if (!nivelEstudios) errs.estudios = 'Falta el nivel de estudios (paso 4)';
+        if (!fotoSelfie) errs.selfie = 'La selfie es obligatoria (paso 8)';
+        if (!fotoSelfieCedula) errs.selfieCed = 'La selfie con cédula es obligatoria (paso 8)';
         break;
     }
     setErrors(errs);

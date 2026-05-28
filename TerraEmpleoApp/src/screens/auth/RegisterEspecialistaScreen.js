@@ -176,6 +176,8 @@ export default function RegisterEspecialistaScreen({ navigation }) {
         if (!cedula.trim()) errs.cedula = 'Falta cédula (paso 3)';
         if (especialidades.length === 0) errs.especialidades = 'Falta especialidad (paso 4)';
         if (!aceptaHabeasData || !aceptaTerminos) errs.habeas = 'Faltan consentimientos (paso 3)';
+        if (!fotoSelfie) errs.selfie = 'La selfie es obligatoria (paso 6)';
+        if (!fotoSelfieCedula) errs.selfieCed = 'La selfie con cédula es obligatoria (paso 6)';
         break;
     }
     setErrors(errs);
