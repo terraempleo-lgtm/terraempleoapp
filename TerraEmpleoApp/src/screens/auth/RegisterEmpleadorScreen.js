@@ -172,6 +172,8 @@ export default function RegisterEmpleadorScreen({ navigation }) {
         if (!password || password.length < 8) errs.password = 'Contraseña inválida (paso 3)';
         if (!cedula.trim()) errs.cedula = 'Falta la cédula (paso 4)';
         if (!aceptaHabeasData) errs.habeas = 'Debe aceptar el tratamiento de datos (paso 4)';
+        if (!fotoSelfie) errs.selfie = 'La selfie es obligatoria (paso 6)';
+        if (!fotoSelfieCedula) errs.selfieCed = 'La selfie con cédula es obligatoria (paso 6)';
         break;
     }
     setErrors(errs);
