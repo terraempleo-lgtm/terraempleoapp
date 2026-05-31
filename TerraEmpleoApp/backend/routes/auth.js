@@ -61,5 +61,6 @@ router.delete('/experiencias/:expId', authMiddleware, authController.eliminarExp
 router.post('/fotos-finca', authMiddleware, uploadFotoTrabajo.single('foto'), authController.subirFotoFinca);
 router.delete('/fotos-finca/:fotoId', authMiddleware, authController.eliminarFotoFinca);
 router.delete('/cuenta', authMiddleware, authController.eliminarCuenta);
+router.post('/cambiar-rol/especialista', authMiddleware, authController.cambiarRolAEspecialista);
 
 module.exports = router;

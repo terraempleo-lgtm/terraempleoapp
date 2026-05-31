@@ -67,6 +67,7 @@ export const authAPI = {
     transformRequest: [(data) => data],
   }),
   reenviarVerificacion: () => api.post('/auth/verificacion/reenviar'),
+  cambiarRolAEspecialista: () => api.post('/auth/cambiar-rol/especialista'),
   subirFotoFinca: async (uri) => {
     const form = new FormData();
     const ext = (uri.split('.').pop() || 'jpg').toLowerCase();

@@ -1167,6 +1167,30 @@ async function eliminarCuenta(req, res) {
   }
 }
 
+async function cambiarRolAEspecialista(req, res) {
+  try {
+    const userId = req.user.id;
+    const [user] = await query('SELECT id, rol FROM usuarios WHERE id = ?', [userId]);
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (user.rol !== 'trabajador') {
+      return res.status(400).json({ error: 'Solo los trabajadores pueden cambiar a especialista' });
+    }
+    await query("UPDATE usuarios SET rol = 'especialista' WHERE id = ?", [userId]);
+    // Crear perfil_especialista si no existe
+    const existing = await query('SELECT id FROM perfil_especialista WHERE usuario_id = ?', [userId]);
+    if (!existing.length) {
+      await query('INSERT INTO perfil_especialista (usuario_id) VALUES (?)', [userId]);
+    }
+    // Devolver datos actualizados del usuario para que el frontend pueda hacer signIn
+    const [updated] = await query('SELECT * FROM usuarios WHERE id = ?', [userId]);
+    const token = jwt.sign({ id: updated.id, rol: updated.rol }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    res.json({ message: 'Rol actualizado a especialista', user: updated, token });
+  } catch (err) {
+    console.error('Error cambiando rol:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 async function agregarExperienciaLaboral(req, res) {
   try {
     const userId = req.user.id;
@@ -1221,4 +1245,5 @@ module.exports = {
   eliminarCuenta,
   agregarExperienciaLaboral,
   eliminarExperienciaLaboral,
+  cambiarRolAEspecialista,
 };

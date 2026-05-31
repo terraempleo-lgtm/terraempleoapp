@@ -8,7 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS, ANIMATION } from '../../theme';
-import { authAPI, calificacionesAPI, certificadosAPI } from '../../services/api';
+import { authAPI, calificacionesAPI, certificadosAPI, setAuthToken } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -387,6 +387,29 @@ export default function PerfilScreen({ navigation }) {
   };
 
   const handleLogout = () => { signOut(); };
+
+  const handleConvertirEspecialista = () => {
+    Alert.alert(
+      'Convertirte en Especialista',
+      'Al cambiar a rol Especialista podrás ofrecer tus servicios profesionales a empleadores. Tu perfil de trabajador se mantendrá.\n\n¿Deseas continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sí, convertirme',
+          onPress: async () => {
+            try {
+              const res = await authAPI.cambiarRolAEspecialista();
+              const { user: updatedUser, token } = res.data;
+              setAuthToken(token);
+              updateUser({ ...updatedUser, rol: 'especialista' });
+            } catch (err) {
+              Alert.alert('Error', err.response?.data?.error || 'No se pudo cambiar el rol');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const esEspecialista = u?.rol === 'especialista';
   const calificacion = parseFloat(u?.calificacion_promedio || 0);
@@ -1458,9 +1481,12 @@ export default function PerfilScreen({ navigation }) {
           {/* ── ACCIONES ── */}
           <StaggeredItem index={7}>
             <View style={[tw.card, { backgroundColor: colors.surface }]}>
-              <AnimatedPressable style={[tw.actionRow, { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={() => navigation.navigate('MisServicios')} scaleValue={0.97} haptic>
-                <View style={[tw.actionIcon, { backgroundColor: '#FFF7ED' }]}><Ionicons name="briefcase-outline" size={17} color="#D97706" /></View>
-                <Text style={[tw.actionTxt, { color: colors.textPrimary }]}>Mis Servicios</Text>
+              <AnimatedPressable style={[tw.actionRow, { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={handleConvertirEspecialista} scaleValue={0.97} haptic>
+                <View style={[tw.actionIcon, { backgroundColor: '#FFF3E0' }]}><Ionicons name="ribbon-outline" size={17} color="#E65100" /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[tw.actionTxt, { color: colors.textPrimary }]}>Ofrecer servicios</Text>
+                  <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>Conviértete en Especialista</Text>
+                </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
               </AnimatedPressable>
               <AnimatedPressable style={[tw.actionRow, { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={() => navigation.navigate('EditarPerfil', { userData, perfil })} scaleValue={0.97} haptic>
