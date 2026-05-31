@@ -4,6 +4,7 @@ import {
   TouchableOpacity, FlatList, Image, Dimensions, ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -293,6 +294,7 @@ const chipStyles = StyleSheet.create({
 export default function TrabajadoresMapaScreen({ navigation, route }) {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const mapRef = useRef(null);
   const carouselRef = useRef(null);
 
@@ -609,7 +611,7 @@ export default function TrabajadoresMapaScreen({ navigation, route }) {
 
       {/* Carousel */}
       {filtered.length > 0 ? (
-        <View style={[styles.carouselWrap, { bottom: Math.max(insets.bottom, 16) }]}>
+        <View style={[styles.carouselWrap, { bottom: tabBarHeight + 8 }]}>
           <FlatList
             ref={carouselRef}
             data={filtered}

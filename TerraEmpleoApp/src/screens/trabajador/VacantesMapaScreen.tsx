@@ -13,7 +13,8 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import MapView, { Marker, Region, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -537,6 +538,8 @@ const COLOMBIA_CENTER: Region = {
 
 export default function VacantesMapaScreen({ navigation }: any) {
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const [rawData, setRawData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -725,7 +728,7 @@ export default function VacantesMapaScreen({ navigation }: any) {
 
       {/* Carousel */}
       {filtered.length > 0 ? (
-        <View style={styles.carouselWrap}>
+        <View style={[styles.carouselWrap, { bottom: tabBarHeight + 8 }]}>
           <FlatList
             ref={carouselRef}
             data={filtered}
