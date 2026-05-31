@@ -145,7 +145,7 @@ const mkStyles = StyleSheet.create({
     shadowOpacity: 0.25, shadowRadius: 4, elevation: 5,
   },
   bubbleSelected: { width: 46, height: 46, borderRadius: 23, borderColor: COLORS.primary, backgroundColor: COLORS.primary },
-  foto: { width: '100%', height: '100%' },
+  foto: { width: 38, height: 38, borderRadius: 19 },
   initials: { fontSize: 13, fontWeight: '700', color: '#FFF' },
   tail: {
     width: 0, height: 0,
@@ -208,8 +208,8 @@ const wcStyles = StyleSheet.create({
     overflow: 'hidden', ...SHADOWS.large, padding: 12, gap: 10,
   },
   cardSelected: { borderWidth: 2, borderColor: COLORS.primary },
-  avatarWrap: { width: 70, height: 70, borderRadius: 35, overflow: 'hidden' },
-  avatar: { width: '100%', height: '100%' },
+  avatarWrap: { width: 70, height: 70, borderRadius: 35, overflow: 'hidden', backgroundColor: COLORS.primary + '22' },
+  avatar: { width: 70, height: 70, borderRadius: 35 },
   avatarFallback: {
     width: 70, height: 70, borderRadius: 35,
     backgroundColor: COLORS.primary + '22',
@@ -609,7 +609,7 @@ export default function TrabajadoresMapaScreen({ navigation, route }) {
 
       {/* Carousel */}
       {filtered.length > 0 ? (
-        <View style={styles.carouselWrap}>
+        <View style={[styles.carouselWrap, { bottom: Math.max(insets.bottom, 16) }]}>
           <FlatList
             ref={carouselRef}
             data={filtered}
