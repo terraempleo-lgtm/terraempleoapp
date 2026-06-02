@@ -783,6 +783,25 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // ── Módulo Finca Cafetera · Fase 2: Nómina enriquecida ─────────────────────
+  // Ajustes a la liquidación de un trabajador en una jornada: bonificaciones,
+  // descuentos, anticipos y labores extra (ej. "guadañando x 120").
+  await query(`
+    CREATE TABLE IF NOT EXISTS cuaderno_ajustes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      asistencia_id INT NOT NULL,
+      jornada_id INT NOT NULL,
+      tipo ENUM('bonificacion','descuento','anticipo','labor_extra') NOT NULL,
+      monto DECIMAL(12,2) NOT NULL DEFAULT 0,
+      motivo VARCHAR(300) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_ajuste_asis (asistencia_id),
+      INDEX idx_ajuste_jornada (jornada_id),
+      FOREIGN KEY (asistencia_id) REFERENCES cuaderno_asistencias(id) ON DELETE CASCADE,
+      FOREIGN KEY (jornada_id) REFERENCES cuaderno_jornadas(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Crear usuario admin por defecto
   const bcrypt = require('bcryptjs');
   const adminExists = await query('SELECT id FROM usuarios WHERE rol = ? AND celular = ?', ['admin', '0000000000']);
@@ -828,6 +847,15 @@ async function initializeDatabase() {
     if (!/Duplicate column|Duplicate key name|errno: 121|foreign key constraint/i.test(e.message)) {
       console.warn('[Migration] cuaderno_jornadas.finca_id:', e.message);
     }
+  }
+
+  // Migración: firma de recibido del trabajador en la asistencia (Fase 2 nómina).
+  try {
+    await query('ALTER TABLE cuaderno_asistencias ADD COLUMN firma_recibido TINYINT(1) NOT NULL DEFAULT 0');
+    await query('ALTER TABLE cuaderno_asistencias ADD COLUMN firmado_at TIMESTAMP NULL DEFAULT NULL');
+    console.log('[Migration] cuaderno_asistencias.firma_recibido/firmado_at agregadas.');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_asistencias.firma:', e.message);
   }
 
   console.log('Base de datos inicializada correctamente.');

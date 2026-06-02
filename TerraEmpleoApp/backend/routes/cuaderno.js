@@ -2,12 +2,19 @@ const express = require('express');
 const router = express.Router();
 const { authMiddleware, empleadorMiddleware } = require('../middleware/auth');
 const cuaderno = require('../controllers/cuadernoController');
+const nomina = require('../controllers/nominaController');
 
 // Todas las rutas del cuaderno requieren rol empleador
 router.use(authMiddleware, empleadorMiddleware);
 
 // Dashboard + analítica
 router.get('/dashboard', cuaderno.dashboard);
+
+// Nómina semanal (planilla agregada por trabajador) — Fase 2
+router.get('/nomina', nomina.planilla);
+router.post('/asistencias/:asisId/ajustes', nomina.agregarAjuste);
+router.delete('/ajustes/:id', nomina.eliminarAjuste);
+router.put('/asistencias/:asisId/firma', nomina.marcarFirma);
 
 // Postulantes aceptados de una vacante (para preseleccionar al crear jornada)
 router.get('/vacantes/:id/postulantes', cuaderno.postulantesVacante);
