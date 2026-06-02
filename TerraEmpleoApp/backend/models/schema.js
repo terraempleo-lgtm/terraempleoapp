@@ -802,6 +802,69 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // ── Módulo Finca Cafetera · Fase 3: Conversión y antifraude ────────────────
+  // Lote de café: agrupa la cereza recolectada (de un rango de fechas) y guarda
+  // la estimación de pergamino seco / arrobas / cargas con el factor de la finca.
+  await query(`
+    CREATE TABLE IF NOT EXISTS cafe_lotes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      finca_id INT NOT NULL,
+      fecha DATE NOT NULL,
+      rango_desde DATE DEFAULT NULL,
+      rango_hasta DATE DEFAULT NULL,
+      descripcion VARCHAR(200) DEFAULT NULL,
+      total_kg_cereza DECIMAL(12,2) NOT NULL DEFAULT 0,
+      factor_usado DECIMAL(6,3) NOT NULL DEFAULT 5.000,
+      kg_pergamino_estimado DECIMAL(12,2) NOT NULL DEFAULT 0,
+      arrobas_estimadas DECIMAL(10,2) NOT NULL DEFAULT 0,
+      cargas_estimadas DECIMAL(10,3) NOT NULL DEFAULT 0,
+      estado ENUM('en_proceso','secado','vendido','almacenado') NOT NULL DEFAULT 'en_proceso',
+      registrado_por INT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_lote_finca (finca_id),
+      FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE,
+      FOREIGN KEY (registrado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Producción real: lo que de verdad pesó al vender o almacenar (báscula).
+  await query(`
+    CREATE TABLE IF NOT EXISTS cafe_produccion_real (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      lote_id INT NOT NULL,
+      fecha DATE NOT NULL,
+      kg_pergamino_real DECIMAL(12,2) NOT NULL DEFAULT 0,
+      destino ENUM('venta','almacen') NOT NULL DEFAULT 'venta',
+      precio_venta DECIMAL(14,2) DEFAULT NULL,
+      comprador VARCHAR(200) DEFAULT NULL,
+      nota VARCHAR(300) DEFAULT NULL,
+      registrado_por INT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_real_lote (lote_id),
+      FOREIGN KEY (lote_id) REFERENCES cafe_lotes(id) ON DELETE CASCADE,
+      FOREIGN KEY (registrado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Alerta de conversión: compara estimado vs real y marca severidad/estado.
+  await query(`
+    CREATE TABLE IF NOT EXISTS cafe_alertas (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      lote_id INT NOT NULL UNIQUE,
+      estimado_kg DECIMAL(12,2) NOT NULL DEFAULT 0,
+      real_kg DECIMAL(12,2) NOT NULL DEFAULT 0,
+      diferencia_kg DECIMAL(12,2) NOT NULL DEFAULT 0,
+      diferencia_pct DECIMAL(6,2) NOT NULL DEFAULT 0,
+      severidad ENUM('ok','revisar','critica') NOT NULL DEFAULT 'ok',
+      estado ENUM('abierta','justificada','cerrada') NOT NULL DEFAULT 'abierta',
+      justificacion VARCHAR(500) DEFAULT NULL,
+      revisado_por INT DEFAULT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (lote_id) REFERENCES cafe_lotes(id) ON DELETE CASCADE,
+      FOREIGN KEY (revisado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Crear usuario admin por defecto
   const bcrypt = require('bcryptjs');
   const adminExists = await query('SELECT id FROM usuarios WHERE rol = ? AND celular = ?', ['admin', '0000000000']);

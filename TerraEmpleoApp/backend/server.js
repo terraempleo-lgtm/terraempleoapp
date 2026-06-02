@@ -25,6 +25,7 @@ const serviciosEspecialistaRoutes = require('./routes/serviciosEspecialista');
 const cuadernoRoutes = require('./routes/cuaderno');
 const fincaRoutes = require('./routes/finca');
 const finanzasRoutes = require('./routes/finanzas');
+const cafeRoutes = require('./routes/cafe');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -90,6 +91,7 @@ app.use('/api/servicios-especialista', serviciosEspecialistaRoutes);
 app.use('/api/cuaderno', cuadernoRoutes);
 app.use('/api/finca', fincaRoutes);
 app.use('/api/finanzas', finanzasRoutes);
+app.use('/api/cafe', cafeRoutes);
 
 // Endpoint base de API para diagnóstico rápido
 app.get('/api', (req, res) => {
