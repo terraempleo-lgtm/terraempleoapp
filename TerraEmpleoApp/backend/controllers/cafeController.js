@@ -1,5 +1,6 @@
 const { query } = require('../config/database');
 const { accesoFinca } = require('./fincaController');
+const { registrarAuditoria, ipDe } = require('../helpers/auditoria');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers de conversión y alertas
@@ -213,6 +214,10 @@ async function eliminarLote(req, res) {
     const acc = await accesoFinca(Number(loteRows[0].finca_id), req.user.id, { escribir: true });
     if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
     await query('DELETE FROM cafe_lotes WHERE id = ?', [id]);
+    await registrarAuditoria({
+      usuarioId: req.user.id, fincaId: Number(loteRows[0].finca_id), entidad: 'cafe_lote', registroId: id,
+      accion: 'eliminar', descripcion: 'Lote de café eliminado', ip: ipDe(req),
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error('eliminarLote:', err);
@@ -270,6 +275,10 @@ async function eliminarReal(req, res) {
     const loteRows = await query('SELECT * FROM cafe_lotes WHERE id = ?', [rows[0].lote_id]);
     const finca = await getFinca(Number(rows[0].finca_id));
     await recomputarAlerta(loteRows[0], finca.umbral_merma_pct);
+    await registrarAuditoria({
+      usuarioId: req.user.id, fincaId: Number(rows[0].finca_id), entidad: 'cafe_produccion_real', registroId: id,
+      accion: 'eliminar', descripcion: 'Registro de producción real eliminado', ip: ipDe(req),
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error('eliminarReal:', err);
@@ -296,6 +305,12 @@ async function gestionarAlerta(req, res) {
       'UPDATE cafe_alertas SET estado = ?, justificacion = ?, revisado_por = ? WHERE lote_id = ?',
       [estado, req.body.justificacion || null, req.user.id, loteId]
     );
+    await registrarAuditoria({
+      usuarioId: req.user.id, fincaId: Number(loteRows[0].finca_id), entidad: 'cafe_alerta', registroId: loteId,
+      accion: estado === 'cerrada' ? 'cerrar' : (estado === 'justificada' ? 'justificar' : 'reabrir'),
+      nuevo: { estado, justificacion: req.body.justificacion || null },
+      descripcion: `Alerta de conversión: ${estado}`, ip: ipDe(req),
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error('gestionarAlerta:', err);

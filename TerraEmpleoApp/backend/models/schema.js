@@ -865,6 +865,29 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // ── Módulo Finca Cafetera · Fase 4: Auditoría ──────────────────────────────
+  // Registra acciones sensibles (ediciones tras cierre, cambios de factores,
+  // gestión de alertas, etc.) para dar trazabilidad al control antifraude.
+  await query(`
+    CREATE TABLE IF NOT EXISTS auditoria (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      usuario_id INT DEFAULT NULL,
+      finca_id INT DEFAULT NULL,
+      entidad VARCHAR(60) NOT NULL,
+      registro_id INT DEFAULT NULL,
+      accion VARCHAR(30) NOT NULL,
+      valor_anterior TEXT DEFAULT NULL,
+      valor_nuevo TEXT DEFAULT NULL,
+      descripcion VARCHAR(400) DEFAULT NULL,
+      ip VARCHAR(45) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_aud_finca (finca_id, created_at),
+      INDEX idx_aud_usuario (usuario_id),
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL,
+      FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Crear usuario admin por defecto
   const bcrypt = require('bcryptjs');
   const adminExists = await query('SELECT id FROM usuarios WHERE rol = ? AND celular = ?', ['admin', '0000000000']);

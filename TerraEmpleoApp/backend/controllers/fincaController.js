@@ -1,4 +1,5 @@
 const { query } = require('../config/database');
+const { registrarAuditoria, ipDe } = require('../helpers/auditoria');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Conceptos semilla (tomados de la operación real del usuario)
@@ -171,14 +172,27 @@ async function actualizarFinca(req, res) {
         !['incluida', 'independiente'].includes(campos.modalidad_alimentacion)) {
       return res.status(400).json({ error: 'modalidad_alimentacion inválida' });
     }
+    const prevRows = await query('SELECT * FROM fincas WHERE id = ?', [fincaId]);
+    const prev = (prevRows && prevRows[0]) || {};
+
     const sets = [];
     const params = [];
+    const anterior = {};
+    const nuevo = {};
     for (const [k, v] of Object.entries(campos)) {
-      if (v !== undefined) { sets.push(`${k} = ?`); params.push(v === '' ? null : v); }
+      if (v !== undefined) {
+        const val = v === '' ? null : v;
+        sets.push(`${k} = ?`); params.push(val);
+        anterior[k] = prev[k]; nuevo[k] = val;
+      }
     }
     if (sets.length === 0) return res.status(400).json({ error: 'Nada que actualizar' });
     params.push(fincaId);
     await query(`UPDATE fincas SET ${sets.join(', ')} WHERE id = ?`, params);
+    await registrarAuditoria({
+      usuarioId: req.user.id, fincaId, entidad: 'finca', registroId: fincaId, accion: 'editar',
+      anterior, nuevo, descripcion: 'Configuración de finca actualizada', ip: ipDe(req),
+    });
     const rows = await query('SELECT * FROM fincas WHERE id = ?', [fincaId]);
     res.json({ finca: rows[0] });
   } catch (err) {
@@ -244,6 +258,10 @@ async function invitarUsuario(req, res) {
         [fincaId, usuarioId, rol]
       );
     }
+    await registrarAuditoria({
+      usuarioId: req.user.id, fincaId, entidad: 'finca_usuario', registroId: usuarioId, accion: 'invitar',
+      nuevo: { usuario_id: usuarioId, rol_finca: rol }, descripcion: `Usuario invitado como ${rol}`, ip: ipDe(req),
+    });
     res.status(201).json({ ok: true });
   } catch (err) {
     console.error('invitarUsuario:', err);
@@ -263,6 +281,10 @@ async function quitarUsuario(req, res) {
       return res.status(400).json({ error: 'No se puede quitar al propietario' });
     }
     await query('DELETE FROM finca_usuarios WHERE id = ?', [fuId]);
+    await registrarAuditoria({
+      usuarioId: req.user.id, fincaId, entidad: 'finca_usuario', registroId: fuId, accion: 'eliminar',
+      anterior: { rol_finca: rows[0].rol_finca }, descripcion: 'Usuario removido de la finca', ip: ipDe(req),
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error('quitarUsuario:', err);
@@ -270,8 +292,34 @@ async function quitarUsuario(req, res) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Auditoría (solo propietario): registro de acciones sensibles de la finca.
+// ─────────────────────────────────────────────────────────────────────────────
+async function auditoria(req, res) {
+  try {
+    const fincaId = Number(req.params.id);
+    const acc = await accesoFinca(fincaId, req.user.id, { soloPropietario: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+    const limit = Math.min(Number(req.query.limit) || 100, 300);
+    const rows = await query(
+      `SELECT a.id, a.entidad, a.registro_id, a.accion, a.valor_anterior, a.valor_nuevo,
+              a.descripcion, a.ip, a.created_at, u.nombre_completo AS usuario
+         FROM auditoria a
+         LEFT JOIN usuarios u ON u.id = a.usuario_id
+        WHERE a.finca_id = ?
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT ?`,
+      [fincaId, limit]
+    );
+    res.json({ registros: rows || [] });
+  } catch (err) {
+    console.error('auditoria:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
-  accesoFinca,          // reutilizado por finanzasController
+  accesoFinca,          // reutilizado por finanzas/cafe controllers
   sembrarConceptos,
   misFincas,
   crearFinca,
@@ -280,4 +328,5 @@ module.exports = {
   listarUsuarios,
   invitarUsuario,
   quitarUsuario,
+  auditoria,
 };

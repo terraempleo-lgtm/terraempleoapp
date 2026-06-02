@@ -11,6 +11,9 @@ router.post('/', finca.crearFinca);
 router.get('/:id', finca.detalleFinca);
 router.put('/:id', finca.actualizarFinca);
 
+// Auditoría (solo propietario)
+router.get('/:id/auditoria', finca.auditoria);
+
 // Sub-usuarios de la finca
 router.get('/:id/usuarios', finca.listarUsuarios);
 router.post('/:id/usuarios', finca.invitarUsuario);

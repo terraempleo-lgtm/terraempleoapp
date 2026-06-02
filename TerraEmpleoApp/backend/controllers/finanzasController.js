@@ -1,5 +1,6 @@
 const { query } = require('../config/database');
 const { accesoFinca } = require('./fincaController');
+const { registrarAuditoria, ipDe } = require('../helpers/auditoria');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers de calendario
@@ -181,6 +182,15 @@ async function upsertMovimiento(req, res) {
       semIdNorm = Number(semana_id);
     }
 
+    // Auditoría: editar un movimiento en un período YA cerrado es sensible.
+    if (p[0].estado === 'cerrado') {
+      await registrarAuditoria({
+        usuarioId: req.user.id, fincaId, entidad: 'fin_movimiento', registroId: Number(concepto_id),
+        accion: 'editar_cerrado', nuevo: { concepto_id, periodo_id, semana_id: semIdNorm, monto },
+        descripcion: 'Edición de movimiento en período cerrado', ip: ipDe(req),
+      });
+    }
+
     // Buscar movimiento existente (mismo concepto, período y semana — o ambos sin semana).
     const existente = await query(
       `SELECT id FROM fin_movimientos
@@ -288,6 +298,10 @@ async function eliminarConcepto(req, res) {
     const acc = await accesoFinca(Number(rows[0].finca_id), req.user.id, { escribir: true });
     if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
     await query('UPDATE fin_conceptos SET activo = 0 WHERE id = ?', [id]);
+    await registrarAuditoria({
+      usuarioId: req.user.id, fincaId: Number(rows[0].finca_id), entidad: 'fin_concepto', registroId: id,
+      accion: 'eliminar', descripcion: 'Concepto financiero desactivado', ip: ipDe(req),
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error('eliminarConcepto:', err);
@@ -315,6 +329,12 @@ async function cambiarEstadoPeriodo(req, res) {
       await query('UPDATE fin_periodos SET estado = ?, cerrado_at = NULL, cerrado_por = NULL WHERE id = ?',
         ['abierto', id]);
     }
+    await registrarAuditoria({
+      usuarioId: req.user.id, fincaId: Number(rows[0].finca_id), entidad: 'fin_periodo', registroId: id,
+      accion: nuevo === 'cerrado' ? 'cerrar' : 'reabrir',
+      anterior: { estado: rows[0].estado }, nuevo: { estado: nuevo },
+      descripcion: `Período ${nuevo === 'cerrado' ? 'cerrado' : 'reabierto'}`, ip: ipDe(req),
+    });
     res.json({ ok: true, estado: nuevo });
   } catch (err) {
     console.error('cambiarEstadoPeriodo:', err);
