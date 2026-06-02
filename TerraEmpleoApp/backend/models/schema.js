@@ -672,6 +672,117 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // ── Módulo Finca Cafetera · Fase 1: Finanzas ───────────────────────────────
+  // Entidad finca: cuelga parámetros de conversión y la modalidad de alimentación.
+  await query(`
+    CREATE TABLE IF NOT EXISTS fincas (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      empleador_id INT NOT NULL,
+      nombre VARCHAR(200) NOT NULL,
+      municipio VARCHAR(150) DEFAULT NULL,
+      vereda VARCHAR(150) DEFAULT NULL,
+      hectareas DECIMAL(8,2) DEFAULT NULL,
+      modalidad_alimentacion ENUM('incluida','independiente') NOT NULL DEFAULT 'incluida',
+      factor_conversion DECIMAL(6,3) NOT NULL DEFAULT 5.000,
+      kg_por_arroba DECIMAL(6,3) NOT NULL DEFAULT 12.500,
+      kg_por_carga DECIMAL(7,2) NOT NULL DEFAULT 125.00,
+      umbral_merma_pct DECIMAL(5,2) NOT NULL DEFAULT 15.00,
+      moneda CHAR(3) NOT NULL DEFAULT 'COP',
+      activa TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_finca_emp (empleador_id),
+      FOREIGN KEY (empleador_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Roles internos por finca (separación de funciones para antifraude).
+  await query(`
+    CREATE TABLE IF NOT EXISTS finca_usuarios (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      finca_id INT NOT NULL,
+      usuario_id INT NOT NULL,
+      rol_finca ENUM('propietario','administrador','auxiliar','contador') NOT NULL DEFAULT 'auxiliar',
+      activo TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_finca_usuario (finca_id, usuario_id),
+      INDEX idx_fu_usuario (usuario_id),
+      FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE,
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Período mensual: un mes contiene 4 o 5 semanas (filas, no columnas).
+  await query(`
+    CREATE TABLE IF NOT EXISTS fin_periodos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      finca_id INT NOT NULL,
+      anio SMALLINT NOT NULL,
+      mes TINYINT NOT NULL,
+      fecha_inicio DATE NOT NULL,
+      fecha_fin DATE NOT NULL,
+      estado ENUM('abierto','cerrado') NOT NULL DEFAULT 'abierto',
+      cerrado_at TIMESTAMP NULL DEFAULT NULL,
+      cerrado_por INT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_finca_periodo (finca_id, anio, mes),
+      FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE,
+      FOREIGN KEY (cerrado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Semanas del período (numero_semana 1..5, lunes-inicio recortado al mes).
+  await query(`
+    CREATE TABLE IF NOT EXISTS fin_semanas (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      periodo_id INT NOT NULL,
+      numero_semana TINYINT NOT NULL,
+      fecha_inicio DATE NOT NULL,
+      fecha_fin DATE NOT NULL,
+      UNIQUE KEY uq_periodo_semana (periodo_id, numero_semana),
+      FOREIGN KEY (periodo_id) REFERENCES fin_periodos(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Catálogo de conceptos financieros (los 4 cuadros: ventas/fijos/variables/facturas).
+  await query(`
+    CREATE TABLE IF NOT EXISTS fin_conceptos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      finca_id INT NOT NULL,
+      nombre VARCHAR(150) NOT NULL,
+      tipo ENUM('ingreso','gasto_fijo','gasto_variable','factura') NOT NULL,
+      periodicidad ENUM('semanal','mensual','bimensual') NOT NULL DEFAULT 'semanal',
+      orden INT NOT NULL DEFAULT 0,
+      activo TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_concepto_finca_tipo (finca_id, tipo),
+      FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Movimientos: una fila por concepto+semana (o por período en facturas).
+  await query(`
+    CREATE TABLE IF NOT EXISTS fin_movimientos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      concepto_id INT NOT NULL,
+      periodo_id INT NOT NULL,
+      semana_id INT DEFAULT NULL,
+      monto DECIMAL(14,2) NOT NULL DEFAULT 0,
+      fecha DATE DEFAULT NULL,
+      nota VARCHAR(300) DEFAULT NULL,
+      registrado_por INT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_mov_periodo (periodo_id),
+      INDEX idx_mov_semana (semana_id),
+      INDEX idx_mov_concepto (concepto_id),
+      FOREIGN KEY (concepto_id) REFERENCES fin_conceptos(id) ON DELETE CASCADE,
+      FOREIGN KEY (periodo_id) REFERENCES fin_periodos(id) ON DELETE CASCADE,
+      FOREIGN KEY (semana_id) REFERENCES fin_semanas(id) ON DELETE SET NULL,
+      FOREIGN KEY (registrado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Crear usuario admin por defecto
   const bcrypt = require('bcryptjs');
   const adminExists = await query('SELECT id FROM usuarios WHERE rol = ? AND celular = ?', ['admin', '0000000000']);
@@ -704,6 +815,19 @@ async function initializeDatabase() {
     console.log('[Migration] ENUM tipo_pago actualizado con por_kilo.');
   } catch (e) {
     console.warn('[Migration] tipo_pago ENUM:', e.message);
+  }
+
+  // Migración: enlazar jornadas del Cuaderno con una finca (para que la nómina
+  // entre al Resumen Financiero por período).
+  try {
+    await query('ALTER TABLE cuaderno_jornadas ADD COLUMN finca_id INT DEFAULT NULL');
+    await query('ALTER TABLE cuaderno_jornadas ADD INDEX idx_cuad_finca (finca_id)');
+    await query('ALTER TABLE cuaderno_jornadas ADD FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE SET NULL');
+    console.log('[Migration] cuaderno_jornadas.finca_id agregada.');
+  } catch (e) {
+    if (!/Duplicate column|Duplicate key name|errno: 121|foreign key constraint/i.test(e.message)) {
+      console.warn('[Migration] cuaderno_jornadas.finca_id:', e.message);
+    }
   }
 
   console.log('Base de datos inicializada correctamente.');

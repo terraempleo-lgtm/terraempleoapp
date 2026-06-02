@@ -23,6 +23,8 @@ const empleadoresRoutes = require('./routes/empleadores');
 const certificadosRoutes = require('./routes/certificados');
 const serviciosEspecialistaRoutes = require('./routes/serviciosEspecialista');
 const cuadernoRoutes = require('./routes/cuaderno');
+const fincaRoutes = require('./routes/finca');
+const finanzasRoutes = require('./routes/finanzas');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -86,6 +88,8 @@ app.use('/api/empleadores', empleadoresRoutes);
 app.use('/api/certificados', certificadosRoutes);
 app.use('/api/servicios-especialista', serviciosEspecialistaRoutes);
 app.use('/api/cuaderno', cuadernoRoutes);
+app.use('/api/finca', fincaRoutes);
+app.use('/api/finanzas', finanzasRoutes);
 
 // Endpoint base de API para diagnóstico rápido
 app.get('/api', (req, res) => {
