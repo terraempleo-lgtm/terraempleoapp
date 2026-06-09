@@ -1,0 +1,166 @@
+/**
+ * whatsappController.js — Receptor de webhooks de WhatsApp.
+ *
+ * Recibe los eventos del proveedor (Evolution API por defecto; compatible con el
+ * formato de WhatsApp Cloud API), aplica idempotencia, identifica al usuario por
+ * su número, delega en el motor conversacional y responde por el mismo canal.
+ *
+ * Endpoint: POST /api/webhooks/whatsapp   (sin auth JWT — lo llama el proveedor;
+ * se protege opcionalmente con WHATSAPP_WEBHOOK_TOKEN).
+ */
+
+const { query } = require('../config/database');
+const whatsappService = require('../services/whatsappService');
+const conversationEngine = require('../services/conversationEngine');
+
+/** Extrae los campos relevantes de un evento entrante (Evolution / Cloud API). */
+function extraerMensaje(body) {
+  // ── Evolution API (event: messages.upsert) ──
+  if (body && body.data && (body.data.key || body.data.message)) {
+    const data = body.data;
+    const key = data.key || {};
+    const remoteJid = key.remoteJid || '';
+    const m = data.message || {};
+    const texto =
+      m.conversation ||
+      m.extendedTextMessage?.text ||
+      m.buttonsResponseMessage?.selectedDisplayText ||
+      m.listResponseMessage?.title ||
+      m.templateButtonReplyMessage?.selectedId ||
+      null;
+    return {
+      provider: 'evolution',
+      phone: remoteJid.split('@')[0].split(':')[0],
+      fromMe: key.fromMe === true,
+      id: key.id || null,
+      texto,
+      isGroup: remoteJid.endsWith('@g.us'),
+      event: body.event || null,
+    };
+  }
+
+  // ── WhatsApp Cloud API (entry[].changes[].value.messages[]) ──
+  const value = body?.entry?.[0]?.changes?.[0]?.value;
+  const msg = value?.messages?.[0];
+  if (msg) {
+    const texto =
+      msg.text?.body ||
+      msg.button?.text ||
+      msg.interactive?.button_reply?.title ||
+      msg.interactive?.list_reply?.title ||
+      null;
+    return {
+      provider: 'cloud',
+      phone: msg.from,
+      fromMe: false,
+      id: msg.id || null,
+      texto,
+      isGroup: false,
+      event: 'messages',
+    };
+  }
+
+  return null;
+}
+
+/** Busca el usuario asociado a un número por sus últimos 10 dígitos (celular CO). */
+async function buscarUsuarioPorTelefono(telefono) {
+  const ult10 = String(telefono || '').slice(-10);
+  if (ult10.length < 10) return null;
+  const rows = await query(
+    `SELECT id, nombre_completo, rol, celular, whatsapp_opt_in
+     FROM usuarios
+     WHERE activo = 1 AND (baneado IS NULL OR baneado = 0)
+       AND RIGHT(REPLACE(REPLACE(REPLACE(celular,'+',''),' ',''),'-',''), 10) = ?
+     LIMIT 1`,
+    [ult10]
+  ).catch(() => []);
+  return rows && rows[0] ? rows[0] : null;
+}
+
+/** Procesa un mensaje entrante de punta a punta (idempotente). */
+async function procesarEntrante(info) {
+  const telefono = whatsappService.normalizarTelefono(info.phone);
+  if (!telefono || !info.texto) return;
+
+  const usuario = await buscarUsuarioPorTelefono(telefono);
+
+  // Idempotencia + log inbound: el INSERT con UNIQUE(provider_message_id) actúa de candado.
+  const esNuevo = await whatsappService.registrarMensaje({
+    providerMessageId: info.id,
+    telefono,
+    usuarioId: usuario ? usuario.id : null,
+    direccion: 'inbound',
+    tipo: 'texto',
+    contenido: info.texto,
+    estado: 'recibido',
+  });
+  if (!esNuevo) {
+    console.log(`[WhatsApp] Evento duplicado ignorado (${info.id})`);
+    return;
+  }
+
+  const { reply, conversacionId } = await conversationEngine.procesarMensaje({
+    telefono,
+    texto: info.texto,
+    usuario,
+  });
+
+  if (reply) {
+    await whatsappService.enviarTexto(telefono, reply, {
+      usuarioId: usuario ? usuario.id : null,
+      conversacionId: conversacionId || null,
+    });
+  }
+}
+
+/** POST /api/webhooks/whatsapp */
+async function recibirWebhook(req, res) {
+  // Seguridad opcional: token compartido por query (?token=) o header.
+  const expected = process.env.WHATSAPP_WEBHOOK_TOKEN;
+  if (expected) {
+    const got = req.query.token || req.headers['x-webhook-token'];
+    if (got !== expected) return res.sendStatus(401);
+  }
+
+  // Ack inmediato: el proveedor solo necesita 200. El procesamiento sigue en background.
+  res.sendStatus(200);
+
+  try {
+    const info = extraerMensaje(req.body);
+    if (!info || info.fromMe || info.isGroup || !info.texto) return;
+    await procesarEntrante(info);
+  } catch (err) {
+    console.error('[WhatsApp] Error procesando webhook:', err.message);
+  }
+}
+
+/** GET /api/webhooks/whatsapp — verificación estilo Cloud API (hub.challenge). */
+function verificarWebhook(req, res) {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  if (mode === 'subscribe' && token && token === process.env.WHATSAPP_VERIFY_TOKEN) {
+    return res.status(200).send(challenge);
+  }
+  // Para Evolution no hace falta verificación; respondemos OK para healthchecks.
+  return res.status(200).json({ status: 'whatsapp webhook ok', provider: whatsappService.resolveProvider() });
+}
+
+/** GET /api/webhooks/whatsapp/estado — diagnóstico rápido (sin secretos). */
+async function estado(req, res) {
+  const stats = await query(
+    `SELECT direccion, COUNT(*) AS total FROM whatsapp_mensajes GROUP BY direccion`
+  ).catch(() => []);
+  const convs = await query(
+    `SELECT estado, COUNT(*) AS total FROM whatsapp_conversaciones GROUP BY estado`
+  ).catch(() => []);
+  res.json({
+    provider: whatsappService.resolveProvider(),
+    mensajes: stats,
+    conversaciones: convs,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+module.exports = { recibirWebhook, verificarWebhook, estado, buscarUsuarioPorTelefono };

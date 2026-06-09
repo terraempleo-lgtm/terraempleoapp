@@ -1,0 +1,118 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TerraEmpleo · Gateway de WhatsApp (Evolution API + n8n + Redis)
+#
+# Levanta la capa de WhatsApp que conversa con el backend de TerraEmpleo.
+# El backend (Node/Express + RDS MariaDB) NO está aquí: corre aparte (Lightsail/ECS).
+# Evolution API expone una API REST sobre WhatsApp Web (modo Baileys) → no requiere
+# verificación de negocio en Meta ni cobra por mensaje. n8n (opcional) orquesta flujos.
+#
+# Uso local:   docker compose --env-file .env up -d
+# En AWS:      mismo compose en una EC2/Lightsail pequeña (ver README.md).
+# ─────────────────────────────────────────────────────────────────────────────
+version: '3.8'
+
+services:
+  # ── Evolution API: gateway WhatsApp ──
+  evolution-api:
+    image: atendai/evolution-api:v2.1.1
+    container_name: terraempleo-evolution
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      # Autenticación de la API (apikey que usará el backend de TerraEmpleo)
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      # Servidor
+      SERVER_URL: ${EVOLUTION_SERVER_URL:-http://localhost:8080}
+      # Persistencia (Postgres propio de Evolution: solo sesión/estado, NO datos de TerraEmpleo)
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:${POSTGRES_PASSWORD}@postgres:5432/evolution?schema=public
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_MESSAGE_UPDATE: "true"
+      # Cache
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_LOCAL_ENABLED: "false"
+      # Webhook global → backend TerraEmpleo (entrega eventos de mensajes entrantes)
+      WEBHOOK_GLOBAL_ENABLED: "true"
+      WEBHOOK_GLOBAL_URL: ${TERRAEMPLEO_WEBHOOK_URL}
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: "false"
+      WEBHOOK_EVENTS_MESSAGES_UPSERT: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - whatsapp-net
+
+  # ── Postgres (almacenamiento interno de Evolution API) ──
+  postgres:
+    image: postgres:16-alpine
+    container_name: terraempleo-evolution-db
+    restart: always
+    environment:
+      POSTGRES_DB: evolution
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - evolution_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evolution"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - whatsapp-net
+
+  # ── Redis (cache de Evolution + cola de n8n) ──
+  redis:
+    image: redis:7-alpine
+    container_name: terraempleo-redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - whatsapp-net
+
+  # ── n8n (opcional): orquestación visual de flujos conversacionales ──
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: terraempleo-n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678}
+      GENERIC_TIMEZONE: America/Bogota
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_DATABASE: evolution
+      DB_POSTGRESDB_USER: evolution
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_POSTGRESDB_SCHEMA: n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - whatsapp-net
+
+volumes:
+  evolution_pgdata:
+  redis_data:
+  n8n_data:
+
+networks:
+  whatsapp-net:
+    driver: bridge

@@ -2,6 +2,7 @@ const { query } = require('../config/database');
 const { crearNotificacion } = require('./notificacionesController');
 const { crearChat } = require('./chatController');
 const { signUrl, signArrayField } = require('../config/s3');
+const whatsappService = require('../services/whatsappService');
 
 function normalizarFechaInicio(fecha) {
   if (fecha === undefined || fecha === null) return null;
@@ -152,6 +153,9 @@ async function ejecutarMatching(vacanteId) {
             `Tu perfil coincide con la vacante "${vacante.titulo}" en ${vacante.municipio || vacante.departamento || 'Colombia'}`,
             { vacante_id: vacanteId }
           );
+          // Canal WhatsApp (flujo 2): si el trabajador dio opt-in, también se le envía
+          // la vacante por WhatsApp. Background + best-effort para no frenar el matching.
+          whatsappService.enviarVacanteAMatch(trabajador.id, vacante, puntaje).catch(() => {});
         }
       }
     }
@@ -1087,6 +1091,6 @@ module.exports = {
   crearVacante, actualizarVacante, eliminarVacante, misVacantes, listarVacantes, detalleVacante,
   postularse, verPostulaciones, actualizarPostulacion, responderSolicitudContacto,
   misPostulaciones, cerrarVacante, subirFotosVacante, eliminarFotoVacante,
-  ejecutarMatchingEndpoint, ejecutarMatchingParaTrabajador,
+  ejecutarMatching, ejecutarMatchingEndpoint, ejecutarMatchingParaTrabajador,
   perfilPublicoTrabajador, vacantesRecomendadas
 };

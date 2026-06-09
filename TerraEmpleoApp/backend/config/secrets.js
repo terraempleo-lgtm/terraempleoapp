@@ -14,7 +14,13 @@
 const { SSMClient, GetParametersCommand } = require('@aws-sdk/client-ssm');
 
 const PREFIX = '/terraempleo/production';
-const SECRET_KEYS = ['DB_PASSWORD', 'JWT_SECRET', 'EMAIL_PASS', 'EMAIL_USER'];
+// Máximo 10 nombres por GetParameters. Incluye config del módulo WhatsApp (no-secreta
+// pero cargada igual desde SSM para no tener que editar el .env del servidor por SSH).
+const SECRET_KEYS = [
+  'DB_PASSWORD', 'JWT_SECRET', 'EMAIL_PASS', 'EMAIL_USER',
+  'WHATSAPP_API_KEY', 'WHATSAPP_PROVIDER', 'WHATSAPP_API_URL',
+  'WHATSAPP_INSTANCE', 'WHATSAPP_WEBHOOK_TOKEN',
+];
 
 async function loadSecretsFromSSM() {
   if (process.env.NODE_ENV !== 'production') {

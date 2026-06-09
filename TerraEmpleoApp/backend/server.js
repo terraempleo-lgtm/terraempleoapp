@@ -26,6 +26,8 @@ const cuadernoRoutes = require('./routes/cuaderno');
 const fincaRoutes = require('./routes/finca');
 const finanzasRoutes = require('./routes/finanzas');
 const cafeRoutes = require('./routes/cafe');
+const whatsappRoutes = require('./routes/whatsapp');
+const { initWhatsappSchema } = require('./models/whatsappSchema');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -92,6 +94,8 @@ app.use('/api/cuaderno', cuadernoRoutes);
 app.use('/api/finca', fincaRoutes);
 app.use('/api/finanzas', finanzasRoutes);
 app.use('/api/cafe', cafeRoutes);
+// Módulo WhatsApp: define rutas bajo /api/webhooks/whatsapp
+app.use('/api', whatsappRoutes);
 
 // Endpoint base de API para diagnóstico rápido
 app.get('/api', (req, res) => {
@@ -177,6 +181,7 @@ async function startServer() {
 
   try {
     await initializeDatabase();
+    await initWhatsappSchema();
     console.log('[INIT] Base de datos inicializada correctamente');
   } catch (err) {
     console.error('[INIT] Error inicializando base de datos:', err.code || '', err.message);
