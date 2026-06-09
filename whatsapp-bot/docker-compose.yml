@@ -14,7 +14,7 @@ version: '3.8'
 services:
   # ── Evolution API: gateway WhatsApp ──
   evolution-api:
-    image: atendai/evolution-api:v2.1.1
+    image: evoapicloud/evolution-api:latest
     container_name: terraempleo-evolution
     restart: always
     ports:
@@ -22,6 +22,8 @@ services:
     environment:
       # Autenticación de la API (apikey que usará el backend de TerraEmpleo)
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      # Versión de WhatsApp Web (evita loop de reconexión sin QR). Actualizar si deja de parear.
+      CONFIG_SESSION_PHONE_VERSION: ${CONFIG_SESSION_PHONE_VERSION:-2.3000.1035194821}
       # Servidor
       SERVER_URL: ${EVOLUTION_SERVER_URL:-http://localhost:8080}
       # Persistencia (Postgres propio de Evolution: solo sesión/estado, NO datos de TerraEmpleo)

@@ -16,6 +16,7 @@ const nluService = require('./nluService');
 
 const FLUJO_EMPLEADOR = 'empleador_solicitud';
 const FLUJO_SOPORTE = 'soporte';
+const FLUJO_IDENT = 'identificacion';
 
 // Pasos del flujo del empleador, en orden.
 const PASOS = ['finca', 'labor', 'cantidad', 'fecha', 'pago', 'confirmar'];
@@ -165,6 +166,32 @@ async function escalarSoporte(usuario, telefono, descripcion) {
   }
 }
 
+/** Busca un usuario empleador/admin por el celular que escribe (últimos 10 dígitos). */
+async function matchUsuarioPorCelular(textoNumero) {
+  const ult10 = String(textoNumero || '').replace(/\D/g, '').slice(-10);
+  if (ult10.length < 10) return null;
+  const rows = await query(
+    `SELECT id, nombre_completo, rol, celular, whatsapp_opt_in
+     FROM usuarios
+     WHERE activo = 1 AND (baneado IS NULL OR baneado = 0)
+       AND rol IN ('empleador','admin')
+       AND RIGHT(REPLACE(REPLACE(REPLACE(celular,'+',''),' ',''),'-',''), 10) = ?
+     LIMIT 1`,
+    [ult10]
+  ).catch(() => []);
+  return rows && rows[0] ? rows[0] : null;
+}
+
+/** Guarda (o actualiza) el mapeo JID (incluye @lid) → usuario. */
+async function guardarIdentidad(jid, usuarioId) {
+  if (!jid) return;
+  await query(
+    `INSERT INTO whatsapp_identidades (jid, usuario_id) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE usuario_id = VALUES(usuario_id)`,
+    [jid, usuarioId]
+  ).catch((e) => console.error('[WhatsApp] guardarIdentidad:', e.message));
+}
+
 /**
  * Inicia el flujo del empleador, intentando prellenar con NLU (Bedrock). Devuelve
  * el reply inicial y crea la conversación. Si NLU no está disponible, arranca guiado.
@@ -204,11 +231,12 @@ async function iniciarFlujoEmpleador(telefono, usuario, textoLibre) {
  *
  * @param {object} p
  * @param {string} p.telefono  número normalizado (solo dígitos)
+ * @param {string|null} p.jid  JID crudo del remitente (puede ser @lid)
  * @param {string} p.texto     texto del mensaje entrante
- * @param {object|null} p.usuario  fila de usuarios asociada al número (o null si no registrado)
+ * @param {object|null} p.usuario  fila de usuarios asociada (o null si no se reconoce)
  * @returns {Promise<{reply: string|null, optOut?: boolean}>}
  */
-async function procesarMensaje({ telefono, texto, usuario }) {
+async function procesarMensaje({ telefono, jid = null, texto, usuario }) {
   const comando = normalizarComando(texto);
   const upper = comando.toUpperCase();
 
@@ -250,9 +278,21 @@ async function procesarMensaje({ telefono, texto, usuario }) {
       };
     }
 
-    // 2) Empleador con intención de contratar → flujo de solicitud (con NLU si está disponible).
+    // 2) Empleador reconocido con intención de contratar → flujo de solicitud (con NLU si aplica).
     if (esEmpleador && pareceInicio) {
       return await iniciarFlujoEmpleador(telefono, usuario, comando);
+    }
+
+    // 3) Remitente NO reconocido (típico con @lid) con intención de contratar →
+    //    pedir identificación con su número registrado para mapear el JID.
+    if (!usuario && pareceInicio) {
+      const id = await crearConversacion(telefono, null, FLUJO_IDENT, 'celular');
+      return {
+        reply:
+          'Para publicar una solicitud necesito verificar tu cuenta de TerraEmpleo. 🌱\n\n' +
+          'Envíame el *número de celular* con el que te registraste como empleador (ej: 3001234567).',
+        conversacionId: id,
+      };
     }
 
     if (usuario && usuario.rol === 'trabajador') {
@@ -345,6 +385,27 @@ async function procesarMensaje({ telefono, texto, usuario }) {
         await actualizarConversacion(conv.id, { paso: 'finca', datos: {} });
         return { reply: PREGUNTAS.finca, conversacionId: conv.id };
     }
+  }
+
+  // ── Conversación activa: identificación de empleador ─────────────────────
+  if (conv.flujo === FLUJO_IDENT) {
+    const u = await matchUsuarioPorCelular(comando);
+    if (!u) {
+      return {
+        reply:
+          'No encontré ese número registrado como empleador en TerraEmpleo. ' +
+          'Verifica el número e inténtalo de nuevo, o regístrate primero en la app. ' +
+          '(Escribe *CANCELAR* para salir.)',
+        conversacionId: conv.id,
+      };
+    }
+    // Guardar el mapeo JID → usuario y cerrar la identificación.
+    await guardarIdentidad(jid, u.id);
+    await actualizarConversacion(conv.id, { estado: 'completada' });
+    // Arrancar el flujo de empleador de inmediato (ya identificado).
+    const r = await iniciarFlujoEmpleador(telefono, u, '');
+    r.reply = `✅ ¡Listo, ${ (u.nombre_completo || '').split(' ')[0] || '' }! Te reconocí.\n\n` + (r.reply || '');
+    return r;
   }
 
   // ── Conversación activa: flujo de soporte ────────────────────────────────

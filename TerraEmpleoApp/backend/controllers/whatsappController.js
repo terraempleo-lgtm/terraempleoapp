@@ -64,8 +64,23 @@ function extraerMensaje(body) {
   return null;
 }
 
-/** Busca el usuario asociado a un número por sus últimos 10 dígitos (celular CO). */
-async function buscarUsuarioPorTelefono(telefono) {
+/**
+ * Resuelve el usuario asociado a un mensaje entrante.
+ * 1) Por mapeo explícito de JID (whatsapp_identidades) — cubre los "@lid" que ocultan
+ *    el número y que el usuario ya identificó antes.
+ * 2) Por número (cuando WhatsApp entrega el remitente como número real @s.whatsapp.net).
+ */
+async function buscarUsuario(jid, telefono) {
+  if (jid) {
+    const m = await query(
+      `SELECT u.id, u.nombre_completo, u.rol, u.celular, u.whatsapp_opt_in
+       FROM whatsapp_identidades wi JOIN usuarios u ON u.id = wi.usuario_id
+       WHERE wi.jid = ? AND u.activo = 1 AND (u.baneado IS NULL OR u.baneado = 0)
+       LIMIT 1`,
+      [jid]
+    ).catch(() => []);
+    if (m && m[0]) return m[0];
+  }
   const ult10 = String(telefono || '').slice(-10);
   if (ult10.length < 10) return null;
   const rows = await query(
@@ -84,7 +99,7 @@ async function procesarEntrante(info) {
   const telefono = whatsappService.normalizarTelefono(info.phone);
   if (!telefono || !info.texto) return;
 
-  const usuario = await buscarUsuarioPorTelefono(telefono);
+  const usuario = await buscarUsuario(info.jid, telefono);
 
   // Idempotencia + log inbound: el INSERT con UNIQUE(provider_message_id) actúa de candado.
   const esNuevo = await whatsappService.registrarMensaje({
@@ -103,6 +118,7 @@ async function procesarEntrante(info) {
 
   const { reply, conversacionId } = await conversationEngine.procesarMensaje({
     telefono,
+    jid: info.jid || null,
     texto: info.texto,
     usuario,
   });
@@ -165,4 +181,4 @@ async function estado(req, res) {
   });
 }
 
-module.exports = { recibirWebhook, verificarWebhook, estado, buscarUsuarioPorTelefono };
+module.exports = { recibirWebhook, verificarWebhook, estado, buscarUsuario };

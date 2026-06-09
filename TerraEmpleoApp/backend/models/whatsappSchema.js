@@ -58,6 +58,19 @@ async function initWhatsappSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Mapeo de identidad de WhatsApp → usuario. Necesario porque WhatsApp entrega el
+  // remitente como "<id>@lid" (oculta el número). Se llena cuando un @lid desconocido
+  // se identifica con su número registrado; desde ahí se reconoce automáticamente.
+  await query(`
+    CREATE TABLE IF NOT EXISTS whatsapp_identidades (
+      jid VARCHAR(40) PRIMARY KEY,
+      usuario_id INT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_wa_ident_usuario (usuario_id),
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Consentimiento (opt-in) para recibir mensajes operativos por WhatsApp.
   try { await query('ALTER TABLE usuarios ADD COLUMN whatsapp_opt_in TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
   try { await query('ALTER TABLE usuarios ADD COLUMN whatsapp_opt_in_at TIMESTAMP NULL DEFAULT NULL'); } catch (_) {}
