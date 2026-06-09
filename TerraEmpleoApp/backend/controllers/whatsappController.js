@@ -31,6 +31,7 @@ function extraerMensaje(body) {
     return {
       provider: 'evolution',
       phone: remoteJid.split('@')[0].split(':')[0],
+      jid: remoteJid, // JID crudo (puede ser @lid) — se responde a este exacto
       fromMe: key.fromMe === true,
       id: key.id || null,
       texto,
@@ -107,7 +108,8 @@ async function procesarEntrante(info) {
   });
 
   if (reply) {
-    await whatsappService.enviarTexto(telefono, reply, {
+    // Responder al JID exacto del remitente (soporta @lid); fallback al teléfono.
+    await whatsappService.enviarTexto(info.jid || telefono, reply, {
       usuarioId: usuario ? usuario.id : null,
       conversacionId: conversacionId || null,
     });

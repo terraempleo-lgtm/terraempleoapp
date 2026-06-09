@@ -166,15 +166,20 @@ async function _enviarProveedor(telefono, texto) {
  * Envía un mensaje de texto y lo registra. Es la función pública principal.
  * @returns {Promise<{ok:boolean}>}
  */
-async function enviarTexto(telefonoRaw, texto, { usuarioId = null, conversacionId = null } = {}) {
-  const telefono = normalizarTelefono(telefonoRaw);
-  if (!telefono) return { ok: false };
+async function enviarTexto(destinoRaw, texto, { usuarioId = null, conversacionId = null } = {}) {
+  // Si llega un JID completo (p. ej. "...@lid" o "...@s.whatsapp.net"), se responde
+  // a ESE JID exacto. WhatsApp entrega el remitente como @lid en muchos casos y hay
+  // que contestar al mismo identificador, no a un número normalizado.
+  const esJid = typeof destinoRaw === 'string' && destinoRaw.includes('@');
+  const destino = esJid ? destinoRaw : normalizarTelefono(destinoRaw);
+  if (!destino) return { ok: false };
+  const telefonoLog = esJid ? destinoRaw.split('@')[0].split(':')[0] : destino;
 
-  const { ok, providerMessageId, estado } = await _enviarProveedor(telefono, texto);
+  const { ok, providerMessageId, estado } = await _enviarProveedor(destino, texto);
 
   await registrarMensaje({
     providerMessageId,
-    telefono,
+    telefono: telefonoLog,
     usuarioId,
     conversacionId,
     direccion: 'outbound',
