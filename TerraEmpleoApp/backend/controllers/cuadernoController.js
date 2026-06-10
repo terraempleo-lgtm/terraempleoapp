@@ -728,6 +728,60 @@ async function historialTrabajador(req, res) {
 }
 
 // Postulantes aceptados de una vacante (para preseleccionar al crear jornada)
+// Registro de trabajadores del empleador: todos los que han pasado por sus
+// jornadas (registrados en la plataforma y externos/manuales), con conteo de
+// jornadas y última fecha. Sirve para seleccionarlos sin escribir al crear
+// una jornada nueva.
+async function misTrabajadores(req, res) {
+  try {
+    const empleadorId = req.user.id;
+
+    const registrados = await query(`
+      SELECT u.id AS trabajador_id,
+        u.nombre_completo AS nombre,
+        u.foto_selfie AS foto,
+        u.celular AS telefono,
+        COUNT(a.id) AS jornadas,
+        MAX(j.fecha) AS ultima_fecha
+      FROM cuaderno_asistencias a
+      JOIN cuaderno_jornadas j ON j.id = a.jornada_id
+      JOIN usuarios u ON u.id = a.trabajador_id
+      WHERE j.empleador_id = ? AND a.trabajador_id IS NOT NULL
+      GROUP BY u.id, u.nombre_completo, u.foto_selfie, u.celular
+    `, [empleadorId]);
+
+    const externos = await query(`
+      SELECT a.manual_nombre AS nombre,
+        MAX(a.manual_telefono) AS telefono,
+        COUNT(a.id) AS jornadas,
+        MAX(j.fecha) AS ultima_fecha
+      FROM cuaderno_asistencias a
+      JOIN cuaderno_jornadas j ON j.id = a.jornada_id
+      WHERE j.empleador_id = ? AND a.trabajador_id IS NULL
+        AND a.manual_nombre IS NOT NULL AND a.manual_nombre <> ''
+      GROUP BY a.manual_nombre
+    `, [empleadorId]);
+
+    const trabajadores = [
+      ...(registrados || []).map((r) => ({ ...r, externo: 0 })),
+      ...(externos || []).map((e) => ({
+        trabajador_id: null,
+        nombre: e.nombre,
+        foto: null,
+        telefono: e.telefono || null,
+        jornadas: e.jornadas,
+        ultima_fecha: e.ultima_fecha,
+        externo: 1,
+      })),
+    ].sort((x, y) => String(y.ultima_fecha || '').localeCompare(String(x.ultima_fecha || '')));
+
+    res.json({ trabajadores });
+  } catch (err) {
+    console.error('misTrabajadores:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 async function postulantesVacante(req, res) {
   try {
     const empleadorId = req.user.id;
@@ -762,5 +816,5 @@ module.exports = {
   // notas
   crearNota, eliminarNota,
   // dashboard + historial
-  dashboard, historialTrabajador, postulantesVacante,
+  dashboard, historialTrabajador, postulantesVacante, misTrabajadores,
 };
