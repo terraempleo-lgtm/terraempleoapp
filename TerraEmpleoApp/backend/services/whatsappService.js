@@ -224,6 +224,32 @@ async function enviarVacanteAMatch(trabajadorId, vacante, puntaje) {
   }
 }
 
+/**
+ * Descarga el contenido (imagen) de un mensaje de WhatsApp desde Evolution.
+ * @param {object} messageKey  la `key` del mensaje entrante (remoteJid, id, ...)
+ * @returns {Promise<{buffer: Buffer, mimetype: string}|null>}
+ */
+async function descargarMedia(messageKey) {
+  const { apiUrl, apiKey, instance } = getConfig();
+  if (!apiUrl || !apiKey || !messageKey) return null;
+  try {
+    const res = await fetch(`${apiUrl}/chat/getBase64FromMediaMessage/${instance}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: apiKey },
+      body: JSON.stringify({ message: { key: messageKey }, convertToMp4: false }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.base64) {
+      console.error('[WhatsApp] descargarMedia falló:', res.status);
+      return null;
+    }
+    return { buffer: Buffer.from(data.base64, 'base64'), mimetype: data.mimetype || 'image/jpeg' };
+  } catch (err) {
+    console.error('[WhatsApp] descargarMedia error:', err.message);
+    return null;
+  }
+}
+
 /** Marca/actualiza el consentimiento del usuario para mensajes por WhatsApp. */
 async function setOptIn(usuarioId, optIn) {
   await query(
@@ -239,5 +265,6 @@ module.exports = {
   mensajeYaProcesado,
   enviarTexto,
   enviarVacanteAMatch,
+  descargarMedia,
   setOptIn,
 };

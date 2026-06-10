@@ -57,6 +57,31 @@ function _extraerJSON(texto) {
   try { return JSON.parse(match[0]); } catch { return null; }
 }
 
+/** Invoca el modelo y devuelve el texto crudo (o null). */
+async function _invocar(system, userText, maxTokens = 400) {
+  if (!_cargarSDK()) return null;
+  const body = {
+    anthropic_version: 'bedrock-2023-05-31',
+    max_tokens: maxTokens,
+    temperature: 0,
+    system,
+    messages: [{ role: 'user', content: userText }],
+  };
+  try {
+    const res = await _client.send(new _InvokeModelCommand({
+      modelId: getModelId(),
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify(body),
+    }));
+    const payload = JSON.parse(Buffer.from(res.body).toString('utf-8'));
+    return payload?.content?.[0]?.text || null;
+  } catch (err) {
+    console.warn('[NLU] Error invocando Bedrock:', err.message);
+    return null;
+  }
+}
+
 /**
  * Extrae una solicitud de trabajadores desde texto libre.
  * @param {string} texto
@@ -102,8 +127,38 @@ async function extraerSolicitud(texto) {
   }
 }
 
+const REVIEW_SYSTEM =
+  'Eres asistente de TerraEmpleo (empleo rural agrícola en Colombia). Recibes en JSON los datos de una ' +
+  'solicitud de trabajadores que un bot recolectó por WhatsApp; pueden venir con saludos sobrantes ' +
+  '("hola", "buenas"), frases de relleno ("la finca se llama") o errores de ortografía leves. ' +
+  'Tu tarea: LIMPIAR y CORREGIR (no inventar). Devuelve SOLO un objeto JSON con: ' +
+  'finca (string), labor (string), cantidad (entero), fecha (string), pago (entero en pesos COP), ' +
+  'resumen (string corto y claro, con emojis, listo para que el empleador confirme la publicación). ' +
+  'Quita saludos/relleno de los textos, capitaliza nombres propios, corrige ortografía obvia. ' +
+  'NO cambies los números si ya son correctos. Si un campo viene vacío, déjalo vacío. No agregues texto fuera del JSON.';
+
+/**
+ * Revisa/pule la solicitud completa con UNA sola llamada al modelo (en el paso de
+ * confirmación). Devuelve datos corregidos + un `resumen` redactado. null si no hay Bedrock.
+ * @param {{finca,labor,cantidad,fecha,pago}} datos
+ * @returns {Promise<null | {finca,labor,cantidad,fecha,pago,resumen}>}
+ */
+async function revisarSolicitud(datos) {
+  const texto = await _invocar(REVIEW_SYSTEM, `Datos recolectados: ${JSON.stringify(datos)}`, 500);
+  const out = _extraerJSON(texto);
+  if (!out) return null;
+  return {
+    finca: out.finca ? String(out.finca).trim() : (datos.finca || null),
+    labor: out.labor ? String(out.labor).trim() : (datos.labor || null),
+    cantidad: Number.isFinite(+out.cantidad) && +out.cantidad > 0 ? Math.round(+out.cantidad) : (datos.cantidad || null),
+    fecha: out.fecha ? String(out.fecha).trim() : (datos.fecha || null),
+    pago: Number.isFinite(+out.pago) && +out.pago > 0 ? Math.round(+out.pago) : (datos.pago || null),
+    resumen: out.resumen ? String(out.resumen).trim() : null,
+  };
+}
+
 function disponible() {
   return _cargarSDK();
 }
 
-module.exports = { extraerSolicitud, disponible, getModelId, getRegion };
+module.exports = { extraerSolicitud, revisarSolicitud, disponible, getModelId, getRegion };

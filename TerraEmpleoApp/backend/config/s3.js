@@ -1,4 +1,4 @@
-const { S3Client, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, DeleteObjectCommand, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const multerS3 = require('multer-s3');
 require('dotenv').config();
@@ -130,6 +130,26 @@ async function signArrayField(arr, field) {
   return arr;
 }
 
+// ── Subida directa de un Buffer (p. ej. imágenes recibidas por WhatsApp) ──
+const EXT_BY_MIME = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+/**
+ * Sube un Buffer a S3 bajo un prefijo y devuelve la URL pública (privada, se firma al leer).
+ * @returns {Promise<string|null>} URL del objeto o null si falla.
+ */
+async function subirBuffer(buffer, prefijo = 'vacantes', contentType = 'image/jpeg') {
+  if (!buffer || !buffer.length) return null;
+  const ext = EXT_BY_MIME[contentType] || 'jpg';
+  const key = `${prefijo}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+  try {
+    await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: buffer, ContentType: contentType }));
+    return `https://${bucket}.s3.${awsRegion}.amazonaws.com/${key}`;
+  } catch (err) {
+    console.error('[S3] subirBuffer error:', err.message);
+    return null;
+  }
+}
+
 // ── Delete ──
 
 async function deleteFromS3(fileUrl) {
@@ -152,6 +172,7 @@ module.exports = {
   storageFotosTrabajo,
   storageChat,
   deleteFromS3,
+  subirBuffer,
   signUrl,
   signFields,
   signArrayField,

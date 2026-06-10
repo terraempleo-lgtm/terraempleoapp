@@ -17,15 +17,25 @@ const nluService = require('./nluService');
 const FLUJO_EMPLEADOR = 'empleador_solicitud';
 const FLUJO_SOPORTE = 'soporte';
 const FLUJO_IDENT = 'identificacion';
+const FLUJO_REGISTRO = 'registro';
 
 // Pasos del flujo del empleador, en orden.
-const PASOS = ['finca', 'labor', 'cantidad', 'fecha', 'pago', 'confirmar'];
+const PASOS = ['finca', 'labor', 'cantidad', 'fecha', 'pago', 'descripcion', 'fotos', 'confirmar'];
+
+// Enlaces públicos.
+const LINK_VACANTE = 'https://app.terrampleo.com/app/vacantes/';
+const LINK_APP = 'https://www.terraempleo.com.co';
+const LINK_HABEAS = 'https://app.terrampleo.com/privacidad.html';
 
 // Palabras que disparan el flujo de soporte (atención humana).
 const PALABRAS_SOPORTE = [
   'ayuda', 'soporte', 'problema', 'no puedo', 'no me deja', 'error', 'falla',
   'queja', 'reclamo', 'no funciona', 'asesor', 'humano',
 ];
+
+// Palabras para "ver ofertas" (trabajador) y para "registrarse" (nuevo).
+const PALABRAS_OFERTAS = ['oferta', 'vacante', 'empleo', 'qué hay', 'que hay', 'muéstrame', 'muestrame', 'disponible', 'qué trabajos', 'que trabajos', 'hay trabajo'];
+const PALABRAS_REGISTRO = ['registr', 'quiero trabajar', 'soy nuevo', 'nuevo', 'inscribir', 'crear cuenta', 'apuntarme', 'apuntar'];
 
 /** Devuelve el primer campo faltante del flujo del empleador, o 'confirmar' si están todos. */
 function siguientePasoFaltante(datos) {
@@ -41,7 +51,44 @@ const PREGUNTAS = {
   cantidad: '👥 ¿Cuántos trabajadores necesitas?',
   fecha: '📅 ¿Para qué día los necesitas? (ej: mañana, 15 de junio)',
   pago: '💵 ¿Cuánto pagas por jornada? (en pesos, ej: 70000)',
+  descripcion: '📝 Describe la vacante: condiciones, horario, requisitos, beneficios… (o escribe NINGUNA)',
+  fotos: '📷 Envía 1 a 4 *fotos* de la vacante/finca, o escribe LISTO para publicar sin fotos.',
 };
+
+/**
+ * Limpieza determinística de una respuesta de texto: quita saludos y frases de
+ * relleno al inicio para quedarse con el dato real ("hola finca El Porvenir" → "El Porvenir").
+ */
+function limpiarRespuesta(texto) {
+  let t = String(texto || '').trim();
+  // saludos/relleno al inicio
+  t = t.replace(/^(hola|buenas|buenos d[ií]as|buenas tardes|buenas noches|qu[eé] m[aá]s|ole|hey|holi|si|sí|claro)[\s,!.:-]+/i, '');
+  // frases guía comunes (nombre de finca/labor precedido de relleno)
+  t = t.replace(/^(la\s+finca\s+(se\s+llama|es)|el\s+nombre\s+(de\s+la\s+finca\s+)?es|se\s+llama|es\s+(la\s+finca|en\s+la\s+finca)|la\s+labor\s+es|en\s+la\s+finca|finca\s+|vereda\s+|para\s+)/i, '');
+  t = t.replace(/\s+/g, ' ').trim();
+  if (!t) return String(texto || '').trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function mapDisponibilidad(t) {
+  t = (t || '').toLowerCase();
+  if (t.includes('compl')) return 'tiempo_completo';
+  if (t.includes('inmediat')) return 'disponible_inmediatamente';
+  if (t.includes('cosech') || t.includes('tempor')) return 'temporada_cosecha';
+  if (t.includes('fin') || t.includes('semana')) return 'fines_semana';
+  if (t.includes('dia') || t.includes('día')) return 'por_dias';
+  return null;
+}
+function mapTipoPago(t) {
+  t = (t || '').toLowerCase();
+  if (t.includes('jornal')) return 'jornal';
+  if (t.includes('seman')) return 'semanal';
+  if (t.includes('quincen')) return 'quincenal';
+  if (t.includes('kilo')) return 'por_kilo';
+  if (t.includes('destaj')) return 'destajo';
+  if (t.includes('mensual') || t.includes('mes')) return 'mensual';
+  return 'jornal';
+}
 
 const PALABRAS_INICIO = [
   'necesito', 'nueva solicitud', 'solicitud', 'publicar', 'trabajadores',
@@ -100,22 +147,29 @@ async function crearVacanteDesdeWhatsapp(empleadorId, datos) {
 
   const monto = parseInt(String(datos.pago || '').replace(/\D/g, ''), 10) || null;
   const titulo = `${datos.labor || 'Trabajo agrícola'}${datos.finca ? ' - ' + datos.finca : ''}`.slice(0, 250);
-  const descripcion =
-    `Solicitud creada por WhatsApp.\n` +
-    `Finca/vereda: ${datos.finca || '-'}\n` +
-    `Trabajadores requeridos: ${datos.cantidad || '-'}\n` +
-    `Fecha: ${datos.fecha || '-'}`;
+  const desc = (datos.descripcion && datos.descripcion.toUpperCase() !== 'NINGUNA')
+    ? datos.descripcion
+    : `Solicitud por WhatsApp · ${datos.cantidad || '-'} trabajador(es) · Fecha: ${datos.fecha || '-'}`;
 
   const result = await query(
     `INSERT INTO vacantes
        (empleador_id, titulo, descripcion, tipo_pago, monto_pago, departamento, municipio, vereda, urgente)
      VALUES (?, ?, ?, 'jornal', ?, ?, ?, ?, 1)`,
-    [empleadorId, titulo, descripcion, monto, departamento, municipio, datos.finca || null]
+    [empleadorId, titulo, desc, monto, departamento, municipio, datos.finca || null]
   );
   const vacanteId = Number(result.insertId);
 
   if (datos.labor) {
     await query('INSERT INTO vacante_labores (vacante_id, labor) VALUES (?, ?)', [vacanteId, datos.labor]);
+  }
+
+  // Fotos recolectadas por WhatsApp (ya subidas a S3 durante el flujo).
+  if (Array.isArray(datos.fotos)) {
+    let orden = 0;
+    for (const url of datos.fotos) {
+      await query('INSERT INTO vacante_fotos (vacante_id, url, orden) VALUES (?, ?, ?)', [vacanteId, url, orden++])
+        .catch((e) => console.error('[WhatsApp] foto vacante:', e.message));
+    }
   }
 
   // Matching en background: crea postulaciones match_auto + notifica (app + WhatsApp opt-in).
@@ -192,37 +246,127 @@ async function guardarIdentidad(jid, usuarioId) {
   ).catch((e) => console.error('[WhatsApp] guardarIdentidad:', e.message));
 }
 
+/** Entra al paso de confirmación: pasa los datos por Bedrock (1 llamada) para pulir el resumen. */
+async function irAConfirmar(conv, datos) {
+  const rev = await nluService.revisarSolicitud(datos).catch(() => null);
+  if (rev) {
+    datos.finca = rev.finca || datos.finca;
+    datos.labor = rev.labor || datos.labor;
+    datos.cantidad = rev.cantidad || datos.cantidad;
+    datos.fecha = rev.fecha || datos.fecha;
+    datos.pago = rev.pago || datos.pago;
+  }
+  await actualizarConversacion(conv.id, { paso: 'confirmar', datos });
+  const cuerpo = (rev && rev.resumen)
+    ? `${rev.resumen}\n\nResponde *CONFIRMAR* para publicarla o *CORREGIR* para empezar de nuevo.`
+    : resumenSolicitud(datos);
+  return { reply: cuerpo, conversacionId: conv.id };
+}
+
+/** Lista las vacantes activas con su link a la app/web. */
+async function mostrarOfertas() {
+  const vacs = await query(
+    `SELECT id, titulo, municipio, departamento, monto_pago
+     FROM vacantes
+     WHERE estado = 'activa' AND (eliminado IS NULL OR eliminado = 0)
+     ORDER BY created_at DESC LIMIT 5`
+  ).catch(() => []);
+  if (!vacs || vacs.length === 0) {
+    return 'Por ahora no hay vacantes activas. Te avisaré por aquí apenas aparezca una que encaje contigo. 🌱';
+  }
+  let msg = '🌱 *Ofertas disponibles ahora:*\n\n';
+  for (const v of vacs) {
+    const lugar = [v.municipio, v.departamento].filter(Boolean).join(', ') || 'Colombia';
+    const pago = v.monto_pago ? ` · 💵 $${Number(v.monto_pago).toLocaleString('es-CO')}` : '';
+    msg += `• *${v.titulo}*\n  📍 ${lugar}${pago}\n  👉 ${LINK_VACANTE}${v.id}\n\n`;
+  }
+  msg += 'Abre el link de la que te interese para ver el detalle y *postularte* en la app.';
+  return msg;
+}
+
+// Preguntas del flujo de registro (orden común + ramas por rol).
+const PREG_REG = {
+  rol: '¿Qué eres? Responde *TRABAJADOR* (buscas trabajo) o *EMPLEADOR* (tienes finca/empresa).',
+  nombre: '😊 ¿Cuál es tu *nombre completo*?',
+  celular: '📱 ¿Cuál es tu *número de celular*? (ej: 3001234567)',
+  cedula: '🪪 ¿Cuál es tu *número de cédula*?',
+  municipio: '📍 ¿En qué *municipio o vereda* estás?',
+  cultivos: '🌱 ¿Qué *cultivos* manejas? (ej: café, plátano, aguacate — sepáralos con comas)',
+  labores: '🛠️ ¿Qué *labores* sabes hacer? (ej: recolección, guadaña, siembra)',
+  disponibilidad: '🕒 ¿Cuál es tu *disponibilidad*? (tiempo completo / por días / temporada de cosecha)',
+  finca: '🏡 ¿Cómo se llama tu *finca o empresa*?',
+  tipo_pago: '💵 ¿Cómo pagas normalmente? (jornal / semanal / quincenal / por kilo)',
+  habeas: `Para crear tu cuenta debes aceptar el tratamiento de datos (política: ${LINK_HABEAS}).\nResponde *ACEPTO* para continuar.`,
+};
+
+/** Inserta el split de una lista separada por comas en una tabla hija. */
+async function insertarLista(texto, sql, mapFn) {
+  const items = String(texto || '').split(/[,;]+/).map((s) => s.trim()).filter(Boolean);
+  for (const it of items) {
+    await query(sql, mapFn(it)).catch(() => {});
+  }
+}
+
+/**
+ * Crea un usuario "a medias" desde WhatsApp (pendiente de aprobación). Devuelve
+ * { ok, usuarioId, claveTemp, motivo }. La selfie/cédula se completan en la app.
+ */
+async function crearUsuarioDesdeWhatsapp(datos, jid) {
+  const bcrypt = require('bcryptjs');
+  const celular = String(datos.celular || '').replace(/\D/g, '');
+  const celNorm = celular.length === 10 ? '57' + celular : celular;
+  // ¿Ya existe?
+  const existe = await query(
+    `SELECT id FROM usuarios WHERE RIGHT(REPLACE(REPLACE(celular,'+',''),' ',''),10) = ? LIMIT 1`,
+    [celular.slice(-10)]
+  ).catch(() => []);
+  if (existe && existe[0]) {
+    if (jid) await guardarIdentidad(jid, existe[0].id);
+    return { ok: false, motivo: 'ya_existe', usuarioId: existe[0].id };
+  }
+
+  const claveTemp = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const hash = await bcrypt.hash(claveTemp, 10);
+  const rol = datos.rol === 'empleador' ? 'empleador' : 'trabajador';
+
+  const res = await query(
+    `INSERT INTO usuarios (rol, nombre_completo, celular, password_hash, cedula, municipio, acepta_habeas_data, verificado_sms)
+     VALUES (?, ?, ?, ?, ?, ?, 1, 0)`,
+    [rol, datos.nombre || 'Sin nombre', celNorm, hash, datos.cedula || '', datos.municipio || null]
+  );
+  const usuarioId = Number(res.insertId);
+
+  if (rol === 'trabajador') {
+    const pr = await query('INSERT INTO perfil_trabajador (usuario_id, disponibilidad) VALUES (?, ?)',
+      [usuarioId, datos.disponibilidad || null]);
+    const perfilId = Number(pr.insertId);
+    await insertarLista(datos.cultivos, 'INSERT INTO trabajador_cultivos (perfil_trabajador_id, cultivo) VALUES (?, ?)', (c) => [perfilId, c]);
+    await insertarLista(datos.labores, 'INSERT INTO trabajador_habilidades (perfil_trabajador_id, habilidad) VALUES (?, ?)', (l) => [perfilId, l]);
+  } else {
+    const pr = await query('INSERT INTO perfil_empleador (usuario_id, nombre_empresa_finca, tipo_pago) VALUES (?, ?, ?)',
+      [usuarioId, datos.finca || 'Mi finca', datos.tipo_pago || null]);
+    const perfilId = Number(pr.insertId);
+    await insertarLista(datos.cultivos, 'INSERT INTO empleador_cultivos (perfil_empleador_id, cultivo) VALUES (?, ?)', (c) => [perfilId, c]);
+    await insertarLista(datos.labores, 'INSERT INTO empleador_labores (perfil_empleador_id, labor) VALUES (?, ?)', (l) => [perfilId, l]);
+  }
+
+  if (jid) await guardarIdentidad(jid, usuarioId);
+  return { ok: true, usuarioId, claveTemp };
+}
+
 /**
  * Inicia el flujo del empleador, intentando prellenar con NLU (Bedrock). Devuelve
  * el reply inicial y crea la conversación. Si NLU no está disponible, arranca guiado.
  */
-async function iniciarFlujoEmpleador(telefono, usuario, textoLibre) {
-  let datos = {};
-  const extraido = await nluService.extraerSolicitud(textoLibre).catch(() => null);
-  if (extraido && extraido.confianza >= 0.4) {
-    datos = {
-      finca: extraido.finca || undefined,
-      labor: extraido.labor || undefined,
-      cantidad: extraido.cantidad || undefined,
-      fecha: extraido.fecha || undefined,
-      pago: extraido.pago || undefined,
-    };
-    // Quitar undefined para que siguientePasoFaltante funcione.
-    Object.keys(datos).forEach((k) => datos[k] === undefined && delete datos[k]);
-  }
-
-  const paso = siguientePasoFaltante(datos);
-  const id = await crearConversacion(telefono, usuario.id, FLUJO_EMPLEADOR, paso);
-  await actualizarConversacion(id, { datos });
-
+async function iniciarFlujoEmpleador(telefono, usuario, _textoLibre) {
+  // Arranque guiado y determinístico. La IA (Bedrock) se usa UNA sola vez al final,
+  // en el paso de confirmación, para pulir/corregir el resumen.
+  const id = await crearConversacion(telefono, usuario.id, FLUJO_EMPLEADOR, 'finca');
   const saludo = `Hola ${(usuario.nombre_completo || '').split(' ')[0] || ''} 👋 Soy el asistente de TerraEmpleo.`;
-  if (paso === 'confirmar') {
-    return { reply: `${saludo}\n\n${resumenSolicitud(datos)}`, conversacionId: id };
-  }
-  const intro = Object.keys(datos).length > 0
-    ? `${saludo} Anoté lo que me diste. Me falta un dato:\n\n`
-    : `${saludo} Te ayudo a publicar una solicitud de trabajadores.\n\n`;
-  return { reply: intro + PREGUNTAS[paso], conversacionId: id };
+  return {
+    reply: `${saludo} Te ayudo a publicar una solicitud de trabajadores.\n\n${PREGUNTAS.finca}`,
+    conversacionId: id,
+  };
 }
 
 /**
@@ -234,9 +378,10 @@ async function iniciarFlujoEmpleador(telefono, usuario, textoLibre) {
  * @param {string|null} p.jid  JID crudo del remitente (puede ser @lid)
  * @param {string} p.texto     texto del mensaje entrante
  * @param {object|null} p.usuario  fila de usuarios asociada (o null si no se reconoce)
+ * @param {{buffer:Buffer,mimetype:string}|null} p.media  imagen adjunta (paso de fotos)
  * @returns {Promise<{reply: string|null, optOut?: boolean}>}
  */
-async function procesarMensaje({ telefono, jid = null, texto, usuario }) {
+async function procesarMensaje({ telefono, jid = null, texto, usuario, media = null }) {
   const comando = normalizarComando(texto);
   const upper = comando.toUpperCase();
 
@@ -266,6 +411,8 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario }) {
     const esEmpleador = usuario && (usuario.rol === 'empleador' || usuario.rol === 'admin');
     const pareceInicio = PALABRAS_INICIO.some((p) => textoLower.includes(p));
     const pareceSoporte = PALABRAS_SOPORTE.some((p) => textoLower.includes(p));
+    const pareceOfertas = PALABRAS_OFERTAS.some((p) => textoLower.includes(p));
+    const pareceRegistro = PALABRAS_REGISTRO.some((p) => textoLower.includes(p));
 
     // 1) Soporte tiene prioridad: cualquiera puede pedir ayuda humana.
     if (pareceSoporte) {
@@ -278,25 +425,38 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario }) {
       };
     }
 
-    // 2) Empleador reconocido con intención de contratar → flujo de solicitud (con NLU si aplica).
+    // 2) Empleador reconocido con intención de contratar → flujo de solicitud.
     if (esEmpleador && pareceInicio) {
       return await iniciarFlujoEmpleador(telefono, usuario, comando);
     }
 
-    // 3) Remitente NO reconocido (típico con @lid) con intención de contratar →
-    //    pedir identificación con su número registrado para mapear el JID.
+    // 3) Ver ofertas disponibles (cualquiera).
+    if (pareceOfertas) {
+      return { reply: await mostrarOfertas() };
+    }
+
+    // 4) Registro de número nuevo (no reconocido) que quiere inscribirse.
+    if (!usuario && pareceRegistro) {
+      const id = await crearConversacion(telefono, null, FLUJO_REGISTRO, 'rol');
+      return {
+        reply: '¡Bienvenido a TerraEmpleo! 🌱 Te ayudo a crear tu cuenta.\n\n' + PREG_REG.rol,
+        conversacionId: id,
+      };
+    }
+
+    // 5) NO reconocido (típico @lid) con intención de CONTRATAR → identificación de empleador.
     if (!usuario && pareceInicio) {
       const id = await crearConversacion(telefono, null, FLUJO_IDENT, 'celular');
       return {
         reply:
           'Para publicar una solicitud necesito verificar tu cuenta de TerraEmpleo. 🌱\n\n' +
-          'Envíame el *número de celular* con el que te registraste como empleador (ej: 3001234567).',
+          'Envíame el *número de celular* con el que te registraste como empleador (ej: 3001234567). ' +
+          '\nSi eres nuevo, escribe *REGISTRARME*.',
         conversacionId: id,
       };
     }
 
     if (usuario && usuario.rol === 'trabajador') {
-      // Respuesta numérica suelta de un trabajador a una invitación de vacante (flujo 2).
       if (upper === '1') {
         return { reply: '¡Genial! Abre la app TerraEmpleo para postularte y ver los detalles. 🌱' };
       }
@@ -305,8 +465,8 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario }) {
       }
       return {
         reply:
-          'Hola 👋 Soy el asistente de TerraEmpleo. Te avisaré por aquí cuando haya trabajos que ' +
-          'encajen con tu perfil. Abre la app para ver y postularte a las vacantes.',
+          'Hola 👋 Soy el asistente de TerraEmpleo. Escribe *OFERTAS* para ver los trabajos disponibles, ' +
+          'o abre la app para postularte. Te avisaré por aquí cuando haya algo que encaje con tu perfil.',
       };
     }
 
@@ -314,8 +474,8 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario }) {
     return {
       reply:
         'Hola 👋 Soy el asistente de TerraEmpleo.\n' +
-        'Si eres empleador, escribe *Necesito trabajadores* para publicar una solicitud.\n' +
-        'Si buscas trabajo, descarga la app TerraEmpleo para registrarte.',
+        '• ¿Buscas trabajo? Escribe *OFERTAS* para ver vacantes, o *REGISTRARME* para crear tu cuenta.\n' +
+        '• ¿Tienes finca y necesitas gente? Escribe *Necesito trabajadores*.',
     };
   }
 
@@ -326,12 +486,12 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario }) {
 
     switch (paso) {
       case 'finca':
-        datos.finca = comando;
+        datos.finca = limpiarRespuesta(comando);
         await actualizarConversacion(conv.id, { paso: 'labor', datos });
         return { reply: PREGUNTAS.labor, conversacionId: conv.id };
 
       case 'labor':
-        datos.labor = comando;
+        datos.labor = limpiarRespuesta(comando);
         await actualizarConversacion(conv.id, { paso: 'cantidad', datos });
         return { reply: PREGUNTAS.cantidad, conversacionId: conv.id };
 
@@ -346,7 +506,7 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario }) {
       }
 
       case 'fecha':
-        datos.fecha = comando;
+        datos.fecha = limpiarRespuesta(comando);
         await actualizarConversacion(conv.id, { paso: 'pago', datos });
         return { reply: PREGUNTAS.pago, conversacionId: conv.id };
 
@@ -356,8 +516,35 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario }) {
           return { reply: 'Por favor envía el pago por jornada en pesos (ej: 70000).', conversacionId: conv.id };
         }
         datos.pago = monto;
-        await actualizarConversacion(conv.id, { paso: 'confirmar', datos });
-        return { reply: resumenSolicitud(datos), conversacionId: conv.id };
+        await actualizarConversacion(conv.id, { paso: 'descripcion', datos });
+        return { reply: PREGUNTAS.descripcion, conversacionId: conv.id };
+      }
+
+      case 'descripcion':
+        datos.descripcion = comando;
+        datos.fotos = [];
+        await actualizarConversacion(conv.id, { paso: 'fotos', datos });
+        return { reply: PREGUNTAS.fotos, conversacionId: conv.id };
+
+      case 'fotos': {
+        if (media && media.buffer) {
+          const { subirBuffer } = require('../config/s3');
+          const url = await subirBuffer(media.buffer, 'vacantes', media.mimetype).catch(() => null);
+          datos.fotos = Array.isArray(datos.fotos) ? datos.fotos : [];
+          if (url) datos.fotos.push(url);
+          await actualizarConversacion(conv.id, { datos });
+          const n = datos.fotos.length;
+          return {
+            reply: url
+              ? `📷 Foto ${n} recibida. Envía otra (máx 4) o escribe *LISTO* para publicar.`
+              : 'No pude procesar esa imagen. Intenta de nuevo o escribe *LISTO*.',
+            conversacionId: conv.id,
+          };
+        }
+        if (upper === 'LISTO' || upper === 'OMITIR' || upper === 'NINGUNA' || upper === 'NO') {
+          return await irAConfirmar(conv, datos);
+        }
+        return { reply: 'Envía una *foto* o escribe *LISTO* para continuar.', conversacionId: conv.id };
       }
 
       case 'confirmar': {
@@ -408,6 +595,93 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario }) {
     return r;
   }
 
+  // ── Conversación activa: registro de número nuevo ────────────────────────
+  if (conv.flujo === FLUJO_REGISTRO) {
+    const datos = parseDatos(conv.datos);
+    switch (conv.paso) {
+      case 'rol': {
+        const r = upper.includes('EMPLE') ? 'empleador' : (upper.includes('TRABAJ') ? 'trabajador' : null);
+        if (!r) return { reply: 'Responde *TRABAJADOR* o *EMPLEADOR*.', conversacionId: conv.id };
+        datos.rol = r;
+        await actualizarConversacion(conv.id, { paso: 'nombre', datos });
+        return { reply: PREG_REG.nombre, conversacionId: conv.id };
+      }
+      case 'nombre':
+        datos.nombre = limpiarRespuesta(comando);
+        await actualizarConversacion(conv.id, { paso: 'celular', datos });
+        return { reply: PREG_REG.celular, conversacionId: conv.id };
+      case 'celular': {
+        const cel = comando.replace(/\D/g, '');
+        if (cel.length < 10) return { reply: 'Envía un celular válido de 10 dígitos (ej: 3001234567).', conversacionId: conv.id };
+        datos.celular = cel;
+        await actualizarConversacion(conv.id, { paso: 'cedula', datos });
+        return { reply: PREG_REG.cedula, conversacionId: conv.id };
+      }
+      case 'cedula': {
+        const ced = comando.replace(/\D/g, '');
+        if (ced.length < 5) return { reply: 'Envía un número de cédula válido.', conversacionId: conv.id };
+        datos.cedula = ced;
+        await actualizarConversacion(conv.id, { paso: 'municipio', datos });
+        return { reply: PREG_REG.municipio, conversacionId: conv.id };
+      }
+      case 'municipio':
+        datos.municipio = limpiarRespuesta(comando);
+        if (datos.rol === 'empleador') {
+          await actualizarConversacion(conv.id, { paso: 'finca', datos });
+          return { reply: PREG_REG.finca, conversacionId: conv.id };
+        }
+        await actualizarConversacion(conv.id, { paso: 'cultivos', datos });
+        return { reply: PREG_REG.cultivos, conversacionId: conv.id };
+      case 'finca':
+        datos.finca = limpiarRespuesta(comando);
+        await actualizarConversacion(conv.id, { paso: 'cultivos', datos });
+        return { reply: PREG_REG.cultivos, conversacionId: conv.id };
+      case 'cultivos':
+        datos.cultivos = comando;
+        await actualizarConversacion(conv.id, { paso: 'labores', datos });
+        return { reply: PREG_REG.labores, conversacionId: conv.id };
+      case 'labores':
+        datos.labores = comando;
+        if (datos.rol === 'empleador') {
+          await actualizarConversacion(conv.id, { paso: 'tipo_pago', datos });
+          return { reply: PREG_REG.tipo_pago, conversacionId: conv.id };
+        }
+        await actualizarConversacion(conv.id, { paso: 'disponibilidad', datos });
+        return { reply: PREG_REG.disponibilidad, conversacionId: conv.id };
+      case 'disponibilidad':
+        datos.disponibilidad = mapDisponibilidad(comando);
+        await actualizarConversacion(conv.id, { paso: 'habeas', datos });
+        return { reply: PREG_REG.habeas, conversacionId: conv.id };
+      case 'tipo_pago':
+        datos.tipo_pago = mapTipoPago(comando);
+        await actualizarConversacion(conv.id, { paso: 'habeas', datos });
+        return { reply: PREG_REG.habeas, conversacionId: conv.id };
+      case 'habeas': {
+        if (!['ACEPTO', 'SI', 'SÍ', 'ACEPTAR'].includes(upper)) {
+          return { reply: 'Para crear tu cuenta responde *ACEPTO* (o *CANCELAR* para salir).', conversacionId: conv.id };
+        }
+        const r = await crearUsuarioDesdeWhatsapp(datos, jid);
+        await actualizarConversacion(conv.id, { estado: 'completada', datos });
+        if (!r.ok && r.motivo === 'ya_existe') {
+          return { reply: `Ya tienes una cuenta con ese número. Entra a la app con tu celular 👉 ${LINK_APP}`, conversacionId: conv.id };
+        }
+        const queSigue = datos.rol === 'trabajador'
+          ? 'Te avisaré ofertas por aquí. Para *postularte* y terminar tu registro (foto y cédula), entra a la app.'
+          : 'Ya puedes publicar solicitudes por aquí (escribe *Necesito trabajadores*). Termina tu perfil en la app.';
+        return {
+          reply:
+            `✅ ¡Listo, ${(datos.nombre || '').split(' ')[0]}! Tu cuenta quedó creada (pendiente de aprobación).\n\n` +
+            `🔑 Clave temporal: *${r.claveTemp}* (cámbiala en la app)\n` +
+            `📲 Descarga la app: ${LINK_APP}\n\n${queSigue}`,
+          conversacionId: conv.id,
+        };
+      }
+      default:
+        await actualizarConversacion(conv.id, { estado: 'cancelada' });
+        return { reply: 'Reiniciemos. Escribe *REGISTRARME* para crear tu cuenta.', conversacionId: conv.id };
+    }
+  }
+
   // ── Conversación activa: flujo de soporte ────────────────────────────────
   if (conv.flujo === FLUJO_SOPORTE) {
     await escalarSoporte(usuario, telefono, comando);
@@ -425,6 +699,10 @@ module.exports = {
   procesarMensaje,
   // exportados para pruebas
   crearVacanteDesdeWhatsapp,
+  crearUsuarioDesdeWhatsapp,
+  mostrarOfertas,
+  limpiarRespuesta,
   FLUJO_EMPLEADOR,
+  FLUJO_REGISTRO,
   PASOS,
 };

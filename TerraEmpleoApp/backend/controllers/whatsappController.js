@@ -21,13 +21,15 @@ function extraerMensaje(body) {
     const key = data.key || {};
     const remoteJid = key.remoteJid || '';
     const m = data.message || {};
+    const esImagen = !!m.imageMessage;
     const texto =
       m.conversation ||
       m.extendedTextMessage?.text ||
+      m.imageMessage?.caption ||
       m.buttonsResponseMessage?.selectedDisplayText ||
       m.listResponseMessage?.title ||
       m.templateButtonReplyMessage?.selectedId ||
-      null;
+      (esImagen ? '' : null);
     return {
       provider: 'evolution',
       phone: remoteJid.split('@')[0].split(':')[0],
@@ -35,6 +37,8 @@ function extraerMensaje(body) {
       fromMe: key.fromMe === true,
       id: key.id || null,
       texto,
+      esImagen,
+      key, // necesaria para descargar el media desde Evolution
       isGroup: remoteJid.endsWith('@g.us'),
       event: body.event || null,
     };
@@ -97,7 +101,8 @@ async function buscarUsuario(jid, telefono) {
 /** Procesa un mensaje entrante de punta a punta (idempotente). */
 async function procesarEntrante(info) {
   const telefono = whatsappService.normalizarTelefono(info.phone);
-  if (!telefono || !info.texto) return;
+  // Aceptar texto o imagen (la imagen puede venir sin caption).
+  if (!telefono || (!info.texto && !info.esImagen)) return;
 
   const usuario = await buscarUsuario(info.jid, telefono);
 
@@ -107,8 +112,8 @@ async function procesarEntrante(info) {
     telefono,
     usuarioId: usuario ? usuario.id : null,
     direccion: 'inbound',
-    tipo: 'texto',
-    contenido: info.texto,
+    tipo: info.esImagen ? 'imagen' : 'texto',
+    contenido: info.texto || (info.esImagen ? '[imagen]' : ''),
     estado: 'recibido',
   });
   if (!esNuevo) {
@@ -116,11 +121,18 @@ async function procesarEntrante(info) {
     return;
   }
 
+  // Si es imagen, descargar el media para pasarlo al motor (paso de fotos de vacante).
+  let media = null;
+  if (info.esImagen) {
+    media = await whatsappService.descargarMedia(info.key).catch(() => null);
+  }
+
   const { reply, conversacionId } = await conversationEngine.procesarMensaje({
     telefono,
     jid: info.jid || null,
-    texto: info.texto,
+    texto: info.texto || '',
     usuario,
+    media,
   });
 
   if (reply) {
@@ -146,7 +158,8 @@ async function recibirWebhook(req, res) {
 
   try {
     const info = extraerMensaje(req.body);
-    if (!info || info.fromMe || info.isGroup || !info.texto) return;
+    if (!info || info.fromMe || info.isGroup) return;
+    if (!info.texto && !info.esImagen) return;
     await procesarEntrante(info);
   } catch (err) {
     console.error('[WhatsApp] Error procesando webhook:', err.message);
