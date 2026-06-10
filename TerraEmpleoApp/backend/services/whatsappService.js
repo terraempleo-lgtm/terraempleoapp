@@ -225,6 +225,43 @@ async function enviarVacanteAMatch(trabajadorId, vacante, puntaje) {
 }
 
 /**
+ * Envía una imagen con caption (texto). `mediaUrl` puede ser una URL accesible
+ * (p. ej. URL firmada de S3) que el proveedor descarga, o base64.
+ * @returns {Promise<{ok:boolean}>}
+ */
+async function enviarImagen(destinoRaw, mediaUrl, caption, { usuarioId = null } = {}) {
+  const { apiUrl, apiKey, instance } = getConfig();
+  const esJid = typeof destinoRaw === 'string' && destinoRaw.includes('@');
+  const destino = esJid ? destinoRaw : normalizarTelefono(destinoRaw);
+  if (!destino || !mediaUrl) return { ok: false };
+
+  if (resolveProvider() === 'mock' || !apiUrl || !apiKey) {
+    console.log(`[WhatsApp:MOCK] 🖼️ → ${destino}: ${(caption || '').slice(0, 60)}…`);
+    return { ok: true };
+  }
+  try {
+    const res = await fetch(`${apiUrl}/message/sendMedia/${instance}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: apiKey },
+      body: JSON.stringify({ number: destino, mediatype: 'image', media: mediaUrl, caption, fileName: 'vacante.jpg' }),
+    });
+    const data = await res.json().catch(() => ({}));
+    const ok = res.ok;
+    await registrarMensaje({
+      providerMessageId: data?.key?.id || null,
+      telefono: esJid ? destinoRaw.split('@')[0].split(':')[0] : destino,
+      usuarioId, direccion: 'outbound', tipo: 'imagen', contenido: caption,
+      estado: ok ? 'enviado' : `error_${res.status}`,
+    });
+    if (!ok) console.error('[WhatsApp] sendMedia error:', res.status, JSON.stringify(data).slice(0, 200));
+    return { ok };
+  } catch (err) {
+    console.error('[WhatsApp] enviarImagen error:', err.message);
+    return { ok: false };
+  }
+}
+
+/**
  * Descarga el contenido (imagen) de un mensaje de WhatsApp desde Evolution.
  * @param {object} messageKey  la `key` del mensaje entrante (remoteJid, id, ...)
  * @returns {Promise<{buffer: Buffer, mimetype: string}|null>}
@@ -264,6 +301,7 @@ module.exports = {
   registrarMensaje,
   mensajeYaProcesado,
   enviarTexto,
+  enviarImagen,
   enviarVacanteAMatch,
   descargarMedia,
   setOptIn,

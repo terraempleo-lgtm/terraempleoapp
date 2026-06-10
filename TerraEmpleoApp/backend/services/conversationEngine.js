@@ -263,25 +263,41 @@ async function irAConfirmar(conv, datos) {
   return { reply: cuerpo, conversacionId: conv.id };
 }
 
-/** Lista las vacantes activas con su link a la app/web. */
-async function mostrarOfertas() {
+/**
+ * Envía las vacantes activas, UN mensaje por oferta, con foto (si tiene) + pago +
+ * descripción + link de postulación. Los mensajes se envían directamente (varios),
+ * por eso devuelve { reply: null } salvo cuando no hay ofertas.
+ */
+async function enviarOfertas(destino) {
   const vacs = await query(
-    `SELECT id, titulo, municipio, departamento, monto_pago
-     FROM vacantes
-     WHERE estado = 'activa' AND (eliminado IS NULL OR eliminado = 0)
-     ORDER BY created_at DESC LIMIT 5`
+    `SELECT v.id, v.titulo, v.descripcion, v.municipio, v.departamento, v.monto_pago,
+       (SELECT url FROM vacante_fotos WHERE vacante_id = v.id ORDER BY orden ASC LIMIT 1) AS foto
+     FROM vacantes v
+     WHERE v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
+     ORDER BY v.created_at DESC LIMIT 5`
   ).catch(() => []);
   if (!vacs || vacs.length === 0) {
-    return 'Por ahora no hay vacantes activas. Te avisaré por aquí apenas aparezca una que encaje contigo. 🌱';
+    return { reply: 'Por ahora no hay vacantes activas. Te avisaré por aquí apenas aparezca una que encaje contigo. 🌱' };
   }
-  let msg = '🌱 *Ofertas disponibles ahora:*\n\n';
+
+  await whatsappService.enviarTexto(destino, `🌱 *${vacs.length} oferta(s) disponible(s) para ti:*`);
+  const { signUrl } = require('../config/s3');
   for (const v of vacs) {
     const lugar = [v.municipio, v.departamento].filter(Boolean).join(', ') || 'Colombia';
-    const pago = v.monto_pago ? ` · 💵 $${Number(v.monto_pago).toLocaleString('es-CO')}` : '';
-    msg += `• *${v.titulo}*\n  📍 ${lugar}${pago}\n  👉 ${LINK_VACANTE}${v.id}\n\n`;
+    const pago = v.monto_pago ? `\n💵 Pago: $${Number(v.monto_pago).toLocaleString('es-CO')}` : '';
+    const desc = v.descripcion ? `\n📝 ${String(v.descripcion).slice(0, 350)}` : '';
+    const caption = `🌾 *${v.titulo}*\n📍 ${lugar}${pago}${desc}\n\n👉 Postúlate aquí: ${LINK_VACANTE}${v.id}`;
+    let enviada = false;
+    if (v.foto) {
+      const signed = await signUrl(v.foto).catch(() => null);
+      if (signed) {
+        const r = await whatsappService.enviarImagen(destino, signed, caption).catch(() => ({ ok: false }));
+        enviada = !!(r && r.ok);
+      }
+    }
+    if (!enviada) await whatsappService.enviarTexto(destino, caption);
   }
-  msg += 'Abre el link de la que te interese para ver el detalle y *postularte* en la app.';
-  return msg;
+  return { reply: null };
 }
 
 // Preguntas del flujo de registro (orden común + ramas por rol).
@@ -430,9 +446,9 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
       return await iniciarFlujoEmpleador(telefono, usuario, comando);
     }
 
-    // 3) Ver ofertas disponibles (cualquiera).
+    // 3) Ver ofertas disponibles (cualquiera) — un mensaje por oferta con foto.
     if (pareceOfertas) {
-      return { reply: await mostrarOfertas() };
+      return await enviarOfertas(jid || telefono);
     }
 
     // 4) Registro de número nuevo (no reconocido) que quiere inscribirse.
@@ -700,7 +716,7 @@ module.exports = {
   // exportados para pruebas
   crearVacanteDesdeWhatsapp,
   crearUsuarioDesdeWhatsapp,
-  mostrarOfertas,
+  enviarOfertas,
   limpiarRespuesta,
   FLUJO_EMPLEADOR,
   FLUJO_REGISTRO,
