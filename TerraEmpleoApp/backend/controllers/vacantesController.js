@@ -160,6 +160,19 @@ async function ejecutarMatching(vacanteId) {
       }
     }
 
+    // Avisar al EMPLEADOR por WhatsApp cuántos trabajadores encajan (lo lleva a la app).
+    try {
+      const cnt = await query(
+        'SELECT COUNT(*) AS n FROM postulaciones WHERE vacante_id = ? AND es_match_automatico = 1',
+        [vacanteId]
+      );
+      const n = Number(cnt?.[0]?.n || 0);
+      if (n > 0 && vacante.empleador_id) {
+        whatsappService.notificarEmpleadorMatches(vacante.empleador_id, { id: vacanteId, titulo: vacante.titulo }, n)
+          .catch(() => {});
+      }
+    } catch (_) {}
+
     console.log(`Matching ejecutado para vacante ${vacanteId}`);
   } catch (err) {
     console.error('Error en matching:', err);
@@ -630,6 +643,8 @@ async function ejecutarMatchingParaTrabajador(trabajadorId) {
             `Tu perfil coincide con la vacante "${vacante.titulo}" en ${vacante.municipio || vacante.departamento || 'Colombia'}`,
             { vacante_id: vacanteId }
           );
+          // Avisar al trabajador por WhatsApp (si dio opt-in) → lo lleva a postularse en la app.
+          whatsappService.enviarVacanteAMatch(trabajadorId, vacante, puntaje).catch(() => {});
         }
       }
     }

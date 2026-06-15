@@ -158,6 +158,41 @@ async function reactivarVacantes() {
   }
 }
 
+// Seguimiento por WhatsApp a empleadores con vacantes activas (una vez por vacante,
+// tras ~2 días). Empuja a revisar postulados en la app. Solo a quienes dieron opt-in.
+async function seguimientoEmpleadores() {
+  try {
+    const vacs = await dbQuery(`
+      SELECT v.id, v.titulo, v.empleador_id,
+        (SELECT COUNT(*) FROM postulaciones p WHERE p.vacante_id = v.id) AS postulados
+      FROM vacantes v
+      WHERE v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
+        AND v.whatsapp_seguimiento_at IS NULL
+        AND v.created_at <= (NOW() - INTERVAL 2 DAY)
+      LIMIT 20
+    `).catch(() => []);
+    if (!vacs || vacs.length === 0) return;
+    const wa = require('./services/whatsappService');
+    for (const v of vacs) {
+      const n = Number(v.postulados || 0);
+      const u = await dbQuery('SELECT whatsapp_opt_in FROM usuarios WHERE id = ?', [v.empleador_id]).catch(() => []);
+      if (u && u[0] && u[0].whatsapp_opt_in) {
+        const destino = await wa.mejorDestino(v.empleador_id);
+        if (destino) {
+          const txt = n > 0
+            ? `👋 Seguimiento de tu vacante *${v.titulo}*: ya tienes *${n}* postulado(s)/match(es). Entra a la app para revisarlos y contactarlos 👉 ${wa.linkVacante(v.id)}`
+            : `👋 Tu vacante *${v.titulo}* aún no tiene postulados. Puedes ajustar el pago o requisitos para atraer más gente. Edítala en la app 👉 ${wa.linkVacante(v.id)}`;
+          await wa.enviarTexto(destino, txt, { usuarioId: v.empleador_id }).catch(() => {});
+        }
+      }
+      await dbQuery('UPDATE vacantes SET whatsapp_seguimiento_at = NOW() WHERE id = ?', [v.id]).catch(() => {});
+    }
+    console.log(`[SEGUIMIENTO] ${vacs.length} vacante(s) procesada(s).`);
+  } catch (err) {
+    console.error('[SEGUIMIENTO] error:', err.message);
+  }
+}
+
 // Validar variables de entorno críticas al arrancar
 function validateEnv() {
   const required = ['JWT_SECRET', 'COGNITO_REGION', 'COGNITO_USER_POOL_ID', 'COGNITO_CLIENT_ID'];
@@ -190,6 +225,10 @@ async function startServer() {
 
   // Reactivar vacantes cerradas automáticamente
   await reactivarVacantes();
+
+  // Seguimiento a empleadores: corrida a los 2 min y luego cada 24 h.
+  setTimeout(() => seguimientoEmpleadores(), 2 * 60 * 1000);
+  setInterval(() => seguimientoEmpleadores(), 24 * 60 * 60 * 1000);
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🌿 TerraEmpleo API corriendo en http://localhost:${PORT}`);

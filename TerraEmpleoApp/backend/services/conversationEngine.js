@@ -346,8 +346,9 @@ async function crearUsuarioDesdeWhatsapp(datos, jid) {
   const rol = datos.rol === 'empleador' ? 'empleador' : 'trabajador';
 
   const res = await query(
-    `INSERT INTO usuarios (rol, nombre_completo, celular, password_hash, cedula, municipio, acepta_habeas_data, verificado_sms)
-     VALUES (?, ?, ?, ?, ?, ?, 1, 0)`,
+    `INSERT INTO usuarios (rol, nombre_completo, celular, password_hash, cedula, municipio,
+       acepta_habeas_data, verificado_sms, whatsapp_opt_in, whatsapp_opt_in_at)
+     VALUES (?, ?, ?, ?, ?, ?, 1, 0, 1, NOW())`,
     [rol, datos.nombre || 'Sin nombre', celNorm, hash, datos.cedula || '', datos.municipio || null]
   );
   const usuarioId = Number(res.insertId);
@@ -411,6 +412,13 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
         'Si cambias de opinión, escríbenos cuando quieras. 🌱',
       optOut: true,
     };
+  }
+
+  // Alcanzable por WhatsApp: a cualquier usuario reconocido que interactúe lo marcamos
+  // opt-in (una vez) para poder enviarle recordatorios de ofertas/matches.
+  if (usuario && !usuario.whatsapp_opt_in) {
+    whatsappService.setOptIn(usuario.id, true).catch(() => {});
+    usuario.whatsapp_opt_in = 1;
   }
 
   const conv = await getConversacionActiva(telefono);
@@ -602,8 +610,9 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
         conversacionId: conv.id,
       };
     }
-    // Guardar el mapeo JID → usuario y cerrar la identificación.
+    // Guardar el mapeo JID → usuario, marcar opt-in y cerrar la identificación.
     await guardarIdentidad(jid, u.id);
+    await whatsappService.setOptIn(u.id, true).catch(() => {});
     await actualizarConversacion(conv.id, { estado: 'completada' });
     // Arrancar el flujo de empleador de inmediato (ya identificado).
     const r = await iniciarFlujoEmpleador(telefono, u, '');
@@ -680,6 +689,11 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
         await actualizarConversacion(conv.id, { estado: 'completada', datos });
         if (!r.ok && r.motivo === 'ya_existe') {
           return { reply: `Ya tienes una cuenta con ese número. Entra a la app con tu celular 👉 ${LINK_APP}`, conversacionId: conv.id };
+        }
+        // Trabajador nuevo → buscarle vacantes que encajen y avisarle por WhatsApp (background).
+        if (r.ok && datos.rol === 'trabajador') {
+          const { ejecutarMatchingParaTrabajador } = require('../controllers/vacantesController');
+          ejecutarMatchingParaTrabajador(r.usuarioId).catch((e) => console.error('[WhatsApp] match registro:', e.message));
         }
         const queSigue = datos.rol === 'trabajador'
           ? 'Te avisaré ofertas por aquí. Para *postularte* y terminar tu registro (foto y cédula), entra a la app.'

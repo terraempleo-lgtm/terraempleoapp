@@ -75,6 +75,9 @@ async function initWhatsappSchema() {
   try { await query('ALTER TABLE usuarios ADD COLUMN whatsapp_opt_in TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
   try { await query('ALTER TABLE usuarios ADD COLUMN whatsapp_opt_in_at TIMESTAMP NULL DEFAULT NULL'); } catch (_) {}
 
+  // Control de mensaje de seguimiento al empleador (para no repetirlo por vacante).
+  try { await query('ALTER TABLE vacantes ADD COLUMN whatsapp_seguimiento_at TIMESTAMP NULL DEFAULT NULL'); } catch (_) {}
+
   console.log('[WhatsApp] Schema del módulo de mensajería inicializado.');
 }
 

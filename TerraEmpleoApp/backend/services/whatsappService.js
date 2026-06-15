@@ -196,6 +196,46 @@ async function enviarTexto(destinoRaw, texto, { usuarioId = null, conversacionId
  * Solo envía si el trabajador dio opt-in y tiene celular. Pensado para llamarse
  * en background desde ejecutarMatching().
  */
+/** Link a la vacante (abre la app si está instalada — ver app.json; si no, la web). */
+function linkVacante(id) {
+  return `https://app.terrampleo.com/app/vacantes/${id}`;
+}
+
+/**
+ * Mejor destino de WhatsApp para un usuario: el JID exacto con el que escribió
+ * (whatsapp_identidades, entrega segura incluso con @lid); si no, su celular.
+ */
+async function mejorDestino(usuarioId) {
+  const idr = await query(
+    'SELECT jid FROM whatsapp_identidades WHERE usuario_id = ? ORDER BY created_at DESC LIMIT 1',
+    [usuarioId]
+  ).catch(() => []);
+  if (idr && idr[0] && idr[0].jid) return idr[0].jid;
+  const u = await query('SELECT celular FROM usuarios WHERE id = ?', [usuarioId]).catch(() => []);
+  return u && u[0] && u[0].celular ? u[0].celular : null;
+}
+
+/** Avisa al empleador (opt-in) que su vacante tiene N trabajadores que encajan → a la app. */
+async function notificarEmpleadorMatches(empleadorId, vacante, n) {
+  try {
+    if (!n || n < 1) return { ok: false };
+    const rows = await query(
+      'SELECT whatsapp_opt_in FROM usuarios WHERE id = ? AND activo = 1',
+      [empleadorId]
+    ).catch(() => []);
+    if (!rows[0] || !rows[0].whatsapp_opt_in) return { ok: false, motivo: 'sin_opt_in' };
+    const destino = await mejorDestino(empleadorId);
+    if (!destino) return { ok: false };
+    const texto =
+      `🌱 Tu vacante *${vacante.titulo}* ya tiene *${n}* trabajador(es) que encajan con lo que pediste.\n\n` +
+      `👀 Míralos y contáctalos en la app 👉 ${linkVacante(vacante.id || vacante.vacanteId || '')}`;
+    return await enviarTexto(destino, texto, { usuarioId: empleadorId });
+  } catch (err) {
+    console.error('[WhatsApp] notificarEmpleadorMatches:', err.message);
+    return { ok: false };
+  }
+}
+
 async function enviarVacanteAMatch(trabajadorId, vacante, puntaje) {
   try {
     const rows = await query(
@@ -205,7 +245,9 @@ async function enviarVacanteAMatch(trabajadorId, vacante, puntaje) {
       [trabajadorId]
     );
     const u = rows && rows[0];
-    if (!u || !u.whatsapp_opt_in || !u.celular) return { ok: false, motivo: 'sin_opt_in_o_celular' };
+    if (!u || !u.whatsapp_opt_in) return { ok: false, motivo: 'sin_opt_in' };
+    const destino = await mejorDestino(trabajadorId);
+    if (!destino) return { ok: false, motivo: 'sin_destino' };
 
     const lugar = [vacante.municipio, vacante.departamento].filter(Boolean).join(', ') || 'tu zona';
     const pago = vacante.monto_pago ? `\n💵 Pago: $${Number(vacante.monto_pago).toLocaleString('es-CO')}` : '';
@@ -214,10 +256,10 @@ async function enviarVacanteAMatch(trabajadorId, vacante, puntaje) {
     const texto =
       `Hola ${nombre} 👋, encontramos un trabajo que encaja con tu perfil:\n\n` +
       `🌱 *${vacante.titulo}*\n📍 ${lugar}${pago}\n\n` +
-      `Responde *1* para ver más / postularte, o *2* si no te interesa.\n` +
+      `👉 Postúlate en la app: ${linkVacante(vacante.id)}\n` +
       `(Responde *SALIR* para no recibir más mensajes.)`;
 
-    return await enviarTexto(u.celular, texto, { usuarioId: trabajadorId });
+    return await enviarTexto(destino, texto, { usuarioId: trabajadorId });
   } catch (err) {
     console.error('[WhatsApp] enviarVacanteAMatch:', err.message);
     return { ok: false };
@@ -303,6 +345,9 @@ module.exports = {
   enviarTexto,
   enviarImagen,
   enviarVacanteAMatch,
+  notificarEmpleadorMatches,
+  mejorDestino,
+  linkVacante,
   descargarMedia,
   setOptIn,
 };
