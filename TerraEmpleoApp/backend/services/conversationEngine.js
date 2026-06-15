@@ -90,6 +90,88 @@ function mapTipoPago(t) {
   return 'jornal';
 }
 
+// ── Variación de mensajes (para que el bot no suene robótico) ───────────────
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function saludoAsistente(usuario) {
+  const n = ((usuario && usuario.nombre_completo) || '').split(' ')[0] || '';
+  const con = n ? [
+    `Hola ${n} 👋 Soy el asistente de TerraEmpleo.`,
+    `¡Buenas, ${n}! 🌱 Te habla el asistente de TerraEmpleo.`,
+    `¡Qué más, ${n}! 👋 Soy el asistente de TerraEmpleo.`,
+    `¡Hola ${n}! 🙌 Soy el asistente de TerraEmpleo.`,
+  ] : [
+    'Hola 👋 Soy el asistente de TerraEmpleo.',
+    '¡Buenas! 🌱 Te habla el asistente de TerraEmpleo.',
+    '¡Hola! 🙌 Soy el asistente de TerraEmpleo.',
+  ];
+  return pick(con);
+}
+
+function menuGenerico() {
+  return pick([
+    '🌱 ¿Buscas trabajo? Escribe *OFERTAS* para ver vacantes, o *REGISTRARME* para crear tu cuenta.\n¿Tienes finca y necesitas gente? Escribe *Necesito trabajadores*.',
+    'Te cuento lo que puedo hacer:\n• *OFERTAS* → ver trabajos disponibles\n• *REGISTRARME* → crear tu cuenta\n• *Necesito trabajadores* → si eres finca/empleador',
+    'Puedo ayudarte con:\n🌾 *OFERTAS* (ver vacantes)\n📝 *REGISTRARME* (crear cuenta)\n👨‍🌾 *Necesito trabajadores* (si eres empleador)',
+  ]);
+}
+
+function soporteIntro() {
+  return pick([
+    '🙋 Con gusto te ayudo. Cuéntame en una frase qué necesitas o cuál es el problema, y te respondo o te paso con un asesor.',
+    '🙋 Claro, para ayudarte cuéntame brevemente qué pasó o qué necesitas.',
+    'Estoy para ayudarte 🙌. Dime en pocas palabras cuál es el problema o qué necesitas.',
+  ]);
+}
+
+function soporteCierre() {
+  return pick([
+    '¡Gracias! 🙌 Registré tu mensaje y un asesor de TerraEmpleo te contactará pronto por este mismo chat.',
+    '¡Listo! ✅ Le pasé tu caso a un asesor; te escribirá pronto por aquí.',
+    'Gracias por escribir 🌱. Un asesor revisará tu caso y te responderá pronto por este chat.',
+  ]);
+}
+
+function sufijoConfirmar() {
+  return pick([
+    'Responde *CONFIRMAR* para publicarla o *CORREGIR* para empezar de nuevo.',
+    '¿Todo bien? Responde *CONFIRMAR* para publicar, o *CORREGIR* para volver a empezar.',
+    'Si está correcto responde *CONFIRMAR*; si no, *CORREGIR* para empezar de nuevo.',
+  ]);
+}
+
+function registroBienvenida() {
+  return pick([
+    '¡Bienvenido a TerraEmpleo! 🌱 Te ayudo a crear tu cuenta.',
+    '¡Qué bueno tenerte en TerraEmpleo! 🌱 Vamos a crear tu cuenta.',
+    '¡Genial! 🙌 Creemos tu cuenta en TerraEmpleo, es rápido.',
+  ]);
+}
+
+function menuTrabajador() {
+  return pick([
+    'Hola 👋 Soy el asistente de TerraEmpleo. Escribe *OFERTAS* para ver trabajos disponibles, o abre la app para postularte. Te aviso por aquí cuando haya algo que encaje contigo.',
+    '🌱 Escribe *OFERTAS* para ver las vacantes, o abre la app para postularte. Yo te aviso cuando salga algo para ti.',
+    '👋 Para ver trabajos escribe *OFERTAS*; para postularte entra a la app. Te avisaré cuando haya match con tu perfil.',
+  ]);
+}
+
+/**
+ * Fallback cuando el mensaje no encajó en ningún flujo: Haiku responde con lo que sabe
+ * o decide escalar a un asesor. Si Bedrock está off, devuelve un menú genérico variado.
+ */
+async function fallbackInteligente({ usuario, telefono, comando, esTrabajador }) {
+  const r = await nluService.responderLibre(comando).catch(() => null);
+  if (r && r.mensaje) {
+    if (r.accion === 'escalar') {
+      await escalarSoporte(usuario, telefono, comando);
+      return `${r.mensaje}`;
+    }
+    return r.mensaje;
+  }
+  return esTrabajador ? menuTrabajador() : menuGenerico();
+}
+
 const PALABRAS_INICIO = [
   'necesito', 'nueva solicitud', 'solicitud', 'publicar', 'trabajadores',
   'recolectores', 'busco', 'requiero', 'empezar', 'hola',
@@ -189,7 +271,7 @@ function resumenSolicitud(datos) {
     `👥 Trabajadores: ${datos.cantidad || '-'}\n` +
     `📅 Fecha: ${datos.fecha || '-'}\n` +
     `💵 Pago por jornada: ${pago}\n\n` +
-    'Responde *CONFIRMAR* para publicarla o *CORREGIR* para empezar de nuevo.'
+    sufijoConfirmar()
   );
 }
 
@@ -258,7 +340,7 @@ async function irAConfirmar(conv, datos) {
   }
   await actualizarConversacion(conv.id, { paso: 'confirmar', datos });
   const cuerpo = (rev && rev.resumen)
-    ? `${rev.resumen}\n\nResponde *CONFIRMAR* para publicarla o *CORREGIR* para empezar de nuevo.`
+    ? `${rev.resumen}\n\n${sufijoConfirmar()}`
     : resumenSolicitud(datos);
   return { reply: cuerpo, conversacionId: conv.id };
 }
@@ -379,9 +461,8 @@ async function iniciarFlujoEmpleador(telefono, usuario, _textoLibre) {
   // Arranque guiado y determinístico. La IA (Bedrock) se usa UNA sola vez al final,
   // en el paso de confirmación, para pulir/corregir el resumen.
   const id = await crearConversacion(telefono, usuario.id, FLUJO_EMPLEADOR, 'finca');
-  const saludo = `Hola ${(usuario.nombre_completo || '').split(' ')[0] || ''} 👋 Soy el asistente de TerraEmpleo.`;
   return {
-    reply: `${saludo} Te ayudo a publicar una solicitud de trabajadores.\n\n${PREGUNTAS.finca}`,
+    reply: `${saludoAsistente(usuario)} Te ayudo a publicar una solicitud de trabajadores.\n\n${PREGUNTAS.finca}`,
     conversacionId: id,
   };
 }
@@ -441,12 +522,7 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     // 1) Soporte tiene prioridad: cualquiera puede pedir ayuda humana.
     if (pareceSoporte) {
       const id = await crearConversacion(telefono, usuario ? usuario.id : null, FLUJO_SOPORTE, 'describir');
-      return {
-        reply:
-          '🙋 Con gusto te ayudo. Cuéntame en una frase qué necesitas o cuál es el problema, ' +
-          'y te respondo o te paso con un asesor.',
-        conversacionId: id,
-      };
+      return { reply: soporteIntro(), conversacionId: id };
     }
 
     // 2) Empleador reconocido con intención de contratar → flujo de solicitud.
@@ -462,10 +538,7 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     // 4) Registro de número nuevo (no reconocido) que quiere inscribirse.
     if (!usuario && pareceRegistro) {
       const id = await crearConversacion(telefono, null, FLUJO_REGISTRO, 'rol');
-      return {
-        reply: '¡Bienvenido a TerraEmpleo! 🌱 Te ayudo a crear tu cuenta.\n\n' + PREG_REG.rol,
-        conversacionId: id,
-      };
+      return { reply: `${registroBienvenida()}\n\n${PREG_REG.rol}`, conversacionId: id };
     }
 
     // 5) NO reconocido (típico @lid) con intención de CONTRATAR → identificación de empleador.
@@ -482,25 +555,17 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
 
     if (usuario && usuario.rol === 'trabajador') {
       if (upper === '1') {
-        return { reply: '¡Genial! Abre la app TerraEmpleo para postularte y ver los detalles. 🌱' };
+        return { reply: pick(['¡Genial! Abre la app TerraEmpleo para postularte y ver los detalles. 🌱', '¡De una! 🙌 Entra a la app para postularte y ver el detalle.']) };
       }
       if (upper === '2') {
-        return { reply: 'Entendido, no te postulamos a esa vacante. Te avisaremos cuando haya otra que encaje. 👍' };
+        return { reply: pick(['Entendido, no te postulamos a esa vacante. Te avisaremos cuando haya otra que encaje. 👍', 'Listo 👍 No te postulamos a esa. Te aviso cuando salga otra para ti.']) };
       }
-      return {
-        reply:
-          'Hola 👋 Soy el asistente de TerraEmpleo. Escribe *OFERTAS* para ver los trabajos disponibles, ' +
-          'o abre la app para postularte. Te avisaré por aquí cuando haya algo que encaje con tu perfil.',
-      };
+      // No encajó en nada: que Haiku ayude o escale (degrada a menú variado).
+      return { reply: await fallbackInteligente({ usuario, telefono, comando, esTrabajador: true }) };
     }
 
-    // No registrado o sin intención clara.
-    return {
-      reply:
-        'Hola 👋 Soy el asistente de TerraEmpleo.\n' +
-        '• ¿Buscas trabajo? Escribe *OFERTAS* para ver vacantes, o *REGISTRARME* para crear tu cuenta.\n' +
-        '• ¿Tienes finca y necesitas gente? Escribe *Necesito trabajadores*.',
-    };
+    // No registrado o sin intención clara → fallback inteligente (o menú variado).
+    return { reply: await fallbackInteligente({ usuario, telefono, comando, esTrabajador: false }) };
   }
 
   // ── Conversación activa: flujo del empleador ──────────────────────────────
@@ -588,7 +653,7 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
           await actualizarConversacion(conv.id, { paso: 'finca', datos: {} });
           return { reply: 'Sin problema, empecemos de nuevo.\n\n' + PREGUNTAS.finca, conversacionId: conv.id };
         }
-        return { reply: 'Responde *CONFIRMAR* para publicar o *CORREGIR* para empezar de nuevo.', conversacionId: conv.id };
+        return { reply: sufijoConfirmar(), conversacionId: conv.id };
       }
 
       default:
@@ -716,10 +781,7 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
   if (conv.flujo === FLUJO_SOPORTE) {
     await escalarSoporte(usuario, telefono, comando);
     await actualizarConversacion(conv.id, { estado: 'completada' });
-    return {
-      reply: '¡Gracias! 🙌 Registré tu mensaje y un asesor de TerraEmpleo te contactará pronto por este mismo chat.',
-      conversacionId: conv.id,
-    };
+    return { reply: soporteCierre(), conversacionId: conv.id };
   }
 
   return { reply: null };

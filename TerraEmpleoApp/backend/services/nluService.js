@@ -157,8 +157,32 @@ async function revisarSolicitud(datos) {
   };
 }
 
+const FALLBACK_SYSTEM =
+  'Eres el asistente de WhatsApp de TerraEmpleo, una app de empleo rural agrícola en Colombia que conecta ' +
+  'trabajadores del campo con fincas/empleadores. El bot ya sabe hacer: mostrar ofertas (el usuario escribe ' +
+  '"OFERTAS"), registrar usuarios nuevos ("REGISTRARME"), que los empleadores publiquen vacantes ("Necesito ' +
+  'trabajadores") y dar soporte humano. Recibes un mensaje del usuario que NO encajó en ninguno de esos flujos. ' +
+  'Decide: si puedes responder de forma breve, cordial y útil SOLO sobre TerraEmpleo (qué es, cómo registrarse, ' +
+  'cómo ver trabajos, cómo publicar, etc.), hazlo y guía a la app. Si es una queja, un problema técnico, algo ' +
+  'que requiere una persona, o algo que no sabes/no es de TerraEmpleo, decide escalar a un asesor. ' +
+  'Responde SOLO con un objeto JSON: {"accion":"responder"|"escalar","mensaje":"texto corto con emojis"}. ' +
+  'No inventes datos de vacantes ni de usuarios.';
+
+/**
+ * Fallback cuando el bot no entendió: Haiku responde con lo que sabe de TerraEmpleo,
+ * o decide escalar a un asesor.
+ * @returns {Promise<null | {accion:'responder'|'escalar', mensaje:string}>} null si Bedrock off/error.
+ */
+async function responderLibre(texto) {
+  if (!texto) return null;
+  const out = _extraerJSON(await _invocar(FALLBACK_SYSTEM, `Mensaje del usuario: "${texto}"`, 350));
+  if (!out || !out.mensaje) return null;
+  const accion = out.accion === 'escalar' ? 'escalar' : 'responder';
+  return { accion, mensaje: String(out.mensaje).trim() };
+}
+
 function disponible() {
   return _cargarSDK();
 }
 
-module.exports = { extraerSolicitud, revisarSolicitud, disponible, getModelId, getRegion };
+module.exports = { extraerSolicitud, revisarSolicitud, responderLibre, disponible, getModelId, getRegion };
