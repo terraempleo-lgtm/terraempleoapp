@@ -4,6 +4,7 @@
     "slug": "TerraEmpleoApp",
     "owner": "rendonv",
     "version": "1.2.0",
+    "scheme": "terraempleo",
     "orientation": "default",
     "icon": "./assets/Logos 2 TerraEmpleo.png",
     "userInterfaceStyle": "automatic",
@@ -16,7 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.terraempleo.app",
       "associatedDomains": [
-        "webcredentials:app.terrampleo.com"
+        "webcredentials:app.terrampleo.com",
+        "applinks:app.terrampleo.com"
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -54,7 +56,21 @@
         "googleMaps": {
           "apiKey": "AIzaSyD3jV2DMX9d4CPEC_vHcKgihsBDPt-sS1E"
         }
-      }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.terrampleo.com",
+              "pathPrefix": "/app/vacantes"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",

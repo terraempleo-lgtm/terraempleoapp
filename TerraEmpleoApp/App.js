@@ -661,6 +661,31 @@ function RootNavigator() {
   const { colors } = useAppTheme();
   usePushNotifications(!!user);
   const wasLoggedIn = useRef(false);
+  const pendingVacante = useRef(null);
+
+  // Deep link: abrir la vacante exacta cuando llega un link
+  // https://app.terrampleo.com/app/vacantes/:id (o terraempleo://vacantes/:id).
+  useEffect(() => {
+    const intentarNavegar = () => {
+      const id = pendingVacante.current;
+      if (!id || !user) return; // la pantalla de detalle es de usuario autenticado
+      if (navigationRef.isReady()) {
+        try {
+          navigationRef.navigate('DetalleVacante', { vacante: { id } });
+          pendingVacante.current = null;
+        } catch (_) {}
+      }
+    };
+    const manejarUrl = (url) => {
+      if (!url) return;
+      const m = String(url).match(/vacantes?\/(\d+)/i);
+      if (m && m[1]) { pendingVacante.current = Number(m[1]); intentarNavegar(); }
+    };
+    Linking.getInitialURL().then(manejarUrl).catch(() => {});
+    const sub = Linking.addEventListener('url', (e) => manejarUrl(e && e.url));
+    intentarNavegar(); // reintentar al cambiar la sesión (p. ej. tras login)
+    return () => { if (sub && sub.remove) sub.remove(); };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
