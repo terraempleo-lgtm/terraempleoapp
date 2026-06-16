@@ -156,17 +156,34 @@ function menuTrabajador() {
   ]);
 }
 
+/** Saludo personalizado por nombre (si se reconoce) + menú según rol. */
+function bienvenidaPersonal(usuario) {
+  const n = usuario && usuario.nombre_completo ? ' ' + usuario.nombre_completo.split(' ')[0] : '';
+  const s = pick([`¡Hola${n}! 👋`, `¡Buenas${n}! 🌱`, `¡Qué más${n}! 👋`, `¡Hola${n}! 🙌`]);
+  if (usuario && (usuario.rol === 'empleador' || usuario.rol === 'admin')) {
+    return `${s} Soy el asistente de TerraEmpleo. Para publicar una vacante escribe *Necesito trabajadores*. ¿En qué te ayudo?`;
+  }
+  if (usuario && usuario.rol === 'trabajador') {
+    return `${s} Soy el asistente de TerraEmpleo. Escribe *OFERTAS* para ver los trabajos disponibles. ¿En qué te ayudo?`;
+  }
+  return `${s} Soy el asistente de TerraEmpleo. Escribe *OFERTAS* para ver trabajos, *REGISTRARME* para crear tu cuenta, o *Necesito trabajadores* si tienes finca. ¿En qué te ayudo?`;
+}
+
 /**
- * Fallback cuando el mensaje no encajó en ningún flujo: Haiku responde con lo que sabe
- * o decide escalar a un asesor. Si Bedrock está off, devuelve un menú genérico variado.
+ * Fallback cuando el mensaje no encajó en ningún flujo: la IA responde con la base de
+ * conocimiento + datos del usuario, o decide escalar. Registra la pregunta (aprendizaje).
+ * Si la IA no está, devuelve un menú genérico variado.
  */
 async function fallbackInteligente({ usuario, telefono, comando, esTrabajador }) {
-  const r = await nluService.responderLibre(comando).catch(() => null);
+  const kb = await query('SELECT clave, pregunta, respuesta FROM whatsapp_kb WHERE activo = 1 LIMIT 40').catch(() => []);
+  const r = await nluService.responderLibre(comando, { usuario, kb }).catch(() => null);
+  // Bitácora de aprendizaje: queda registrado para que los admins enriquezcan la KB.
+  await query(
+    'INSERT INTO whatsapp_preguntas (telefono, usuario_id, texto, accion) VALUES (?, ?, ?, ?)',
+    [telefono, usuario ? usuario.id : null, comando, r ? r.accion : 'sin_ia']
+  ).catch(() => {});
   if (r && r.mensaje) {
-    if (r.accion === 'escalar') {
-      await escalarSoporte(usuario, telefono, comando);
-      return `${r.mensaje}`;
-    }
+    if (r.accion === 'escalar') { await escalarSoporte(usuario, telefono, comando); return r.mensaje; }
     return r.mensaje;
   }
   return esTrabajador ? menuTrabajador() : menuGenerico();
@@ -174,8 +191,11 @@ async function fallbackInteligente({ usuario, telefono, comando, esTrabajador })
 
 const PALABRAS_INICIO = [
   'necesito', 'nueva solicitud', 'solicitud', 'publicar', 'trabajadores',
-  'recolectores', 'busco', 'requiero', 'empezar', 'hola',
+  'recolectores', 'busco', 'requiero', 'contratar',
 ];
+
+// Saludos (tolerante a typos): un saludo NO debe arrancar el flujo de vacante ni escalar.
+const PALABRAS_SALUDO = ['hola', 'holas', 'ola', 'buenas', 'buenos dias', 'buenos días', 'buen dia', 'qué más', 'que mas', 'hey', 'holi', 'saludos', 'buenas tardes', 'buenas noches'];
 
 function normalizarComando(texto) {
   return (texto || '').trim();
@@ -518,6 +538,7 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     const pareceSoporte = PALABRAS_SOPORTE.some((p) => textoLower.includes(p));
     const pareceOfertas = PALABRAS_OFERTAS.some((p) => textoLower.includes(p));
     const pareceRegistro = PALABRAS_REGISTRO.some((p) => textoLower.includes(p));
+    const pareceSaludo = PALABRAS_SALUDO.some((p) => textoLower === p || textoLower.startsWith(p + ' ') || textoLower.startsWith(p + ','));
 
     // 1) Soporte tiene prioridad: cualquiera puede pedir ayuda humana.
     if (pareceSoporte) {
@@ -551,6 +572,11 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
           '\nSi eres nuevo, escribe *REGISTRARME*.',
         conversacionId: id,
       };
+    }
+
+    // 6) Saludo (cualquiera): bienvenida personalizada por nombre + menú según rol.
+    if (pareceSaludo) {
+      return { reply: bienvenidaPersonal(usuario) };
     }
 
     if (usuario && usuario.rol === 'trabajador') {

@@ -126,27 +126,38 @@ async function revisarSolicitud(datos) {
 }
 
 const FALLBACK_SYSTEM =
-  'Eres el asistente de WhatsApp de TerraEmpleo, una app de empleo rural agrícola en Colombia que conecta ' +
-  'trabajadores del campo con fincas/empleadores. El bot ya sabe hacer: mostrar ofertas (el usuario escribe ' +
-  '"OFERTAS"), registrar usuarios nuevos ("REGISTRARME"), que los empleadores publiquen vacantes ("Necesito ' +
-  'trabajadores") y dar soporte humano. Recibes un mensaje del usuario que NO encajó en ninguno de esos flujos. ' +
-  'Decide: si puedes responder de forma breve, cordial y útil SOLO sobre TerraEmpleo (qué es, cómo registrarse, ' +
-  'cómo ver trabajos, cómo publicar, etc.), hazlo y guía a la app. Si es una queja, un problema técnico, algo ' +
-  'que requiere una persona, o algo que no sabes/no es de TerraEmpleo, decide escalar a un asesor. ' +
-  'Responde SOLO con un objeto JSON: {"accion":"responder"|"escalar","mensaje":"texto corto con emojis"}. ' +
-  'No inventes datos de vacantes ni de usuarios.';
+  'Eres el asistente de WhatsApp de TerraEmpleo, app de empleo rural agrícola en Colombia que conecta a ' +
+  'trabajadores del campo con fincas/empleadores. REGLAS:\n' +
+  '1) PRIORIZA RESPONDER de forma breve, cálida y útil. Usa la BASE DE CONOCIMIENTO y los DATOS DEL USUARIO ' +
+  'que te paso abajo.\n' +
+  '2) Si preguntan su nombre, su rol, o algo sobre TerraEmpleo (qué es, cómo registrarse/postularse/publicar, ' +
+  'costos, etc.), RESPONDE con esos datos. NUNCA digas "no tengo información" si el dato está en el contexto.\n' +
+  '3) El bot entiende estos comandos: *OFERTAS* (ver vacantes), *REGISTRARME* (crear cuenta), ' +
+  '"Necesito trabajadores" (publicar, empleadores). Guía a usarlos cuando aplique.\n' +
+  '4) ESCALA a un asesor SOLO si es un problema real que necesita una persona (no puede entrar a su cuenta, un ' +
+  'pago, una queja seria, un error técnico). Un saludo o una pregunta normal NUNCA se escala.\n' +
+  'Devuelve SOLO un JSON: {"accion":"responder"|"escalar","mensaje":"texto corto con emojis"}. No inventes vacantes.';
 
 /**
- * Fallback cuando el bot no entendió: Haiku responde con lo que sabe de TerraEmpleo,
- * o decide escalar a un asesor.
- * @returns {Promise<null | {accion:'responder'|'escalar', mensaje:string}>} null si Bedrock off/error.
+ * Fallback cuando el bot no entendió: la IA responde con lo que sabe (base de
+ * conocimiento + datos del usuario) o decide escalar a un asesor.
+ * @param {string} texto
+ * @param {{usuario?:object, kb?:Array<{clave,pregunta,respuesta}>}} contexto
+ * @returns {Promise<null | {accion:'responder'|'escalar', mensaje:string}>}
  */
-async function responderLibre(texto) {
+async function responderLibre(texto, contexto = {}) {
   if (!texto) return null;
-  const out = _extraerJSON(await _invocar(FALLBACK_SYSTEM, `Mensaje del usuario: "${texto}"`, 350));
+  const { usuario, kb } = contexto;
+  let ctx = `Mensaje del usuario: "${texto}"`;
+  ctx += usuario
+    ? `\n\nDATOS DEL USUARIO: nombre="${usuario.nombre_completo || '(sin nombre)'}", rol="${usuario.rol || 'usuario'}".`
+    : `\n\nDATOS DEL USUARIO: aún no está registrado.`;
+  if (kb && kb.length) {
+    ctx += `\n\nBASE DE CONOCIMIENTO:\n` + kb.map((k) => `- ${k.pregunta || k.clave}: ${k.respuesta}`).join('\n');
+  }
+  const out = _extraerJSON(await _invocar(FALLBACK_SYSTEM, ctx, 350));
   if (!out || !out.mensaje) return null;
-  const accion = out.accion === 'escalar' ? 'escalar' : 'responder';
-  return { accion, mensaje: String(out.mensaje).trim() };
+  return { accion: out.accion === 'escalar' ? 'escalar' : 'responder', mensaje: String(out.mensaje).trim() };
 }
 
 function disponible() {

@@ -30,9 +30,15 @@ function extraerMensaje(body) {
       m.listResponseMessage?.title ||
       m.templateButtonReplyMessage?.selectedId ||
       (esImagen ? '' : null);
+    // Cuando el remitente llega como @lid, Evolution incluye el número real en remoteJidAlt.
+    const remoteJidAlt = key.remoteJidAlt || '';
+    const phoneReal = remoteJidAlt.includes('@s.whatsapp.net')
+      ? remoteJidAlt.split('@')[0].split(':')[0]
+      : (remoteJid.endsWith('@s.whatsapp.net') ? remoteJid.split('@')[0].split(':')[0] : null);
     return {
       provider: 'evolution',
       phone: remoteJid.split('@')[0].split(':')[0],
+      phoneReal, // número real (de remoteJidAlt) para reconocer usuarios registrados
       jid: remoteJid, // JID crudo (puede ser @lid) — se responde a este exacto
       fromMe: key.fromMe === true,
       id: key.id || null,
@@ -74,18 +80,8 @@ function extraerMensaje(body) {
  *    el número y que el usuario ya identificó antes.
  * 2) Por número (cuando WhatsApp entrega el remitente como número real @s.whatsapp.net).
  */
-async function buscarUsuario(jid, telefono) {
-  if (jid) {
-    const m = await query(
-      `SELECT u.id, u.nombre_completo, u.rol, u.celular, u.whatsapp_opt_in
-       FROM whatsapp_identidades wi JOIN usuarios u ON u.id = wi.usuario_id
-       WHERE wi.jid = ? AND u.activo = 1 AND (u.baneado IS NULL OR u.baneado = 0)
-       LIMIT 1`,
-      [jid]
-    ).catch(() => []);
-    if (m && m[0]) return m[0];
-  }
-  const ult10 = String(telefono || '').slice(-10);
+async function _matchCelular(telefono) {
+  const ult10 = String(telefono || '').replace(/\D/g, '').slice(-10);
   if (ult10.length < 10) return null;
   const rows = await query(
     `SELECT id, nombre_completo, rol, celular, whatsapp_opt_in
@@ -98,13 +94,42 @@ async function buscarUsuario(jid, telefono) {
   return rows && rows[0] ? rows[0] : null;
 }
 
+async function buscarUsuario(jid, telefono, telefonoReal) {
+  // 1) Por el número REAL (remoteJidAlt) — reconoce a usuarios registrados en la app
+  //    aunque escriban desde un @lid. Se auto-guarda el mapeo jid → usuario.
+  if (telefonoReal) {
+    const u = await _matchCelular(telefonoReal);
+    if (u) {
+      if (jid) await query(
+        `INSERT INTO whatsapp_identidades (jid, usuario_id) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE usuario_id = VALUES(usuario_id)`,
+        [jid, u.id]
+      ).catch(() => {});
+      return u;
+    }
+  }
+  // 2) Por mapeo de JID guardado antes (whatsapp_identidades).
+  if (jid) {
+    const m = await query(
+      `SELECT u.id, u.nombre_completo, u.rol, u.celular, u.whatsapp_opt_in
+       FROM whatsapp_identidades wi JOIN usuarios u ON u.id = wi.usuario_id
+       WHERE wi.jid = ? AND u.activo = 1 AND (u.baneado IS NULL OR u.baneado = 0)
+       LIMIT 1`,
+      [jid]
+    ).catch(() => []);
+    if (m && m[0]) return m[0];
+  }
+  // 3) Por el número del remitente (cuando llega como @s.whatsapp.net directo).
+  return await _matchCelular(telefono);
+}
+
 /** Procesa un mensaje entrante de punta a punta (idempotente). */
 async function procesarEntrante(info) {
   const telefono = whatsappService.normalizarTelefono(info.phone);
   // Aceptar texto o imagen (la imagen puede venir sin caption).
   if (!telefono || (!info.texto && !info.esImagen)) return;
 
-  const usuario = await buscarUsuario(info.jid, telefono);
+  const usuario = await buscarUsuario(info.jid, telefono, info.phoneReal);
 
   // Idempotencia + log inbound: el INSERT con UNIQUE(provider_message_id) actúa de candado.
   const esNuevo = await whatsappService.registrarMensaje({
