@@ -194,4 +194,13 @@ async function estado(req, res) {
   });
 }
 
-module.exports = { recibirWebhook, verificarWebhook, estado, buscarUsuario };
+/** GET /api/webhooks/whatsapp/bedrock-test?token=... — diagnóstico de Bedrock (gated por token). */
+async function bedrockTest(req, res) {
+  const expected = process.env.WHATSAPP_WEBHOOK_TOKEN;
+  if (expected && req.query.token !== expected) return res.sendStatus(401);
+  const nlu = require('../services/nluService');
+  const r = await nlu.probar().catch((e) => ({ ok: false, error: e.message }));
+  res.json(r);
+}
+
+module.exports = { recibirWebhook, verificarWebhook, estado, bedrockTest, buscarUsuario };

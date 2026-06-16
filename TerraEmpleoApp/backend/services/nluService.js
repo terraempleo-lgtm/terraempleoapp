@@ -185,4 +185,31 @@ function disponible() {
   return _cargarSDK();
 }
 
-module.exports = { extraerSolicitud, revisarSolicitud, responderLibre, disponible, getModelId, getRegion };
+/** Diagnóstico: intenta una invocación mínima y devuelve estado/error explícito. */
+async function probar() {
+  const info = {
+    enabled: isEnabled(), modelId: getModelId(), region: getRegion(),
+    sdk: false, ok: false, respuesta: null, error: null,
+  };
+  if (!info.enabled) { info.error = 'BEDROCK_ENABLED no es true'; return info; }
+  if (!_cargarSDK()) { info.error = 'SDK no cargó'; return info; }
+  info.sdk = true;
+  try {
+    const body = {
+      anthropic_version: 'bedrock-2023-05-31', max_tokens: 20,
+      messages: [{ role: 'user', content: 'responde solo: ok' }],
+    };
+    const res = await _client.send(new _InvokeModelCommand({
+      modelId: getModelId(), contentType: 'application/json', accept: 'application/json',
+      body: JSON.stringify(body),
+    }));
+    const payload = JSON.parse(Buffer.from(res.body).toString('utf-8'));
+    info.respuesta = payload?.content?.[0]?.text || null;
+    info.ok = true;
+  } catch (err) {
+    info.error = `${err.name}: ${err.message}`;
+  }
+  return info;
+}
+
+module.exports = { extraerSolicitud, revisarSolicitud, responderLibre, disponible, probar, getModelId, getRegion };
