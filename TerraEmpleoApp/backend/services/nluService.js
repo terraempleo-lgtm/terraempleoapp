@@ -19,22 +19,23 @@
 
 // Config leída en runtime (los secretos/env llegan desde SSM tras require()).
 function getRegion() { return process.env.BEDROCK_REGION || process.env.AWS_REGION || 'us-east-1'; }
-// Haiku 4.5 vía inference profile (us.) — verificado con acceso en la cuenta 084375580049.
-function getModelId() { return process.env.BEDROCK_MODEL_ID || 'us.anthropic.claude-haiku-4-5-20251001-v1:0'; }
+// Amazon Nova Micro: el modelo más barato de Bedrock, sin formulario de Anthropic.
+// Se usa la API Converse (unificada), así cambiar de modelo es solo cambiar este id.
+function getModelId() { return process.env.BEDROCK_MODEL_ID || 'amazon.nova-micro-v1:0'; }
 // Default 'false' (opt-in): no se llama a Bedrock hasta activarlo explícitamente
 // (BEDROCK_ENABLED=true) y haberle dado permiso bedrock:InvokeModel al backend.
 function isEnabled() { return (process.env.BEDROCK_ENABLED || 'false').toLowerCase() === 'true'; }
 
 let _client = null;
-let _InvokeModelCommand = null;
+let _ConverseCommand = null;
 
 function _cargarSDK() {
   if (!isEnabled()) return false;
   if (_client) return true;
   try {
-    const { BedrockRuntimeClient, InvokeModelCommand } = require('@aws-sdk/client-bedrock-runtime');
+    const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedrock-runtime');
     _client = new BedrockRuntimeClient({ region: getRegion() });
-    _InvokeModelCommand = InvokeModelCommand;
+    _ConverseCommand = ConverseCommand;
     return true;
   } catch (err) {
     console.warn('[NLU] Bedrock no disponible (SDK no instalado o sin credenciales). Se usará flujo guiado.');
@@ -57,25 +58,17 @@ function _extraerJSON(texto) {
   try { return JSON.parse(match[0]); } catch { return null; }
 }
 
-/** Invoca el modelo y devuelve el texto crudo (o null). */
+/** Invoca el modelo (API Converse, unificada) y devuelve el texto crudo (o null). */
 async function _invocar(system, userText, maxTokens = 400) {
   if (!_cargarSDK()) return null;
-  const body = {
-    anthropic_version: 'bedrock-2023-05-31',
-    max_tokens: maxTokens,
-    temperature: 0,
-    system,
-    messages: [{ role: 'user', content: userText }],
-  };
   try {
-    const res = await _client.send(new _InvokeModelCommand({
+    const res = await _client.send(new _ConverseCommand({
       modelId: getModelId(),
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify(body),
+      system: system ? [{ text: system }] : undefined,
+      messages: [{ role: 'user', content: [{ text: userText }] }],
+      inferenceConfig: { maxTokens, temperature: 0 },
     }));
-    const payload = JSON.parse(Buffer.from(res.body).toString('utf-8'));
-    return payload?.content?.[0]?.text || null;
+    return res?.output?.message?.content?.[0]?.text || null;
   } catch (err) {
     console.warn('[NLU] Error invocando Bedrock:', err.message);
     return null;
@@ -89,42 +82,17 @@ async function _invocar(system, userText, maxTokens = 400) {
  *          null si Bedrock no está disponible o no se pudo interpretar.
  */
 async function extraerSolicitud(texto) {
-  if (!texto || !_cargarSDK()) return null;
-
-  const body = {
-    anthropic_version: 'bedrock-2023-05-31',
-    max_tokens: 400,
-    temperature: 0,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: `Mensaje del empleador: "${texto}"` }],
+  if (!texto) return null;
+  const datos = _extraerJSON(await _invocar(SYSTEM_PROMPT, `Mensaje del empleador: "${texto}"`, 400));
+  if (!datos) return null;
+  return {
+    finca: datos.finca ? String(datos.finca).trim() : null,
+    labor: datos.labor ? String(datos.labor).trim() : null,
+    cantidad: Number.isFinite(+datos.cantidad) && +datos.cantidad > 0 ? Math.round(+datos.cantidad) : null,
+    fecha: datos.fecha ? String(datos.fecha).trim() : null,
+    pago: Number.isFinite(+datos.pago) && +datos.pago > 0 ? Math.round(+datos.pago) : null,
+    confianza: Number.isFinite(+datos.confianza) ? +datos.confianza : 0.5,
   };
-
-  try {
-    const res = await _client.send(new _InvokeModelCommand({
-      modelId: getModelId(),
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify(body),
-    }));
-    const payload = JSON.parse(Buffer.from(res.body).toString('utf-8'));
-    const texto_modelo = payload?.content?.[0]?.text || '';
-    const datos = _extraerJSON(texto_modelo);
-    if (!datos) return null;
-
-    // Normalización defensiva.
-    const limpio = {
-      finca: datos.finca ? String(datos.finca).trim() : null,
-      labor: datos.labor ? String(datos.labor).trim() : null,
-      cantidad: Number.isFinite(+datos.cantidad) && +datos.cantidad > 0 ? Math.round(+datos.cantidad) : null,
-      fecha: datos.fecha ? String(datos.fecha).trim() : null,
-      pago: Number.isFinite(+datos.pago) && +datos.pago > 0 ? Math.round(+datos.pago) : null,
-      confianza: Number.isFinite(+datos.confianza) ? +datos.confianza : 0.5,
-    };
-    return limpio;
-  } catch (err) {
-    console.warn('[NLU] Error invocando Bedrock, se usa flujo guiado:', err.message);
-    return null;
-  }
 }
 
 const REVIEW_SYSTEM =
@@ -195,16 +163,12 @@ async function probar() {
   if (!_cargarSDK()) { info.error = 'SDK no cargó'; return info; }
   info.sdk = true;
   try {
-    const body = {
-      anthropic_version: 'bedrock-2023-05-31', max_tokens: 20,
-      messages: [{ role: 'user', content: 'responde solo: ok' }],
-    };
-    const res = await _client.send(new _InvokeModelCommand({
-      modelId: getModelId(), contentType: 'application/json', accept: 'application/json',
-      body: JSON.stringify(body),
+    const res = await _client.send(new _ConverseCommand({
+      modelId: getModelId(),
+      messages: [{ role: 'user', content: [{ text: 'responde solo: ok' }] }],
+      inferenceConfig: { maxTokens: 20, temperature: 0 },
     }));
-    const payload = JSON.parse(Buffer.from(res.body).toString('utf-8'));
-    info.respuesta = payload?.content?.[0]?.text || null;
+    info.respuesta = res?.output?.message?.content?.[0]?.text || null;
     info.ok = true;
   } catch (err) {
     info.error = `${err.name}: ${err.message}`;
