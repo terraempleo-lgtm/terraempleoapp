@@ -10,7 +10,7 @@ router.get('/webhooks/whatsapp', verificarWebhook);
 
 // Diagnóstico (solo admin).
 router.get('/webhooks/whatsapp/estado', authMiddleware, adminMiddleware, estado);
-// Diagnóstico de Bedrock (gated por token del webhook).
-router.get('/webhooks/whatsapp/bedrock-test', bedrockTest);
+// Diagnóstico de Bedrock (solo admin; útil para verificar la IA).
+router.get('/webhooks/whatsapp/bedrock-test', authMiddleware, adminMiddleware, bedrockTest);
 
 module.exports = router;
