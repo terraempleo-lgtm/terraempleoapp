@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 import CamaraFoto from '../../components/CamaraFoto';
 import { useFormDraft } from '../../hooks/useFormDraft';
+import { subirFotosRegistro } from '../../utils/subirFotosRegistro';
 
 
 const TOTAL_STEPS = 9;
@@ -291,45 +292,18 @@ export default function RegisterTrabajadorScreen({ navigation }) {
       const response = await authAPI.register(data);
       const { token, user } = response.data;
 
-      // Activar token para futuras peticiones autenticadas
       setAuthToken(token);
-
-      // Borrar borrador local: registro completado
       try { await clearFormDraft(); } catch (_) {}
 
-      // Completar registro y navegación de inmediato.
-      await signIn(user, token);
-      Alert.alert('¡Bienvenido!', `Hola ${user.nombre_completo?.split(' ')[0] || ''}, tu cuenta fue creada exitosamente.`);
-
-      // Subir fotos en segundo plano para evitar bloquear la UX en este paso final.
-      const fotos = [
+      // Subir fotos obligatorias ANTES de entrar a la app
+      await subirFotosRegistro([
         { tipo: 'selfie', uri: fotoSelfie },
         { tipo: 'cedula', uri: fotoCedula },
         { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
-      ].filter(f => f.uri);
+      ]);
 
-      if (fotos.length > 0) {
-        Promise.allSettled(
-          fotos.map(async ({ tipo, uri }) => {
-            const formData = new FormData();
-            if (Platform.OS === 'web') {
-              const resp = await fetch(uri);
-              const blob = await resp.blob();
-              formData.append('foto', blob, `${tipo}_${Date.now()}.jpg`);
-            } else {
-              formData.append('foto', { uri, type: 'image/jpeg', name: `${tipo}_${Date.now()}.jpg` });
-            }
-            await authAPI.subirFoto(tipo, formData);
-          })
-        ).then((results) => {
-          results.forEach((r, idx) => {
-            if (r.status === 'rejected') {
-              const tipo = fotos[idx]?.tipo || 'desconocido';
-              console.error(`Error subiendo foto ${tipo}:`, r.reason?.response?.data || r.reason?.message || r.reason);
-            }
-          });
-        });
-      }
+      await signIn(user, token);
+      Alert.alert('¡Bienvenido!', `Hola ${user.nombre_completo?.split(' ')[0] || ''}, tu cuenta fue creada exitosamente.`);
     } catch (err) {
       console.error('Error registro trabajador:', err?.response?.status, JSON.stringify(err?.response?.data), err.message);
       let msg = 'No se pudo completar el registro. Intenta de nuevo.';

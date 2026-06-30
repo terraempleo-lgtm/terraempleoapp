@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 import CamaraFoto from '../../components/CamaraFoto';
 import { useFormDraft } from '../../hooks/useFormDraft';
+import { subirFotosRegistro } from '../../utils/subirFotosRegistro';
 
 const TOTAL_STEPS = 7;
 const STEP_LABELS = [
@@ -234,41 +235,19 @@ export default function RegisterEspecialistaScreen({ navigation }) {
       const { token, user } = response.data;
       setAuthToken(token);
       try { await clearFormDraft(); } catch (_) {}
+
+      // Subir fotos obligatorias ANTES de entrar a la app
+      await subirFotosRegistro(
+        [
+          { tipo: 'selfie', uri: fotoSelfie },
+          { tipo: 'cedula', uri: fotoCedulaDoc },
+          { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
+        ],
+        fotosPortafolio.map((uri, idx) => ({ tipo: `portafolio_${idx}`, uri }))
+      );
+
       await signIn(user, token);
       Alert.alert('¡Bienvenido!', `Hola ${user.nombre_completo?.split(' ')[0] || ''}, tu cuenta fue creada exitosamente.`);
-
-      // Subir fotos en segundo plano
-      const fotos = [
-        { tipo: 'selfie', uri: fotoSelfie },
-        { tipo: 'cedula', uri: fotoCedulaDoc },
-        { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
-        ...fotosPortafolio
-          .map((uri, idx) => ({ tipo: `portafolio_${idx}`, uri }))
-          .filter(f => f.uri),
-      ].filter(f => f.uri);
-
-      if (fotos.length > 0) {
-        Promise.allSettled(
-          fotos.map(async ({ tipo, uri }) => {
-            const formData = new FormData();
-            if (Platform.OS === 'web') {
-              const resp = await fetch(uri);
-              const blob = await resp.blob();
-              formData.append('foto', blob, `${tipo}_${Date.now()}.jpg`);
-            } else {
-              formData.append('foto', { uri, type: 'image/jpeg', name: `${tipo}_${Date.now()}.jpg` });
-            }
-            await authAPI.subirFoto(tipo, formData);
-          })
-        ).then((results) => {
-          results.forEach((r, idx) => {
-            if (r.status === 'rejected') {
-              const t = fotos[idx]?.tipo || 'desconocido';
-              console.error(`Error subiendo foto ${t}:`, r.reason?.response?.data || r.reason?.message || r.reason);
-            }
-          });
-        });
-      }
     } catch (err) {
       let msg = 'No se pudo completar el registro. Intenta de nuevo.';
       if (err.response?.data?.error) msg = err.response.data.error;

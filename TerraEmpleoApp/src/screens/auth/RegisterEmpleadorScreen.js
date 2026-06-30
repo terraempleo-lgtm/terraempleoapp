@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
 import CamaraFoto from '../../components/CamaraFoto';
 import { useFormDraft } from '../../hooks/useFormDraft';
+import { subirFotosRegistro } from '../../utils/subirFotosRegistro';
 
 const TOTAL_STEPS = 9;
 const STEP_LABELS = [
@@ -303,46 +304,21 @@ export default function RegisterEmpleadorScreen({ navigation }) {
       const response = await authAPI.register(data);
       const { token, user } = response.data;
 
-      // Activar token para futuras peticiones autenticadas
       setAuthToken(token);
-
-      // Borrar borrador local: registro completado
       try { await clearFormDraft(); } catch (_) {}
 
-      // Completar registro y navegación de inmediato.
+      // Subir fotos obligatorias ANTES de entrar a la app; fachada es opcional
+      await subirFotosRegistro(
+        [
+          { tipo: 'selfie', uri: fotoSelfie },
+          { tipo: 'cedula', uri: fotoCedula },
+          { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
+        ],
+        [{ tipo: 'finca_fachada', uri: fotoFincaFachada }]
+      );
+
       await signIn(user, token);
       Alert.alert('¡Bienvenido!', `Hola ${user.nombre_completo?.split(' ')[0] || ''}, tu cuenta fue creada exitosamente.`);
-
-      // Subir fotos en segundo plano para no bloquear el cierre del registro.
-      const todasLasFotos = [
-        { tipo: 'selfie', uri: fotoSelfie },
-        { tipo: 'cedula', uri: fotoCedula },
-        { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
-        { tipo: 'finca_fachada', uri: fotoFincaFachada },
-      ].filter((foto) => foto.uri);
-
-      if (todasLasFotos.length > 0) {
-        Promise.allSettled(
-          todasLasFotos.map(async ({ tipo, uri }) => {
-            const formData = new FormData();
-            if (Platform.OS === 'web') {
-              const resp = await fetch(uri);
-              const blob = await resp.blob();
-              formData.append('foto', blob, `${tipo}_${Date.now()}.jpg`);
-            } else {
-              formData.append('foto', { uri, type: 'image/jpeg', name: `${tipo}_${Date.now()}.jpg` });
-            }
-            await authAPI.subirFoto(tipo, formData);
-          })
-        ).then((results) => {
-          results.forEach((r, idx) => {
-            if (r.status === 'rejected') {
-              const tipo = todasLasFotos[idx]?.tipo || 'desconocido';
-              console.error(`Error subiendo foto ${tipo}:`, r.reason?.response?.data || r.reason?.message || r.reason);
-            }
-          });
-        });
-      }
     } catch (err) {
       console.error('Error registro empleador:', err?.response?.status, JSON.stringify(err?.response?.data), err.message);
       let msg = 'No se pudo completar el registro. Intenta de nuevo.';
