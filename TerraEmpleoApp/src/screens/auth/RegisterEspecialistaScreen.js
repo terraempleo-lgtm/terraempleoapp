@@ -236,8 +236,10 @@ export default function RegisterEspecialistaScreen({ navigation }) {
       setAuthToken(token);
       try { await clearFormDraft(); } catch (_) {}
 
-      // Subir fotos obligatorias ANTES de entrar a la app
-      await subirFotosRegistro(
+      await signIn(user, token);
+
+      // Subir fotos en segundo plano sin bloquear el registro
+      subirFotosRegistro(
         [
           { tipo: 'selfie', uri: fotoSelfie },
           { tipo: 'cedula', uri: fotoCedulaDoc },
@@ -245,8 +247,6 @@ export default function RegisterEspecialistaScreen({ navigation }) {
         ],
         fotosPortafolio.map((uri, idx) => ({ tipo: `portafolio_${idx}`, uri }))
       );
-
-      await signIn(user, token);
       Alert.alert('¡Bienvenido!', `Hola ${user.nombre_completo?.split(' ')[0] || ''}, tu cuenta fue creada exitosamente.`);
     } catch (err) {
       let msg = 'No se pudo completar el registro. Intenta de nuevo.';

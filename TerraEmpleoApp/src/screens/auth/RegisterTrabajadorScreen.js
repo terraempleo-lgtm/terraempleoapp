@@ -295,14 +295,14 @@ export default function RegisterTrabajadorScreen({ navigation }) {
       setAuthToken(token);
       try { await clearFormDraft(); } catch (_) {}
 
-      // Subir fotos obligatorias ANTES de entrar a la app
-      await subirFotosRegistro([
+      await signIn(user, token);
+
+      // Subir fotos en segundo plano sin bloquear el registro
+      subirFotosRegistro([
         { tipo: 'selfie', uri: fotoSelfie },
         { tipo: 'cedula', uri: fotoCedula },
         { tipo: 'selfie_cedula', uri: fotoSelfieCedula },
       ]);
-
-      await signIn(user, token);
       Alert.alert('¡Bienvenido!', `Hola ${user.nombre_completo?.split(' ')[0] || ''}, tu cuenta fue creada exitosamente.`);
     } catch (err) {
       console.error('Error registro trabajador:', err?.response?.status, JSON.stringify(err?.response?.data), err.message);

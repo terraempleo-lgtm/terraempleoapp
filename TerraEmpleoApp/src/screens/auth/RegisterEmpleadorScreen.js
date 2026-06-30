@@ -307,8 +307,10 @@ export default function RegisterEmpleadorScreen({ navigation }) {
       setAuthToken(token);
       try { await clearFormDraft(); } catch (_) {}
 
-      // Subir fotos obligatorias ANTES de entrar a la app; fachada es opcional
-      await subirFotosRegistro(
+      await signIn(user, token);
+
+      // Subir fotos en segundo plano sin bloquear el registro
+      subirFotosRegistro(
         [
           { tipo: 'selfie', uri: fotoSelfie },
           { tipo: 'cedula', uri: fotoCedula },
@@ -316,8 +318,6 @@ export default function RegisterEmpleadorScreen({ navigation }) {
         ],
         [{ tipo: 'finca_fachada', uri: fotoFincaFachada }]
       );
-
-      await signIn(user, token);
       Alert.alert('¡Bienvenido!', `Hola ${user.nombre_completo?.split(' ')[0] || ''}, tu cuenta fue creada exitosamente.`);
     } catch (err) {
       console.error('Error registro empleador:', err?.response?.status, JSON.stringify(err?.response?.data), err.message);
