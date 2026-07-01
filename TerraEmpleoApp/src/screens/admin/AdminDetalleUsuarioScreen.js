@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Image, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -50,7 +50,7 @@ function Stars({ value = 0 }) {
   );
 }
 
-export default function AdminDetalleUsuarioScreen({ route }) {
+export default function AdminDetalleUsuarioScreen({ route, navigation }) {
   const { colors, isDark } = useAppTheme();
   const usuarioId = route?.params?.usuarioId;
   const [detalle, setDetalle] = useState(null);
@@ -213,6 +213,27 @@ export default function AdminDetalleUsuarioScreen({ route }) {
             ))
           )}
         </View>
+
+        {/* Botón ver perfil público */}
+        {(user.rol === 'trabajador' || user.rol === 'especialista') && (
+          <TouchableOpacity
+            style={[styles.btnPerfil, { backgroundColor: COLORS.primary }]}
+            onPress={() => navigation.navigate('PerfilPublicoTrabajador', { trabajador_id: user.id, rol: user.rol })}
+          >
+            <Ionicons name="eye-outline" size={18} color="#fff" />
+            <Text style={styles.btnPerfilTxt}>Ver perfil como empleador</Text>
+          </TouchableOpacity>
+        )}
+        {user.rol === 'empleador' && (
+          <TouchableOpacity
+            style={[styles.btnPerfil, { backgroundColor: '#1565C0' }]}
+            onPress={() => navigation.navigate('PerfilPublicoEmpleador', { empleador_id: user.id })}
+          >
+            <Ionicons name="eye-outline" size={18} color="#fff" />
+            <Text style={styles.btnPerfilTxt}>Ver perfil como trabajador</Text>
+          </TouchableOpacity>
+        )}
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -234,6 +255,12 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     backgroundColor: COLORS.background,
   },
+  btnPerfil: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, marginTop: SPACING.md, borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl,
+  },
+  btnPerfilTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
   emptyText: {
     color: COLORS.textSecondary,
     fontSize: 15,

@@ -474,6 +474,16 @@ function AdminUsuariosStack() {
           component={AdminDetalleUsuarioScreen}
           options={{ title: 'Perfil de Usuario' }}
         />
+        <Stack.Screen
+          name="PerfilPublicoTrabajador"
+          component={PerfilPublicoTrabajadorScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PerfilPublicoEmpleador"
+          component={PerfilPublicoEmpleadorScreen}
+          options={{ title: 'Perfil del Empleador' }}
+        />
       </Stack.Navigator>
     </S>
   );
