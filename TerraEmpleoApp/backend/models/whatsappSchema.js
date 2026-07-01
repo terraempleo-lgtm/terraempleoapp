@@ -108,6 +108,7 @@ async function initWhatsappSchema() {
     ['costo', '¿Cuánto cuesta?', 'Usar TerraEmpleo y este asistente de WhatsApp es gratis, tanto para trabajadores como para empleadores.'],
     ['selfie_cedula', '¿Por qué la cédula va en la app?', 'Por seguridad, la selfie y la foto de cédula se suben en la app, no por WhatsApp. El resto del registro sí lo puedes hacer aquí.'],
     ['soporte', '¿Cómo hablo con una persona?', 'Cuéntame tu problema y con gusto te paso con un asesor de TerraEmpleo.'],
+    ['contrasena', '¿Cómo creo o cambio mi contraseña?', 'Escribe *CONTRASEÑA* aquí y te guío para crearla o cambiarla. Luego entras a la app con tu número de celular y esa contraseña.'],
   ];
   for (const [clave, pregunta, respuesta] of KB_SEED) {
     await query('INSERT IGNORE INTO whatsapp_kb (clave, pregunta, respuesta) VALUES (?, ?, ?)', [clave, pregunta, respuesta]).catch(() => {});

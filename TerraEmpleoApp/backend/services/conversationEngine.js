@@ -18,6 +18,10 @@ const FLUJO_EMPLEADOR = 'empleador_solicitud';
 const FLUJO_SOPORTE = 'soporte';
 const FLUJO_IDENT = 'identificacion';
 const FLUJO_REGISTRO = 'registro';
+const FLUJO_CLAVE = 'clave';
+
+// Palabras para crear/cambiar contraseña.
+const PALABRAS_CLAVE = ['contraseña', 'contrasena', 'clave', 'password', 'olvidé mi contraseña', 'olvide mi contraseña', 'no tengo contraseña', 'no tengo clave', 'crear contraseña', 'cambiar contraseña', 'cambiar clave'];
 
 // Pasos del flujo del empleador, en orden.
 const PASOS = ['finca', 'labor', 'cantidad', 'fecha', 'pago', 'descripcion', 'fotos', 'confirmar'];
@@ -415,6 +419,7 @@ const PREG_REG = {
   finca: '🏡 ¿Cómo se llama tu *finca o empresa*?',
   tipo_pago: '💵 ¿Cómo pagas normalmente? (jornal / semanal / quincenal / por kilo)',
   habeas: `Para crear tu cuenta debes aceptar el tratamiento de datos (política: ${LINK_HABEAS}).\nResponde *ACEPTO* para continuar.`,
+  password: '🔐 Por último, crea una *contraseña* para entrar a la app (mínimo 6 caracteres). Escríbela aquí.',
 };
 
 /** Inserta el split de una lista separada por comas en una tabla hija. */
@@ -443,8 +448,11 @@ async function crearUsuarioDesdeWhatsapp(datos, jid) {
     return { ok: false, motivo: 'ya_existe', usuarioId: existe[0].id };
   }
 
-  const claveTemp = Math.random().toString(36).slice(2, 8).toUpperCase();
-  const hash = await bcrypt.hash(claveTemp, 10);
+  // Contraseña elegida por el usuario (mín 6). Si faltara, se genera una temporal.
+  const clave = (datos.password && String(datos.password).length >= 6)
+    ? String(datos.password)
+    : Math.random().toString(36).slice(2, 8).toUpperCase();
+  const hash = await bcrypt.hash(clave, 10);
   const rol = datos.rol === 'empleador' ? 'empleador' : 'trabajador';
 
   const res = await query(
@@ -470,7 +478,17 @@ async function crearUsuarioDesdeWhatsapp(datos, jid) {
   }
 
   if (jid) await guardarIdentidad(jid, usuarioId);
-  return { ok: true, usuarioId, claveTemp };
+  return { ok: true, usuarioId, claveTemp: clave };
+}
+
+/** Fija la contraseña (bcrypt) de un usuario. Devuelve {ok} o {ok:false, motivo}. */
+async function setPasswordUsuario(usuarioId, plain) {
+  const pass = String(plain || '').trim();
+  if (pass.length < 6) return { ok: false, motivo: 'corta' };
+  const bcrypt = require('bcryptjs');
+  const hash = await bcrypt.hash(pass, 10);
+  await query('UPDATE usuarios SET password_hash = ? WHERE id = ?', [hash, usuarioId]);
+  return { ok: true };
 }
 
 /**
@@ -539,11 +557,21 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     const pareceOfertas = PALABRAS_OFERTAS.some((p) => textoLower.includes(p));
     const pareceRegistro = PALABRAS_REGISTRO.some((p) => textoLower.includes(p));
     const pareceSaludo = PALABRAS_SALUDO.some((p) => textoLower === p || textoLower.startsWith(p + ' ') || textoLower.startsWith(p + ','));
+    const pareceClave = PALABRAS_CLAVE.some((p) => textoLower.includes(p));
 
     // 1) Soporte tiene prioridad: cualquiera puede pedir ayuda humana.
     if (pareceSoporte) {
       const id = await crearConversacion(telefono, usuario ? usuario.id : null, FLUJO_SOPORTE, 'describir');
       return { reply: soporteIntro(), conversacionId: id };
+    }
+
+    // 1.5) Crear / cambiar contraseña (para poder entrar a la app).
+    if (pareceClave) {
+      if (usuario) {
+        const id = await crearConversacion(telefono, usuario.id, FLUJO_CLAVE, 'nueva');
+        return { reply: '🔐 Escribe la *nueva contraseña* para entrar a la app (mínimo 6 caracteres).', conversacionId: id };
+      }
+      return { reply: 'No encontré una cuenta con este número. Si eres nuevo escribe *REGISTRARME* para crear tu cuenta. 🌱' };
     }
 
     // 2) Empleador reconocido con intención de contratar → flujo de solicitud.
@@ -776,24 +804,32 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
         if (!['ACEPTO', 'SI', 'SÍ', 'ACEPTAR'].includes(upper)) {
           return { reply: 'Para crear tu cuenta responde *ACEPTO* (o *CANCELAR* para salir).', conversacionId: conv.id };
         }
+        await actualizarConversacion(conv.id, { paso: 'password', datos });
+        return { reply: PREG_REG.password, conversacionId: conv.id };
+      }
+      case 'password': {
+        if (comando.trim().length < 6) {
+          return { reply: '🔐 La contraseña debe tener al menos 6 caracteres. Escríbela de nuevo.', conversacionId: conv.id };
+        }
+        datos.password = comando.trim();
         const r = await crearUsuarioDesdeWhatsapp(datos, jid);
-        await actualizarConversacion(conv.id, { estado: 'completada', datos });
+        await actualizarConversacion(conv.id, { estado: 'completada', datos: { ...datos, password: undefined } });
         if (!r.ok && r.motivo === 'ya_existe') {
-          return { reply: `Ya tienes una cuenta con ese número. Entra a la app con tu celular 👉 ${LINK_APP}`, conversacionId: conv.id };
+          return { reply: `Ya tienes una cuenta con ese número. Si olvidaste tu clave, escribe *CONTRASEÑA* y te ayudo. Entra a la app 👉 ${LINK_APP}`, conversacionId: conv.id };
         }
         // Trabajador nuevo → buscarle vacantes que encajen y avisarle por WhatsApp (background).
         if (r.ok && datos.rol === 'trabajador') {
           const { ejecutarMatchingParaTrabajador } = require('../controllers/vacantesController');
           ejecutarMatchingParaTrabajador(r.usuarioId).catch((e) => console.error('[WhatsApp] match registro:', e.message));
         }
+        const celMostrar = String(datos.celular || '').replace(/\D/g, '');
         const queSigue = datos.rol === 'trabajador'
           ? 'Te avisaré ofertas por aquí. Para *postularte* y terminar tu registro (foto y cédula), entra a la app.'
           : 'Ya puedes publicar solicitudes por aquí (escribe *Necesito trabajadores*). Termina tu perfil en la app.';
         return {
           reply:
             `✅ ¡Listo, ${(datos.nombre || '').split(' ')[0]}! Tu cuenta quedó creada (pendiente de aprobación).\n\n` +
-            `🔑 Clave temporal: *${r.claveTemp}* (cámbiala en la app)\n` +
-            `📲 Descarga la app: ${LINK_APP}\n\n${queSigue}`,
+            `📲 Entra a la app con:\n   • Usuario (celular): *${celMostrar}*\n   • Tu contraseña\n   ${LINK_APP}\n\n${queSigue}`,
           conversacionId: conv.id,
         };
       }
@@ -801,6 +837,22 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
         await actualizarConversacion(conv.id, { estado: 'cancelada' });
         return { reply: 'Reiniciemos. Escribe *REGISTRARME* para crear tu cuenta.', conversacionId: conv.id };
     }
+  }
+
+  // ── Conversación activa: crear/cambiar contraseña ────────────────────────
+  if (conv.flujo === FLUJO_CLAVE) {
+    const r = await setPasswordUsuario(conv.usuario_id, comando);
+    if (!r.ok) {
+      return { reply: '🔐 La contraseña debe tener al menos 6 caracteres. Escríbela de nuevo.', conversacionId: conv.id };
+    }
+    await actualizarConversacion(conv.id, { estado: 'completada' });
+    const u = await query('SELECT celular FROM usuarios WHERE id = ?', [conv.usuario_id]).catch(() => []);
+    const cel = u && u[0] ? String(u[0].celular).replace(/\D/g, '') : '';
+    return {
+      reply:
+        `✅ ¡Contraseña actualizada! Entra a la app con:\n   • Usuario (celular): *${cel}*\n   • Tu nueva contraseña\n   ${LINK_APP}\n\nPuedes cambiarla luego desde la app.`,
+      conversacionId: conv.id,
+    };
   }
 
   // ── Conversación activa: flujo de soporte ────────────────────────────────
@@ -818,9 +870,11 @@ module.exports = {
   // exportados para pruebas
   crearVacanteDesdeWhatsapp,
   crearUsuarioDesdeWhatsapp,
+  setPasswordUsuario,
   enviarOfertas,
   limpiarRespuesta,
   FLUJO_EMPLEADOR,
   FLUJO_REGISTRO,
+  FLUJO_CLAVE,
   PASOS,
 };
