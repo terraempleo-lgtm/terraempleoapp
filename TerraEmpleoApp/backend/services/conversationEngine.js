@@ -436,12 +436,14 @@ async function insertarLista(texto, sql, mapFn) {
  */
 async function crearUsuarioDesdeWhatsapp(datos, jid) {
   const bcrypt = require('bcryptjs');
-  const celular = String(datos.celular || '').replace(/\D/g, '');
-  const celNorm = celular.length === 10 ? '57' + celular : celular;
+  const { normalizePhone } = require('../helpers/normalizePhone');
+  const celDigits = String(datos.celular || '').replace(/\D/g, '');
+  // Mismo formato E.164 (+57...) que usa el registro de la app → el login lo encuentra.
+  const celNorm = normalizePhone(datos.celular) || (celDigits.length === 10 ? '+57' + celDigits : '+' + celDigits);
   // ¿Ya existe?
   const existe = await query(
     `SELECT id FROM usuarios WHERE RIGHT(REPLACE(REPLACE(celular,'+',''),' ',''),10) = ? LIMIT 1`,
-    [celular.slice(-10)]
+    [celDigits.slice(-10)]
   ).catch(() => []);
   if (existe && existe[0]) {
     if (jid) await guardarIdentidad(jid, existe[0].id);
