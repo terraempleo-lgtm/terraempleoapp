@@ -154,7 +154,13 @@ async function detalleFinca(req, res) {
 async function actualizarFinca(req, res) {
   try {
     const fincaId = Number(req.params.id);
-    const acc = await accesoFinca(fincaId, req.user.id, { soloPropietario: true });
+    // Los precios del cuaderno (jornal, kilo, alimentación) los puede ajustar
+    // también el administrador; el resto de la configuración es solo del propietario.
+    const CAMPOS_PRECIOS = ['precio_jornal_default', 'precio_kilo_default', 'precio_alimentacion'];
+    const soloPrecios = Object.keys(req.body).every((k) => CAMPOS_PRECIOS.includes(k));
+    const acc = soloPrecios
+      ? await accesoFinca(fincaId, req.user.id, { escribir: true })
+      : await accesoFinca(fincaId, req.user.id, { soloPropietario: true });
     if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
 
     const campos = {
@@ -167,6 +173,9 @@ async function actualizarFinca(req, res) {
       kg_por_arroba: req.body.kg_por_arroba,
       kg_por_carga: req.body.kg_por_carga,
       umbral_merma_pct: req.body.umbral_merma_pct,
+      precio_jornal_default: req.body.precio_jornal_default,
+      precio_kilo_default: req.body.precio_kilo_default,
+      precio_alimentacion: req.body.precio_alimentacion,
     };
     if (campos.modalidad_alimentacion &&
         !['incluida', 'independiente'].includes(campos.modalidad_alimentacion)) {

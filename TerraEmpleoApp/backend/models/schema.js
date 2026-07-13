@@ -944,6 +944,54 @@ async function initializeDatabase() {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_asistencias.firma:', e.message);
   }
 
+  // Migración: check-out del trabajador (hora de salida) en la asistencia.
+  try {
+    await query('ALTER TABLE cuaderno_asistencias ADD COLUMN IF NOT EXISTS hora_salida TIME DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_asistencias.hora_salida:', e.message);
+  }
+
+  // Migración: precios por defecto del cuaderno en la finca
+  // (jornal, kilo y alimentación — la alimentación se descuenta del pago si el trabajador la tomó).
+  try {
+    await query('ALTER TABLE fincas ADD COLUMN IF NOT EXISTS precio_jornal_default DECIMAL(12,2) DEFAULT NULL');
+    await query('ALTER TABLE fincas ADD COLUMN IF NOT EXISTS precio_kilo_default DECIMAL(12,2) DEFAULT NULL');
+    await query('ALTER TABLE fincas ADD COLUMN IF NOT EXISTS precio_alimentacion DECIMAL(12,2) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fincas.precios cuaderno:', e.message);
+  }
+
+  // Migración: descuentos (alimentación u otros) en el registro de trabajo.
+  try {
+    await query('ALTER TABLE cuaderno_registros_trabajo ADD COLUMN IF NOT EXISTS descuento_alimentacion DECIMAL(12,2) NOT NULL DEFAULT 0');
+    await query('ALTER TABLE cuaderno_registros_trabajo ADD COLUMN IF NOT EXISTS descuento_otro DECIMAL(12,2) NOT NULL DEFAULT 0');
+    await query('ALTER TABLE cuaderno_registros_trabajo ADD COLUMN IF NOT EXISTS descuento_nota VARCHAR(200) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_registros_trabajo.descuentos:', e.message);
+  }
+
+  // ── Muro de compra/venta (mercado entre agricultores) ─────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS muro_publicaciones (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      usuario_id INT NOT NULL,
+      tipo ENUM('venta','compra') NOT NULL DEFAULT 'venta',
+      producto VARCHAR(150) NOT NULL,
+      descripcion TEXT DEFAULT NULL,
+      cantidad VARCHAR(100) DEFAULT NULL,
+      precio DECIMAL(14,2) DEFAULT NULL,
+      unidad VARCHAR(30) DEFAULT NULL,
+      foto_url VARCHAR(512) DEFAULT NULL,
+      ubicacion VARCHAR(200) DEFAULT NULL,
+      estado ENUM('activa','cerrada') NOT NULL DEFAULT 'activa',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_muro_estado_fecha (estado, created_at),
+      INDEX idx_muro_usuario (usuario_id),
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   console.log('Base de datos inicializada correctamente.');
 }
 

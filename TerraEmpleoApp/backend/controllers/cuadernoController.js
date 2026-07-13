@@ -17,22 +17,25 @@ async function asegurarPropiedadJornada(jornadaId, empleadorId) {
   return { ok: true };
 }
 
-function calcPago({ tipo_pago, cantidad_kg, horas, precio_jornal, precio_kilo, estado }) {
+function calcPago({ tipo_pago, cantidad_kg, horas, precio_jornal, precio_kilo, estado, descuento_alimentacion, descuento_otro }) {
   if (estado === 'cancelado') return 0;
   const kg = Number(cantidad_kg) || 0;
   const pk = Number(precio_kilo) || 0;
   const pj = Number(precio_jornal) || 0;
-  if (tipo_pago === 'por_kilo') return Math.round(kg * pk * 100) / 100;
-  if (tipo_pago === 'jornal') {
+  let base = 0;
+  if (tipo_pago === 'por_kilo') base = kg * pk;
+  else if (tipo_pago === 'jornal') {
     if (estado === 'parcial' && horas != null) {
       // parcial: prorratea sobre 8 horas
       const h = Number(horas) || 0;
-      return Math.round((pj * (h / 8)) * 100) / 100;
+      base = pj * (h / 8);
+    } else {
+      base = pj;
     }
-    return pj;
-  }
-  if (tipo_pago === 'mixto') return Math.round((pj + kg * pk) * 100) / 100;
-  return 0;
+  } else if (tipo_pago === 'mixto') base = pj + kg * pk;
+  // Descuentos (alimentación tomada, adelantos u otros): nunca dejar el pago negativo.
+  const desc = (Number(descuento_alimentacion) || 0) + (Number(descuento_otro) || 0);
+  return Math.max(0, Math.round((base - desc) * 100) / 100);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -154,6 +157,7 @@ async function detalleJornada(req, res) {
         u.calificacion_promedio AS trabajador_calif,
         r.id AS registro_id, r.cantidad_kg, r.horas, r.tipo_pago, r.precio_jornal AS r_precio_jornal,
         r.precio_kilo AS r_precio_kilo, r.pago_total, r.pagado, r.estado AS registro_estado, r.notas AS registro_notas,
+        r.descuento_alimentacion, r.descuento_otro, r.descuento_nota,
         c.id AS calificacion_id, c.nivel AS calif_nivel, c.comentario AS calif_comentario
       FROM cuaderno_asistencias a
       LEFT JOIN usuarios u ON u.id = a.trabajador_id
@@ -265,7 +269,7 @@ async function actualizarAsistencia(req, res) {
       return res.status(403).json({ error: 'Sin acceso' });
     }
 
-    const campos = ['estado','hora_llegada','notas'];
+    const campos = ['estado','hora_llegada','hora_salida','notas'];
     const sets = [];
     const params = [];
     for (const c of campos) {
@@ -273,6 +277,10 @@ async function actualizarAsistencia(req, res) {
         sets.push(`${c} = ?`);
         params.push(req.body[c]);
       }
+    }
+    // Check-in automático: si marca que llegó y no se envió hora, guardar la hora actual.
+    if (['llego', 'llego_tarde'].includes(req.body.estado) && req.body.hora_llegada === undefined) {
+      sets.push('hora_llegada = COALESCE(hora_llegada, CURRENT_TIME)');
     }
     if (!sets.length) return res.json({ message: 'Sin cambios' });
     params.push(asisId);
@@ -329,19 +337,23 @@ async function upsertRegistroTrabajo(req, res) {
 
     const {
       cantidad_kg, horas, tipo_pago, precio_jornal, precio_kilo,
-      estado, notas, pagado
+      estado, notas, pagado, descuento_alimentacion, descuento_otro, descuento_nota
     } = req.body;
 
     const tipo = tipo_pago || a.tipo_pago_default || 'jornal';
     const pj = precio_jornal != null ? Number(precio_jornal) : (a.j_pj || 0);
     const pk = precio_kilo != null ? Number(precio_kilo) : (a.j_pk || 0);
     const est = estado || 'completo';
+    const descAlim = Number(descuento_alimentacion) || 0;
+    const descOtro = Number(descuento_otro) || 0;
     const pagoTotal = calcPago({
       tipo_pago: tipo,
       cantidad_kg, horas,
       precio_jornal: pj,
       precio_kilo: pk,
       estado: est,
+      descuento_alimentacion: descAlim,
+      descuento_otro: descOtro,
     });
 
     const existentes = await query(
@@ -353,11 +365,13 @@ async function upsertRegistroTrabajo(req, res) {
       await query(`
         UPDATE cuaderno_registros_trabajo SET
           cantidad_kg = ?, horas = ?, tipo_pago = ?, precio_jornal = ?, precio_kilo = ?,
-          pago_total = ?, estado = ?, notas = ?, pagado = ?
+          pago_total = ?, estado = ?, notas = ?, pagado = ?,
+          descuento_alimentacion = ?, descuento_otro = ?, descuento_nota = ?
         WHERE asistencia_id = ?
       `, [
         cantidad_kg ?? null, horas ?? null, tipo, pj, pk,
         pagoTotal, est, notas || null, pagado ? 1 : 0,
+        descAlim, descOtro, descuento_nota || null,
         asisId,
       ]);
       return res.json({ message: 'Registro actualizado', pago_total: pagoTotal });
@@ -366,11 +380,13 @@ async function upsertRegistroTrabajo(req, res) {
     await query(`
       INSERT INTO cuaderno_registros_trabajo
         (asistencia_id, jornada_id, cantidad_kg, horas, tipo_pago,
-         precio_jornal, precio_kilo, pago_total, estado, notas, pagado)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         precio_jornal, precio_kilo, pago_total, estado, notas, pagado,
+         descuento_alimentacion, descuento_otro, descuento_nota)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       asisId, a.jornada_id, cantidad_kg ?? null, horas ?? null, tipo,
       pj, pk, pagoTotal, est, notas || null, pagado ? 1 : 0,
+      descAlim, descOtro, descuento_nota || null,
     ]);
 
     res.status(201).json({ message: 'Registro creado', pago_total: pagoTotal });
