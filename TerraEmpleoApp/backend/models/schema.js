@@ -690,6 +690,9 @@ async function initializeDatabase() {
       FOREIGN KEY (trabajador_id) REFERENCES usuarios(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+  // Nota: finca_id se agrega a esta tabla (y a cuaderno_notas_trabajador) más
+  // abajo vía ALTER TABLE, después de que la tabla `fincas` ya existe — ver
+  // migración "scoping por finca: notas y trabajadores_externos".
 
   // ── Módulo Finca Cafetera · Fase 1: Finanzas ───────────────────────────────
   // Entidad finca: cuelga parámetros de conversión y la modalidad de alimentación.
@@ -1048,6 +1051,63 @@ async function initializeDatabase() {
     if (!/Duplicate column|Duplicate key name|errno: 121|foreign key constraint/i.test(e.message)) {
       console.warn('[Migration] cuaderno_asistencias.trabajador_externo_id:', e.message);
     }
+  }
+
+  // Migración: scoping por finca para notas del cuaderno y trabajadores
+  // externos — mismo criterio que cuaderno_jornadas.finca_id (ver arriba):
+  // antes se veían/editaban solo por quien los creó, lo que rompía en
+  // cuanto hay capataces compartiendo la misma finca.
+  try {
+    await query('ALTER TABLE cuaderno_notas_trabajador ADD COLUMN finca_id INT DEFAULT NULL');
+    await query('ALTER TABLE cuaderno_notas_trabajador ADD INDEX idx_cuad_notas_finca (finca_id)');
+    await query('ALTER TABLE cuaderno_notas_trabajador ADD FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE SET NULL');
+    console.log('[Migration] cuaderno_notas_trabajador.finca_id agregada.');
+  } catch (e) {
+    if (!/Duplicate column|Duplicate key name|errno: 121|foreign key constraint/i.test(e.message)) {
+      console.warn('[Migration] cuaderno_notas_trabajador.finca_id:', e.message);
+    }
+  }
+  try {
+    await query('ALTER TABLE trabajadores_externos ADD COLUMN finca_id INT DEFAULT NULL');
+    await query('ALTER TABLE trabajadores_externos ADD INDEX idx_trabext_finca (finca_id)');
+    await query('ALTER TABLE trabajadores_externos ADD FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE SET NULL');
+    console.log('[Migration] trabajadores_externos.finca_id agregada.');
+  } catch (e) {
+    if (!/Duplicate column|Duplicate key name|errno: 121|foreign key constraint/i.test(e.message)) {
+      console.warn('[Migration] trabajadores_externos.finca_id:', e.message);
+    }
+  }
+
+  // Backfill: igual que con cuaderno_jornadas, si el creador tiene
+  // exactamente una finca se le asigna esa sin ambigüedad. Ninguna de las
+  // dos tablas tiene un campo de texto libre con nombre de finca, así que
+  // no hay una segunda pasada por coincidencia de nombre — lo que quede sin
+  // resolver es porque el creador tiene (o tenía) más de una finca.
+  try {
+    await query(`
+      UPDATE cuaderno_notas_trabajador n
+      JOIN fincas f ON f.empleador_id = n.empleador_id
+      LEFT JOIN fincas f2 ON f2.empleador_id = n.empleador_id AND f2.id <> f.id
+      SET n.finca_id = f.id
+      WHERE n.finca_id IS NULL AND f2.id IS NULL
+    `);
+    const [{ cnt: cntNotas }] = await query('SELECT COUNT(*) AS cnt FROM cuaderno_notas_trabajador WHERE finca_id IS NULL');
+    console.log(`[Migration] cuaderno_notas_trabajador backfill de finca_id: ${cntNotas} nota(s) sin resolver (siguen visibles solo para quien las creó).`);
+  } catch (e) {
+    console.warn('[Migration] cuaderno_notas_trabajador backfill finca_id:', e.message);
+  }
+  try {
+    await query(`
+      UPDATE trabajadores_externos te
+      JOIN fincas f ON f.empleador_id = te.creado_por_empleador_id
+      LEFT JOIN fincas f2 ON f2.empleador_id = te.creado_por_empleador_id AND f2.id <> f.id
+      SET te.finca_id = f.id
+      WHERE te.finca_id IS NULL AND f2.id IS NULL
+    `);
+    const [{ cnt: cntExternos }] = await query('SELECT COUNT(*) AS cnt FROM trabajadores_externos WHERE finca_id IS NULL');
+    console.log(`[Migration] trabajadores_externos backfill de finca_id: ${cntExternos} registro(s) sin resolver (siguen visibles solo para quien los creó).`);
+  } catch (e) {
+    console.warn('[Migration] trabajadores_externos backfill finca_id:', e.message);
   }
 
   console.log('Base de datos inicializada correctamente.');

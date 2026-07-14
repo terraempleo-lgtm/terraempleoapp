@@ -527,13 +527,23 @@ async function upsertCalificacion(req, res) {
 
 async function crearNota(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const { trabajador_id, manual_nombre, nota, tipo } = req.body;
     if (!nota) return res.status(400).json({ error: 'La nota es obligatoria' });
+
+    // Resolver la finca del usuario logueado (dueña o capataz) con permiso de
+    // escritura — la nota queda visible para toda la finca, no solo para quien la escribió.
+    const fincas = await obtenerFincasUsuario(usuarioId, req.user.rol);
+    const fincaEscribible = fincas.find((f) => CUADERNO_ESCRITORES.includes(f.rol_finca));
+    if (!fincaEscribible) {
+      return res.status(403).json({ error: 'No tienes permiso para crear notas en esta finca' });
+    }
+    const fincaId = Number(fincaEscribible.id);
+
     const result = await query(`
-      INSERT INTO cuaderno_notas_trabajador (empleador_id, trabajador_id, manual_nombre, nota, tipo)
-      VALUES (?, ?, ?, ?, ?)
-    `, [empleadorId, trabajador_id || null, manual_nombre || null, nota, tipo || 'observacion']);
+      INSERT INTO cuaderno_notas_trabajador (empleador_id, finca_id, trabajador_id, manual_nombre, nota, tipo)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [usuarioId, fincaId, trabajador_id || null, manual_nombre || null, nota, tipo || 'observacion']);
     res.status(201).json({ message: 'Nota creada', id: Number(result.insertId) });
   } catch (err) {
     console.error('crearNota:', err);
@@ -543,11 +553,12 @@ async function crearNota(req, res) {
 
 async function eliminarNota(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const notaId = Number(req.params.id);
-    const rows = await query('SELECT empleador_id FROM cuaderno_notas_trabajador WHERE id = ?', [notaId]);
+    const rows = await query('SELECT empleador_id, finca_id FROM cuaderno_notas_trabajador WHERE id = ?', [notaId]);
     if (!rows?.length) return res.status(404).json({ error: 'Nota no encontrada' });
-    if (Number(rows[0].empleador_id) !== Number(empleadorId)) return res.status(403).json({ error: 'Sin acceso' });
+    const acc = await permisoJornadaResuelta(rows[0].finca_id, rows[0].empleador_id, usuarioId, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
     await query('DELETE FROM cuaderno_notas_trabajador WHERE id = ?', [notaId]);
     res.json({ message: 'Nota eliminada' });
   } catch (err) {
@@ -763,13 +774,13 @@ async function historialTrabajador(req, res) {
       ORDER BY j.fecha DESC
     `, [fincaIds, usuarioId, trabajadorId]);
 
-    // Notas libres: privadas de quien las escribió (no se comparten entre
-    // dueña/capataz), a diferencia de las jornadas que sí son de la finca.
+    // Notas libres: ahora son de la finca (finca_id), no solo de quien las
+    // escribió — dueña y capataz comparten las mismas notas sobre un trabajador.
     const notas = await query(`
       SELECT * FROM cuaderno_notas_trabajador
-      WHERE empleador_id = ? AND trabajador_id = ?
+      WHERE (finca_id IN (?) OR (finca_id IS NULL AND empleador_id = ?)) AND trabajador_id = ?
       ORDER BY created_at DESC
-    `, [usuarioId, trabajadorId]);
+    `, [fincaIds, usuarioId, trabajadorId]);
 
     // Métricas
     const total = (jornadas || []).length;
@@ -823,7 +834,7 @@ async function historialTrabajador(req, res) {
 // se acumule entre fincas distintas hasta que se registre.
 async function crearTrabajadorExterno(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const { nombre_completo, cedula, celular } = req.body;
     if (!nombre_completo || !String(nombre_completo).trim()) {
       return res.status(400).json({ error: 'El nombre completo es obligatorio' });
@@ -838,10 +849,20 @@ async function crearTrabajadorExterno(req, res) {
       return res.status(201).json(existente[0]);
     }
 
+    // Resolver la finca del usuario logueado (dueña o capataz) con permiso de
+    // escritura — así la dueña ve al externo en su propia "mis-trabajadores"
+    // aunque lo haya dado de alta el capataz.
+    const fincas = await obtenerFincasUsuario(usuarioId, req.user.rol);
+    const fincaEscribible = fincas.find((f) => CUADERNO_ESCRITORES.includes(f.rol_finca));
+    if (!fincaEscribible) {
+      return res.status(403).json({ error: 'No tienes permiso para crear trabajadores externos en esta finca' });
+    }
+    const fincaId = Number(fincaEscribible.id);
+
     const result = await query(
-      `INSERT INTO trabajadores_externos (cedula, nombre_completo, celular, creado_por_empleador_id)
-       VALUES (?, ?, ?, ?)`,
-      [cedulaNorm, String(nombre_completo).trim(), celular || null, empleadorId]
+      `INSERT INTO trabajadores_externos (cedula, nombre_completo, celular, creado_por_empleador_id, finca_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [cedulaNorm, String(nombre_completo).trim(), celular || null, usuarioId, fincaId]
     );
     res.status(201).json({
       id: Number(result.insertId),
@@ -905,16 +926,16 @@ async function misTrabajadores(req, res) {
       GROUP BY COALESCE(a.trabajador_externo_id, CONCAT('m_', a.manual_nombre))
     `, [fincaIds, usuarioId]);
 
-    // Externos creados por este usuario que aún no tienen ninguna jornada
-    // registrada — deben aparecer con jornadas=0. (trabajadores_externos no
-    // tiene finca_id todavía, así que esto sigue acotado a quien los creó;
-    // ver nota en el resumen de esta respuesta.)
+    // Externos de la finca que aún no tienen ninguna jornada registrada —
+    // deben aparecer con jornadas=0. Ya scopeado por finca_id (no por quién
+    // los creó), así que un externo dado de alta por el capataz también
+    // aparece en la lista de la dueña.
     const externosSinJornada = await query(`
       SELECT te.id AS trabajador_externo_id, te.cedula, te.nombre_completo AS nombre, te.celular AS telefono
       FROM trabajadores_externos te
-      WHERE te.creado_por_empleador_id = ?
+      WHERE (te.finca_id IN (?) OR (te.finca_id IS NULL AND te.creado_por_empleador_id = ?))
         AND NOT EXISTS (SELECT 1 FROM cuaderno_asistencias a WHERE a.trabajador_externo_id = te.id)
-    `, [usuarioId]);
+    `, [fincaIds, usuarioId]);
 
     const numOrZero = (v) => Number(v) || 0;
     const round2 = (v) => Math.round(numOrZero(v) * 100) / 100;
