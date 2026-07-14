@@ -816,10 +816,17 @@ async function misTrabajadores(req, res) {
         u.foto_selfie AS foto,
         u.celular AS telefono,
         COUNT(a.id) AS jornadas,
-        MAX(j.fecha) AS ultima_fecha
+        MAX(j.fecha) AS ultima_fecha,
+        SUM(CASE WHEN c.nivel = 'bien' THEN 1 ELSE 0 END) AS calif_bien,
+        SUM(CASE WHEN c.nivel = 'regular' THEN 1 ELSE 0 END) AS calif_regular,
+        SUM(CASE WHEN c.nivel = 'mal' THEN 1 ELSE 0 END) AS calif_mal,
+        SUM(r.cantidad_kg) AS total_kg,
+        SUM(r.pago_total) AS total_pagado
       FROM cuaderno_asistencias a
       JOIN cuaderno_jornadas j ON j.id = a.jornada_id
       JOIN usuarios u ON u.id = a.trabajador_id
+      LEFT JOIN cuaderno_calificaciones_internas c ON c.asistencia_id = a.id
+      LEFT JOIN cuaderno_registros_trabajo r ON r.asistencia_id = a.id
       WHERE j.empleador_id = ? AND a.trabajador_id IS NOT NULL
       GROUP BY u.id, u.nombre_completo, u.foto_selfie, u.celular
     `, [empleadorId]);
@@ -829,10 +836,17 @@ async function misTrabajadores(req, res) {
         COALESCE(te.nombre_completo, a.manual_nombre) AS nombre,
         COALESCE(te.celular, MAX(a.manual_telefono)) AS telefono,
         COUNT(a.id) AS jornadas,
-        MAX(j.fecha) AS ultima_fecha
+        MAX(j.fecha) AS ultima_fecha,
+        SUM(CASE WHEN c.nivel = 'bien' THEN 1 ELSE 0 END) AS calif_bien,
+        SUM(CASE WHEN c.nivel = 'regular' THEN 1 ELSE 0 END) AS calif_regular,
+        SUM(CASE WHEN c.nivel = 'mal' THEN 1 ELSE 0 END) AS calif_mal,
+        SUM(r.cantidad_kg) AS total_kg,
+        SUM(r.pago_total) AS total_pagado
       FROM cuaderno_asistencias a
       JOIN cuaderno_jornadas j ON j.id = a.jornada_id
       LEFT JOIN trabajadores_externos te ON te.id = a.trabajador_externo_id
+      LEFT JOIN cuaderno_calificaciones_internas c ON c.asistencia_id = a.id
+      LEFT JOIN cuaderno_registros_trabajo r ON r.asistencia_id = a.id
       WHERE j.empleador_id = ? AND a.trabajador_id IS NULL
         AND (a.manual_nombre IS NOT NULL AND a.manual_nombre <> '' OR a.trabajador_externo_id IS NOT NULL)
       GROUP BY COALESCE(a.trabajador_externo_id, CONCAT('m_', a.manual_nombre))
@@ -847,8 +861,19 @@ async function misTrabajadores(req, res) {
         AND NOT EXISTS (SELECT 1 FROM cuaderno_asistencias a WHERE a.trabajador_externo_id = te.id)
     `, [empleadorId]);
 
+    const numOrZero = (v) => Number(v) || 0;
+    const round2 = (v) => Math.round(numOrZero(v) * 100) / 100;
+
     const trabajadores = [
-      ...(registrados || []).map((r) => ({ ...r, externo: 0 })),
+      ...(registrados || []).map((r) => ({
+        ...r,
+        externo: 0,
+        calif_bien: numOrZero(r.calif_bien),
+        calif_regular: numOrZero(r.calif_regular),
+        calif_mal: numOrZero(r.calif_mal),
+        total_kg: round2(r.total_kg),
+        total_pagado: round2(r.total_pagado),
+      })),
       ...(externosConJornada || []).map((e) => ({
         trabajador_id: null,
         trabajador_externo_id: e.trabajador_externo_id || null,
@@ -859,6 +884,11 @@ async function misTrabajadores(req, res) {
         jornadas: e.jornadas,
         ultima_fecha: e.ultima_fecha,
         externo: 1,
+        calif_bien: numOrZero(e.calif_bien),
+        calif_regular: numOrZero(e.calif_regular),
+        calif_mal: numOrZero(e.calif_mal),
+        total_kg: round2(e.total_kg),
+        total_pagado: round2(e.total_pagado),
       })),
       ...(externosSinJornada || []).map((e) => ({
         trabajador_id: null,
@@ -870,6 +900,11 @@ async function misTrabajadores(req, res) {
         jornadas: 0,
         ultima_fecha: null,
         externo: 1,
+        calif_bien: 0,
+        calif_regular: 0,
+        calif_mal: 0,
+        total_kg: 0,
+        total_pagado: 0,
       })),
     ].sort((x, y) => String(y.ultima_fecha || '').localeCompare(String(x.ultima_fecha || '')));
 
