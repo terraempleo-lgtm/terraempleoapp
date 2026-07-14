@@ -824,6 +824,24 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Nota libre por semana de nómina (no de un trabajador en particular) — ej.
+  // "esta semana se descontó el préstamo a Juan". Una por finca y semana
+  // (upsert por finca_id + semana_inicio).
+  await query(`
+    CREATE TABLE IF NOT EXISTS nomina_notas (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      finca_id INT NOT NULL,
+      semana_inicio DATE NOT NULL,
+      semana_fin DATE DEFAULT NULL,
+      nota TEXT NOT NULL,
+      actualizado_por INT DEFAULT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_nomina_nota_finca_semana (finca_id, semana_inicio),
+      FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE,
+      FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // ── Módulo Finca Cafetera · Fase 3: Conversión y antifraude ────────────────
   // Lote de café: agrupa la cereza recolectada (de un rango de fechas) y guarda
   // la estimación de pergamino seco / arrobas / cargas con el factor de la finca.

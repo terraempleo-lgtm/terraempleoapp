@@ -21,6 +21,20 @@ async function permisoJornadaResuelta(fincaId, creadorId, usuarioId, { escribir 
   return accesoFinca(fincaId, usuarioId, { escribir, escritores: CUADERNO_ESCRITORES });
 }
 
+// Resuelve la finca "principal" del usuario logueado (dueña o capataz) para
+// operaciones que no cuelgan de una jornada/asistencia puntual, como la nota
+// de nómina. Con escritura=true solo cuenta si su rol_finca puede escribir.
+async function resolverFincaUsuario(usuarioId, rol, { escribir = false } = {}) {
+  const fincas = await obtenerFincasUsuario(usuarioId, rol);
+  if (!fincas.length) return null;
+  if (!escribir) return Number(fincas[0].id);
+  const f = fincas.find((x) => CUADERNO_ESCRITORES.includes(x.rol_finca));
+  return f ? Number(f.id) : null;
+}
+
+const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
+const NOTA_MAX_LEN = 2000;
+
 const TIPOS_AJUSTE = ['bonificacion', 'descuento', 'anticipo', 'labor_extra'];
 // Signo con que cada ajuste afecta el neto a pagar.
 const SIGNO = { bonificacion: 1, labor_extra: 1, descuento: -1, anticipo: -1 };
@@ -229,4 +243,65 @@ async function planilla(req, res) {
   }
 }
 
-module.exports = { agregarAjuste, eliminarAjuste, marcarFirma, planilla };
+// ─────────────────────────────────────────────────────────────────────────────
+// Nota libre de nómina por semana (no de un trabajador en particular).
+// GET/PUT /cuaderno/nomina/nota?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+// ─────────────────────────────────────────────────────────────────────────────
+async function obtenerNotaNomina(req, res) {
+  try {
+    const usuarioId = req.user.id;
+    const { desde } = req.query;
+    if (!desde || !FECHA_RE.test(desde)) {
+      return res.status(400).json({ error: 'desde es obligatorio (YYYY-MM-DD)' });
+    }
+
+    const fincaId = await resolverFincaUsuario(usuarioId, req.user.rol);
+    if (!fincaId) return res.status(403).json({ error: 'No tienes acceso a ninguna finca' });
+
+    const rows = await query(
+      'SELECT nota FROM nomina_notas WHERE finca_id = ? AND semana_inicio = ?',
+      [fincaId, desde]
+    );
+    res.json({ nota: (rows && rows[0] && rows[0].nota) || '' });
+  } catch (err) {
+    console.error('obtenerNotaNomina:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+async function guardarNotaNomina(req, res) {
+  try {
+    const usuarioId = req.user.id;
+    const { desde, hasta } = req.body;
+    const nota = req.body.nota != null ? String(req.body.nota) : '';
+
+    if (!desde || !FECHA_RE.test(desde)) {
+      return res.status(400).json({ error: 'desde es obligatorio (YYYY-MM-DD)' });
+    }
+    if (hasta !== undefined && hasta !== null && !FECHA_RE.test(hasta)) {
+      return res.status(400).json({ error: 'hasta debe tener formato YYYY-MM-DD' });
+    }
+    if (nota.length > NOTA_MAX_LEN) {
+      return res.status(400).json({ error: `La nota no puede superar ${NOTA_MAX_LEN} caracteres` });
+    }
+
+    const fincaId = await resolverFincaUsuario(usuarioId, req.user.rol, { escribir: true });
+    if (!fincaId) return res.status(403).json({ error: 'Tu rol en la finca es de solo lectura' });
+
+    await query(
+      `INSERT INTO nomina_notas (finca_id, semana_inicio, semana_fin, nota, actualizado_por)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE semana_fin = VALUES(semana_fin), nota = VALUES(nota), actualizado_por = VALUES(actualizado_por)`,
+      [fincaId, desde, hasta || null, nota, usuarioId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('guardarNotaNomina:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+module.exports = {
+  agregarAjuste, eliminarAjuste, marcarFirma, planilla,
+  obtenerNotaNomina, guardarNotaNomina,
+};

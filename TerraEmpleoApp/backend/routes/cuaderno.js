@@ -12,6 +12,8 @@ router.get('/dashboard', cuaderno.dashboard);
 
 // Nómina semanal (planilla agregada por trabajador) — Fase 2
 router.get('/nomina', nomina.planilla);
+router.get('/nomina/nota', nomina.obtenerNotaNomina);
+router.put('/nomina/nota', nomina.guardarNotaNomina);
 router.post('/asistencias/:asisId/ajustes', nomina.agregarAjuste);
 router.delete('/ajustes/:id', nomina.eliminarAjuste);
 router.put('/asistencias/:asisId/firma', nomina.marcarFirma);
