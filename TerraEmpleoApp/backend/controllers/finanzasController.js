@@ -69,7 +69,11 @@ async function calcularResumen(finca, periodo) {
       GROUP BY c.tipo`,
     [periodo.id]
   );
-  const porTipo = { ingreso: 0, gasto_fijo: 0, gasto_variable: 0, factura: 0 };
+  // 'nomina' se agrega aquí solo para que quede disponible si se necesita a
+  // futuro, pero NO entra en total_gastos/diferencia: esa combinación
+  // (nómina real del Cuaderno + nómina migrada tipo 'nomina') la hace el
+  // frontend leyendo el array `conceptos`/`movimientos` del tablero.
+  const porTipo = { ingreso: 0, gasto_fijo: 0, gasto_variable: 0, factura: 0, nomina: 0 };
   for (const r of tot || []) porTipo[r.tipo] = Number(r.total) || 0;
 
   // Nómina: se LEE del Cuaderno (no se duplica). Jornadas de esta finca
@@ -123,7 +127,7 @@ async function tablero(req, res) {
     );
     const conceptos = await query(
       `SELECT * FROM fin_conceptos WHERE finca_id = ? AND activo = 1
-        ORDER BY FIELD(tipo,'ingreso','gasto_fijo','gasto_variable','factura'), orden, id`,
+        ORDER BY FIELD(tipo,'ingreso','gasto_fijo','gasto_variable','factura','nomina'), orden, id`,
       [fincaId]
     );
     const movimientos = await query(
@@ -227,7 +231,7 @@ async function upsertMovimiento(req, res) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Conceptos (catálogo configurable)
 // ─────────────────────────────────────────────────────────────────────────────
-const TIPOS = ['ingreso', 'gasto_fijo', 'gasto_variable', 'factura'];
+const TIPOS = ['ingreso', 'gasto_fijo', 'gasto_variable', 'factura', 'nomina'];
 const PERIODICIDADES = ['semanal', 'mensual', 'bimensual'];
 
 async function crearConcepto(req, res) {

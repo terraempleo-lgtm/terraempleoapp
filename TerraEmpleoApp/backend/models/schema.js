@@ -772,7 +772,7 @@ async function initializeDatabase() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       finca_id INT NOT NULL,
       nombre VARCHAR(150) NOT NULL,
-      tipo ENUM('ingreso','gasto_fijo','gasto_variable','factura') NOT NULL,
+      tipo ENUM('ingreso','gasto_fijo','gasto_variable','factura','nomina') NOT NULL,
       periodicidad ENUM('semanal','mensual','bimensual') NOT NULL DEFAULT 'semanal',
       orden INT NOT NULL DEFAULT 0,
       activo TINYINT(1) NOT NULL DEFAULT 1,
@@ -1108,6 +1108,15 @@ async function initializeDatabase() {
     console.log(`[Migration] trabajadores_externos backfill de finca_id: ${cntExternos} registro(s) sin resolver (siguen visibles solo para quien los creó).`);
   } catch (e) {
     console.warn('[Migration] trabajadores_externos backfill finca_id:', e.message);
+  }
+
+  // Migración: nuevo tipo de concepto 'nomina' (nómina histórica/migrada de
+  // Excel, o pagos manuales aparte de las jornadas reales del Cuaderno).
+  try {
+    await query(`ALTER TABLE fin_conceptos MODIFY COLUMN tipo ENUM('ingreso','gasto_fijo','gasto_variable','factura','nomina') NOT NULL`);
+    console.log('[Migration] fin_conceptos.tipo: agregado valor "nomina".');
+  } catch (e) {
+    console.warn('[Migration] fin_conceptos.tipo nomina:', e.message);
   }
 
   console.log('Base de datos inicializada correctamente.');
