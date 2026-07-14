@@ -1,20 +1,50 @@
 const { query } = require('../config/database');
+const { obtenerFincasUsuario, accesoFinca } = require('./fincaController');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// Helpers — scoping por finca (no por "quién creó el registro")
+//
+// Las jornadas cuelgan de una finca (finca_id), no de un usuario único: dueña
+// y capataces (finca_usuarios.rol_finca) comparten el mismo cuaderno. El
+// 'contador' queda de solo lectura aquí (a diferencia de accesoFinca genérico,
+// donde sí puede escribir conceptos financieros).
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function asegurarPropiedadJornada(jornadaId, empleadorId) {
+const CUADERNO_ESCRITORES = ['propietario', 'administrador', 'auxiliar'];
+
+// Fincas a las que pertenece el usuario, como array de ids listo para "IN (?)".
+// Devuelve [0] (id inexistente) si no pertenece a ninguna, para que la
+// cláusula siga siendo SQL válido sin necesitar una rama aparte.
+async function fincaIdsDeUsuario(usuarioId, rol) {
+  const fincas = await obtenerFincasUsuario(usuarioId, rol);
+  const ids = fincas.map((f) => Number(f.id));
+  return ids.length ? ids : [0];
+}
+
+// Permiso sobre una jornada ya resuelta (finca_id + empleador_id = creador
+// original). Jornadas previas a las cuentas de capataz que no pudieron
+// backfillearse a una finca (ver migración en schema.js) solo las ve/edita
+// quien las creó.
+async function permisoJornadaResuelta(fincaId, creadorId, usuarioId, { escribir = false } = {}) {
+  if (!fincaId) {
+    if (Number(creadorId) !== Number(usuarioId)) {
+      return { ok: false, status: 403, error: 'No tienes acceso a esta jornada' };
+    }
+    return { ok: true };
+  }
+  return accesoFinca(fincaId, usuarioId, { escribir, escritores: CUADERNO_ESCRITORES });
+}
+
+async function permisoJornada(jornadaId, usuarioId, opts = {}) {
   const rows = await query(
-    'SELECT id, empleador_id FROM cuaderno_jornadas WHERE id = ?',
+    'SELECT id, finca_id, empleador_id FROM cuaderno_jornadas WHERE id = ?',
     [jornadaId]
   );
   const j = rows && rows[0];
   if (!j) return { ok: false, status: 404, error: 'Jornada no encontrada' };
-  if (Number(j.empleador_id) !== Number(empleadorId)) {
-    return { ok: false, status: 403, error: 'No tienes acceso a esta jornada' };
-  }
-  return { ok: true };
+  const acc = await permisoJornadaResuelta(j.finca_id, j.empleador_id, usuarioId, opts);
+  if (!acc.ok) return acc;
+  return { ok: true, finca_id: j.finca_id };
 }
 
 function calcPago({ tipo_pago, cantidad_kg, horas, precio_jornal, precio_kilo, estado, descuento_alimentacion, descuento_otro }) {
@@ -44,10 +74,11 @@ function calcPago({ tipo_pago, cantidad_kg, horas, precio_jornal, precio_kilo, e
 
 async function listarJornadas(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
+    const fincaIds = await fincaIdsDeUsuario(usuarioId, req.user.rol);
     const { desde, hasta, estado, vacante_id } = req.query;
-    const where = ['j.empleador_id = ?'];
-    const params = [empleadorId];
+    const where = ['(j.finca_id IN (?) OR (j.finca_id IS NULL AND j.empleador_id = ?))'];
+    const params = [fincaIds, usuarioId];
     if (desde) { where.push('j.fecha >= ?'); params.push(desde); }
     if (hasta) { where.push('j.fecha <= ?'); params.push(hasta); }
     if (estado) { where.push('j.estado = ?'); params.push(estado); }
@@ -74,7 +105,7 @@ async function listarJornadas(req, res) {
 
 async function crearJornada(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const {
       fecha, titulo, finca, tipo_trabajo, vacante_id,
       tipo_pago_default, precio_jornal, precio_kilo,
@@ -83,9 +114,18 @@ async function crearJornada(req, res) {
 
     if (!fecha) return res.status(400).json({ error: 'La fecha es obligatoria' });
 
+    // Resolver la finca del usuario logueado (dueña o capataz) con permiso de
+    // escritura sobre el cuaderno — la jornada se crea siempre dentro de ella.
+    const fincas = await obtenerFincasUsuario(usuarioId, req.user.rol);
+    const fincaEscribible = fincas.find((f) => CUADERNO_ESCRITORES.includes(f.rol_finca));
+    if (!fincaEscribible) {
+      return res.status(403).json({ error: 'No tienes permiso para crear jornadas en esta finca' });
+    }
+    const fincaId = Number(fincaEscribible.id);
+
     // Validar que la vacante (si viene) pertenezca al empleador
     if (vacante_id) {
-      const v = await query('SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?', [vacante_id, empleadorId]);
+      const v = await query('SELECT id FROM vacantes WHERE id = ? AND empleador_id = ?', [vacante_id, usuarioId]);
       if (!v || v.length === 0) {
         return res.status(403).json({ error: 'La vacante no te pertenece' });
       }
@@ -93,11 +133,12 @@ async function crearJornada(req, res) {
 
     const result = await query(`
       INSERT INTO cuaderno_jornadas
-        (empleador_id, vacante_id, fecha, titulo, finca, tipo_trabajo,
+        (empleador_id, finca_id, vacante_id, fecha, titulo, finca, tipo_trabajo,
          tipo_pago_default, precio_jornal, precio_kilo, costos_generales, observaciones)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      empleadorId,
+      usuarioId,
+      fincaId,
       vacante_id || null,
       fecha,
       titulo || null,
@@ -135,10 +176,10 @@ async function crearJornada(req, res) {
 
 async function detalleJornada(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const jornadaId = Number(req.params.id);
 
-    const guard = await asegurarPropiedadJornada(jornadaId, empleadorId);
+    const guard = await permisoJornada(jornadaId, usuarioId);
     if (!guard.ok) return res.status(guard.status).json({ error: guard.error });
 
     const jornadas = await query(`
@@ -176,9 +217,9 @@ async function detalleJornada(req, res) {
 
 async function actualizarJornada(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const jornadaId = Number(req.params.id);
-    const guard = await asegurarPropiedadJornada(jornadaId, empleadorId);
+    const guard = await permisoJornada(jornadaId, usuarioId, { escribir: true });
     if (!guard.ok) return res.status(guard.status).json({ error: guard.error });
 
     const campos = ['fecha','titulo','finca','tipo_trabajo','tipo_pago_default','precio_jornal','precio_kilo','costos_generales','observaciones','estado'];
@@ -204,9 +245,9 @@ async function actualizarJornada(req, res) {
 
 async function eliminarJornada(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const jornadaId = Number(req.params.id);
-    const guard = await asegurarPropiedadJornada(jornadaId, empleadorId);
+    const guard = await permisoJornada(jornadaId, usuarioId, { escribir: true });
     if (!guard.ok) return res.status(guard.status).json({ error: guard.error });
     await query('DELETE FROM cuaderno_jornadas WHERE id = ?', [jornadaId]);
     res.json({ message: 'Jornada eliminada' });
@@ -222,9 +263,9 @@ async function eliminarJornada(req, res) {
 
 async function agregarAsistencia(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const jornadaId = Number(req.params.id);
-    const guard = await asegurarPropiedadJornada(jornadaId, empleadorId);
+    const guard = await permisoJornada(jornadaId, usuarioId, { escribir: true });
     if (!guard.ok) return res.status(guard.status).json({ error: guard.error });
 
     const { trabajador_id, trabajador_externo_id, manual_nombre, manual_telefono, estado } = req.body;
@@ -273,19 +314,18 @@ async function agregarAsistencia(req, res) {
 
 async function actualizarAsistencia(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const asisId = Number(req.params.asisId);
 
     const rows = await query(`
-      SELECT a.id, j.empleador_id, a.jornada_id FROM cuaderno_asistencias a
+      SELECT a.id, j.empleador_id, j.finca_id, a.jornada_id FROM cuaderno_asistencias a
       JOIN cuaderno_jornadas j ON j.id = a.jornada_id
       WHERE a.id = ?
     `, [asisId]);
     const a = rows?.[0];
     if (!a) return res.status(404).json({ error: 'Asistencia no encontrada' });
-    if (Number(a.empleador_id) !== Number(empleadorId)) {
-      return res.status(403).json({ error: 'Sin acceso' });
-    }
+    const acc = await permisoJornadaResuelta(a.finca_id, a.empleador_id, usuarioId, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
 
     const campos = ['estado','hora_llegada','hora_salida','notas'];
     const sets = [];
@@ -312,18 +352,17 @@ async function actualizarAsistencia(req, res) {
 
 async function eliminarAsistencia(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const asisId = Number(req.params.asisId);
     const rows = await query(`
-      SELECT a.id, j.empleador_id FROM cuaderno_asistencias a
+      SELECT a.id, j.empleador_id, j.finca_id FROM cuaderno_asistencias a
       JOIN cuaderno_jornadas j ON j.id = a.jornada_id
       WHERE a.id = ?
     `, [asisId]);
     const a = rows?.[0];
     if (!a) return res.status(404).json({ error: 'Asistencia no encontrada' });
-    if (Number(a.empleador_id) !== Number(empleadorId)) {
-      return res.status(403).json({ error: 'Sin acceso' });
-    }
+    const acc = await permisoJornadaResuelta(a.finca_id, a.empleador_id, usuarioId, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
     await query('DELETE FROM cuaderno_asistencias WHERE id = ?', [asisId]);
     res.json({ message: 'Asistencia eliminada' });
   } catch (err) {
@@ -338,20 +377,19 @@ async function eliminarAsistencia(req, res) {
 
 async function upsertRegistroTrabajo(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const asisId = Number(req.params.asisId);
 
     const rows = await query(`
-      SELECT a.id, a.jornada_id, j.empleador_id, j.precio_jornal AS j_pj, j.precio_kilo AS j_pk, j.tipo_pago_default
+      SELECT a.id, a.jornada_id, j.empleador_id, j.finca_id, j.precio_jornal AS j_pj, j.precio_kilo AS j_pk, j.tipo_pago_default
       FROM cuaderno_asistencias a
       JOIN cuaderno_jornadas j ON j.id = a.jornada_id
       WHERE a.id = ?
     `, [asisId]);
     const a = rows?.[0];
     if (!a) return res.status(404).json({ error: 'Asistencia no encontrada' });
-    if (Number(a.empleador_id) !== Number(empleadorId)) {
-      return res.status(403).json({ error: 'Sin acceso' });
-    }
+    const acc = await permisoJornadaResuelta(a.finca_id, a.empleador_id, usuarioId, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
 
     const {
       cantidad_kg, horas, tipo_pago, precio_jornal, precio_kilo,
@@ -416,16 +454,17 @@ async function upsertRegistroTrabajo(req, res) {
 
 async function marcarPagado(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const asisId = Number(req.params.asisId);
     const { pagado } = req.body;
     const rows = await query(`
-      SELECT a.id, j.empleador_id FROM cuaderno_asistencias a
+      SELECT a.id, j.empleador_id, j.finca_id FROM cuaderno_asistencias a
       JOIN cuaderno_jornadas j ON j.id = a.jornada_id WHERE a.id = ?
     `, [asisId]);
     const a = rows?.[0];
     if (!a) return res.status(404).json({ error: 'Asistencia no encontrada' });
-    if (Number(a.empleador_id) !== Number(empleadorId)) return res.status(403).json({ error: 'Sin acceso' });
+    const acc = await permisoJornadaResuelta(a.finca_id, a.empleador_id, usuarioId, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
 
     await query(`
       UPDATE cuaderno_registros_trabajo
@@ -445,21 +484,22 @@ async function marcarPagado(req, res) {
 
 async function upsertCalificacion(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const asisId = Number(req.params.asisId);
     const { nivel, comentario } = req.body;
     if (!['bien','regular','mal'].includes(nivel)) {
       return res.status(400).json({ error: 'Nivel inválido' });
     }
     const rows = await query(`
-      SELECT a.id, a.trabajador_id, a.jornada_id, j.empleador_id
+      SELECT a.id, a.trabajador_id, a.jornada_id, j.empleador_id, j.finca_id
       FROM cuaderno_asistencias a
       JOIN cuaderno_jornadas j ON j.id = a.jornada_id
       WHERE a.id = ?
     `, [asisId]);
     const a = rows?.[0];
     if (!a) return res.status(404).json({ error: 'Asistencia no encontrada' });
-    if (Number(a.empleador_id) !== Number(empleadorId)) return res.status(403).json({ error: 'Sin acceso' });
+    const acc = await permisoJornadaResuelta(a.finca_id, a.empleador_id, usuarioId, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
 
     const exist = await query('SELECT id FROM cuaderno_calificaciones_internas WHERE asistencia_id = ?', [asisId]);
     if (exist && exist.length) {
@@ -473,7 +513,7 @@ async function upsertCalificacion(req, res) {
       INSERT INTO cuaderno_calificaciones_internas
         (asistencia_id, jornada_id, empleador_id, trabajador_id, nivel, comentario)
       VALUES (?, ?, ?, ?, ?, ?)
-    `, [asisId, a.jornada_id, empleadorId, a.trabajador_id || null, nivel, comentario || null]);
+    `, [asisId, a.jornada_id, usuarioId, a.trabajador_id || null, nivel, comentario || null]);
     res.status(201).json({ message: 'Calificación guardada' });
   } catch (err) {
     console.error('upsertCalificacion:', err);
@@ -522,7 +562,12 @@ async function eliminarNota(req, res) {
 
 async function dashboard(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
+    const fincaIds = await fincaIdsDeUsuario(usuarioId, req.user.rol);
+    // Fragmento reutilizado: la jornada es de la finca de "usuarioId" si su
+    // finca_id está entre las suyas, o si es una jornada legacy (finca_id NULL)
+    // que él mismo creó (ver migración de backfill en schema.js).
+    const scope = (alias) => `(${alias}.finca_id IN (?) OR (${alias}.finca_id IS NULL AND ${alias}.empleador_id = ?))`;
     const hoy = new Date();
     const hace7 = new Date(hoy); hace7.setDate(hoy.getDate() - 7);
     const hace30 = new Date(hoy); hace30.setDate(hoy.getDate() - 30);
@@ -530,31 +575,35 @@ async function dashboard(req, res) {
 
     const [resumen] = await query(`
       SELECT
-        (SELECT COUNT(*) FROM cuaderno_jornadas WHERE empleador_id = ?) AS jornadas_total,
-        (SELECT COUNT(*) FROM cuaderno_jornadas WHERE empleador_id = ? AND estado = 'planeada') AS jornadas_pendientes,
-        (SELECT COUNT(*) FROM cuaderno_jornadas WHERE empleador_id = ? AND estado = 'en_curso') AS jornadas_activas,
-        (SELECT COUNT(*) FROM cuaderno_jornadas WHERE empleador_id = ? AND estado = 'cerrada') AS jornadas_cerradas,
+        (SELECT COUNT(*) FROM cuaderno_jornadas j WHERE ${scope('j')}) AS jornadas_total,
+        (SELECT COUNT(*) FROM cuaderno_jornadas j WHERE ${scope('j')} AND estado = 'planeada') AS jornadas_pendientes,
+        (SELECT COUNT(*) FROM cuaderno_jornadas j WHERE ${scope('j')} AND estado = 'en_curso') AS jornadas_activas,
+        (SELECT COUNT(*) FROM cuaderno_jornadas j WHERE ${scope('j')} AND estado = 'cerrada') AS jornadas_cerradas,
         (SELECT COUNT(DISTINCT COALESCE(a.trabajador_id, CONCAT('m_', a.manual_nombre)))
            FROM cuaderno_asistencias a
            JOIN cuaderno_jornadas j ON j.id = a.jornada_id
-           WHERE j.empleador_id = ? AND a.estado IN ('llego','llego_tarde')) AS trabajadores_contratados,
+           WHERE ${scope('j')} AND a.estado IN ('llego','llego_tarde')) AS trabajadores_contratados,
         (SELECT COALESCE(SUM(r.pago_total),0)
            FROM cuaderno_registros_trabajo r
            JOIN cuaderno_jornadas j ON j.id = r.jornada_id
-           WHERE j.empleador_id = ?) AS total_pagado,
+           WHERE ${scope('j')}) AS total_pagado,
         (SELECT COALESCE(SUM(r.cantidad_kg),0)
            FROM cuaderno_registros_trabajo r
            JOIN cuaderno_jornadas j ON j.id = r.jornada_id
-           WHERE j.empleador_id = ?) AS total_kg,
+           WHERE ${scope('j')}) AS total_kg,
         (SELECT COUNT(*)
            FROM cuaderno_asistencias a
            JOIN cuaderno_jornadas j ON j.id = a.jornada_id
-           WHERE j.empleador_id = ? AND a.estado IN ('llego','llego_tarde')) AS asistencias_total,
+           WHERE ${scope('j')} AND a.estado IN ('llego','llego_tarde')) AS asistencias_total,
         (SELECT COUNT(*)
            FROM cuaderno_asistencias a
            JOIN cuaderno_jornadas j ON j.id = a.jornada_id
-           WHERE j.empleador_id = ? AND a.estado IN ('llego','llego_tarde','no_llego','cancelo')) AS asistencias_evaluables
-    `, [empleadorId, empleadorId, empleadorId, empleadorId, empleadorId, empleadorId, empleadorId, empleadorId, empleadorId]);
+           WHERE ${scope('j')} AND a.estado IN ('llego','llego_tarde','no_llego','cancelo')) AS asistencias_evaluables
+    `, [
+      fincaIds, usuarioId, fincaIds, usuarioId, fincaIds, usuarioId, fincaIds, usuarioId,
+      fincaIds, usuarioId, fincaIds, usuarioId, fincaIds, usuarioId, fincaIds, usuarioId,
+      fincaIds, usuarioId,
+    ]);
 
     // Promedio asistencia (porcentaje)
     const asistenciasTotal = Number(resumen?.asistencias_total || 0);
@@ -571,11 +620,11 @@ async function dashboard(req, res) {
         COALESCE(SUM(r.pago_total),0) AS pago
       FROM cuaderno_jornadas j
       LEFT JOIN cuaderno_registros_trabajo r ON r.jornada_id = j.id
-      WHERE j.empleador_id = ?
+      WHERE ${scope('j')}
       GROUP BY tipo
       ORDER BY pago DESC
       LIMIT 8
-    `, [empleadorId]);
+    `, [fincaIds, usuarioId]);
 
     // Top trabajadores (por calificación + asistencia)
     const topTrabajadores = await query(`
@@ -595,12 +644,12 @@ async function dashboard(req, res) {
       LEFT JOIN usuarios u ON u.id = a.trabajador_id
       LEFT JOIN cuaderno_calificaciones_internas c ON c.asistencia_id = a.id
       LEFT JOIN cuaderno_registros_trabajo r ON r.asistencia_id = a.id
-      WHERE j.empleador_id = ?
+      WHERE ${scope('j')}
       GROUP BY a.trabajador_id, nombre, foto
       HAVING jornadas > 0
       ORDER BY calif_bien DESC, asistio DESC, total_kg DESC
       LIMIT 10
-    `, [empleadorId]);
+    `, [fincaIds, usuarioId]);
 
     // Historial de pagos (últimos 20)
     const historialPagos = await query(`
@@ -611,10 +660,10 @@ async function dashboard(req, res) {
       JOIN cuaderno_jornadas j ON j.id = r.jornada_id
       JOIN cuaderno_asistencias a ON a.id = r.asistencia_id
       LEFT JOIN usuarios u ON u.id = a.trabajador_id
-      WHERE j.empleador_id = ?
+      WHERE ${scope('j')}
       ORDER BY j.fecha DESC, r.id DESC
       LIMIT 20
-    `, [empleadorId]);
+    `, [fincaIds, usuarioId]);
 
     // Tendencia semanal últimos 8 semanas: jornadas + pago
     const semanal = await query(`
@@ -625,10 +674,10 @@ async function dashboard(req, res) {
         COALESCE(SUM(r.cantidad_kg),0) AS kg
       FROM cuaderno_jornadas j
       LEFT JOIN cuaderno_registros_trabajo r ON r.jornada_id = j.id
-      WHERE j.empleador_id = ? AND j.fecha >= ?
+      WHERE ${scope('j')} AND j.fecha >= ?
       GROUP BY semana
       ORDER BY semana ASC
-    `, [empleadorId, fmt(new Date(hoy.getTime() - 1000 * 60 * 60 * 24 * 56))]);
+    `, [fincaIds, usuarioId, fmt(new Date(hoy.getTime() - 1000 * 60 * 60 * 24 * 56))]);
 
     // Tendencia mensual últimos 6 meses
     const mensual = await query(`
@@ -638,11 +687,11 @@ async function dashboard(req, res) {
         COALESCE(SUM(r.cantidad_kg),0) AS kg
       FROM cuaderno_jornadas j
       LEFT JOIN cuaderno_registros_trabajo r ON r.jornada_id = j.id
-      WHERE j.empleador_id = ?
+      WHERE ${scope('j')}
       GROUP BY mes
       ORDER BY mes DESC
       LIMIT 6
-    `, [empleadorId]);
+    `, [fincaIds, usuarioId]);
 
     // Por finca (comparativa)
     const porFinca = await query(`
@@ -652,21 +701,21 @@ async function dashboard(req, res) {
         COALESCE(SUM(r.cantidad_kg),0) AS kg
       FROM cuaderno_jornadas j
       LEFT JOIN cuaderno_registros_trabajo r ON r.jornada_id = j.id
-      WHERE j.empleador_id = ?
+      WHERE ${scope('j')}
       GROUP BY finca
       ORDER BY pago DESC
       LIMIT 8
-    `, [empleadorId]);
+    `, [fincaIds, usuarioId]);
 
     // Próximas jornadas
     const proximas = await query(`
       SELECT j.id, j.fecha, j.titulo, j.finca, j.estado,
         (SELECT COUNT(*) FROM cuaderno_asistencias a WHERE a.jornada_id = j.id) AS total_trabajadores
       FROM cuaderno_jornadas j
-      WHERE j.empleador_id = ? AND j.fecha >= ? AND j.estado <> 'cerrada'
+      WHERE ${scope('j')} AND j.fecha >= ? AND j.estado <> 'cerrada'
       ORDER BY j.fecha ASC
       LIMIT 5
-    `, [empleadorId, fmt(hoy)]);
+    `, [fincaIds, usuarioId, fmt(hoy)]);
 
     res.json({
       resumen: { ...(resumen || {}), promedio_asistencia },
@@ -690,8 +739,9 @@ async function dashboard(req, res) {
 
 async function historialTrabajador(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
     const trabajadorId = Number(req.params.id);
+    const fincaIds = await fincaIdsDeUsuario(usuarioId, req.user.rol);
 
     const [usuario] = await query(`
       SELECT id, nombre_completo, celular, foto_selfie, calificacion_promedio, total_calificaciones,
@@ -709,15 +759,17 @@ async function historialTrabajador(req, res) {
       JOIN cuaderno_jornadas j ON j.id = a.jornada_id
       LEFT JOIN cuaderno_registros_trabajo r ON r.asistencia_id = a.id
       LEFT JOIN cuaderno_calificaciones_internas c ON c.asistencia_id = a.id
-      WHERE j.empleador_id = ? AND a.trabajador_id = ?
+      WHERE (j.finca_id IN (?) OR (j.finca_id IS NULL AND j.empleador_id = ?)) AND a.trabajador_id = ?
       ORDER BY j.fecha DESC
-    `, [empleadorId, trabajadorId]);
+    `, [fincaIds, usuarioId, trabajadorId]);
 
+    // Notas libres: privadas de quien las escribió (no se comparten entre
+    // dueña/capataz), a diferencia de las jornadas que sí son de la finca.
     const notas = await query(`
       SELECT * FROM cuaderno_notas_trabajador
       WHERE empleador_id = ? AND trabajador_id = ?
       ORDER BY created_at DESC
-    `, [empleadorId, trabajadorId]);
+    `, [usuarioId, trabajadorId]);
 
     // Métricas
     const total = (jornadas || []).length;
@@ -808,7 +860,8 @@ async function crearTrabajadorExterno(req, res) {
 
 async function misTrabajadores(req, res) {
   try {
-    const empleadorId = req.user.id;
+    const usuarioId = req.user.id;
+    const fincaIds = await fincaIdsDeUsuario(usuarioId, req.user.rol);
 
     const registrados = await query(`
       SELECT u.id AS trabajador_id,
@@ -827,9 +880,9 @@ async function misTrabajadores(req, res) {
       JOIN usuarios u ON u.id = a.trabajador_id
       LEFT JOIN cuaderno_calificaciones_internas c ON c.asistencia_id = a.id
       LEFT JOIN cuaderno_registros_trabajo r ON r.asistencia_id = a.id
-      WHERE j.empleador_id = ? AND a.trabajador_id IS NOT NULL
+      WHERE (j.finca_id IN (?) OR (j.finca_id IS NULL AND j.empleador_id = ?)) AND a.trabajador_id IS NOT NULL
       GROUP BY u.id, u.nombre_completo, u.foto_selfie, u.celular
-    `, [empleadorId]);
+    `, [fincaIds, usuarioId]);
 
     const externosConJornada = await query(`
       SELECT te.id AS trabajador_externo_id, te.cedula,
@@ -847,19 +900,21 @@ async function misTrabajadores(req, res) {
       LEFT JOIN trabajadores_externos te ON te.id = a.trabajador_externo_id
       LEFT JOIN cuaderno_calificaciones_internas c ON c.asistencia_id = a.id
       LEFT JOIN cuaderno_registros_trabajo r ON r.asistencia_id = a.id
-      WHERE j.empleador_id = ? AND a.trabajador_id IS NULL
+      WHERE (j.finca_id IN (?) OR (j.finca_id IS NULL AND j.empleador_id = ?)) AND a.trabajador_id IS NULL
         AND (a.manual_nombre IS NOT NULL AND a.manual_nombre <> '' OR a.trabajador_externo_id IS NOT NULL)
       GROUP BY COALESCE(a.trabajador_externo_id, CONCAT('m_', a.manual_nombre))
-    `, [empleadorId]);
+    `, [fincaIds, usuarioId]);
 
-    // Externos creados por este empleador que aún no tienen ninguna jornada
-    // registrada — deben aparecer con jornadas=0.
+    // Externos creados por este usuario que aún no tienen ninguna jornada
+    // registrada — deben aparecer con jornadas=0. (trabajadores_externos no
+    // tiene finca_id todavía, así que esto sigue acotado a quien los creó;
+    // ver nota en el resumen de esta respuesta.)
     const externosSinJornada = await query(`
       SELECT te.id AS trabajador_externo_id, te.cedula, te.nombre_completo AS nombre, te.celular AS telefono
       FROM trabajadores_externos te
       WHERE te.creado_por_empleador_id = ?
         AND NOT EXISTS (SELECT 1 FROM cuaderno_asistencias a WHERE a.trabajador_externo_id = te.id)
-    `, [empleadorId]);
+    `, [usuarioId]);
 
     const numOrZero = (v) => Number(v) || 0;
     const round2 = (v) => Math.round(numOrZero(v) * 100) / 100;

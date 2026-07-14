@@ -954,6 +954,32 @@ async function initializeDatabase() {
     }
   }
 
+  // Backfill: resolver finca_id en jornadas creadas antes de las cuentas de
+  // capataz (que solo guardaban `finca` como texto libre y el creador como
+  // dueño único). Caso 1 (la gran mayoría): el creador tiene exactamente una
+  // finca → se le asigna esa, sin importar el texto. Caso 2: el creador tiene
+  // varias fincas → se resuelve por coincidencia exacta de nombre. El resto
+  // queda con finca_id NULL (solo lo sigue viendo quien la creó).
+  try {
+    await query(`
+      UPDATE cuaderno_jornadas j
+      JOIN fincas f ON f.empleador_id = j.empleador_id
+      LEFT JOIN fincas f2 ON f2.empleador_id = j.empleador_id AND f2.id <> f.id
+      SET j.finca_id = f.id
+      WHERE j.finca_id IS NULL AND f2.id IS NULL
+    `);
+    await query(`
+      UPDATE cuaderno_jornadas j
+      JOIN fincas f ON f.empleador_id = j.empleador_id AND f.nombre = j.finca
+      SET j.finca_id = f.id
+      WHERE j.finca_id IS NULL
+    `);
+    const [{ cnt }] = await query('SELECT COUNT(*) AS cnt FROM cuaderno_jornadas WHERE finca_id IS NULL');
+    console.log(`[Migration] cuaderno_jornadas backfill de finca_id: ${cnt} jornada(s) sin resolver (siguen visibles solo para quien las creó).`);
+  } catch (e) {
+    console.warn('[Migration] cuaderno_jornadas backfill finca_id:', e.message);
+  }
+
   // Migración: firma de recibido del trabajador en la asistencia (Fase 2 nómina).
   try {
     await query('ALTER TABLE cuaderno_asistencias ADD COLUMN firma_recibido TINYINT(1) NOT NULL DEFAULT 0');

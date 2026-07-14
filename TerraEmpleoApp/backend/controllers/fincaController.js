@@ -48,7 +48,7 @@ async function sembrarConceptos(fincaId) {
 // ─────────────────────────────────────────────────────────────────────────────
 const PUEDE_ESCRIBIR = ['propietario', 'administrador', 'contador'];
 
-async function accesoFinca(fincaId, usuarioId, { escribir = false, soloPropietario = false } = {}) {
+async function accesoFinca(fincaId, usuarioId, { escribir = false, soloPropietario = false, escritores = PUEDE_ESCRIBIR } = {}) {
   const rows = await query(
     'SELECT rol_finca FROM finca_usuarios WHERE finca_id = ? AND usuario_id = ? AND activo = 1',
     [fincaId, usuarioId]
@@ -58,7 +58,7 @@ async function accesoFinca(fincaId, usuarioId, { escribir = false, soloPropietar
   if (soloPropietario && rol !== 'propietario') {
     return { ok: false, status: 403, error: 'Solo el propietario puede realizar esta acción' };
   }
-  if (escribir && !PUEDE_ESCRIBIR.includes(rol)) {
+  if (escribir && !escritores.includes(rol)) {
     return { ok: false, status: 403, error: 'Tu rol en la finca es de solo lectura' };
   }
   return { ok: true, rol };
@@ -68,45 +68,51 @@ async function accesoFinca(fincaId, usuarioId, { escribir = false, soloPropietar
 // Fincas
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Lista las fincas a las que el usuario pertenece. Si es empleador y no tiene
-// ninguna, le crea una por defecto (con su nombre/municipio) y lo deja como
-// propietario, sembrando los conceptos. Garantiza que el módulo "funcione solo".
-async function misFincas(req, res) {
-  try {
-    const usuarioId = req.user.id;
-    let fincas = await query(
+// Fincas a las que pertenece el usuario (vía finca_usuarios), junto con su
+// rol_finca en cada una. Si es empleador/admin y no tiene ninguna, le crea una
+// por defecto y lo deja como propietario, sembrando los conceptos. Reutilizado
+// por misFincas() y por otros módulos (cuaderno, nómina) para resolver el
+// scoping por finca en vez de por "quién creó el registro".
+async function obtenerFincasUsuario(usuarioId, rol) {
+  let fincas = await query(
+    `SELECT f.*, fu.rol_finca
+       FROM fincas f
+       JOIN finca_usuarios fu ON fu.finca_id = f.id AND fu.usuario_id = ? AND fu.activo = 1
+      WHERE f.activa = 1
+      ORDER BY f.id ASC`,
+    [usuarioId]
+  );
+
+  if ((!fincas || fincas.length === 0) && (rol === 'empleador' || rol === 'admin')) {
+    const u = await query('SELECT nombre_completo, municipio, vereda FROM usuarios WHERE id = ?', [usuarioId]);
+    const datos = (u && u[0]) || {};
+    const nombre = datos.nombre_completo ? `Finca de ${datos.nombre_completo}` : 'Mi finca';
+    const result = await query(
+      'INSERT INTO fincas (empleador_id, nombre, municipio, vereda) VALUES (?, ?, ?, ?)',
+      [usuarioId, nombre, datos.municipio || null, datos.vereda || null]
+    );
+    const fincaId = Number(result.insertId);
+    await query(
+      'INSERT INTO finca_usuarios (finca_id, usuario_id, rol_finca) VALUES (?, ?, ?)',
+      [fincaId, usuarioId, 'propietario']
+    );
+    await sembrarConceptos(fincaId);
+    fincas = await query(
       `SELECT f.*, fu.rol_finca
          FROM fincas f
          JOIN finca_usuarios fu ON fu.finca_id = f.id AND fu.usuario_id = ? AND fu.activo = 1
-        WHERE f.activa = 1
-        ORDER BY f.id ASC`,
+        WHERE f.activa = 1 ORDER BY f.id ASC`,
       [usuarioId]
     );
+  }
 
-    if ((!fincas || fincas.length === 0) && (req.user.rol === 'empleador' || req.user.rol === 'admin')) {
-      const u = await query('SELECT nombre_completo, municipio, vereda FROM usuarios WHERE id = ?', [usuarioId]);
-      const datos = (u && u[0]) || {};
-      const nombre = datos.nombre_completo ? `Finca de ${datos.nombre_completo}` : 'Mi finca';
-      const result = await query(
-        'INSERT INTO fincas (empleador_id, nombre, municipio, vereda) VALUES (?, ?, ?, ?)',
-        [usuarioId, nombre, datos.municipio || null, datos.vereda || null]
-      );
-      const fincaId = Number(result.insertId);
-      await query(
-        'INSERT INTO finca_usuarios (finca_id, usuario_id, rol_finca) VALUES (?, ?, ?)',
-        [fincaId, usuarioId, 'propietario']
-      );
-      await sembrarConceptos(fincaId);
-      fincas = await query(
-        `SELECT f.*, fu.rol_finca
-           FROM fincas f
-           JOIN finca_usuarios fu ON fu.finca_id = f.id AND fu.usuario_id = ? AND fu.activo = 1
-          WHERE f.activa = 1 ORDER BY f.id ASC`,
-        [usuarioId]
-      );
-    }
+  return fincas || [];
+}
 
-    res.json({ fincas: fincas || [] });
+async function misFincas(req, res) {
+  try {
+    const fincas = await obtenerFincasUsuario(req.user.id, req.user.rol);
+    res.json({ fincas });
   } catch (err) {
     console.error('misFincas:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -411,7 +417,8 @@ async function auditoria(req, res) {
 }
 
 module.exports = {
-  accesoFinca,          // reutilizado por finanzas/cafe controllers
+  accesoFinca,          // reutilizado por finanzas/cafe/cuaderno controllers
+  obtenerFincasUsuario, // reutilizado por cuaderno/nómina para scoping por finca
   sembrarConceptos,
   misFincas,
   crearFinca,
