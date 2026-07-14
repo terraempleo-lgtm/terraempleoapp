@@ -227,9 +227,9 @@ async function agregarAsistencia(req, res) {
     const guard = await asegurarPropiedadJornada(jornadaId, empleadorId);
     if (!guard.ok) return res.status(guard.status).json({ error: guard.error });
 
-    const { trabajador_id, manual_nombre, manual_telefono, estado } = req.body;
-    if (!trabajador_id && !manual_nombre) {
-      return res.status(400).json({ error: 'Debes indicar trabajador_id o manual_nombre' });
+    const { trabajador_id, trabajador_externo_id, manual_nombre, manual_telefono, estado } = req.body;
+    if (!trabajador_id && !trabajador_externo_id && !manual_nombre) {
+      return res.status(400).json({ error: 'Debes indicar trabajador_id, trabajador_externo_id o manual_nombre' });
     }
 
     // Evitar duplicar si ya está en la jornada
@@ -240,11 +240,29 @@ async function agregarAsistencia(req, res) {
       );
       if (dup && dup.length) return res.status(409).json({ error: 'Este trabajador ya está en la jornada' });
     }
+    if (trabajador_externo_id) {
+      const dup = await query(
+        'SELECT id FROM cuaderno_asistencias WHERE jornada_id = ? AND trabajador_externo_id = ?',
+        [jornadaId, trabajador_externo_id]
+      );
+      if (dup && dup.length) return res.status(409).json({ error: 'Este trabajador ya está en la jornada' });
+    }
+
+    // Si viene un externo, usar su nombre/teléfono guardados para mantener
+    // manual_nombre/manual_telefono consistentes con vistas que aún no leen el enlace.
+    let nombreFinal = manual_nombre || null;
+    let telefonoFinal = manual_telefono || null;
+    if (trabajador_externo_id) {
+      const ext = await query('SELECT nombre_completo, celular FROM trabajadores_externos WHERE id = ?', [trabajador_externo_id]);
+      if (!ext || !ext.length) return res.status(404).json({ error: 'Trabajador externo no encontrado' });
+      nombreFinal = ext[0].nombre_completo;
+      telefonoFinal = ext[0].celular || telefonoFinal;
+    }
 
     const result = await query(`
-      INSERT INTO cuaderno_asistencias (jornada_id, trabajador_id, manual_nombre, manual_telefono, estado)
-      VALUES (?, ?, ?, ?, ?)
-    `, [jornadaId, trabajador_id || null, manual_nombre || null, manual_telefono || null, estado || 'pendiente']);
+      INSERT INTO cuaderno_asistencias (jornada_id, trabajador_id, trabajador_externo_id, manual_nombre, manual_telefono, estado)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [jornadaId, trabajador_id || null, trabajador_externo_id || null, nombreFinal, telefonoFinal, estado || 'pendiente']);
 
     res.status(201).json({ message: 'Trabajador agregado', id: Number(result.insertId) });
   } catch (err) {
@@ -748,6 +766,46 @@ async function historialTrabajador(req, res) {
 // jornadas (registrados en la plataforma y externos/manuales), con conteo de
 // jornadas y última fecha. Sirve para seleccionarlos sin escribir al crear
 // una jornada nueva.
+// Crea (o reutiliza, si ya existe por cédula) un trabajador externo — persona
+// sin cuenta en TerraEmpleo identificada por cédula, para que su experiencia
+// se acumule entre fincas distintas hasta que se registre.
+async function crearTrabajadorExterno(req, res) {
+  try {
+    const empleadorId = req.user.id;
+    const { nombre_completo, cedula, celular } = req.body;
+    if (!nombre_completo || !String(nombre_completo).trim()) {
+      return res.status(400).json({ error: 'El nombre completo es obligatorio' });
+    }
+    if (!cedula || !String(cedula).trim()) {
+      return res.status(400).json({ error: 'La cédula es obligatoria' });
+    }
+    const cedulaNorm = String(cedula).trim();
+
+    const existente = await query('SELECT id, nombre_completo, cedula FROM trabajadores_externos WHERE cedula = ?', [cedulaNorm]);
+    if (existente && existente.length > 0) {
+      return res.status(201).json(existente[0]);
+    }
+
+    const result = await query(
+      `INSERT INTO trabajadores_externos (cedula, nombre_completo, celular, creado_por_empleador_id)
+       VALUES (?, ?, ?, ?)`,
+      [cedulaNorm, String(nombre_completo).trim(), celular || null, empleadorId]
+    );
+    res.status(201).json({
+      id: Number(result.insertId),
+      cedula: cedulaNorm,
+      nombre_completo: String(nombre_completo).trim(),
+    });
+  } catch (err) {
+    console.error('crearTrabajadorExterno:', err);
+    if (err.code === 'ER_DUP_ENTRY') {
+      const rows = await query('SELECT id, cedula, nombre_completo FROM trabajadores_externos WHERE cedula = ?', [String(req.body.cedula).trim()]);
+      if (rows && rows.length) return res.status(201).json(rows[0]);
+    }
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 async function misTrabajadores(req, res) {
   try {
     const empleadorId = req.user.id;
@@ -766,27 +824,51 @@ async function misTrabajadores(req, res) {
       GROUP BY u.id, u.nombre_completo, u.foto_selfie, u.celular
     `, [empleadorId]);
 
-    const externos = await query(`
-      SELECT a.manual_nombre AS nombre,
-        MAX(a.manual_telefono) AS telefono,
+    const externosConJornada = await query(`
+      SELECT te.id AS trabajador_externo_id, te.cedula,
+        COALESCE(te.nombre_completo, a.manual_nombre) AS nombre,
+        COALESCE(te.celular, MAX(a.manual_telefono)) AS telefono,
         COUNT(a.id) AS jornadas,
         MAX(j.fecha) AS ultima_fecha
       FROM cuaderno_asistencias a
       JOIN cuaderno_jornadas j ON j.id = a.jornada_id
+      LEFT JOIN trabajadores_externos te ON te.id = a.trabajador_externo_id
       WHERE j.empleador_id = ? AND a.trabajador_id IS NULL
-        AND a.manual_nombre IS NOT NULL AND a.manual_nombre <> ''
-      GROUP BY a.manual_nombre
+        AND (a.manual_nombre IS NOT NULL AND a.manual_nombre <> '' OR a.trabajador_externo_id IS NOT NULL)
+      GROUP BY COALESCE(a.trabajador_externo_id, CONCAT('m_', a.manual_nombre))
+    `, [empleadorId]);
+
+    // Externos creados por este empleador que aún no tienen ninguna jornada
+    // registrada — deben aparecer con jornadas=0.
+    const externosSinJornada = await query(`
+      SELECT te.id AS trabajador_externo_id, te.cedula, te.nombre_completo AS nombre, te.celular AS telefono
+      FROM trabajadores_externos te
+      WHERE te.creado_por_empleador_id = ?
+        AND NOT EXISTS (SELECT 1 FROM cuaderno_asistencias a WHERE a.trabajador_externo_id = te.id)
     `, [empleadorId]);
 
     const trabajadores = [
       ...(registrados || []).map((r) => ({ ...r, externo: 0 })),
-      ...(externos || []).map((e) => ({
+      ...(externosConJornada || []).map((e) => ({
         trabajador_id: null,
+        trabajador_externo_id: e.trabajador_externo_id || null,
+        cedula: e.cedula || null,
         nombre: e.nombre,
         foto: null,
         telefono: e.telefono || null,
         jornadas: e.jornadas,
         ultima_fecha: e.ultima_fecha,
+        externo: 1,
+      })),
+      ...(externosSinJornada || []).map((e) => ({
+        trabajador_id: null,
+        trabajador_externo_id: e.trabajador_externo_id,
+        cedula: e.cedula || null,
+        nombre: e.nombre,
+        foto: null,
+        telefono: e.telefono || null,
+        jornadas: 0,
+        ultima_fecha: null,
         externo: 1,
       })),
     ].sort((x, y) => String(y.ultima_fecha || '').localeCompare(String(x.ultima_fecha || '')));
@@ -833,4 +915,5 @@ module.exports = {
   crearNota, eliminarNota,
   // dashboard + historial
   dashboard, historialTrabajador, postulantesVacante, misTrabajadores,
+  crearTrabajadorExterno,
 };

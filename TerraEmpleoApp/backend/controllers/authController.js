@@ -162,6 +162,33 @@ async function register(req, res) {
       }
     }
 
+    // Enlazar experiencia previa: si esta cédula ya tenía jornadas registradas
+    // como trabajador externo (sin cuenta), re-parentamos esas asistencias al
+    // nuevo trabajador_id sin borrar el trabajador_externo (queda marcado
+    // migrado=true para trazabilidad).
+    if (rol === 'trabajador') {
+      const externo = await db.query(
+        'SELECT id FROM trabajadores_externos WHERE cedula = ? AND migrado = 0',
+        [cedula]
+      );
+      const ext = externo?.[0];
+      if (ext) {
+        const extId = Number(ext.id);
+        await db.query(
+          'UPDATE cuaderno_asistencias SET trabajador_id = ? WHERE trabajador_externo_id = ? AND trabajador_id IS NULL',
+          [userId, extId]
+        );
+        await db.query(
+          'UPDATE cuaderno_calificaciones_internas SET trabajador_id = ? WHERE trabajador_id IS NULL AND asistencia_id IN (SELECT id FROM cuaderno_asistencias WHERE trabajador_externo_id = ?)',
+          [userId, extId]
+        );
+        await db.query(
+          'UPDATE trabajadores_externos SET trabajador_id = ?, migrado = 1 WHERE id = ?',
+          [userId, extId]
+        );
+      }
+    }
+
     await db.commit();
 
     const token = jwt.sign(

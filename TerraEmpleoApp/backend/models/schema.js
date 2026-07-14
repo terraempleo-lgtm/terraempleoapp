@@ -672,6 +672,25 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Trabajadores identificados por cédula que aún no tienen cuenta en la app.
+  // Acumula experiencia (jornadas) entre fincas distintas hasta que el
+  // trabajador se registre; en ese momento se enlaza (trabajador_id) sin borrarse.
+  await query(`
+    CREATE TABLE IF NOT EXISTS trabajadores_externos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      cedula VARCHAR(20) NOT NULL UNIQUE,
+      nombre_completo VARCHAR(200) NOT NULL,
+      celular VARCHAR(20) DEFAULT NULL,
+      creado_por_empleador_id INT NOT NULL,
+      trabajador_id INT DEFAULT NULL,
+      migrado TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_trabext_trabajador (trabajador_id),
+      FOREIGN KEY (creado_por_empleador_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+      FOREIGN KEY (trabajador_id) REFERENCES usuarios(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // ── Módulo Finca Cafetera · Fase 1: Finanzas ───────────────────────────────
   // Entidad finca: cuelga parámetros de conversión y la modalidad de alimentación.
   await query(`
@@ -991,6 +1010,19 @@ async function initializeDatabase() {
       FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  // Migración: enlazar asistencias con un trabajador externo (por cédula, sin
+  // cuenta todavía) en vez de solo texto suelto (manual_nombre/manual_telefono).
+  try {
+    await query('ALTER TABLE cuaderno_asistencias ADD COLUMN trabajador_externo_id INT DEFAULT NULL');
+    await query('ALTER TABLE cuaderno_asistencias ADD INDEX idx_cuad_asis_externo (trabajador_externo_id)');
+    await query('ALTER TABLE cuaderno_asistencias ADD FOREIGN KEY (trabajador_externo_id) REFERENCES trabajadores_externos(id) ON DELETE SET NULL');
+    console.log('[Migration] cuaderno_asistencias.trabajador_externo_id agregada.');
+  } catch (e) {
+    if (!/Duplicate column|Duplicate key name|errno: 121|foreign key constraint/i.test(e.message)) {
+      console.warn('[Migration] cuaderno_asistencias.trabajador_externo_id:', e.message);
+    }
+  }
 
   console.log('Base de datos inicializada correctamente.');
 }

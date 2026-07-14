@@ -21,6 +21,7 @@ router.get('/vacantes/:id/postulantes', cuaderno.postulantesVacante);
 
 // Registro de trabajadores del empleador (registrados + externos de sus jornadas)
 router.get('/mis-trabajadores', cuaderno.misTrabajadores);
+router.post('/trabajadores-externos', cuaderno.crearTrabajadorExterno);
 
 // Historial de un trabajador (filtrado al empleador actual)
 router.get('/trabajadores/:id/historial', cuaderno.historialTrabajador);

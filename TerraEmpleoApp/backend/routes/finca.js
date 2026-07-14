@@ -17,6 +17,7 @@ router.get('/:id/auditoria', finca.auditoria);
 // Sub-usuarios de la finca
 router.get('/:id/usuarios', finca.listarUsuarios);
 router.post('/:id/usuarios', finca.invitarUsuario);
+router.post('/:id/usuarios/crear-cuenta', finca.crearCuentaUsuario);
 router.delete('/:id/usuarios/:fuId', finca.quitarUsuario);
 
 module.exports = router;

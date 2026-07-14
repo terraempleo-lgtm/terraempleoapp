@@ -1,5 +1,7 @@
-const { query } = require('../config/database');
+const bcrypt = require('bcryptjs');
+const { query, getConnection } = require('../config/database');
 const { registrarAuditoria, ipDe } = require('../helpers/auditoria');
+const { normalizePhone } = require('../helpers/normalizePhone');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Conceptos semilla (tomados de la operación real del usuario)
@@ -278,6 +280,87 @@ async function invitarUsuario(req, res) {
   }
 }
 
+// Crea una cuenta nueva (rol empleador, sin cédula/SMS/fotos) y la asocia de
+// una vez a la finca con un rol_finca. Solo el propietario puede usarlo —
+// pensado para darle acceso a un capataz que no tiene cuenta todavía.
+async function crearCuentaUsuario(req, res) {
+  let db;
+  try {
+    const fincaId = Number(req.params.id);
+    const acc = await accesoFinca(fincaId, req.user.id, { soloPropietario: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+
+    const { nombre_completo, celular, password, rol_finca } = req.body;
+    if (!nombre_completo || !String(nombre_completo).trim()) {
+      return res.status(400).json({ error: 'El nombre completo es obligatorio' });
+    }
+    if (!celular) {
+      return res.status(400).json({ error: 'El celular es obligatorio' });
+    }
+    if (!password || String(password).length < 6) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+    if (!['administrador', 'auxiliar', 'contador'].includes(rol_finca)) {
+      return res.status(400).json({ error: 'rol_finca inválido' });
+    }
+
+    const celularNorm = normalizePhone(celular) || String(celular).replace(/[\s\-\(\)\.]/g, '');
+    if (!celularNorm) {
+      return res.status(400).json({ error: 'El celular no es válido' });
+    }
+
+    const existente = await query('SELECT id FROM usuarios WHERE celular = ?', [celularNorm]);
+    if (existente && existente.length > 0) {
+      return res.status(409).json({
+        error: "Ese celular ya tiene una cuenta, usa 'invitar' en vez de 'crear cuenta'",
+      });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+
+    db = await getConnection();
+    await db.beginTransaction();
+
+    const result = await db.query(
+      `INSERT INTO usuarios (rol, nombre_completo, celular, password_hash, cedula, acepta_habeas_data)
+       VALUES ('empleador', ?, ?, ?, '', 1)`,
+      [String(nombre_completo).trim(), celularNorm, password_hash]
+    );
+    const usuarioId = Number(result.insertId);
+    if (!usuarioId) throw new Error('No se obtuvo ID de usuario tras el INSERT');
+
+    await db.query(
+      'INSERT INTO finca_usuarios (finca_id, usuario_id, rol_finca) VALUES (?, ?, ?)',
+      [fincaId, usuarioId, rol_finca]
+    );
+
+    await db.commit();
+
+    await registrarAuditoria({
+      usuarioId: req.user.id, fincaId, entidad: 'finca_usuario', registroId: usuarioId, accion: 'crear_cuenta',
+      nuevo: { usuario_id: usuarioId, rol_finca }, descripcion: `Cuenta creada para ${nombre_completo} como ${rol_finca}`, ip: ipDe(req),
+    });
+
+    res.status(201).json({
+      id: usuarioId,
+      celular: celularNorm,
+      nombre_completo: String(nombre_completo).trim(),
+      rol_finca,
+    });
+  } catch (err) {
+    if (db) await db.rollback().catch(() => {});
+    console.error('crearCuentaUsuario:', err);
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({
+        error: "Ese celular ya tiene una cuenta, usa 'invitar' en vez de 'crear cuenta'",
+      });
+    }
+    res.status(500).json({ error: 'Error interno del servidor' });
+  } finally {
+    if (db) db.release();
+  }
+}
+
 async function quitarUsuario(req, res) {
   try {
     const fincaId = Number(req.params.id);
@@ -336,6 +419,7 @@ module.exports = {
   actualizarFinca,
   listarUsuarios,
   invitarUsuario,
+  crearCuentaUsuario,
   quitarUsuario,
   auditoria,
 };
