@@ -443,4 +443,105 @@ export const serviciosAPI = {
   eliminarFoto: (servicioId, fotoId) => api.delete(`/servicios-especialista/${servicioId}/fotos/${fotoId}`),
 };
 
+// Finca (finca cafetera — sub-usuarios, auditoría, config)
+export const fincaAPI = {
+  misFincas: () => api.get('/finca/mis-fincas'),
+  crear: (data) => api.post('/finca', data),
+  detalle: (id) => api.get(`/finca/${id}`),
+  actualizar: (id, data) => api.put(`/finca/${id}`, data),
+  auditoria: (id, params) => api.get(`/finca/${id}/auditoria`, params ? { params } : undefined),
+  listarUsuarios: (id) => api.get(`/finca/${id}/usuarios`),
+  invitarUsuario: (id, data) => api.post(`/finca/${id}/usuarios`, data),
+  crearCuentaUsuario: (id, data) => api.post(`/finca/${id}/usuarios/crear-cuenta`, data),
+  quitarUsuario: (id, fuId) => api.delete(`/finca/${id}/usuarios/${fuId}`),
+};
+
+// Cuaderno (jornadas, asistencias, registros, calificaciones, notas, dashboard)
+export const cuadernoAPI = {
+  dashboard: (params) => api.get('/cuaderno/dashboard', params ? { params } : undefined),
+  postulantesVacante: (id) => api.get(`/cuaderno/vacantes/${id}/postulantes`),
+  misTrabajadores: (params) => api.get('/cuaderno/mis-trabajadores', params ? { params } : undefined),
+  crearTrabajadorExterno: (data) => api.post('/cuaderno/trabajadores-externos', data),
+  historialTrabajador: (id, params) => api.get(`/cuaderno/trabajadores/${id}/historial`, params ? { params } : undefined),
+  listarJornadas: (params) => api.get('/cuaderno/jornadas', params ? { params } : undefined),
+  crearJornada: (data) => api.post('/cuaderno/jornadas', data),
+  detalleJornada: (id) => api.get(`/cuaderno/jornadas/${id}`),
+  actualizarJornada: (id, data) => api.put(`/cuaderno/jornadas/${id}`, data),
+  eliminarJornada: (id) => api.delete(`/cuaderno/jornadas/${id}`),
+  agregarAsistencia: (jornadaId, data) => api.post(`/cuaderno/jornadas/${jornadaId}/asistencias`, data),
+  actualizarAsistencia: (asisId, data) => api.put(`/cuaderno/asistencias/${asisId}`, data),
+  eliminarAsistencia: (asisId) => api.delete(`/cuaderno/asistencias/${asisId}`),
+  upsertRegistro: (asisId, data) => api.put(`/cuaderno/asistencias/${asisId}/registro`, data),
+  marcarPagado: (asisId, data) => api.put(`/cuaderno/asistencias/${asisId}/pago`, data),
+  calificarAsistencia: (asisId, data) => api.put(`/cuaderno/asistencias/${asisId}/calificacion`, data),
+  crearNota: (data) => api.post('/cuaderno/notas', data),
+  eliminarNota: (id) => api.delete(`/cuaderno/notas/${id}`),
+  // Nómina
+  nomina: (params) => api.get('/cuaderno/nomina', { params }),
+  leerNotaNomina: (params) => api.get('/cuaderno/nomina/nota', { params }),
+  guardarNotaNomina: (data) => api.put('/cuaderno/nomina/nota', data),
+  agregarAjuste: (asisId, data) => api.post(`/cuaderno/asistencias/${asisId}/ajustes`, data),
+  eliminarAjuste: (id) => api.delete(`/cuaderno/ajustes/${id}`),
+  // NOTA: el backend actual solo persiste firmado:boolean (columna firma_recibido),
+  // no una imagen de firma — no existe endpoint de subida de imagen todavía.
+  // Ver aviso en el resumen de esta tarea.
+  marcarFirma: (asisId, data) => api.put(`/cuaderno/asistencias/${asisId}/firma`, data),
+};
+
+// Muro de mercado
+export const muroAPI = {
+  listar: (params) => api.get('/muro', params ? { params } : undefined),
+  crear: async (data, fotoUri) => {
+    const form = new FormData();
+    Object.entries(data).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') form.append(k, String(v));
+    });
+    if (fotoUri) {
+      const ext = (fotoUri.split('.').pop() || 'jpg').split('?')[0].toLowerCase();
+      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      if (typeof document !== 'undefined') {
+        const blob = await fetch(fotoUri).then(r => r.blob());
+        form.append('foto', blob, `muro_${Date.now()}.${ext}`);
+      } else {
+        form.append('foto', { uri: fotoUri, type: mime, name: `muro_${Date.now()}.${ext}` });
+      }
+    }
+    const res = await fetch(`${api.defaults.baseURL}/muro`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authToken}` },
+      body: form,
+    });
+    const resData = await res.json().catch(() => ({}));
+    if (!res.ok) throw { response: { data: resData, status: res.status } };
+    return { data: resData };
+  },
+  actualizar: (id, data) => api.put(`/muro/${id}`, data),
+  eliminar: (id) => api.delete(`/muro/${id}`),
+  contactar: (id) => api.post(`/muro/${id}/contactar`),
+};
+
+// Café (lotes, conversión, alertas de merma)
+export const cafeAPI = {
+  preview: (params) => api.get('/cafe/preview', params ? { params } : undefined),
+  alertas: (params) => api.get('/cafe/alertas', params ? { params } : undefined),
+  listarLotes: (params) => api.get('/cafe/lotes', params ? { params } : undefined),
+  crearLote: (data) => api.post('/cafe/lotes', data),
+  detalleLote: (id) => api.get(`/cafe/lotes/${id}`),
+  actualizarLote: (id, data) => api.put(`/cafe/lotes/${id}`, data),
+  eliminarLote: (id) => api.delete(`/cafe/lotes/${id}`),
+  registrarReal: (loteId, data) => api.post(`/cafe/lotes/${loteId}/real`, data),
+  eliminarReal: (id) => api.delete(`/cafe/real/${id}`),
+  gestionarAlerta: (loteId, data) => api.put(`/cafe/lotes/${loteId}/alerta`, data),
+};
+
+// Finanzas (tablero mensual, conceptos, movimientos, cierre de periodo)
+export const finanzasAPI = {
+  tablero: (params) => api.get('/finanzas/tablero', { params }),
+  upsertMovimiento: (data) => api.put('/finanzas/movimientos', data),
+  crearConcepto: (data) => api.post('/finanzas/conceptos', data),
+  actualizarConcepto: (id, data) => api.put(`/finanzas/conceptos/${id}`, data),
+  eliminarConcepto: (id) => api.delete(`/finanzas/conceptos/${id}`),
+  cambiarEstadoPeriodo: (id, data) => api.put(`/finanzas/periodos/${id}/estado`, data),
+};
+
 export default api;

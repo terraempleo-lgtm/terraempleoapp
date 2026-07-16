@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { FincaProvider, useFinca } from './src/context/FincaContext';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
 import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 import { navigationRef } from './src/navigation/navigationRef';
@@ -68,6 +69,22 @@ const MisPostulantesScreen           = lazyWeb(() => import('./src/screens/emple
 const TrabajadoresRecomendadosScreen = lazyWeb(() => import('./src/screens/empleador/TrabajadoresRecomendadosScreen'));
 const BuscarTrabajadoresScreen       = lazyWeb(() => import('./src/screens/empleador/BuscarTrabajadoresScreen'));
 const TrabajadoresMapaScreen         = lazyWeb(() => import('./src/screens/empleador/TrabajadoresMapaScreen'));
+
+// ── Finca cafetera — lazy en web ──────────────────────────────────────────
+const ResumenFincaScreen        = lazyWeb(() => import('./src/screens/finca/dueno/ResumenFincaScreen'));
+const JornadasScreen            = lazyWeb(() => import('./src/screens/finca/dueno/JornadasScreen'));
+const MuroScreen                = lazyWeb(() => import('./src/screens/finca/dueno/MuroScreen'));
+const PublicarMuroScreen        = lazyWeb(() => import('./src/screens/finca/dueno/PublicarMuroScreen'));
+const CafeScreen                = lazyWeb(() => import('./src/screens/finca/dueno/CafeScreen'));
+const FinanzasScreen            = lazyWeb(() => import('./src/screens/finca/dueno/FinanzasScreen'));
+const RendimientoScreen         = lazyWeb(() => import('./src/screens/finca/dueno/RendimientoScreen'));
+const AuditoriaScreen           = lazyWeb(() => import('./src/screens/finca/dueno/AuditoriaScreen'));
+const CuadernoAdminScreen       = lazyWeb(() => import('./src/screens/finca/capataz/CuadernoAdminScreen'));
+const NominaScreen              = lazyWeb(() => import('./src/screens/finca/shared/NominaScreen'));
+const DetalleJornadaScreen      = lazyWeb(() => import('./src/screens/finca/shared/DetalleJornadaScreen'));
+const CerrarJornadaScreen       = lazyWeb(() => import('./src/screens/finca/shared/CerrarJornadaScreen'));
+const HistorialTrabajadorScreen = lazyWeb(() => import('./src/screens/finca/shared/HistorialTrabajadorScreen'));
+const PreciosScreen             = lazyWeb(() => import('./src/screens/finca/shared/PreciosScreen'));
 
 // ── Admin — lazy en web ───────────────────────────────────────────────────
 const AdminDashboardScreen           = lazyWeb(() => import('./src/screens/admin/AdminDashboardScreen'));
@@ -171,6 +188,14 @@ const tabScreenOptions = ({ route }) => ({
       case 'Mapa': iconName = focused ? 'map' : 'map-outline'; break;
       case 'Mensajes': iconName = focused ? 'chatbubbles' : 'chatbubbles-outline'; break;
       case 'Perfil': iconName = focused ? 'person' : 'person-outline'; break;
+      case 'Muro': iconName = focused ? 'storefront' : 'storefront-outline'; break;
+      case 'Resumen': iconName = focused ? 'stats-chart' : 'stats-chart-outline'; break;
+      case 'Jornadas': iconName = focused ? 'today' : 'today-outline'; break;
+      case 'Nomina': iconName = focused ? 'wallet' : 'wallet-outline'; break;
+      case 'Cafe': iconName = focused ? 'cafe' : 'cafe-outline'; break;
+      case 'Finanzas': iconName = focused ? 'cash' : 'cash-outline'; break;
+      case 'Rendimiento': iconName = focused ? 'trending-up' : 'trending-up-outline'; break;
+      case 'CuadernoAdmin': iconName = focused ? 'book' : 'book-outline'; break;
       default: iconName = 'ellipse';
     }
     return <Ionicons name={iconName} size={size} color={color} />;
@@ -321,11 +346,135 @@ function ChatsStack() {
   );
 }
 
-// ── Empleador Tabs ──
+// ── Finca cafetera — pantallas compartidas por dueño y capataz (jornada, historial, precios) ──
+function fincaSharedScreens() {
+  return (
+    <>
+      <Stack.Screen name="DetalleJornada" component={DetalleJornadaScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="CerrarJornada" component={CerrarJornadaScreen} options={{ title: 'Cerrar jornada' }} />
+      <Stack.Screen name="HistorialTrabajador" component={HistorialTrabajadorScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Precios" component={PreciosScreen} options={{ headerShown: false }} />
+    </>
+  );
+}
+
+function ResumenFincaStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="ResumenFincaHome" component={ResumenFincaScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Auditoria" component={AuditoriaScreen} options={{ headerShown: false }} />
+        {fincaSharedScreens()}
+      </Stack.Navigator>
+    </S>
+  );
+}
+
+function JornadasStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="JornadasHome" component={JornadasScreen} options={{ headerShown: false }} />
+        {fincaSharedScreens()}
+      </Stack.Navigator>
+    </S>
+  );
+}
+
+function NominaStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="NominaHome" component={NominaScreen} options={{ headerShown: false }} />
+        {fincaSharedScreens()}
+      </Stack.Navigator>
+    </S>
+  );
+}
+
+function CafeStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="CafeHome" component={CafeScreen} options={{ headerShown: false }} />
+      </Stack.Navigator>
+    </S>
+  );
+}
+
+function FinanzasStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="FinanzasHome" component={FinanzasScreen} options={{ headerShown: false }} />
+      </Stack.Navigator>
+    </S>
+  );
+}
+
+function RendimientoStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="RendimientoHome" component={RendimientoScreen} options={{ headerShown: false }} />
+      </Stack.Navigator>
+    </S>
+  );
+}
+
+function MuroStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="MuroHome" component={MuroScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="PublicarMuro" component={PublicarMuroScreen} options={{ headerShown: false }} />
+      </Stack.Navigator>
+    </S>
+  );
+}
+
+// ── Capataz: guard estructural — su navegador solo expone Cuaderno y Nómina,
+// no puede navegar a Café/Finanzas/Rendimiento/Muro/Auditoría porque esas
+// rutas no existen en su árbol de navegación. ──
+function CuadernoAdminStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="CuadernoAdminHome" component={CuadernoAdminScreen} options={{ headerShown: false }} />
+        {fincaSharedScreens()}
+      </Stack.Navigator>
+    </S>
+  );
+}
+
+function CapatazTabs() {
+  return (
+    <Tab.Navigator screenOptions={tabScreenOptions}>
+      <Tab.Screen name="CuadernoAdmin" component={CuadernoAdminStack} options={{ tabBarLabel: 'Cuaderno' }} />
+      <Tab.Screen name="Nomina" component={NominaStack} options={{ tabBarLabel: 'Nómina' }} />
+    </Tab.Navigator>
+  );
+}
+
+// ── Empleador Tabs (propietario) ──
 function EmpleadorTabs() {
   const unread = useChatUnread();
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
+      <Tab.Screen name="Muro" component={MuroStack}
+        options={{ tabBarLabel: 'Muro' }} />
+      <Tab.Screen name="Resumen" component={ResumenFincaStack}
+        options={{ tabBarLabel: 'Resumen' }} />
+      <Tab.Screen name="Jornadas" component={JornadasStack}
+        options={{ tabBarLabel: 'Jornadas' }} />
+      <Tab.Screen name="Nomina" component={NominaStack}
+        options={{ tabBarLabel: 'Nómina' }} />
+      <Tab.Screen name="Cafe" component={CafeStack}
+        options={{ tabBarLabel: 'Café' }} />
+      <Tab.Screen name="Finanzas" component={FinanzasStack}
+        options={{ tabBarLabel: 'Finanzas' }} />
+      <Tab.Screen name="Rendimiento" component={RendimientoStack}
+        options={{ tabBarLabel: 'Rendimiento' }} />
       <Tab.Screen name="MisVacantes" component={EmpleadorVacantesStack}
         options={{ tabBarLabel: 'Mis Vacantes' }} />
       <Tab.Screen name="Trabajadores" component={BuscarTrabajadoresStack}
@@ -341,6 +490,19 @@ function EmpleadorTabs() {
         options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );
+}
+
+// ── Empleador root: rutea entre vista de capataz y vista de propietario según rol_finca ──
+function EmpleadorRoot() {
+  const { esCapataz, loading } = useFinca();
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="leaf" size={32} color={COLORS.primary} />
+      </View>
+    );
+  }
+  return esCapataz ? <CapatazTabs /> : <EmpleadorTabs />;
 }
 
 function ParaTiEmpleadorStack() {
@@ -730,7 +892,13 @@ function RootNavigator() {
         ) : user.rol === 'admin' ? (
           <Stack.Screen name="AdminMain" component={AdminTabs} />
         ) : user.rol === 'empleador' ? (
-          <Stack.Screen name="EmpleadorMain" component={EmpleadorTabs} />
+          <Stack.Screen name="EmpleadorMain">
+            {() => (
+              <FincaProvider>
+                <EmpleadorRoot />
+              </FincaProvider>
+            )}
+          </Stack.Screen>
         ) : user.rol === 'especialista' ? (
           <Stack.Screen name="EspecialistaMain" component={EspecialistaTabs} />
         ) : (
