@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from '../../../theme';
 import { cuadernoAPI } from '../../../services/api';
+import { useAuth } from '../../../context/AuthContext';
 
 function inicioSemana(d = new Date()) {
   const dia = d.getDay(); // 0=domingo
@@ -18,9 +19,17 @@ function fmt(d) { return d.toISOString().slice(0, 10); }
 function hoyStr() { return fmt(new Date()); }
 
 export default function CuadernoAdminScreen({ navigation }) {
+  const { user, signOut } = useAuth();
   const [jornadas, setJornadas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const confirmarSalir = () => {
+    Alert.alert('Cerrar sesión', `¿Salir de la cuenta de ${user?.nombre_completo || 'este usuario'}?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cerrar sesión', style: 'destructive', onPress: signOut },
+    ]);
+  };
 
   const cargar = useCallback(async (mostrarSpinner = true) => {
     if (mostrarSpinner) setLoading(true);
@@ -61,10 +70,15 @@ export default function CuadernoAdminScreen({ navigation }) {
       >
         <View style={styles.header}>
           <Text style={styles.title}>Cuaderno</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Precios')} style={styles.preciosBtn}>
-            <Ionicons name="pricetag-outline" size={16} color={COLORS.primary} />
-            <Text style={styles.preciosText}>Precios</Text>
-          </TouchableOpacity>
+          <View style={styles.headerBtns}>
+            <TouchableOpacity onPress={() => navigation.navigate('Precios')} style={styles.preciosBtn}>
+              <Ionicons name="pricetag-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.preciosText}>Precios</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={confirmarSalir} style={styles.salirBtn}>
+              <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity
@@ -113,7 +127,9 @@ const styles = StyleSheet.create({
   scroll: { padding: SPACING.lg, paddingBottom: 120 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg },
   title: { ...FONTS.title, fontWeight: FONTS.weight.bold, color: COLORS.textPrimary },
+  headerBtns: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   preciosBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primarySoft, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.pill, gap: 4 },
+  salirBtn: { padding: 8, backgroundColor: COLORS.errorSoft, borderRadius: RADIUS.pill },
   preciosText: { color: COLORS.primary, fontWeight: '700', fontSize: 13 },
   cta: { backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, padding: SPACING.lg, alignItems: 'center', gap: 8, ...SHADOWS.md },
   ctaText: { color: COLORS.white, fontWeight: '700', fontSize: 16, textAlign: 'center' },

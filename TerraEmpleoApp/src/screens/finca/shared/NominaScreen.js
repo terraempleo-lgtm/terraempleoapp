@@ -9,6 +9,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { cuadernoAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
+import { useAuth } from '../../../context/AuthContext';
 import Avatar from './Avatar';
 import CuadernoTopNav from './CuadernoTopNav';
 import { formatMoney } from '../../../utils/fincaFormat';
@@ -57,6 +58,13 @@ const NOTA_SEMANA_KEY = (desde) => `nomina_nota_semana_${desde}`;
 
 export default function NominaScreen({ navigation }) {
   const { esCapataz, activeFinca } = useFinca();
+  const { user, signOut } = useAuth();
+  const confirmarSalir = () => {
+    Alert.alert('Cerrar sesión', `¿Salir de la cuenta de ${user?.nombre_completo || 'este usuario'}?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cerrar sesión', style: 'destructive', onPress: signOut },
+    ]);
+  };
   const [refMonday, setRefMonday] = useState(() => lunesDe(new Date()));
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -193,9 +201,14 @@ export default function NominaScreen({ navigation }) {
             </View>
           </View>
           {esCapataz && (
-            <Pressable onPress={() => navigation.navigate('Precios')} style={styles.preciosBtnCapataz}>
-              <Ionicons name="pricetag-outline" size={16} color={COLORS.primary} />
-            </Pressable>
+            <View style={styles.rowStart}>
+              <Pressable onPress={() => navigation.navigate('Precios')} style={styles.preciosBtnCapataz}>
+                <Ionicons name="pricetag-outline" size={16} color={COLORS.primary} />
+              </Pressable>
+              <Pressable onPress={confirmarSalir} style={[styles.preciosBtnCapataz, { backgroundColor: COLORS.dangerSoft, marginLeft: 8 }]}>
+                <Ionicons name="log-out-outline" size={16} color={COLORS.danger} />
+              </Pressable>
+            </View>
           )}
         </View>
 
