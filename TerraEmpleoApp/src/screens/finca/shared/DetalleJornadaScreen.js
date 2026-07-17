@@ -6,7 +6,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from '../../../theme';
 import { cuadernoAPI } from '../../../services/api';
 
-const CALIF_COLORS = { A: COLORS.success, B: COLORS.warning, C: COLORS.error };
+const NIVELES = [
+  { key: 'bien', label: 'A', color: COLORS.success },
+  { key: 'regular', label: 'B', color: COLORS.warning },
+  { key: 'mal', label: 'C', color: COLORS.error },
+];
 
 export default function DetalleJornadaScreen({ route, navigation }) {
   const { jornadaId } = route.params;
@@ -70,13 +74,13 @@ export default function DetalleJornadaScreen({ route, navigation }) {
               </Text>
             </View>
             <View style={styles.califRow}>
-              {['A', 'B', 'C'].map(n => (
+              {NIVELES.map(n => (
                 <TouchableOpacity
-                  key={n}
-                  onPress={() => calificar(a.id, n)}
-                  style={[styles.califBtn, { borderColor: CALIF_COLORS[n] }, a.calif_nivel === n && { backgroundColor: CALIF_COLORS[n] }]}
+                  key={n.key}
+                  onPress={() => calificar(a.id, n.key)}
+                  style={[styles.califBtn, { borderColor: n.color }, a.calif_nivel === n.key && { backgroundColor: n.color }]}
                 >
-                  <Text style={[styles.califText, { color: a.calif_nivel === n ? COLORS.white : CALIF_COLORS[n] }]}>{n}</Text>
+                  <Text style={[styles.califText, { color: a.calif_nivel === n.key ? COLORS.white : n.color }]}>{n.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
