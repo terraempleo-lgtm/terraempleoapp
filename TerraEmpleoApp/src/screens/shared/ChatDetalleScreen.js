@@ -178,7 +178,10 @@ export default function ChatDetalleScreen({ route, navigation }) {
 
   const llamar = useCallback(() => {
     if (!chat.otro_celular) { showAlert('Sin número', 'No hay número disponible.'); return; }
-    const numero = String(chat.otro_celular).replace(/\D/g, '');
+    let numero = String(chat.otro_celular).replace(/\D/g, '');
+    // Algunos números ya vienen guardados con el indicativo 57 incluido —
+    // si no lo quitamos, queda duplicado (+57 573166709237) y la llamada falla.
+    if (numero.length > 10 && numero.startsWith('57')) numero = numero.slice(2);
     Linking.openURL(`tel:+57${numero}`).catch(() => showAlert('Error', 'No se pudo abrir el marcador.'));
   }, [chat]);
 
