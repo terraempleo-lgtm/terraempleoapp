@@ -762,7 +762,7 @@ export default function DetalleJornadaScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#fff' },
-  container: { padding: 16, paddingBottom: 40 },
+  container: { padding: 16, paddingBottom: 120 },
   rowStart: { flexDirection: 'row', alignItems: 'center' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
   horaChipTextDark: { fontSize: 11, fontWeight: '700', color: COLORS.ink700 },
   cardBody: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: COLORS.line },
   fieldLabel: { fontSize: 11, fontWeight: '700', color: COLORS.ink500, textTransform: 'uppercase', marginTop: 8, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: COLORS.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, backgroundColor: '#fff' },
+  input: { borderWidth: 1, borderColor: COLORS.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: COLORS.ink900, backgroundColor: '#fff' },
   tipoPagoBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: COLORS.primarySoft, borderWidth: 1, borderColor: COLORS.line },
   tipoPagoBtnActivo: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   tipoPagoText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },

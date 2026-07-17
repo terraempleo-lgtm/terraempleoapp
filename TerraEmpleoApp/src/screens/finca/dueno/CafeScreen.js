@@ -338,7 +338,7 @@ function NuevoLoteModal({ finca, rangoInicial, onClose, onCreated }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#fff' },
-  container: { padding: 16, paddingBottom: 40 },
+  container: { padding: 16, paddingBottom: 120 },
   rowStart: { flexDirection: 'row', alignItems: 'center' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   realRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderColor: COLORS.lineLight },
   realText: { fontSize: 12, color: COLORS.ink700, flex: 1 },
   formRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
-  input: { borderWidth: 1, borderColor: COLORS.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, backgroundColor: '#fff', marginTop: 6 },
+  input: { borderWidth: 1, borderColor: COLORS.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: COLORS.ink900, backgroundColor: '#fff', marginTop: 6 },
   destinoBtn: { backgroundColor: COLORS.primarySoft, borderRadius: 10, paddingHorizontal: 12, justifyContent: 'center' },
   destinoBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
   btnPrimarySmall: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', marginTop: 8 },

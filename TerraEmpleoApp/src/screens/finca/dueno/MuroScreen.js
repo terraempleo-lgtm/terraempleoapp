@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   h1: { fontSize: 20, fontWeight: '900', color: COLORS.ink900 },
   subtitle: { fontSize: 11, color: COLORS.ink500 },
   publicarBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
-  search: { marginHorizontal: 16, marginTop: 10, borderWidth: 1, borderColor: COLORS.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#fff' },
+  search: { marginHorizontal: 16, marginTop: 10, borderWidth: 1, borderColor: COLORS.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.ink900, backgroundColor: '#fff' },
   filtrosRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, paddingVertical: 10 },
   filtroChip: { borderWidth: 1, borderColor: COLORS.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#fff' },
   filtroChipActivo: { backgroundColor: '#c1ff72', borderColor: '#c1ff72' },

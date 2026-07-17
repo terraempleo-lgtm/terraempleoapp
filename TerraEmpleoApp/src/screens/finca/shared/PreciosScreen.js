@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   form: { padding: SPACING.lg },
   hint: { color: COLORS.textLight, marginBottom: SPACING.lg, fontSize: 13 },
   label: { color: COLORS.textPrimary, fontWeight: '600', marginBottom: 6, marginTop: SPACING.md },
-  input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md, padding: 12, fontSize: 16, backgroundColor: COLORS.white },
+  input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md, padding: 12, fontSize: 16, color: COLORS.textPrimary, backgroundColor: COLORS.white },
   saveBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.md, padding: 16, alignItems: 'center', marginTop: SPACING.xl },
   saveText: { color: COLORS.white, fontWeight: '700', fontSize: 16 },
 });

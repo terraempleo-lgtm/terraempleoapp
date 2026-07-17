@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background },
   header: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, gap: 8 },
   title: { ...FONTS.subtitle, fontWeight: FONTS.weight.bold, color: COLORS.textPrimary },
-  list: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl },
+  list: { paddingHorizontal: SPACING.lg, paddingBottom: 120 },
   empty: { color: COLORS.textLight, fontStyle: 'italic', textAlign: 'center', marginTop: 40 },
   row: { backgroundColor: COLORS.card, borderRadius: RADIUS.md, padding: SPACING.md, marginBottom: SPACING.sm, ...SHADOWS.sm },
   desc: { color: COLORS.textPrimary, fontWeight: '600' },
