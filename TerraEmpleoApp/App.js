@@ -197,6 +197,7 @@ const tabScreenOptions = ({ route }) => ({
       case 'Finanzas': iconName = focused ? 'cash' : 'cash-outline'; break;
       case 'Rendimiento': iconName = focused ? 'trending-up' : 'trending-up-outline'; break;
       case 'CuadernoAdmin': iconName = focused ? 'book' : 'book-outline'; break;
+      case 'Cuaderno': iconName = focused ? 'book' : 'book-outline'; break;
       default: iconName = 'ellipse';
     }
     return <Ionicons name={iconName} size={size} color={color} />;
@@ -359,65 +360,22 @@ function fincaSharedScreens() {
   );
 }
 
-function ResumenFincaStack() {
+// Cuaderno del dueño: Resumen/Jornadas/Nómina/Café/Finanzas/Rendimiento viven
+// como pantallas hermanas dentro de un único tab "Cuaderno" — la navegación
+// entre ellas la resuelve CuadernoTopNav (pills internas, como en el panel web),
+// no la barra de tabs inferior.
+function CuadernoStack() {
   return (
     <S>
       <Stack.Navigator screenOptions={stackScreenOptions}>
         <Stack.Screen name="ResumenFincaHome" component={ResumenFincaScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="JornadasHome" component={JornadasScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="NominaHome" component={NominaScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="CafeHome" component={CafeScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="FinanzasHome" component={FinanzasScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="RendimientoHome" component={RendimientoScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Auditoria" component={AuditoriaScreen} options={{ headerShown: false }} />
         {fincaSharedScreens()}
-      </Stack.Navigator>
-    </S>
-  );
-}
-
-function JornadasStack() {
-  return (
-    <S>
-      <Stack.Navigator screenOptions={stackScreenOptions}>
-        <Stack.Screen name="JornadasHome" component={JornadasScreen} options={{ headerShown: false }} />
-        {fincaSharedScreens()}
-      </Stack.Navigator>
-    </S>
-  );
-}
-
-function NominaStack() {
-  return (
-    <S>
-      <Stack.Navigator screenOptions={stackScreenOptions}>
-        <Stack.Screen name="NominaHome" component={NominaScreen} options={{ headerShown: false }} />
-        {fincaSharedScreens()}
-      </Stack.Navigator>
-    </S>
-  );
-}
-
-function CafeStack() {
-  return (
-    <S>
-      <Stack.Navigator screenOptions={stackScreenOptions}>
-        <Stack.Screen name="CafeHome" component={CafeScreen} options={{ headerShown: false }} />
-      </Stack.Navigator>
-    </S>
-  );
-}
-
-function FinanzasStack() {
-  return (
-    <S>
-      <Stack.Navigator screenOptions={stackScreenOptions}>
-        <Stack.Screen name="FinanzasHome" component={FinanzasScreen} options={{ headerShown: false }} />
-      </Stack.Navigator>
-    </S>
-  );
-}
-
-function RendimientoStack() {
-  return (
-    <S>
-      <Stack.Navigator screenOptions={stackScreenOptions}>
-        <Stack.Screen name="RendimientoHome" component={RendimientoScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
     </S>
   );
@@ -448,11 +406,22 @@ function CuadernoAdminStack() {
   );
 }
 
+function NominaCapatazStack() {
+  return (
+    <S>
+      <Stack.Navigator screenOptions={stackScreenOptions}>
+        <Stack.Screen name="NominaHome" component={NominaScreen} options={{ headerShown: false }} />
+        {fincaSharedScreens()}
+      </Stack.Navigator>
+    </S>
+  );
+}
+
 function CapatazTabs() {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="CuadernoAdmin" component={CuadernoAdminStack} options={{ tabBarLabel: 'Cuaderno' }} />
-      <Tab.Screen name="Nomina" component={NominaStack} options={{ tabBarLabel: 'Nómina' }} />
+      <Tab.Screen name="Nomina" component={NominaCapatazStack} options={{ tabBarLabel: 'Nómina' }} />
     </Tab.Navigator>
   );
 }
@@ -463,19 +432,9 @@ function EmpleadorTabs() {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="Muro" component={MuroStack}
-        options={{ tabBarLabel: 'Muro' }} />
-      <Tab.Screen name="Resumen" component={ResumenFincaStack}
-        options={{ tabBarLabel: 'Resumen' }} />
-      <Tab.Screen name="Jornadas" component={JornadasStack}
-        options={{ tabBarLabel: 'Jornadas' }} />
-      <Tab.Screen name="Nomina" component={NominaStack}
-        options={{ tabBarLabel: 'Nómina' }} />
-      <Tab.Screen name="Cafe" component={CafeStack}
-        options={{ tabBarLabel: 'Café' }} />
-      <Tab.Screen name="Finanzas" component={FinanzasStack}
-        options={{ tabBarLabel: 'Finanzas' }} />
-      <Tab.Screen name="Rendimiento" component={RendimientoStack}
-        options={{ tabBarLabel: 'Rendimiento' }} />
+        options={{ tabBarLabel: 'Mercado' }} />
+      <Tab.Screen name="Cuaderno" component={CuadernoStack}
+        options={{ tabBarLabel: 'Cuaderno' }} />
       <Tab.Screen name="MisVacantes" component={EmpleadorVacantesStack}
         options={{ tabBarLabel: 'Mis Vacantes' }} />
       <Tab.Screen name="Trabajadores" component={BuscarTrabajadoresStack}

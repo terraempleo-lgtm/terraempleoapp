@@ -1,14 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from '../../../theme';
 import { cuadernoAPI } from '../../../services/api';
-import { useFinca } from '../../../context/FincaContext';
+import CuadernoTopNav from '../shared/CuadernoTopNav';
 
 export default function ResumenFincaScreen({ navigation }) {
-  const { esPropietario, modoAdminPreview, setModoAdminPreview } = useFinca();
   const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,10 +24,6 @@ export default function ResumenFincaScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
 
-  if (loading) {
-    return <SafeAreaView style={styles.center}><ActivityIndicator color={COLORS.primary} size="large" /></SafeAreaView>;
-  }
-
   const kpis = [
     { label: 'Trabajadores', value: resumen?.trabajadores_contratados ?? 0, icon: 'people-outline' },
     { label: 'Jornadas activas', value: resumen?.jornadas_activas ?? 0, icon: 'today-outline' },
@@ -40,52 +35,64 @@ export default function ResumenFincaScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Resumen de finca</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Precios')} style={styles.preciosBtn}>
-            <Ionicons name="pricetag-outline" size={16} color={COLORS.primary} />
-            <Text style={styles.preciosText}>Precios</Text>
-          </TouchableOpacity>
-        </View>
-
-        {esPropietario && (
-          <View style={styles.modoAdminRow}>
+      <CuadernoTopNav navigation={navigation} activeKey="ResumenFincaHome" />
+      {loading ? (
+        <ActivityIndicator color={COLORS.primary} size="large" style={{ marginTop: 40 }} />
+      ) : (
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.header}>
             <View>
-              <Text style={styles.modoAdminLabel}>Modo admin (vista de capataz)</Text>
-              <Text style={styles.modoAdminHint}>Previsualiza la app como la ve tu capataz, sin perder tus permisos.</Text>
+              <Text style={styles.title}>Cuaderno</Text>
+              <Text style={styles.subtitle}>Control de jornadas, asistencia, producción y pagos</Text>
             </View>
-            <Switch value={modoAdminPreview} onValueChange={setModoAdminPreview} trackColor={{ true: COLORS.primary }} />
           </View>
-        )}
 
-        <View style={styles.grid}>
-          {kpis.map(k => (
-            <View key={k.label} style={styles.kpiCard}>
-              <Ionicons name={k.icon} size={20} color={COLORS.primary} />
-              <Text style={styles.kpiValue}>{k.value}</Text>
-              <Text style={styles.kpiLabel}>{k.label}</Text>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
+          <View style={styles.ctaRow}>
+            <TouchableOpacity style={styles.ctaOutline} onPress={() => navigation.navigate('JornadasHome')}>
+              <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.ctaOutlineText}>Ver jornadas</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ctaPrimary} onPress={() => navigation.navigate('CerrarJornada')}>
+              <Ionicons name="add" size={16} color={COLORS.white} />
+              <Text style={styles.ctaPrimaryText}>Nueva jornada</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.grid}>
+            {kpis.map(k => (
+              <View key={k.label} style={styles.kpiCard}>
+                <Ionicons name={k.icon} size={20} color={COLORS.primary} />
+                <Text style={styles.kpiValue}>{k.value}</Text>
+                <Text style={styles.kpiLabel}>{k.label}</Text>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity style={styles.auditoriaLink} onPress={() => navigation.navigate('Auditoria')}>
+            <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.textLight} />
+            <Text style={styles.auditoriaLinkText}>Ver auditoría de la finca</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background },
   scroll: { padding: SPACING.lg, paddingBottom: SPACING.xxl },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg },
+  header: { marginBottom: SPACING.lg },
   title: { ...FONTS.title, fontWeight: FONTS.weight.bold, color: COLORS.textPrimary },
-  preciosBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primarySoft, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.pill, gap: 4 },
-  preciosText: { color: COLORS.primary, fontWeight: '700', fontSize: 13 },
-  modoAdminRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.card, borderRadius: RADIUS.md, padding: SPACING.md, marginBottom: SPACING.lg, ...SHADOWS.sm },
-  modoAdminLabel: { fontWeight: '700', color: COLORS.textPrimary },
-  modoAdminHint: { fontSize: 11, color: COLORS.textLight, marginTop: 2, maxWidth: 220 },
+  subtitle: { color: COLORS.textLight, fontSize: 13, marginTop: 2 },
+  ctaRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg },
+  ctaOutline: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: COLORS.primary, borderRadius: RADIUS.pill, paddingHorizontal: 14, paddingVertical: 10 },
+  ctaOutlineText: { color: COLORS.primary, fontWeight: '700', fontSize: 13 },
+  ctaPrimary: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.primary, borderRadius: RADIUS.pill, paddingHorizontal: 14, paddingVertical: 10 },
+  ctaPrimaryText: { color: COLORS.white, fontWeight: '700', fontSize: 13 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   kpiCard: { width: '31%', backgroundColor: COLORS.card, borderRadius: RADIUS.md, padding: SPACING.md, alignItems: 'center', ...SHADOWS.sm },
   kpiValue: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary, marginTop: 6 },
   kpiLabel: { fontSize: 10, color: COLORS.textLight, textAlign: 'center', marginTop: 2 },
+  auditoriaLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: SPACING.xl, alignSelf: 'center' },
+  auditoriaLinkText: { color: COLORS.textLight, fontSize: 12 },
 });

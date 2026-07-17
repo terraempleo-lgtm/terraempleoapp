@@ -5,6 +5,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from '../../../theme';
 import { cuadernoAPI } from '../../../services/api';
+import { useFinca } from '../../../context/FincaContext';
+import CuadernoTopNav from './CuadernoTopNav';
 
 function inicioSemana(offset = 0) {
   const d = new Date();
@@ -26,6 +28,7 @@ const TIPOS = [
 ];
 
 export default function NominaScreen({ navigation }) {
+  const { esCapataz } = useFinca();
   const [offset, setOffset] = useState(0);
   const [filas, setFilas] = useState([]);
   const [totales, setTotales] = useState(null);
@@ -105,12 +108,16 @@ export default function NominaScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Nómina</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Precios')} style={styles.preciosBtn}>
-          <Ionicons name="pricetag-outline" size={16} color={COLORS.primary} />
-        </TouchableOpacity>
-      </View>
+      {esCapataz ? (
+        <View style={styles.header}>
+          <Text style={styles.title}>Nómina</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Precios')} style={styles.preciosBtn}>
+            <Ionicons name="pricetag-outline" size={16} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <CuadernoTopNav navigation={navigation} activeKey="NominaHome" />
+      )}
 
       <View style={styles.weekNav}>
         <TouchableOpacity onPress={() => setOffset(o => o - 1)}><Ionicons name="chevron-back" size={22} color={COLORS.primary} /></TouchableOpacity>

@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from '../../../theme';
 import { cuadernoAPI } from '../../../services/api';
+import CuadernoTopNav from '../shared/CuadernoTopNav';
 
 export default function JornadasScreen({ navigation }) {
   const [jornadas, setJornadas] = useState([]);
@@ -26,12 +27,9 @@ export default function JornadasScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
 
-  if (loading) {
-    return <SafeAreaView style={styles.center}><ActivityIndicator color={COLORS.primary} size="large" /></SafeAreaView>;
-  }
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <CuadernoTopNav navigation={navigation} activeKey="JornadasHome" />
       <View style={styles.header}>
         <Text style={styles.title}>Jornadas</Text>
         <TouchableOpacity style={styles.cerrarBtn} onPress={() => navigation.navigate('CerrarJornada')}>
@@ -39,6 +37,7 @@ export default function JornadasScreen({ navigation }) {
           <Text style={styles.cerrarBtnText}>Cerrar jornada</Text>
         </TouchableOpacity>
       </View>
+      {loading ? <ActivityIndicator color={COLORS.primary} size="large" style={{ marginTop: 40 }} /> : (
       <FlatList
         data={jornadas}
         keyExtractor={(j) => String(j.id)}
@@ -55,6 +54,7 @@ export default function JornadasScreen({ navigation }) {
           </TouchableOpacity>
         )}
       />
+      )}
     </SafeAreaView>
   );
 }
