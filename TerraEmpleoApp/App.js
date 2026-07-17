@@ -5,7 +5,7 @@ import * as Updates from 'expo-updates';
 import { View, TouchableOpacity, Linking, Alert, Text, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, CommonActions } from '@react-navigation/native';
+import { NavigationContainer, CommonActions, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -171,6 +171,16 @@ const stackScreenOptions = ({ theme }) => ({
   ...customTransition,
 });
 
+// La tab bar flota con position:'absolute' sobre el contenido — dentro de
+// ChatDetalle eso tapaba la barra de escribir/enviar audio/imagen porque
+// ambas quedaban pegadas al borde inferior. La ocultamos solo en esa pantalla.
+function mensajesTabBarOptions(route) {
+  const routeName = getFocusedRouteNameFromRoute(route) ?? 'ChatsHome';
+  return {
+    tabBarStyle: routeName === 'ChatDetalle' ? { display: 'none' } : { position: 'absolute' },
+  };
+}
+
 const tabScreenOptions = ({ route }) => ({
   tabBarIcon: ({ focused, color, size }) => {
     let iconName;
@@ -280,7 +290,7 @@ function TrabajadorTabs() {
       <Tab.Screen name="Postulaciones" component={MisPostulacionesStack}
         options={{ tabBarLabel: 'Mis Postulaciones' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
-        options={{ tabBarLabel: 'Mensajes', tabBarBadge: unread > 0 ? unread : undefined }} />
+        options={({ route }) => ({ tabBarLabel: 'Mensajes', tabBarBadge: unread > 0 ? unread : undefined, ...mensajesTabBarOptions(route) })} />
       <Tab.Screen name="Perfil" component={PerfilStack}
         options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
@@ -447,7 +457,7 @@ function EmpleadorTabs() {
       <Tab.Screen name="Mapa" component={TrabajadoresMapaTabStack}
         options={{ tabBarLabel: 'Mapa' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
-        options={{ tabBarLabel: 'Mensajes', tabBarBadge: unread > 0 ? unread : undefined }} />
+        options={({ route }) => ({ tabBarLabel: 'Mensajes', tabBarBadge: unread > 0 ? unread : undefined, ...mensajesTabBarOptions(route) })} />
       <Tab.Screen name="Perfil" component={PerfilStack}
         options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
@@ -754,7 +764,7 @@ function EspecialistaTabs() {
       <Tab.Screen name="Postulaciones" component={MisPostulacionesStack}
         options={{ tabBarLabel: 'Mis Postulaciones' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
-        options={{ tabBarLabel: 'Mensajes', tabBarBadge: unread > 0 ? unread : undefined }} />
+        options={({ route }) => ({ tabBarLabel: 'Mensajes', tabBarBadge: unread > 0 ? unread : undefined, ...mensajesTabBarOptions(route) })} />
       <Tab.Screen name="Perfil" component={PerfilStack}
         options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
