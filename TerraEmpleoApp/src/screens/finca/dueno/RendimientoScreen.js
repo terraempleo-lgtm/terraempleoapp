@@ -207,11 +207,11 @@ export default function RendimientoScreen({ navigation }) {
           </View>
         </View>
 
-        <View style={{ marginTop: 14, gap: 8 }}>
+        <View style={{ marginTop: 14, gap: 6 }}>
           {recomendaciones.map((r, i) => (
-            <View key={i} style={[styles.recoBox, { backgroundColor: r.color + '1A', borderColor: r.color + '55' }]}>
-              <Ionicons name="bulb" size={16} color={r.color} />
-              <Text style={[styles.recoText, { color: r.color }]}>  {r.texto}</Text>
+            <View key={i} style={styles.recoBox}>
+              <View style={[styles.recoDot, { backgroundColor: r.color }]} />
+              <Text style={styles.recoText}>{r.texto}</Text>
             </View>
           ))}
         </View>
@@ -309,8 +309,9 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 12, color: COLORS.ink500 },
   monthNav: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.line, borderRadius: 12 },
   monthLabel: { fontWeight: '700', color: COLORS.ink900, fontSize: 12, minWidth: 90, textAlign: 'center' },
-  recoBox: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: 12, borderWidth: 1.5, padding: 12 },
-  recoText: { flex: 1, fontSize: 12, fontWeight: '600' },
+  recoBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: COLORS.lineLight, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10 },
+  recoDot: { width: 6, height: 6, borderRadius: 3, marginTop: 5 },
+  recoText: { flex: 1, fontSize: 12, fontWeight: '500', color: COLORS.ink700, lineHeight: 17 },
   grid2: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   indicadorCard: { width: '47%', backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.line, borderRadius: 14, padding: 12 },
   indicadorIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
