@@ -36,6 +36,12 @@ export default function CuadernoTopNav({ navigation, activeKey }) {
           <Text style={styles.pillOutlineText}>Precios</Text>
         </TouchableOpacity>
         {esPropietario && (
+          <TouchableOpacity onPress={() => navigation.navigate('ConfiguracionFinca')} style={styles.pillOutline}>
+            <Ionicons name="settings-outline" size={14} color={COLORS.primary} />
+            <Text style={styles.pillOutlineText}>Configurar</Text>
+          </TouchableOpacity>
+        )}
+        {esPropietario && (
           <TouchableOpacity onPress={() => setModoAdminPreview(!modoAdminPreview)} style={[styles.pillOutline, modoAdminPreview && styles.pillModoAdminActive]}>
             <Ionicons name="eye-outline" size={14} color={modoAdminPreview ? COLORS.white : COLORS.primary} />
             <Text style={[styles.pillOutlineText, modoAdminPreview && { color: COLORS.white }]}>Modo admin</Text>

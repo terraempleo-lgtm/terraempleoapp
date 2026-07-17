@@ -80,6 +80,7 @@ const CafeScreen                = lazyWeb(() => import('./src/screens/finca/duen
 const FinanzasScreen            = lazyWeb(() => import('./src/screens/finca/dueno/FinanzasScreen'));
 const RendimientoScreen         = lazyWeb(() => import('./src/screens/finca/dueno/RendimientoScreen'));
 const AuditoriaScreen           = lazyWeb(() => import('./src/screens/finca/dueno/AuditoriaScreen'));
+const ConfiguracionFincaScreen  = lazyWeb(() => import('./src/screens/finca/dueno/ConfiguracionFincaScreen'));
 const CuadernoAdminScreen       = lazyWeb(() => import('./src/screens/finca/capataz/CuadernoAdminScreen'));
 const NominaScreen              = lazyWeb(() => import('./src/screens/finca/shared/NominaScreen'));
 const DetalleJornadaScreen      = lazyWeb(() => import('./src/screens/finca/shared/DetalleJornadaScreen'));
@@ -375,6 +376,7 @@ function CuadernoStack() {
         <Stack.Screen name="FinanzasHome" component={FinanzasScreen} options={{ headerShown: false }} />
         <Stack.Screen name="RendimientoHome" component={RendimientoScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Auditoria" component={AuditoriaScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="ConfiguracionFinca" component={ConfiguracionFincaScreen} options={{ headerShown: false }} />
         {fincaSharedScreens()}
       </Stack.Navigator>
     </S>
