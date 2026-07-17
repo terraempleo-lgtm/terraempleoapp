@@ -37,6 +37,7 @@ import RegisterEmpleadorScreen from './src/screens/auth/RegisterEmpleadorScreen'
 import RegisterEspecialistaScreen from './src/screens/auth/RegisterEspecialistaScreen';
 import RecuperarPasswordScreen from './src/screens/auth/RecuperarPasswordScreen';
 import DocumentoLegalScreen from './src/screens/auth/DocumentoLegalScreen';
+import PasskeyEnrollScreen from './src/screens/auth/PasskeyEnrollScreen';
 import VerificationNavigator from './src/modules/verification/navigation/VerificationNavigator';
 
 // ── Shared — necesario para todos los roles autenticados, estático ────────
@@ -790,6 +791,8 @@ function AuthStack() {
         options={{ headerShown: true, title: 'Recuperar contraseña' }} />
       <Stack.Screen name="DocumentoLegal" component={DocumentoLegalScreen}
         options={{ headerShown: true, title: 'Documento legal' }} />
+      <Stack.Screen name="PasskeyEnroll" component={PasskeyEnrollScreen}
+        options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen
         name="ValidacionInternaIdentidad"
         component={VerificationNavigator}

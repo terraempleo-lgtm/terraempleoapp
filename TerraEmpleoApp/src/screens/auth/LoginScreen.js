@@ -14,10 +14,13 @@ import { MotiView, AnimatePresence } from 'moti';
 import { COLORS, SPACING, RADIUS } from '../../theme';
 import { Button, Input, TerraFooter } from '../../components/ui';
 import { AnimatedPressable, FadeInView, StaggeredItem } from '../../components/animated';
-import { authAPI, cognitoAPI } from '../../services/api';
+import { authAPI, cognitoAPI, passkeyAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useDisenoResponsive } from '../../hooks/useDisenoResponsive';
+import {
+  isPasskeySupported, getPasskey, getPasskeyCelular, wasPasskeyPrompted,
+} from '../../services/passkeyService';
 
 function isEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -34,6 +37,37 @@ export default function LoginScreen({ navigation }) {
   const [errors, setErrors] = useState({});
   const [loginFailed, setLoginFailed] = useState(false);
   const [errorLogin, setErrorLogin] = useState('');
+  const [passkeyCelular, setPasskeyCelular] = useState(null);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      if (!isPasskeySupported()) return;
+      const celular = await getPasskeyCelular();
+      if (celular) setPasskeyCelular(celular);
+    })();
+  }, []);
+
+  const handlePasskeyLogin = async () => {
+    if (!passkeyCelular) return;
+    setErrorLogin('');
+    setPasskeyLoading(true);
+    try {
+      const startRes = await passkeyAPI.authStart(passkeyCelular);
+      const { session, credentialRequestOptions } = startRes.data;
+      const credential = await getPasskey(credentialRequestOptions);
+      const finishRes = await passkeyAPI.authFinish(session, credential, passkeyCelular);
+      const { token, user } = finishRes.data;
+      if (!token || !user) throw new Error('Respuesta incompleta del servidor');
+      await signIn(user, token);
+    } catch (err) {
+      if (!(err.message?.includes('cancel') || err.message?.includes('cancelled'))) {
+        setErrorLogin(err.response?.data?.error || 'No se pudo entrar con passkey. Usa tu contraseña.');
+      }
+    } finally {
+      setPasskeyLoading(false);
+    }
+  };
 
   const validate = () => {
     const errs = {};
@@ -54,7 +88,7 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       const val = identificador.trim();
-      let token, user;
+      let token, user, cognitoAccessToken;
 
       if (isEmail(val)) {
         const response = await authAPI.login({ correo: val, password: password.trim() });
@@ -65,6 +99,7 @@ export default function LoginScreen({ navigation }) {
           const response = await cognitoAPI.login(val, password.trim());
           token = response.data.token;
           user = response.data.user;
+          cognitoAccessToken = response.data.cognito?.accessToken;
         } catch {
           const response = await authAPI.login({ celular: val, password: password.trim() });
           token = response.data.token;
@@ -74,6 +109,13 @@ export default function LoginScreen({ navigation }) {
 
       if (!token || !user) {
         setErrorLogin('Respuesta del servidor incompleta');
+        return;
+      }
+
+      // Ofrecer activar passkey solo tras login por celular (Cognito) en un
+      // dispositivo compatible que aún no lo haya activado ni descartado.
+      if (cognitoAccessToken && isPasskeySupported() && !(await wasPasskeyPrompted())) {
+        navigation.replace('PasskeyEnroll', { user, token, cognitoAccessToken, fromPerfil: false });
         return;
       }
 
@@ -125,6 +167,24 @@ export default function LoginScreen({ navigation }) {
           >
 
           <View style={styles.form}>
+            {!!passkeyCelular && (
+              <StaggeredItem index={0}>
+                <AnimatedPressable
+                  style={[styles.passkeyBtn, passkeyLoading && { opacity: 0.7 }]}
+                  onPress={handlePasskeyLogin}
+                  scaleValue={0.97}
+                  disabled={passkeyLoading}
+                >
+                  <Ionicons name={Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline'} size={20} color={COLORS.primary} />
+                  <Text style={styles.passkeyBtnText}>{passkeyLoading ? 'Verificando…' : 'Ingresar con Face ID / huella'}</Text>
+                </AnimatedPressable>
+                <View style={styles.dividerRow}>
+                  <View style={[styles.dividerLine, { backgroundColor: isDark ? colors.border : '#E5E7EB' }]} />
+                  <Text style={[styles.dividerText, { color: colors.textSecondary }]}>o con tu contraseña</Text>
+                  <View style={[styles.dividerLine, { backgroundColor: isDark ? colors.border : '#E5E7EB' }]} />
+                </View>
+              </StaggeredItem>
+            )}
             <StaggeredItem index={0}>
               <Input
                 label="Correo electrónico o Teléfono"
