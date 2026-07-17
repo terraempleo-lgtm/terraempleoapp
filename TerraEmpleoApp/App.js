@@ -353,7 +353,7 @@ function fincaSharedScreens() {
   return (
     <>
       <Stack.Screen name="DetalleJornada" component={DetalleJornadaScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="CerrarJornada" component={CerrarJornadaScreen} options={{ title: 'Cerrar jornada' }} />
+      <Stack.Screen name="CerrarJornada" component={CerrarJornadaScreen} options={{ headerShown: false }} />
       <Stack.Screen name="HistorialTrabajador" component={HistorialTrabajadorScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Precios" component={PreciosScreen} options={{ headerShown: false }} />
     </>
