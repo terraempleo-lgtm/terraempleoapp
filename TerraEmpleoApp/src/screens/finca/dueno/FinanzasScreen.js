@@ -31,8 +31,28 @@ const SECCIONES = [
   { tipo: 'factura', titulo: 'Facturas', color: COLORS.info, soft: COLORS.infoSoft },
 ];
 
+const TIPOS_NOTA = [
+  { tipo: 'ingreso', label: 'Venta / Ingreso' },
+  { tipo: 'nomina', label: 'Nómina (Excel)' },
+  { tipo: 'gasto_fijo', label: 'Gasto fijo' },
+  { tipo: 'gasto_variable', label: 'Gasto variable' },
+  { tipo: 'factura', label: 'Factura' },
+];
+
 const keyMov = (conceptoId, semanaId) => `${conceptoId}:${semanaId ?? 'mes'}`;
 const onlyNum = (s) => String(s).replace(/[^\d]/g, '');
+
+function parseLineaExcel(linea) {
+  const celdas = linea.split('\t').map((c) => c.trim()).filter((c) => c !== '');
+  if (celdas.length < 2) return null;
+  const monto = Number(celdas[celdas.length - 1].replace(/[^\d]/g, '')) || 0;
+  const nombre = celdas[0];
+  const medio = celdas.slice(1, -1).filter(Boolean);
+  const labor = medio.find((c) => !/^[\d.,]+$/.test(c));
+  const kg = medio.find((c) => /^[\d.,]+$/.test(c));
+  const etiqueta = [nombre, labor].filter(Boolean).join(' — ') + (kg ? ` (${kg} kg)` : '');
+  return { nombre: etiqueta, monto };
+}
 
 export default function FinanzasScreen({ navigation }) {
   const { activeFinca, activeFincaId } = useFinca();
@@ -165,6 +185,17 @@ export default function FinanzasScreen({ navigation }) {
           </View>
         )}
 
+        {!soloLectura && (
+          <NotaRapida
+            conceptos={conceptos}
+            semanas={semanas}
+            movimientos={data?.movimientos || []}
+            periodo={periodo}
+            fincaId={activeFincaId}
+            onGuardado={cargarTablero}
+          />
+        )}
+
         {SECCIONES.map((sec) => {
           const items = porTipo[sec.tipo] || [];
           const esFactura = sec.tipo === 'factura';
@@ -283,6 +314,121 @@ function Fila({ label, value, bold }) {
   );
 }
 
+/**
+ * Nota rápida: se escribe "Gasolina guadaña 25000" por línea, se elige el
+ * tipo y el sistema crea/reutiliza el concepto y suma el valor a la semana.
+ */
+function NotaRapida({ conceptos, semanas, movimientos, periodo, fincaId, onGuardado }) {
+  const [texto, setTexto] = useState('');
+  const [tipo, setTipo] = useState('gasto_variable');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+  const [ok, setOk] = useState('');
+
+  const items = useMemo(() => {
+    return texto.split('\n').map((l) => l.trim()).filter(Boolean).map((linea) => {
+      if (linea.includes('\t')) {
+        const excel = parseLineaExcel(linea);
+        if (excel) return excel;
+      }
+      const m = linea.match(/([\d.,]{3,})\s*$/);
+      if (!m) return { nombre: linea, monto: 0 };
+      const monto = Number(m[1].replace(/[.,]/g, '')) || 0;
+      return { nombre: linea.slice(0, m.index).replace(/[-–:$]+\s*$/, '').trim(), monto };
+    });
+  }, [texto]);
+
+  const semanaHoy = useMemo(() => {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const s = semanas.find((x) => {
+      const ini = String(x.fecha_inicio || '').slice(0, 10);
+      const fin = String(x.fecha_fin || '').slice(0, 10);
+      return ini && fin && ini <= hoy && hoy <= fin;
+    });
+    return s || semanas[semanas.length - 1] || null;
+  }, [semanas]);
+
+  const [semanaElegidaId, setSemanaElegidaId] = useState(null);
+  useEffect(() => { setSemanaElegidaId(semanaHoy?.id ?? null); }, [semanaHoy]);
+  const semanaActual = semanas.find((s) => s.id === semanaElegidaId) || semanaHoy;
+
+  const guardar = async () => {
+    setError(''); setOk('');
+    if (items.length === 0) { setError('Escribe qué fue (ej: "Gasolina guadaña 25000").'); return; }
+    const sinMonto = items.find((it) => !it.nombre || !it.monto);
+    if (sinMonto) { setError(`Cada línea debe terminar con el valor en pesos (revisa: "${sinMonto.nombre || '…'}").`); return; }
+    setGuardando(true);
+    try {
+      const semanaId = tipo === 'factura' ? null : (semanaActual?.id ?? null);
+      const acumulado = {};
+      for (const { nombre, monto } of items) {
+        let concepto = conceptos.find((c) => c.tipo === tipo && c.nombre.trim().toLowerCase() === nombre.toLowerCase());
+        if (!concepto) {
+          const r = await finanzasAPI.crearConcepto({ finca_id: fincaId, nombre, tipo });
+          concepto = { id: r.data?.id || r.data?.concepto?.id, tipo, nombre };
+          conceptos.push(concepto);
+        }
+        if (!concepto?.id) throw new Error('concepto sin id');
+        const previo = movimientos.find((m) => m.concepto_id === concepto.id && (m.semana_id ?? null) === semanaId);
+        const base = acumulado[concepto.id] ?? (Number(previo?.monto) || 0);
+        const total = base + monto;
+        acumulado[concepto.id] = total;
+        await finanzasAPI.upsertMovimiento({ concepto_id: concepto.id, periodo_id: periodo.id, semana_id: semanaId, monto: total });
+      }
+      setTexto('');
+      setOk(items.length === 1
+        ? `Anotado: ${items[0].nombre} — ${formatMoney(items[0].monto)}.`
+        : `Anotados ${items.length} ítems.`);
+      onGuardado?.();
+    } catch (e) {
+      console.error('nota rápida:', e);
+      setError(e.response?.data?.error || 'No se pudo guardar la nota.');
+    } finally { setGuardando(false); }
+  };
+
+  return (
+    <View style={styles.notaRapidaCard}>
+      <View style={styles.rowStart}>
+        <Ionicons name="document-text-outline" size={16} color={COLORS.primary} />
+        <Text style={styles.notaRapidaTitle}>  Nota rápida</Text>
+      </View>
+      <Text style={styles.notaRapidaHint}>Escribe la factura o el gasto como en el cuaderno; el sistema lo organiza solo.</Text>
+      <TextInput
+        value={texto} onChangeText={setTexto} multiline
+        placeholder={'Una línea por ítem, ej:\nGasolina guadaña 25000\nAbono cafetal 120000'}
+        style={styles.notaRapidaInput}
+      />
+      <Pressable onPress={guardar} disabled={guardando} style={styles.notaRapidaBtn}>
+        {guardando ? <ActivityIndicator size="small" color="#fff" /> : (
+          <>
+            <Ionicons name="sparkles" size={14} color="#fff" />
+            <Text style={styles.notaRapidaBtnText}>  Anotar</Text>
+          </>
+        )}
+      </Pressable>
+      <View style={[styles.rowStart, { flexWrap: 'wrap', gap: 6, marginTop: 10 }]}>
+        {TIPOS_NOTA.map((t) => (
+          <Pressable key={t.tipo} onPress={() => setTipo(t.tipo)} style={[styles.tipoNotaChip, tipo === t.tipo && styles.tipoNotaChipActivo]}>
+            <Text style={[styles.tipoNotaText, tipo === t.tipo && styles.tipoNotaTextActivo]}>{t.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {tipo !== 'factura' && semanas.length > 0 && (
+        <View style={[styles.rowStart, { flexWrap: 'wrap', gap: 6, marginTop: 8 }]}>
+          <Text style={styles.semanaLabel}>Semana:</Text>
+          {semanas.map((s) => (
+            <Pressable key={s.id} onPress={() => setSemanaElegidaId(s.id)} style={[styles.semanaChip, semanaElegidaId === s.id && styles.semanaChipActivo]}>
+              <Text style={[styles.semanaChipText, semanaElegidaId === s.id && styles.semanaChipTextActivo]}>Sem {s.numero_semana}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+      {error ? <Text style={styles.notaError}>{error}</Text> : null}
+      {ok ? <Text style={styles.notaOk}>{ok}</Text> : null}
+    </View>
+  );
+}
+
 function NuevoConceptoRow({ onSave, onCancel }) {
   const [nombre, setNombre] = useState('');
   return (
@@ -342,4 +488,21 @@ const styles = StyleSheet.create({
   resumenFoot: { fontSize: 11, color: COLORS.ink500, marginTop: 4 },
   resumenFootSmall: { fontSize: 10, color: COLORS.ink400, marginTop: 6, borderTopWidth: 1, borderColor: 'rgba(230,210,74,0.6)', paddingTop: 6 },
   savingText: { fontSize: 11, color: COLORS.ink400, textAlign: 'center', marginTop: 8 },
+  notaRapidaCard: { borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(0,141,73,0.3)', backgroundColor: COLORS.primarySoft, borderRadius: 14, padding: 14, marginTop: 14 },
+  notaRapidaTitle: { fontWeight: '900', color: COLORS.ink900, fontSize: 13 },
+  notaRapidaHint: { fontSize: 11, color: COLORS.ink500, marginTop: 4, marginBottom: 8 },
+  notaRapidaInput: { backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.line, borderRadius: 12, padding: 10, fontSize: 13, color: COLORS.ink900, minHeight: 70, textAlignVertical: 'top' },
+  notaRapidaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 10, marginTop: 8 },
+  notaRapidaBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  tipoNotaChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: COLORS.line, backgroundColor: '#fff' },
+  tipoNotaChipActivo: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  tipoNotaText: { fontSize: 11, fontWeight: '700', color: COLORS.ink500 },
+  tipoNotaTextActivo: { color: '#fff' },
+  semanaLabel: { fontSize: 11, fontWeight: '700', color: COLORS.ink500, textTransform: 'uppercase' },
+  semanaChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: COLORS.line, backgroundColor: '#fff' },
+  semanaChipActivo: { backgroundColor: COLORS.ink900, borderColor: COLORS.ink900 },
+  semanaChipText: { fontSize: 11, fontWeight: '700', color: COLORS.ink500 },
+  semanaChipTextActivo: { color: '#fff' },
+  notaError: { fontSize: 12, color: COLORS.danger, fontWeight: '600', marginTop: 8 },
+  notaOk: { fontSize: 12, color: COLORS.primary, fontWeight: '600', marginTop: 8 },
 });
