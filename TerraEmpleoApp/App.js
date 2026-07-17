@@ -1,3 +1,4 @@
+// OTA trigger: publicar módulo finca cafetera tras configurar EXPO_TOKEN.
 import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
