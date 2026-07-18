@@ -99,7 +99,9 @@ export default function HistorialTrabajadorScreen({ route, navigation }) {
 
   const u = data.usuario;
   const m = data.metricas || {};
-  const totalCalif = (m.calif_bien || 0) + (m.calif_regular || 0) + (m.calif_mal || 0);
+  // El backend devuelve SUM() como string (bigNumberStrings) — Number() evita
+  // que "0"+"0"+"0" concatene en vez de sumar.
+  const totalCalif = (Number(m.calif_bien) || 0) + (Number(m.calif_regular) || 0) + (Number(m.calif_mal) || 0);
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>

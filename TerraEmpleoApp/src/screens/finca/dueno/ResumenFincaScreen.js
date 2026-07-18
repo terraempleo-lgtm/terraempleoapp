@@ -67,9 +67,15 @@ function SectionHeader({ icon, title }) {
 }
 
 function calificacionScore(t) {
-  const total = (t.calif_bien || 0) + (t.calif_regular || 0) + (t.calif_mal || 0);
+  // El backend devuelve SUM()/COUNT() como string (bigNumberStrings en el
+  // pool de MariaDB) — hay que forzar Number() antes de sumar, si no "0"+"0"
+  // concatena en vez de sumar y el total nunca da 0, produciendo NaN abajo.
+  const bien = Number(t.calif_bien) || 0;
+  const regular = Number(t.calif_regular) || 0;
+  const mal = Number(t.calif_mal) || 0;
+  const total = bien + regular + mal;
   if (total === 0) return null;
-  const score = ((t.calif_bien || 0) * 1 + (t.calif_regular || 0) * 0.5) / total;
+  const score = (bien * 1 + regular * 0.5) / total;
   return Math.round(score * 100);
 }
 
@@ -246,8 +252,10 @@ export default function ResumenFincaScreen({ navigation }) {
                     <Text style={styles.trabajadorMeta}>{t.jornadas} jornadas · {Number(t.total_kg).toLocaleString()} kg</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    {score != null && (
+                    {score != null && !Number.isNaN(score) ? (
                       <View style={styles.rowStart}><Ionicons name="star" size={11} color={COLORS.primary} /><Text style={styles.scoreText}>  {score}</Text></View>
+                    ) : (
+                      <Text style={styles.scoreTextMuted}>Sin calificar</Text>
                     )}
                     <Text style={styles.trabajadorPago}>{formatMoney(t.total_pagado)}</Text>
                   </View>
@@ -373,6 +381,7 @@ const styles = StyleSheet.create({
   trabajadorNombre: { fontWeight: '600', color: COLORS.ink900, fontSize: 13 },
   trabajadorMeta: { fontSize: 11, color: COLORS.ink500 },
   scoreText: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
+  scoreTextMuted: { fontSize: 10, fontWeight: '600', color: COLORS.ink400, fontStyle: 'italic' },
   trabajadorPago: { fontSize: 11, color: COLORS.ink400, fontWeight: '700' },
   barsRowSmall: { flexDirection: 'row', alignItems: 'flex-end', height: 100, gap: 4, marginTop: 8 },
   barColSmall: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%' },
