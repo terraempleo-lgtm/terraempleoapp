@@ -21,6 +21,7 @@ router.post('/:id/usuarios/crear-cuenta', finca.crearCuentaUsuario);
 router.delete('/:id/usuarios/:fuId', finca.quitarUsuario);
 
 // Lotes/parcelas de la finca
+router.get('/:id/lotes/rendimiento', finca.listarRendimientoLotes);
 router.get('/:id/lotes', finca.listarLotesFinca);
 router.post('/:id/lotes', finca.crearLoteFinca);
 router.delete('/:id/lotes/:loteId', finca.eliminarLoteFinca);

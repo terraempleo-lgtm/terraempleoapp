@@ -1064,6 +1064,13 @@ async function initializeDatabase() {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_registros_trabajo.finca_lote_id:', e.message);
   }
 
+  // Migración: área del lote (hectáreas) para métricas de rendimiento (kg/ha).
+  try {
+    await query('ALTER TABLE finca_lotes ADD COLUMN IF NOT EXISTS hectareas DECIMAL(8,2) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] finca_lotes.hectareas:', e.message);
+  }
+
   // ── Muro de compra/venta (mercado entre agricultores) ─────────────────────
   await query(`
     CREATE TABLE IF NOT EXISTS muro_publicaciones (
