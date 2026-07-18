@@ -60,6 +60,28 @@ export const authAPI = {
   subirFoto: (tipo, formData) => api.post(`/auth/fotos/${tipo}`, formData, {
     transformRequest: [(data) => data],
   }),
+  // fetch (no axios) — axios no arma bien el boundary multipart en iOS/Android,
+  // lo que hacía que las fotos de identidad del registro (selfie/cédula) se
+  // perdieran silenciosamente antes de llegar al panel de admin.
+  subirFotoIdentidad: async (tipo, uri) => {
+    const form = new FormData();
+    const ext = (uri.split('.').pop() || 'jpg').split('?')[0].toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    if (typeof document !== 'undefined') {
+      const blob = await fetch(uri).then(r => r.blob());
+      form.append('foto', blob, `${tipo}_${Date.now()}.${ext}`);
+    } else {
+      form.append('foto', { uri, type: mime, name: `${tipo}_${Date.now()}.${ext}` });
+    }
+    const res = await fetch(`${api.defaults.baseURL}/auth/fotos/${tipo}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authToken}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw { response: { data, status: res.status } };
+    return { data };
+  },
   cambiarFotoPerfil: (formData) => api.post('/auth/cambiar-foto-perfil', formData, {
     transformRequest: [(data) => data],
   }),

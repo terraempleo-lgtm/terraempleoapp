@@ -1,35 +1,31 @@
-import { Platform } from 'react-native';
 import { authAPI } from '../services/api';
 import { showToast } from './toastService';
 
-const subir = async ({ tipo, uri }) => {
-  const formData = new FormData();
-  if (Platform.OS === 'web') {
-    const resp = await fetch(uri);
-    const blob = await resp.blob();
-    formData.append('foto', blob, `${tipo}_${Date.now()}.jpg`);
-  } else {
-    formData.append('foto', { uri, type: 'image/jpeg', name: `${tipo}_${Date.now()}.jpg` });
+async function subirConReintento({ tipo, uri }) {
+  try {
+    await authAPI.subirFotoIdentidad(tipo, uri);
+  } catch (err) {
+    // Contexto rural con conectividad intermitente — un reintento evita que
+    // un solo timeout se traduzca en una foto de identidad perdida.
+    await authAPI.subirFotoIdentidad(tipo, uri);
   }
-  await authAPI.subirFoto(tipo, formData);
-};
+}
 
 /**
  * Sube todas las fotos en segundo plano sin bloquear el registro.
- * Si alguna foto obligatoria falla, muestra un toast pidiendo al usuario
- * que complete la verificación desde su perfil.
+ * Usa fetch (vía authAPI.subirFotoIdentidad) en vez de axios, que no arma
+ * bien el boundary multipart en iOS/Android y hacía que las fotos de
+ * identidad nunca llegaran al servidor.
+ * Si alguna foto obligatoria falla incluso tras el reintento, muestra un
+ * toast pidiendo al usuario que complete la verificación desde su perfil.
  */
 export function subirFotosRegistro(fotosObligatorias, fotosOpcionales = []) {
-  const todas = [
-    ...fotosObligatorias.filter(f => f.uri),
-    ...fotosOpcionales.filter(f => f.uri),
-  ];
+  const obligatorias = fotosObligatorias.filter(f => f.uri);
+  const todas = [...obligatorias, ...fotosOpcionales.filter(f => f.uri)];
   if (todas.length === 0) return;
 
-  Promise.allSettled(todas.map(f => subir(f))).then(results => {
-    const fallaronObligatorias = results
-      .slice(0, fotosObligatorias.filter(f => f.uri).length)
-      .some(r => r.status === 'rejected');
+  Promise.allSettled(todas.map(f => subirConReintento(f))).then(results => {
+    const fallaronObligatorias = results.slice(0, obligatorias.length).some(r => r.status === 'rejected');
 
     if (fallaronObligatorias) {
       setTimeout(() => {
