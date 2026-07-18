@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet, Modal,
-  Switch, ActivityIndicator, LayoutAnimation, Platform, UIManager,
+  Switch, ActivityIndicator, LayoutAnimation, Platform, UIManager, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -574,7 +574,8 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         trabajadores: trabajadores.map((t) => ({
           trabajador_id: t.trabajador_id, nombre: t.nombre, foto: t.foto,
           manual_nombre: t.nombre, manual_telefono: t.manual_telefono,
-          tipo_pago: t.tipo_pago, labores: t.labores, hora_entrada: t.hora_entrada, hora_salida: t.hora_salida,
+          tipo_pago: t.tipo_pago, labores: t.labores,
+          lote_id: t.lote_id, lote_nombre: t.lote_nombre,
         })),
       });
 
@@ -604,6 +605,25 @@ export default function CerrarJornadaScreen({ navigation, route }) {
             <Text style={styles.ayudaBtnText}>  ¿Cómo funciona una jornada?</Text>
           </View>
           <Ionicons name="chevron-down" size={16} color={COLORS.info} style={{ transform: [{ rotate: ayudaOpen ? '180deg' : '0deg' }] }} />
+        </Pressable>
+
+        <Pressable
+          style={styles.nuevaSemanaBtn}
+          onPress={() => {
+            Alert.alert('¿Empezar semana nueva?', 'Se borran los trabajadores, labores y precios recordados. La próxima jornada empieza en blanco.', [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Empezar de nuevo', style: 'destructive', onPress: async () => {
+                  await AsyncStorage.removeItem(CACHE_KEY);
+                  setSugeridos([]); setTrabajadores([]); setLabor(''); setPreciosOpen(true);
+                  toast.success('Semana reiniciada');
+                },
+              },
+            ]);
+          }}
+        >
+          <Ionicons name="refresh-outline" size={14} color={COLORS.ink500} />
+          <Text style={styles.nuevaSemanaBtnText}>  Empezar semana nueva</Text>
         </Pressable>
         {ayudaOpen && (
           <Text style={styles.ayudaText}>
@@ -835,6 +855,8 @@ const styles = StyleSheet.create({
   ayudaBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 12, backgroundColor: COLORS.infoSoft },
   ayudaBtnText: { color: COLORS.info, fontWeight: '700', fontSize: 13 },
   ayudaText: { fontSize: 12, color: COLORS.ink700, marginTop: -4, paddingHorizontal: 4 },
+  nuevaSemanaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
+  nuevaSemanaBtnText: { color: COLORS.ink500, fontSize: 12, fontWeight: '600' },
   step: { borderWidth: 2, borderColor: COLORS.line, borderRadius: 12, padding: 12, backgroundColor: '#fff' },
   stepTitle: { fontWeight: '900', color: COLORS.ink900, fontSize: 14 },
   hintText: { fontSize: 12, color: COLORS.ink500, marginBottom: 8, marginLeft: 30 },

@@ -120,7 +120,7 @@ function AsistenciaRow({ a, onCambiar, onEliminar, onSalida, onCheckin }) {
   );
 }
 
-function RegistroRow({ a, jornada, onGuardar, onPagar, lotesFinca = [] }) {
+function RegistroRow({ a, jornada, onGuardar, lotesFinca = [] }) {
   const nombre = a.trabajador_nombre || a.manual_nombre || 'Sin nombre';
   const asistio = ['llego', 'llego_tarde'].includes(a.estado);
   const [open, setOpen] = useState(false);
@@ -239,11 +239,11 @@ function RegistroRow({ a, jornada, onGuardar, onPagar, lotesFinca = [] }) {
               <Text style={styles.totalLabel}>Pago calculado</Text>
               <Text style={styles.totalValue}>{formatMoney(pagoCalculado)}</Text>
             </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               {a.registro_id && (
-                <Pressable onPress={() => onPagar(a, !a.pagado)} style={styles.btnOutlineSmall}>
-                  <Text style={styles.btnOutlineSmallText}>{a.pagado ? 'No pagado' : 'Marcar pagado'}</Text>
-                </Pressable>
+                <Text style={styles.pagoEstadoHint}>
+                  {a.pagado ? '✓ Pagado (firmado en Nómina)' : 'Pendiente — se paga al firmar en Nómina'}
+                </Text>
               )}
               <Pressable onPress={guardar} disabled={saving} style={styles.btnPrimarySmall}>
                 {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnPrimarySmallText}>Guardar</Text>}
@@ -645,9 +645,6 @@ export default function DetalleJornadaScreen({ route, navigation }) {
       toast.success('Registro guardado'); cargar();
     } catch { toast.error('No se pudo guardar'); }
   };
-  const marcarPagado = async (a, pagado) => {
-    try { await cuadernoAPI.marcarPagado(a.id, { pagado }); cargar(); } catch { toast.error('No se pudo actualizar el pago'); }
-  };
   const calificar = async (a, { nivel, comentario }) => {
     try { await cuadernoAPI.calificarAsistencia(a.id, { nivel, comentario }); cargar(); } catch { toast.error('No se pudo calificar'); }
   };
@@ -764,7 +761,7 @@ export default function DetalleJornadaScreen({ route, navigation }) {
               <AsistenciaRow key={a.id} a={a} onCambiar={cambiarEstadoAsistencia} onEliminar={eliminarAsistencia} onSalida={marcarSalida} onCheckin={marcarCheckin} />
             ))}
             {tab === 'registro' && asistencias.map((a) => (
-              <RegistroRow key={a.id} a={a} jornada={j} onGuardar={guardarRegistro} onPagar={marcarPagado} lotesFinca={lotesFinca} />
+              <RegistroRow key={a.id} a={a} jornada={j} onGuardar={guardarRegistro} lotesFinca={lotesFinca} />
             ))}
             {tab === 'calificacion' && (
               asistencias.filter((a) => ['llego', 'llego_tarde'].includes(a.estado)).length === 0 ? (
@@ -812,6 +809,7 @@ const styles = StyleSheet.create({
   lockText: { fontSize: 11, color: COLORS.ink400, fontStyle: 'italic' },
   moneyPrimary: { fontWeight: '700', color: COLORS.primary, fontSize: 12 },
   pagadoBadge: { fontSize: 10, fontWeight: '700', color: COLORS.primary },
+  pagoEstadoHint: { fontSize: 11, color: COLORS.ink400, flex: 1 },
   pendienteBadge: { fontSize: 10, fontWeight: '700', color: COLORS.warning },
   estadoChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   estadoChipText: { fontSize: 11, fontWeight: '700' },

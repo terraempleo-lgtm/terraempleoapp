@@ -6,11 +6,11 @@ import { useFinca } from '../../../context/FincaContext';
 
 const ITEMS = [
   { key: 'ResumenFincaHome', label: 'Resumen', icon: 'book-outline' },
-  { key: 'JornadasHome', label: 'Jornadas', icon: 'calendar-outline' },
-  { key: 'NominaHome', label: 'Nómina', icon: 'clipboard-outline' },
-  { key: 'CafeHome', label: 'Café', icon: 'cafe-outline' },
   { key: 'FinanzasHome', label: 'Finanzas', icon: 'pulse-outline' },
+  { key: 'NominaHome', label: 'Nómina', icon: 'clipboard-outline' },
   { key: 'RendimientoHome', label: 'Rendimiento', icon: 'trending-up-outline' },
+  { key: 'JornadasHome', label: 'Jornadas', icon: 'calendar-outline' },
+  { key: 'CafeHome', label: 'Café', icon: 'cafe-outline' },
 ];
 
 // Sub-navegación interna del Cuaderno (equivalente a las pestañas Resumen/

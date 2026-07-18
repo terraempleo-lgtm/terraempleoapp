@@ -43,6 +43,17 @@ function pad(n) { return String(n).padStart(2, '0'); }
 function ymd(d) { return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; }
 
 // Semana actual (lunes..domingo) en UTC, como respaldo si no envían rango.
+// Lunes-Domingo de la semana a la que pertenece `fechaStr` (YYYY-MM-DD).
+function semanaDe(fechaStr) {
+  const [y, m, d] = String(fechaStr).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dow = dt.getUTCDay();
+  const diffLunes = (dow === 0 ? -6 : 1 - dow);
+  const lunes = new Date(dt); lunes.setUTCDate(dt.getUTCDate() + diffLunes);
+  const domingo = new Date(lunes); domingo.setUTCDate(lunes.getUTCDate() + 6);
+  return { desde: ymd(lunes), hasta: ymd(domingo) };
+}
+
 function semanaActual() {
   const now = new Date();
   const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
@@ -120,6 +131,10 @@ async function eliminarAjuste(req, res) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Firma de recibido (a nivel de asistencia)
 // ─────────────────────────────────────────────────────────────────────────────
+// El estado "pagado" de un registro ya no se marca a mano — depende
+// exclusivamente de si el trabajador firmó el recibido de esa semana en
+// Nómina. Firmar marca pagados todos sus registros de la semana; deshacer
+// la firma los vuelve a dejar pendientes.
 async function marcarFirma(req, res) {
   try {
     const asisId = Number(req.params.asisId);
@@ -132,6 +147,42 @@ async function marcarFirma(req, res) {
         WHERE id = ?`,
       [firmado, asisId]
     );
+
+    const asisRows = await query(
+      `SELECT a.trabajador_id, a.manual_nombre, j.fecha, j.finca_id, j.empleador_id
+         FROM cuaderno_asistencias a
+         JOIN cuaderno_jornadas j ON j.id = a.jornada_id
+        WHERE a.id = ?`,
+      [asisId]
+    );
+    const anchor = asisRows && asisRows[0];
+    if (anchor) {
+      const { desde, hasta } = semanaDe(anchor.fecha);
+      if (anchor.trabajador_id) {
+        await query(
+          `UPDATE cuaderno_registros_trabajo r
+             JOIN cuaderno_asistencias a ON a.id = r.asistencia_id
+             JOIN cuaderno_jornadas j ON j.id = a.jornada_id
+              SET r.pagado = ?, r.pagado_at = ${firmado ? 'CURRENT_TIMESTAMP' : 'NULL'}
+            WHERE a.trabajador_id = ?
+              AND (j.finca_id = ? OR (j.finca_id IS NULL AND j.empleador_id = ?))
+              AND j.fecha BETWEEN ? AND ?`,
+          [firmado, anchor.trabajador_id, anchor.finca_id, anchor.empleador_id, desde, hasta]
+        );
+      } else if (anchor.manual_nombre) {
+        await query(
+          `UPDATE cuaderno_registros_trabajo r
+             JOIN cuaderno_asistencias a ON a.id = r.asistencia_id
+             JOIN cuaderno_jornadas j ON j.id = a.jornada_id
+              SET r.pagado = ?, r.pagado_at = ${firmado ? 'CURRENT_TIMESTAMP' : 'NULL'}
+            WHERE a.manual_nombre = ?
+              AND (j.finca_id = ? OR (j.finca_id IS NULL AND j.empleador_id = ?))
+              AND j.fecha BETWEEN ? AND ?`,
+          [firmado, anchor.manual_nombre, anchor.finca_id, anchor.empleador_id, desde, hasta]
+        );
+      }
+    }
+
     res.json({ message: 'Firma actualizada', firmado: !!firmado });
   } catch (err) {
     console.error('marcarFirma:', err);
@@ -223,7 +274,7 @@ async function planilla(req, res) {
     const filas = [...mapa.values()].map((f) => {
       const neto = f.base + f.bonificacion + f.labor_extra - f.descuento - f.anticipo;
       const { _lastFecha, ...rest } = f;
-      return { ...rest, neto, pagado: f.pagado_any && f.pagado_all };
+      return { ...rest, neto, pagado: f.firmado };
     }).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
     const totales = filas.reduce((t, f) => ({
