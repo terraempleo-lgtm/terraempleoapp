@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, RADIUS, SPACING, FONTS } from '../../theme';
@@ -84,21 +84,37 @@ export default function HoraField({ label, value, onChange, placeholder = '--:--
         </Text>
       </TouchableOpacity>
 
-      {showPicker && Platform.OS !== 'web' && (
-        <>
-          <DateTimePicker
-            value={parseToDate(value)}
-            mode="time"
-            is24Hour
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleNativeChange}
-          />
-          {Platform.OS === 'ios' && (
-            <TouchableOpacity style={styles.iosCloseBtn} onPress={() => setShowPicker(false)}>
-              <Text style={styles.iosCloseText}>Listo</Text>
-            </TouchableOpacity>
-          )}
-        </>
+      {showPicker && Platform.OS === 'android' && (
+        <DateTimePicker
+          value={parseToDate(value)}
+          mode="time"
+          is24Hour
+          display="default"
+          onChange={handleNativeChange}
+        />
+      )}
+
+      {Platform.OS === 'ios' && (
+        <Modal visible={showPicker} transparent animationType="slide" onRequestClose={() => setShowPicker(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowPicker(false)} />
+            <View style={styles.modalCard}>
+              <TouchableOpacity style={styles.iosCloseBtn} onPress={() => setShowPicker(false)}>
+                <Text style={styles.iosCloseText}>Listo</Text>
+              </TouchableOpacity>
+              <DateTimePicker
+                value={parseToDate(value)}
+                mode="time"
+                is24Hour
+                display="spinner"
+                themeVariant="light"
+                textColor={COLORS.ink900}
+                style={styles.iosSpinner}
+                onChange={handleNativeChange}
+              />
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );
@@ -127,13 +143,32 @@ const styles = StyleSheet.create({
   placeholder: {
     color: COLORS.ink400,
   },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    paddingBottom: SPACING.lg,
+  },
+  iosSpinner: {
+    height: 216,
+    width: '100%',
+  },
   iosCloseBtn: {
     alignSelf: 'flex-end',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
+    paddingVertical: SPACING.sm,
   },
   iosCloseText: {
     color: COLORS.primary,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });
