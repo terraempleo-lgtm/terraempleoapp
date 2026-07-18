@@ -476,6 +476,9 @@ export const fincaAPI = {
   invitarUsuario: (id, data) => api.post(`/finca/${id}/usuarios`, data),
   crearCuentaUsuario: (id, data) => api.post(`/finca/${id}/usuarios/crear-cuenta`, data),
   quitarUsuario: (id, fuId) => api.delete(`/finca/${id}/usuarios/${fuId}`),
+  listarLotesFinca: (id) => api.get(`/finca/${id}/lotes`),
+  crearLoteFinca: (id, data) => api.post(`/finca/${id}/lotes`, data),
+  eliminarLoteFinca: (id, loteId) => api.delete(`/finca/${id}/lotes/${loteId}`),
 };
 
 // Cuaderno (jornadas, asistencias, registros, calificaciones, notas, dashboard)

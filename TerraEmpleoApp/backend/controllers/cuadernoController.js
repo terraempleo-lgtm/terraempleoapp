@@ -199,10 +199,12 @@ async function detalleJornada(req, res) {
         r.id AS registro_id, r.cantidad_kg, r.horas, r.tipo_pago, r.precio_jornal AS r_precio_jornal,
         r.precio_kilo AS r_precio_kilo, r.pago_total, r.pagado, r.estado AS registro_estado, r.notas AS registro_notas,
         r.descuento_alimentacion, r.descuento_otro, r.descuento_nota,
+        r.finca_lote_id, fl.nombre AS finca_lote_nombre,
         c.id AS calificacion_id, c.nivel AS calif_nivel, c.comentario AS calif_comentario
       FROM cuaderno_asistencias a
       LEFT JOIN usuarios u ON u.id = a.trabajador_id
       LEFT JOIN cuaderno_registros_trabajo r ON r.asistencia_id = a.id
+      LEFT JOIN finca_lotes fl ON fl.id = r.finca_lote_id
       LEFT JOIN cuaderno_calificaciones_internas c ON c.asistencia_id = a.id
       WHERE a.jornada_id = ?
       ORDER BY (a.estado = 'pendiente') DESC, COALESCE(u.nombre_completo, a.manual_nombre) ASC
@@ -393,7 +395,8 @@ async function upsertRegistroTrabajo(req, res) {
 
     const {
       cantidad_kg, horas, tipo_pago, precio_jornal, precio_kilo,
-      estado, notas, pagado, descuento_alimentacion, descuento_otro, descuento_nota
+      estado, notas, pagado, descuento_alimentacion, descuento_otro, descuento_nota,
+      finca_lote_id,
     } = req.body;
 
     const tipo = tipo_pago || a.tipo_pago_default || 'jornal';
@@ -417,17 +420,21 @@ async function upsertRegistroTrabajo(req, res) {
       [asisId]
     );
 
+    const loteId = finca_lote_id ? Number(finca_lote_id) : null;
+
     if (existentes && existentes.length) {
       await query(`
         UPDATE cuaderno_registros_trabajo SET
           cantidad_kg = ?, horas = ?, tipo_pago = ?, precio_jornal = ?, precio_kilo = ?,
           pago_total = ?, estado = ?, notas = ?, pagado = ?,
-          descuento_alimentacion = ?, descuento_otro = ?, descuento_nota = ?
+          descuento_alimentacion = ?, descuento_otro = ?, descuento_nota = ?,
+          finca_lote_id = ?
         WHERE asistencia_id = ?
       `, [
         cantidad_kg ?? null, horas ?? null, tipo, pj, pk,
         pagoTotal, est, notas || null, pagado ? 1 : 0,
         descAlim, descOtro, descuento_nota || null,
+        loteId,
         asisId,
       ]);
       return res.json({ message: 'Registro actualizado', pago_total: pagoTotal });
@@ -437,12 +444,12 @@ async function upsertRegistroTrabajo(req, res) {
       INSERT INTO cuaderno_registros_trabajo
         (asistencia_id, jornada_id, cantidad_kg, horas, tipo_pago,
          precio_jornal, precio_kilo, pago_total, estado, notas, pagado,
-         descuento_alimentacion, descuento_otro, descuento_nota)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         descuento_alimentacion, descuento_otro, descuento_nota, finca_lote_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       asisId, a.jornada_id, cantidad_kg ?? null, horas ?? null, tipo,
       pj, pk, pagoTotal, est, notas || null, pagado ? 1 : 0,
-      descAlim, descOtro, descuento_nota || null,
+      descAlim, descOtro, descuento_nota || null, loteId,
     ]);
 
     res.status(201).json({ message: 'Registro creado', pago_total: pagoTotal });

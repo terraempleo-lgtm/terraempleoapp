@@ -26,6 +26,10 @@ export default function ConfiguracionFincaScreen({ navigation }) {
   const { activeFinca, activeFincaId, esPropietario, recargarFincas } = useFinca();
   const [form, setForm] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
+  const [lotes, setLotes] = useState([]);
+  const [nuevoLote, setNuevoLote] = useState({ nombre: '', cultivo: '' });
+  const [creandoLote, setCreandoLote] = useState(false);
+  const [errorLote, setErrorLote] = useState('');
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [msg, setMsg] = useState('');
@@ -46,6 +50,7 @@ export default function ConfiguracionFincaScreen({ navigation }) {
       kg_por_carga: String(activeFinca.kg_por_carga ?? 125), umbral_merma_pct: String(activeFinca.umbral_merma_pct ?? 15),
     });
     fincaAPI.listarUsuarios(activeFincaId).then((r) => setUsuarios(r.data?.usuarios || [])).catch(() => {}).finally(() => setLoading(false));
+    fincaAPI.listarLotesFinca(activeFincaId).then((r) => setLotes(r.data?.lotes || [])).catch(() => {});
   }, [activeFinca]);
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -103,6 +108,26 @@ export default function ConfiguracionFincaScreen({ navigation }) {
     Alert.alert('¿Quitar usuario?', `¿Quitar a ${u.nombre_completo} de la finca?`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Quitar', style: 'destructive', onPress: async () => { try { await fincaAPI.quitarUsuario(activeFincaId, u.id); setUsuarios((p) => p.filter((x) => x.id !== u.id)); } catch (e) { console.error(e); } } },
+    ]);
+  };
+
+  const crearLote = async () => {
+    setErrorLote('');
+    if (!nuevoLote.nombre.trim()) { setErrorLote('Escribe un nombre para el lote (ej: Lote 1).'); return; }
+    setCreandoLote(true);
+    try {
+      const r = await fincaAPI.crearLoteFinca(activeFincaId, { nombre: nuevoLote.nombre.trim(), cultivo: nuevoLote.cultivo.trim() || null });
+      setLotes((p) => [...p, { id: r.data.id, nombre: nuevoLote.nombre.trim(), cultivo: nuevoLote.cultivo.trim() || null }].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      setNuevoLote({ nombre: '', cultivo: '' });
+    } catch (e) {
+      setErrorLote(e.response?.data?.error || 'No se pudo crear el lote.');
+    } finally { setCreandoLote(false); }
+  };
+
+  const eliminarLote = (lote) => {
+    Alert.alert('¿Eliminar lote?', `¿Eliminar "${lote.nombre}"? Las jornadas ya registradas conservan el historial.`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => { try { await fincaAPI.eliminarLoteFinca(activeFincaId, lote.id); setLotes((p) => p.filter((x) => x.id !== lote.id)); } catch (e) { console.error(e); } } },
     ]);
   };
 
@@ -167,6 +192,49 @@ export default function ConfiguracionFincaScreen({ navigation }) {
             {guardando ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Guardar cambios</Text>}
           </Pressable>
         )}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🌱 Lotes de la finca</Text>
+          <Text style={styles.cardHint}>Divide la finca en lotes (ej: Lote 1, Lote 2) para saber en qué parte trabajó cada jornalero y a qué lote pertenece el café recogido.</Text>
+          {lotes.length === 0 ? (
+            <Text style={styles.emptyLotesText}>Aún no has creado lotes.</Text>
+          ) : (
+            lotes.map((l) => (
+              <View key={l.id} style={styles.loteRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.userNombre}>{l.nombre}</Text>
+                  {l.cultivo ? <Text style={styles.userCelular}>{l.cultivo}</Text> : null}
+                </View>
+                {esPropietario && (
+                  <Pressable onPress={() => eliminarLote(l)} style={{ padding: 6 }}>
+                    <Ionicons name="trash-outline" size={15} color={COLORS.ink400} />
+                  </Pressable>
+                )}
+              </View>
+            ))
+          )}
+
+          {esPropietario && (
+            <View style={styles.loteForm}>
+              {errorLote ? <View style={styles.errorBanner}><Text style={styles.errorBannerText}>{errorLote}</Text></View> : null}
+              <View style={styles.rowStart}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]} placeholderTextColor={COLORS.ink400}
+                  placeholder="Nombre (ej: Lote 1)" value={nuevoLote.nombre}
+                  onChangeText={(v) => setNuevoLote((p) => ({ ...p, nombre: v }))}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1, marginLeft: 8 }]} placeholderTextColor={COLORS.ink400}
+                  placeholder="Cultivo (opcional)" value={nuevoLote.cultivo}
+                  onChangeText={(v) => setNuevoLote((p) => ({ ...p, cultivo: v }))}
+                />
+              </View>
+              <Pressable onPress={crearLote} disabled={creandoLote} style={styles.btnPrimarySmall}>
+                {creandoLote ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnPrimarySmallText}>+ Agregar lote</Text>}
+              </Pressable>
+            </View>
+          )}
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>👥 Equipo de la finca</Text>
@@ -294,6 +362,9 @@ const styles = StyleSheet.create({
   userRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderColor: COLORS.lineLight, gap: 8 },
   userNombre: { fontWeight: '700', fontSize: 13, color: COLORS.ink900 },
   userCelular: { fontSize: 11, color: COLORS.ink400 },
+  emptyLotesText: { fontSize: 12, color: COLORS.ink400, fontStyle: 'italic', marginTop: 4 },
+  loteRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderColor: COLORS.lineLight, gap: 8 },
+  loteForm: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderColor: COLORS.line },
   rolBadge: { fontSize: 11, fontWeight: '700', color: COLORS.ink700, backgroundColor: COLORS.lineLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   equipoForm: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderColor: COLORS.line },
   credBox: { backgroundColor: COLORS.primarySoft, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(0,141,73,0.25)' },

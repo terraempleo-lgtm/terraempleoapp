@@ -45,6 +45,31 @@ async function getFinca(fincaId) {
   return rows && rows[0];
 }
 
+// Desglosa la cereza recolectada por lote de finca y por día — permite ver,
+// p. ej., "lunes: 80 kg del Lote 1" al armar un lote de beneficio de café.
+async function desglosarPorLote(finca, desde, hasta) {
+  const rows = await query(
+    `SELECT j.fecha, r.finca_lote_id, fl.nombre AS lote_nombre, fl.cultivo AS lote_cultivo,
+            COALESCE(SUM(r.cantidad_kg), 0) AS kg
+       FROM cuaderno_registros_trabajo r
+       JOIN cuaderno_jornadas j ON j.id = r.jornada_id
+       LEFT JOIN finca_lotes fl ON fl.id = r.finca_lote_id
+      WHERE (j.finca_id = ? OR (j.finca_id IS NULL AND j.empleador_id = ?))
+        AND j.fecha BETWEEN ? AND ?
+        AND r.cantidad_kg > 0
+      GROUP BY j.fecha, r.finca_lote_id, fl.nombre, fl.cultivo
+      ORDER BY j.fecha ASC, fl.nombre ASC`,
+    [finca.id, finca.empleador_id, desde, hasta]
+  );
+  return (rows || []).map((r) => ({
+    fecha: r.fecha,
+    finca_lote_id: r.finca_lote_id,
+    lote_nombre: r.lote_nombre || 'Sin lote asignado',
+    lote_cultivo: r.lote_cultivo || null,
+    kg: round2(r.kg),
+  }));
+}
+
 // Recalcula (upsert) la alerta de un lote según el total real registrado.
 async function recomputarAlerta(lote, umbralPct) {
   const realRows = await query(
@@ -90,7 +115,8 @@ async function preview(req, res) {
     if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
     const finca = await getFinca(fincaId);
     const totalCereza = await sumarCereza(finca, desde, hasta);
-    res.json({ total_kg_cereza: round2(totalCereza), ...estimarPergamino(finca, totalCereza) });
+    const desglosePorLote = await desglosarPorLote(finca, desde, hasta);
+    res.json({ total_kg_cereza: round2(totalCereza), ...estimarPergamino(finca, totalCereza), desglose_por_lote: desglosePorLote });
   } catch (err) {
     console.error('preview:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -172,7 +198,15 @@ async function detalleLote(req, res) {
       [id]
     );
     const alertaRows = await query('SELECT * FROM cafe_alertas WHERE lote_id = ?', [id]);
-    res.json({ rol_finca: acc.rol, lote, reales: reales || [], alerta: (alertaRows && alertaRows[0]) || null });
+    const finca = await getFinca(Number(lote.finca_id));
+    const desde = lote.rango_desde || lote.fecha;
+    const hasta = lote.rango_hasta || lote.fecha;
+    const desglosePorLote = finca ? await desglosarPorLote(finca, desde, hasta) : [];
+    res.json({
+      rol_finca: acc.rol, lote, reales: reales || [],
+      alerta: (alertaRows && alertaRows[0]) || null,
+      desglose_por_lote: desglosePorLote,
+    });
   } catch (err) {
     console.error('detalleLote:', err);
     res.status(500).json({ error: 'Error interno del servidor' });

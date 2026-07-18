@@ -718,6 +718,23 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Lotes/parcelas físicas de la finca (ej. "Lote 1", cultivo café) — permiten
+  // saber en qué parte de la finca trabajó cada jornalero un día dado, y así
+  // rastrear a qué lote pertenece el café recogido cuando se arma un lote de
+  // beneficio en el módulo Café.
+  await query(`
+    CREATE TABLE IF NOT EXISTS finca_lotes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      finca_id INT NOT NULL,
+      nombre VARCHAR(100) NOT NULL,
+      cultivo VARCHAR(100) DEFAULT NULL,
+      activo TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_finca_lotes_finca (finca_id),
+      FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Roles internos por finca (separación de funciones para antifraude).
   await query(`
     CREATE TABLE IF NOT EXISTS finca_usuarios (
@@ -1034,6 +1051,17 @@ async function initializeDatabase() {
     await query('ALTER TABLE cuaderno_registros_trabajo ADD COLUMN IF NOT EXISTS descuento_nota VARCHAR(200) DEFAULT NULL');
   } catch (e) {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_registros_trabajo.descuentos:', e.message);
+  }
+
+  // Migración: lote de finca trabajado ese día (para rastrear a qué lote
+  // pertenece el café recogido cuando se arma un lote de beneficio). Sin FK
+  // explícita (mismo criterio que el resto de columnas de esta tabla) para
+  // no depender de sintaxis de constraint condicional no soportada en todas
+  // las versiones de MariaDB.
+  try {
+    await query('ALTER TABLE cuaderno_registros_trabajo ADD COLUMN IF NOT EXISTS finca_lote_id INT DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_registros_trabajo.finca_lote_id:', e.message);
   }
 
   // ── Muro de compra/venta (mercado entre agricultores) ─────────────────────

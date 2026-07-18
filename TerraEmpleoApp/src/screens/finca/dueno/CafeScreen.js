@@ -189,7 +189,7 @@ function LoteDetalle({ loteId, onChanged }) {
   useEffect(() => { cargar(); }, [cargar]);
 
   if (!data) return <ActivityIndicator style={{ marginTop: 12 }} color={COLORS.primary} />;
-  const { lote, reales, alerta } = data;
+  const { lote, reales, alerta, desglose_por_lote: desglosePorLote } = data;
   const sev = SEV[alerta?.severidad] || SEV.ok;
 
   const agregarReal = async () => {
@@ -224,6 +224,19 @@ function LoteDetalle({ loteId, onChanged }) {
           <Text style={[styles.alertBoxText, { color: sev.color }]}>
             Diferencia significativa. Estimaste {num(alerta.estimado_kg)} kg pergamino y registraste {num(alerta.real_kg)} kg ({num(alerta.diferencia_kg)} kg menos).
           </Text>
+        </View>
+      )}
+
+      {desglosePorLote?.length > 0 && (
+        <View style={{ marginBottom: 6 }}>
+          <Text style={styles.miniTitle}>Kg por lote y día</Text>
+          {desglosePorLote.map((d, i) => (
+            <View key={i} style={styles.desgloseRow}>
+              <Text style={styles.desgloseFecha}>{d.fecha?.slice(0, 10)}</Text>
+              <Text style={styles.desgloseLote}>{d.lote_nombre}</Text>
+              <Text style={styles.desgloseKg}>{num(d.kg)} kg</Text>
+            </View>
+          ))}
         </View>
       )}
 
@@ -324,6 +337,19 @@ function NuevoLoteModal({ finca, rangoInicial, onClose, onCreated }) {
             )}
           </View>
 
+          {preview?.desglose_por_lote?.length > 0 && (
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.fieldLabel}>Kg por lote y día</Text>
+              {preview.desglose_por_lote.map((d, i) => (
+                <View key={i} style={styles.desgloseRow}>
+                  <Text style={styles.desgloseFecha}>{d.fecha?.slice(0, 10)}</Text>
+                  <Text style={styles.desgloseLote}>{d.lote_nombre}</Text>
+                  <Text style={styles.desgloseKg}>{num(d.kg)} kg</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           <View style={[styles.rowStart, { justifyContent: 'flex-end', gap: 8, marginTop: 12 }]}>
             <Pressable onPress={onClose} style={styles.btnGhostSmall}><Text style={styles.btnGhostSmallText}>Cancelar</Text></Pressable>
             <Pressable onPress={crear} disabled={saving || !form.fecha} style={styles.btnPrimarySmall}>
@@ -396,4 +422,8 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 11, fontWeight: '700', color: COLORS.ink500, textTransform: 'uppercase', marginTop: 8, marginBottom: 4 },
   previewBox: { backgroundColor: COLORS.primarySoft, borderRadius: 10, padding: 10, marginTop: 10 },
   previewText: { fontSize: 12, color: COLORS.ink700 },
+  desgloseRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderColor: COLORS.lineLight, gap: 8 },
+  desgloseFecha: { fontSize: 11, color: COLORS.ink500, width: 76 },
+  desgloseLote: { fontSize: 12, fontWeight: '600', color: COLORS.ink700, flex: 1 },
+  desgloseKg: { fontSize: 12, fontWeight: '700', color: COLORS.ink900 },
 });

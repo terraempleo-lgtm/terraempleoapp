@@ -120,7 +120,7 @@ function AsistenciaRow({ a, onCambiar, onEliminar, onSalida, onCheckin }) {
   );
 }
 
-function RegistroRow({ a, jornada, onGuardar, onPagar }) {
+function RegistroRow({ a, jornada, onGuardar, onPagar, lotesFinca = [] }) {
   const nombre = a.trabajador_nombre || a.manual_nombre || 'Sin nombre';
   const asistio = ['llego', 'llego_tarde'].includes(a.estado);
   const [open, setOpen] = useState(false);
@@ -132,6 +132,7 @@ function RegistroRow({ a, jornada, onGuardar, onPagar }) {
     precio_kilo: a.r_precio_kilo ?? jornada.precio_kilo ?? '',
     estado: a.registro_estado || 'completo',
     notas: a.registro_notas || '',
+    finca_lote_id: a.finca_lote_id || null,
   });
   const [saving, setSaving] = useState(false);
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -208,6 +209,18 @@ function RegistroRow({ a, jornada, onGuardar, onPagar }) {
             <>
               <Text style={styles.fieldLabel}>Precio kilo</Text>
               <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="numeric" value={String(form.precio_kilo)} onChangeText={(v) => update('precio_kilo', v)} placeholder="0" />
+            </>
+          )}
+          {lotesFinca.length > 0 && (
+            <>
+              <Text style={styles.fieldLabel}>¿Qué lote trabajó?</Text>
+              <View style={styles.wrapRow}>
+                {lotesFinca.map((l) => (
+                  <Pressable key={l.id} onPress={() => update('finca_lote_id', form.finca_lote_id === l.id ? null : l.id)} style={[styles.tipoPagoBtn, form.finca_lote_id === l.id && styles.tipoPagoBtnActivo]}>
+                    <Text style={[styles.tipoPagoText, form.finca_lote_id === l.id && styles.tipoPagoTextActivo]}>{l.nombre}</Text>
+                  </Pressable>
+                ))}
+              </View>
             </>
           )}
           <Text style={styles.fieldLabel}>Estado</Text>
@@ -585,17 +598,24 @@ function CerrarDiaModal({ visible, onClose, jornada, asistencias, onCerrada }) {
 export default function DetalleJornadaScreen({ route, navigation }) {
   const { jornadaId } = route.params;
   const toast = useToast();
+  const { activeFincaId } = useFinca();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('asistencia');
   const [agregarOpen, setAgregarOpen] = useState(false);
   const [cerrarDiaOpen, setCerrarDiaOpen] = useState(false);
+  const [lotesFinca, setLotesFinca] = useState([]);
 
   const cargar = () => {
     cuadernoAPI.detalleJornada(jornadaId).then((r) => setData(r.data)).catch(() => toast.error('No se pudo cargar la jornada')).finally(() => setLoading(false));
   };
 
   useFocusEffect(React.useCallback(() => { cargar(); }, [jornadaId]));
+
+  useEffect(() => {
+    if (!activeFincaId) return;
+    fincaAPI.listarLotesFinca(activeFincaId).then((r) => setLotesFinca(r.data?.lotes || [])).catch(() => {});
+  }, [activeFincaId]);
 
   const cambiarEstadoAsistencia = async (a, estado) => {
     try { await cuadernoAPI.actualizarAsistencia(a.id, { estado }); cargar(); } catch { toast.error('No se pudo actualizar'); }
@@ -620,6 +640,7 @@ export default function DetalleJornadaScreen({ route, navigation }) {
         precio_jornal: form.precio_jornal ? Number(form.precio_jornal) : null,
         precio_kilo: form.precio_kilo ? Number(form.precio_kilo) : null,
         estado: form.estado, notas: form.notas || null, pagado: a.pagado || 0,
+        finca_lote_id: form.finca_lote_id || null,
       });
       toast.success('Registro guardado'); cargar();
     } catch { toast.error('No se pudo guardar'); }
@@ -743,7 +764,7 @@ export default function DetalleJornadaScreen({ route, navigation }) {
               <AsistenciaRow key={a.id} a={a} onCambiar={cambiarEstadoAsistencia} onEliminar={eliminarAsistencia} onSalida={marcarSalida} onCheckin={marcarCheckin} />
             ))}
             {tab === 'registro' && asistencias.map((a) => (
-              <RegistroRow key={a.id} a={a} jornada={j} onGuardar={guardarRegistro} onPagar={marcarPagado} />
+              <RegistroRow key={a.id} a={a} jornada={j} onGuardar={guardarRegistro} onPagar={marcarPagado} lotesFinca={lotesFinca} />
             ))}
             {tab === 'calificacion' && (
               asistencias.filter((a) => ['llego', 'llego_tarde'].includes(a.estado)).length === 0 ? (

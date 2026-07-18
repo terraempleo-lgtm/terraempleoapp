@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, ScrollView, StyleSheet,
+  View, Text, TextInput, Pressable, ScrollView, StyleSheet, Modal,
   Switch, ActivityIndicator, LayoutAnimation, Platform, UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { cuadernoAPI, fincaAPI, trabajadoresAPI, vacantesAPI } from '../../../services/api';
+import { useFinca } from '../../../context/FincaContext';
 import Avatar from './Avatar';
 import { formatMoney, asText } from '../../../utils/fincaFormat';
 import { useToast } from './useFincaToast';
@@ -118,6 +119,8 @@ function nuevoTrabajador(base) {
     deuda_alimentacion: false,
     deuda_otro: '',
     deuda_concepto: '',
+    lote_id: base.lote_id || null,
+    lote_nombre: base.lote_nombre || null,
   };
 }
 
@@ -192,7 +195,7 @@ function PasoBadge({ n, color = 'primary' }) {
 }
 
 // ── Tarjeta de trabajador dentro de la jornada ──────────────────────────────
-function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonalizadas, onAgregarLaborPersonalizada }) {
+function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonalizadas, onAgregarLaborPersonalizada, onAbrirLote }) {
   const [open, setOpen] = useState(true);
   const bruto = pagoBruto(t, precios);
   const deuda = deudaDe(t, precios);
@@ -247,6 +250,14 @@ function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonal
             ))}
             <SelectorOtro onAgregar={(nombre) => { onAgregarLaborPersonalizada(nombre); toggleLabor(nombre); }} />
           </View>
+
+          <Text style={styles.smallLabel}>¿Qué lote trabajó?</Text>
+          <Pressable onPress={() => onAbrirLote(t)} style={[styles.loteBtn, t.lote_id && { backgroundColor: COLORS.primary }]}>
+            <Ionicons name="location-outline" size={14} color={t.lote_id ? '#fff' : COLORS.primary} />
+            <Text style={[styles.loteBtnText, t.lote_id && { color: '#fff' }]}>
+              {t.lote_nombre || 'Elegir lote'}
+            </Text>
+          </Pressable>
 
           <View style={[styles.wrapRow, { marginTop: 10 }]}>
             {TIPOS_PAGO.map((tp) => (
@@ -329,6 +340,7 @@ function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonal
  */
 export default function CerrarJornadaScreen({ navigation, route }) {
   const toast = useToast();
+  const { activeFincaId } = useFinca();
   const [saving, setSaving] = useState(false);
   const [ayudaOpen, setAyudaOpen] = useState(false);
   const [preciosOpen, setPreciosOpen] = useState(false);
@@ -351,11 +363,18 @@ export default function CerrarJornadaScreen({ navigation, route }) {
   const [costosGenerales, setCostosGenerales] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [laboresPersonalizadas, setLaboresPersonalizadas] = useState([]);
+  const [lotesFinca, setLotesFinca] = useState([]);
+  const [loteModalFor, setLoteModalFor] = useState(null);
 
   useEffect(() => {
     leerJSON(LABORES_PERSONALIZADAS_KEY, []).then(setLaboresPersonalizadas);
     vacantesAPI.misVacantes().then((r) => setVacantes(r.data?.vacantes || [])).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!activeFincaId) return;
+    fincaAPI.listarLotesFinca(activeFincaId).then((r) => setLotesFinca(r.data?.lotes || [])).catch(() => {});
+  }, [activeFincaId]);
   const agregarLaborPersonalizada = (nombre) => {
     setLaboresPersonalizadas((prev) => {
       if (prev.some((l) => l.toLowerCase() === nombre.toLowerCase())) return prev;
@@ -531,6 +550,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
           precio_jornal: t.tipo_pago === 'por_kilo' ? null : Number(precios.jornal) || null,
           precio_kilo: t.tipo_pago === 'jornal' ? null : Number(precios.kilo) || null,
           estado: 'completo', notas: partesNota.length ? partesNota.join(' · ') : null, pagado: 0,
+          finca_lote_id: t.lote_id || null,
         });
         if (t.deuda_alimentacion && Number(precios.alimentacion) > 0) {
           await cuadernoAPI.agregarAjuste(a.id, { tipo: 'descuento', monto: Number(precios.alimentacion), motivo: 'Alimentación' }).catch(() => {});
@@ -714,6 +734,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
               onQuitar={(x) => setTrabajadores((prev) => prev.filter((y) => y.key !== x.key))}
               laboresPersonalizadas={laboresPersonalizadas}
               onAgregarLaborPersonalizada={agregarLaborPersonalizada}
+              onAbrirLote={setLoteModalFor}
             />
           ))}
         </View>
@@ -751,6 +772,47 @@ export default function CerrarJornadaScreen({ navigation, route }) {
           </Pressable>
         </View>
       </ScrollView>
+
+      <Modal visible={!!loteModalFor} transparent animationType="fade" onRequestClose={() => setLoteModalFor(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>¿Qué lote trabajó {loteModalFor?.nombre}?</Text>
+            {lotesFinca.length === 0 ? (
+              <Text style={styles.hintText}>No has creado lotes todavía. Ve a Configuración de finca para agregarlos.</Text>
+            ) : (
+              <View style={styles.wrapRow}>
+                {lotesFinca.map((l) => (
+                  <Chip
+                    key={l.id}
+                    label={l.nombre}
+                    icon="location-outline"
+                    color="primary"
+                    activo={loteModalFor?.lote_id === l.id}
+                    onPress={() => {
+                      setTrabajadores((prev) => prev.map((x) => (x.key === loteModalFor.key ? { ...x, lote_id: l.id, lote_nombre: l.nombre } : x)));
+                      setLoteModalFor(null);
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+            {loteModalFor?.lote_id && (
+              <Pressable
+                onPress={() => {
+                  setTrabajadores((prev) => prev.map((x) => (x.key === loteModalFor.key ? { ...x, lote_id: null, lote_nombre: null } : x)));
+                  setLoteModalFor(null);
+                }}
+                style={styles.modalCancelLink}
+              >
+                <Text style={styles.modalCancelLinkText}>Quitar lote asignado</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => setLoteModalFor(null)} style={styles.modalCancelLink}>
+              <Text style={styles.modalCancelLinkText}>Cerrar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -821,4 +883,11 @@ const styles = StyleSheet.create({
   btnGhostText: { fontWeight: '700', color: COLORS.ink700 },
   btnPrimary: { flex: 1, backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   btnPrimaryText: { color: '#fff', fontWeight: '900', fontSize: 15 },
+  loteBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: COLORS.primarySoft, marginTop: 6 },
+  loteBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 16 },
+  modalCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16 },
+  modalTitle: { fontWeight: '900', fontSize: 16, color: COLORS.ink900, marginBottom: 10 },
+  modalCancelLink: { alignSelf: 'center', padding: 10, marginTop: 8 },
+  modalCancelLinkText: { color: COLORS.ink500, fontWeight: '600' },
 });

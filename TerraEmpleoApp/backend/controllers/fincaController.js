@@ -416,8 +416,77 @@ async function auditoria(req, res) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Lotes/parcelas de la finca (ej. "Lote 1", cultivo café) — se seleccionan al
+// cerrar una jornada para saber en qué parte de la finca trabajó cada
+// jornalero, y así rastrear a qué lote pertenece el café recogido.
+// ─────────────────────────────────────────────────────────────────────────────
+async function listarLotesFinca(req, res) {
+  try {
+    const fincaId = Number(req.params.id);
+    const acc = await accesoFinca(fincaId, req.user.id);
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+    const rows = await query(
+      'SELECT * FROM finca_lotes WHERE finca_id = ? AND activo = 1 ORDER BY nombre ASC',
+      [fincaId]
+    );
+    res.json({ lotes: rows || [] });
+  } catch (err) {
+    console.error('listarLotesFinca:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+async function crearLoteFinca(req, res) {
+  try {
+    const fincaId = Number(req.params.id);
+    const acc = await accesoFinca(fincaId, req.user.id, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+    const { nombre, cultivo } = req.body;
+    if (!nombre || !String(nombre).trim()) {
+      return res.status(400).json({ error: 'El nombre del lote es obligatorio' });
+    }
+    const result = await query(
+      'INSERT INTO finca_lotes (finca_id, nombre, cultivo) VALUES (?, ?, ?)',
+      [fincaId, String(nombre).trim(), cultivo || null]
+    );
+    const loteId = Number(result.insertId);
+    await registrarAuditoria({
+      fincaId, usuarioId: req.user.id, entidad: 'finca_lote', registroId: loteId, accion: 'crear',
+      nuevo: { nombre, cultivo }, descripcion: `Lote "${nombre}" creado`, ip: ipDe(req),
+    });
+    res.status(201).json({ id: loteId, nombre: String(nombre).trim(), cultivo: cultivo || null });
+  } catch (err) {
+    console.error('crearLoteFinca:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+async function eliminarLoteFinca(req, res) {
+  try {
+    const fincaId = Number(req.params.id);
+    const loteId = Number(req.params.loteId);
+    const acc = await accesoFinca(fincaId, req.user.id, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+    // Se desactiva en vez de borrar para no perder la trazabilidad de
+    // jornadas/registros ya anclados a este lote.
+    await query('UPDATE finca_lotes SET activo = 0 WHERE id = ? AND finca_id = ?', [loteId, fincaId]);
+    await registrarAuditoria({
+      fincaId, usuarioId: req.user.id, entidad: 'finca_lote', registroId: loteId, accion: 'eliminar',
+      descripcion: 'Lote desactivado', ip: ipDe(req),
+    });
+    res.json({ message: 'Lote eliminado' });
+  } catch (err) {
+    console.error('eliminarLoteFinca:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
   accesoFinca,          // reutilizado por finanzas/cafe/cuaderno controllers
+  listarLotesFinca,
+  crearLoteFinca,
+  eliminarLoteFinca,
   obtenerFincasUsuario, // reutilizado por cuaderno/nómina para scoping por finca
   sembrarConceptos,
   misFincas,
