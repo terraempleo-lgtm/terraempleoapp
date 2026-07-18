@@ -200,6 +200,7 @@ async function detalleJornada(req, res) {
         r.precio_kilo AS r_precio_kilo, r.pago_total, r.pagado, r.estado AS registro_estado, r.notas AS registro_notas,
         r.descuento_alimentacion, r.descuento_otro, r.descuento_nota,
         r.finca_lote_id, fl.nombre AS finca_lote_nombre,
+        r.finca_lote_id AS lote_id, fl.nombre AS lote_nombre, -- alias para el frontend web, que usa este nombre
         c.id AS calificacion_id, c.nivel AS calif_nivel, c.comentario AS calif_comentario
       FROM cuaderno_asistencias a
       LEFT JOIN usuarios u ON u.id = a.trabajador_id
@@ -396,7 +397,8 @@ async function upsertRegistroTrabajo(req, res) {
     const {
       cantidad_kg, horas, tipo_pago, precio_jornal, precio_kilo,
       estado, notas, pagado, descuento_alimentacion, descuento_otro, descuento_nota,
-      finca_lote_id,
+      finca_lote_id, lote_id, // dos frontends (app móvil y web) contra este mismo endpoint —
+      // aceptamos ambos nombres para el lote de finca (parcela física, NO cafe_lotes).
     } = req.body;
 
     const tipo = tipo_pago || a.tipo_pago_default || 'jornal';
@@ -420,7 +422,8 @@ async function upsertRegistroTrabajo(req, res) {
       [asisId]
     );
 
-    const loteId = finca_lote_id ? Number(finca_lote_id) : null;
+    const loteIdRaw = finca_lote_id ?? lote_id;
+    const loteId = loteIdRaw ? Number(loteIdRaw) : null;
 
     if (existentes && existentes.length) {
       await query(`

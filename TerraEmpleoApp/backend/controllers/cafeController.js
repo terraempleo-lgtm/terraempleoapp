@@ -64,6 +64,7 @@ async function desglosarPorLote(finca, desde, hasta) {
   return (rows || []).map((r) => ({
     fecha: r.fecha,
     finca_lote_id: r.finca_lote_id,
+    lote_id: r.finca_lote_id, // alias para el frontend web
     lote_nombre: r.lote_nombre || 'Sin lote asignado',
     lote_cultivo: r.lote_cultivo || null,
     kg: round2(r.kg),
