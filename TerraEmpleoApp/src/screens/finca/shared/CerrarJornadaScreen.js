@@ -372,6 +372,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
   const [laboresPersonalizadas, setLaboresPersonalizadas] = useState([]);
   const [lotesFinca, setLotesFinca] = useState([]);
   const [loteModalFor, setLoteModalFor] = useState(null);
+  const [cargado, setCargado] = useState(false);
 
   useEffect(() => {
     leerJSON(LABORES_PERSONALIZADAS_KEY, []).then(setLaboresPersonalizadas);
@@ -434,14 +435,30 @@ export default function CerrarJornadaScreen({ navigation, route }) {
           setSugeridos((prev) => (prev.length ? prev : propios));
         }).catch(() => {});
       }
+      setCargado(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Autoguarda borrador del día completo mientras se escribe
+  // Autoguarda borrador del día completo mientras se escribe. Espera a que
+  // termine la carga inicial (cache semanal / borrador previo) — si no, este
+  // efecto escribe el estado vacío del primer render y pisa lo que se estaba
+  // por restaurar (bug: jornada nueva aparecía en blanco).
   useEffect(() => {
+    if (!cargado) return;
     guardarBorrador({ fecha, vacante_id: vacanteId, labor, titulo, precios, sugeridos, trabajadores, costosGenerales, observaciones });
-  }, [fecha, vacanteId, labor, titulo, precios, sugeridos, trabajadores, costosGenerales, observaciones]);
+  }, [cargado, fecha, vacanteId, labor, titulo, precios, sugeridos, trabajadores, costosGenerales, observaciones]);
+
+  // Los precios configurados se guardan de una vez en el cache semanal (no
+  // solo al cerrar la jornada), para que no se pierdan si el capataz los
+  // configura y aún no ha cerrado ninguna jornada esta semana.
+  useEffect(() => {
+    if (!cargado) return;
+    (async () => {
+      const c = (await leerCache()) || {};
+      await guardarCache({ ...c, precios });
+    })();
+  }, [cargado, precios]);
 
   useEffect(() => {
     if (!vacanteId) return;
