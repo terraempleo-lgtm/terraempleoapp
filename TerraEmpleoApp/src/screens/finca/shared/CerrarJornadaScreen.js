@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { cuadernoAPI, fincaAPI, trabajadoresAPI, vacantesAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 import Avatar from './Avatar';
+import HoraField from '../../../components/ui/HoraField';
 import { formatMoney, asText } from '../../../utils/fincaFormat';
 import { useToast } from './useFincaToast';
 
@@ -272,14 +273,20 @@ function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonal
           </View>
 
           <View style={[styles.rowStart, { marginTop: 10, gap: 8 }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>Hora que entró</Text>
-              <TextInput placeholderTextColor={COLORS.ink400} value={t.hora_entrada} onChangeText={(v) => upd('hora_entrada', v)} placeholder="06:00" style={styles.input} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>Hora que salió</Text>
-              <TextInput placeholderTextColor={COLORS.ink400} value={t.hora_salida} onChangeText={(v) => upd('hora_salida', v)} placeholder="15:30" style={styles.input} />
-            </View>
+            <HoraField
+              label="Hora que entró"
+              value={t.hora_entrada}
+              onChange={(v) => upd('hora_entrada', v)}
+              placeholder="06:00"
+              style={{ flex: 1 }}
+            />
+            <HoraField
+              label="Hora que salió"
+              value={t.hora_salida}
+              onChange={(v) => upd('hora_salida', v)}
+              placeholder="15:30"
+              style={{ flex: 1 }}
+            />
           </View>
 
           {(t.tipo_pago === 'por_kilo' || t.tipo_pago === 'mixto') && (
