@@ -346,6 +346,30 @@ async function cambiarEstadoPeriodo(req, res) {
   }
 }
 
+// PUT /finanzas/periodos/:id/precio-venta { precio_venta_kilo }
+// Precio al que se vendió el café ese mes — cambia mes a mes, a diferencia
+// de meta_kg_semanal que vive en la finca y no cambia.
+async function actualizarPrecioVenta(req, res) {
+  try {
+    const id = Number(req.params.id);
+    const rows = await query('SELECT finca_id FROM fin_periodos WHERE id = ?', [id]);
+    if (!rows || !rows.length) return res.status(404).json({ error: 'Período no encontrado' });
+    const acc = await accesoFinca(Number(rows[0].finca_id), req.user.id, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+
+    const valor = req.body.precio_venta_kilo;
+    const precio = valor === '' || valor === null || valor === undefined ? null : Number(valor);
+    if (precio !== null && (Number.isNaN(precio) || precio < 0)) {
+      return res.status(400).json({ error: 'precio_venta_kilo inválido' });
+    }
+    await query('UPDATE fin_periodos SET precio_venta_kilo = ? WHERE id = ?', [precio, id]);
+    res.json({ ok: true, precio_venta_kilo: precio });
+  } catch (err) {
+    console.error('actualizarPrecioVenta:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
   genSemanas,
   ensurePeriodo,
@@ -355,4 +379,5 @@ module.exports = {
   actualizarConcepto,
   eliminarConcepto,
   cambiarEstadoPeriodo,
+  actualizarPrecioVenta,
 };

@@ -1071,6 +1071,23 @@ async function initializeDatabase() {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] finca_lotes.hectareas:', e.message);
   }
 
+  // Migración: meta de kg/semana (se configura una vez por finca, no cambia
+  // mes a mes) para el gráfico "Kilos por semana" del Resumen del Cuaderno.
+  try {
+    await query('ALTER TABLE fincas ADD COLUMN IF NOT EXISTS meta_kg_semanal DECIMAL(10,2) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fincas.meta_kg_semanal:', e.message);
+  }
+
+  // Migración: precio de venta del kilo de café, cambia mes a mes — vive en
+  // el período mensual de Finanzas (no en la finca) para el gráfico
+  // "Costo por kilo por semana".
+  try {
+    await query('ALTER TABLE fin_periodos ADD COLUMN IF NOT EXISTS precio_venta_kilo DECIMAL(10,2) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fin_periodos.precio_venta_kilo:', e.message);
+  }
+
   // ── Muro de compra/venta (mercado entre agricultores) ─────────────────────
   await query(`
     CREATE TABLE IF NOT EXISTS muro_publicaciones (

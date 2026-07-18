@@ -686,7 +686,8 @@ async function dashboard(req, res) {
       LIMIT 20
     `, [fincaIds, usuarioId]);
 
-    // Tendencia semanal últimos 8 semanas: jornadas + pago
+    // Tendencia semanal últimos 8 semanas: jornadas + pago + kg
+    const semanaDesde = fmt(new Date(hoy.getTime() - 1000 * 60 * 60 * 24 * 56));
     const semanal = await query(`
       SELECT YEARWEEK(j.fecha, 1) AS semana,
         MIN(j.fecha) AS desde,
@@ -698,7 +699,23 @@ async function dashboard(req, res) {
       WHERE ${scope('j')} AND j.fecha >= ?
       GROUP BY semana
       ORDER BY semana ASC
-    `, [fincaIds, usuarioId, fmt(new Date(hoy.getTime() - 1000 * 60 * 60 * 24 * 56))]);
+    `, [fincaIds, usuarioId, semanaDesde]);
+
+    // Trabajadores distintos por semana — consulta separada (join aparte de
+    // registros_trabajo para no inflar SUM(pago)/SUM(kg) por producto
+    // cartesiano asistencias × registros dentro de la misma jornada).
+    const trabajadoresPorSemana = await query(`
+      SELECT YEARWEEK(j.fecha, 1) AS semana,
+        COUNT(DISTINCT COALESCE(a.trabajador_id, CONCAT('m_', a.manual_nombre))) AS trabajadores
+      FROM cuaderno_asistencias a
+      JOIN cuaderno_jornadas j ON j.id = a.jornada_id
+      WHERE ${scope('j')} AND j.fecha >= ? AND a.estado IN ('llego','llego_tarde')
+      GROUP BY semana
+    `, [fincaIds, usuarioId, semanaDesde]);
+    const trabajadoresMap = new Map((trabajadoresPorSemana || []).map((t) => [String(t.semana), Number(t.trabajadores)]));
+    for (const s of semanal || []) {
+      s.trabajadores = trabajadoresMap.get(String(s.semana)) || 0;
+    }
 
     // Tendencia mensual últimos 6 meses
     const mensual = await query(`

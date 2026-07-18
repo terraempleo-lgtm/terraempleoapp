@@ -185,6 +185,7 @@ async function actualizarFinca(req, res) {
       precio_jornal_default: req.body.precio_jornal_default,
       precio_kilo_default: req.body.precio_kilo_default,
       precio_alimentacion: req.body.precio_alimentacion,
+      meta_kg_semanal: req.body.meta_kg_semanal,
     };
     if (campos.modalidad_alimentacion &&
         !['incluida', 'independiente'].includes(campos.modalidad_alimentacion)) {

@@ -18,5 +18,6 @@ router.delete('/conceptos/:id', fin.eliminarConcepto);
 
 // Cierre / reapertura de período
 router.put('/periodos/:id/estado', fin.cambiarEstadoPeriodo);
+router.put('/periodos/:id/precio-venta', fin.actualizarPrecioVenta);
 
 module.exports = router;
