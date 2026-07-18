@@ -332,7 +332,7 @@ export default function NominaScreen({ navigation }) {
             <Ionicons name="document-text-outline" size={16} color={COLORS.warning} />
             <Text style={styles.notaTitle}>  Notas de esta nómina ({fechaCorta(desde)} – {fechaCorta(hasta)})</Text>
           </View>
-          <TextInput
+          <TextInput placeholderTextColor={COLORS.ink400}
             value={notaSemana}
             onChangeText={cambiarNotaSemana}
             onBlur={guardarNotaSemana}
@@ -380,7 +380,7 @@ function ObservacionModal({ fila, valorActual, onClose, onSave }) {
             El pago de este trabajador ya no se puede editar{fila.firmado ? ' porque ya firmó' : ''}.
             Si algo quedó mal, déjalo anotado aquí para revisarlo después.
           </Text>
-          <TextInput autoFocus value={texto} onChangeText={setTexto} multiline style={styles.modalTextarea} placeholder="Ej: se le pagó de más…" />
+          <TextInput placeholderTextColor={COLORS.ink400} autoFocus value={texto} onChangeText={setTexto} multiline style={styles.modalTextarea} placeholder="Ej: se le pagó de más…" />
           <View style={styles.modalActions}>
             <Pressable onPress={onClose} style={styles.modalBtnGhost}><Text style={styles.modalBtnGhostText}>Cancelar</Text></Pressable>
             <Pressable onPress={() => onSave(texto)} style={styles.modalBtnPrimary}><Text style={styles.modalBtnPrimaryText}>Guardar</Text></Pressable>
@@ -437,9 +437,9 @@ function AjusteModal({ fila, onClose, onSave }) {
             ))}
           </View>
           <Text style={styles.fieldLabel}>Monto</Text>
-          <TextInput keyboardType="numeric" value={monto} onChangeText={(v) => setMonto(v.replace(/[^\d]/g, ''))} placeholder="120000" style={styles.input} />
+          <TextInput placeholderTextColor={COLORS.ink400} keyboardType="numeric" value={monto} onChangeText={(v) => setMonto(v.replace(/[^\d]/g, ''))} placeholder="120000" style={styles.input} />
           <Text style={styles.fieldLabel}>Motivo (opcional)</Text>
-          <TextInput value={motivo} onChangeText={setMotivo} placeholder="Ej. guadañando, vale, premio" style={styles.input} />
+          <TextInput placeholderTextColor={COLORS.ink400} value={motivo} onChangeText={setMotivo} placeholder="Ej. guadañando, vale, premio" style={styles.input} />
           <View style={styles.modalActions}>
             <Pressable onPress={onClose} style={styles.modalBtnGhost}><Text style={styles.modalBtnGhostText}>Cancelar</Text></Pressable>
             <Pressable disabled={!valido} onPress={() => onSave({ tipo, monto: Number(monto), motivo })} style={[styles.modalBtnPrimary, !valido && { opacity: 0.5 }]}>

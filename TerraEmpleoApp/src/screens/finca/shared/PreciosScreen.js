@@ -51,11 +51,11 @@ export default function PreciosScreen({ navigation }) {
         <View style={styles.form}>
           <Text style={styles.hint}>Estos valores se precargan automáticamente al cerrar una jornada.</Text>
           <Text style={styles.label}>Precio jornal (día completo)</Text>
-          <TextInput style={styles.input} keyboardType="numeric" value={precioJornal} onChangeText={setPrecioJornal} placeholder="Ej: 60000" />
+          <TextInput placeholderTextColor={COLORS.textLight} style={styles.input} keyboardType="numeric" value={precioJornal} onChangeText={setPrecioJornal} placeholder="Ej: 60000" />
           <Text style={styles.label}>Precio por kilo</Text>
-          <TextInput style={styles.input} keyboardType="numeric" value={precioKilo} onChangeText={setPrecioKilo} placeholder="Ej: 1500" />
+          <TextInput placeholderTextColor={COLORS.textLight} style={styles.input} keyboardType="numeric" value={precioKilo} onChangeText={setPrecioKilo} placeholder="Ej: 1500" />
           <Text style={styles.label}>Precio alimentación (descuento)</Text>
-          <TextInput style={styles.input} keyboardType="numeric" value={precioAlimentacion} onChangeText={setPrecioAlimentacion} placeholder="Ej: 8000" />
+          <TextInput placeholderTextColor={COLORS.textLight} style={styles.input} keyboardType="numeric" value={precioAlimentacion} onChangeText={setPrecioAlimentacion} placeholder="Ej: 8000" />
           <TouchableOpacity style={styles.saveBtn} onPress={guardar} disabled={guardando}>
             {guardando ? <ActivityIndicator color={COLORS.white} /> : <Text style={styles.saveText}>Guardar precios</Text>}
           </TouchableOpacity>

@@ -293,7 +293,7 @@ export default function FinanzasScreen({ navigation }) {
 
 function Celda({ value, onChange, onBlur, disabled, width }) {
   return (
-    <TextInput
+    <TextInput placeholderTextColor={COLORS.ink400}
       style={[styles.celda, { width }, disabled && { color: COLORS.ink500 }]}
       keyboardType="numeric"
       editable={!disabled}
@@ -393,7 +393,7 @@ function NotaRapida({ conceptos, semanas, movimientos, periodo, fincaId, onGuard
         <Text style={styles.notaRapidaTitle}>  Nota rápida</Text>
       </View>
       <Text style={styles.notaRapidaHint}>Escribe la factura o el gasto como en el cuaderno; el sistema lo organiza solo.</Text>
-      <TextInput
+      <TextInput placeholderTextColor={COLORS.ink400}
         value={texto} onChangeText={setTexto} multiline
         placeholder={'Una línea por ítem, ej:\nGasolina guadaña 25000\nAbono cafetal 120000'}
         style={styles.notaRapidaInput}
@@ -433,7 +433,7 @@ function NuevoConceptoRow({ onSave, onCancel }) {
   const [nombre, setNombre] = useState('');
   return (
     <View style={styles.nuevoConceptoRow}>
-      <TextInput autoFocus value={nombre} onChangeText={setNombre} placeholder="Nombre del concepto (ej. Aguacate)" style={styles.nuevoConceptoInput} onSubmitEditing={() => onSave(nombre)} />
+      <TextInput placeholderTextColor={COLORS.ink400} autoFocus value={nombre} onChangeText={setNombre} placeholder="Nombre del concepto (ej. Aguacate)" style={styles.nuevoConceptoInput} onSubmitEditing={() => onSave(nombre)} />
       <Pressable onPress={() => onSave(nombre)} style={styles.nuevoConceptoBtnPrimary}><Text style={{ color: '#fff', fontWeight: '700' }}>Agregar</Text></Pressable>
       <Pressable onPress={onCancel} style={styles.nuevoConceptoBtnGhost}><Text style={{ color: COLORS.ink700 }}>Cancelar</Text></Pressable>
     </View>

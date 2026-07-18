@@ -193,21 +193,21 @@ function RegistroRow({ a, jornada, onGuardar, onPagar }) {
           {(form.tipo_pago === 'por_kilo' || form.tipo_pago === 'mixto') && (
             <>
               <Text style={styles.fieldLabel}>Kg recolectados</Text>
-              <TextInput style={styles.input} keyboardType="decimal-pad" value={String(form.cantidad_kg)} onChangeText={(v) => update('cantidad_kg', v)} placeholder="0" />
+              <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="decimal-pad" value={String(form.cantidad_kg)} onChangeText={(v) => update('cantidad_kg', v)} placeholder="0" />
             </>
           )}
           <Text style={styles.fieldLabel}>Horas trabajadas</Text>
-          <TextInput style={styles.input} keyboardType="decimal-pad" value={String(form.horas)} onChangeText={(v) => update('horas', v)} placeholder="8" />
+          <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="decimal-pad" value={String(form.horas)} onChangeText={(v) => update('horas', v)} placeholder="8" />
           {(form.tipo_pago === 'jornal' || form.tipo_pago === 'mixto') && (
             <>
               <Text style={styles.fieldLabel}>Precio jornal</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={String(form.precio_jornal)} onChangeText={(v) => update('precio_jornal', v)} placeholder="0" />
+              <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="numeric" value={String(form.precio_jornal)} onChangeText={(v) => update('precio_jornal', v)} placeholder="0" />
             </>
           )}
           {(form.tipo_pago === 'por_kilo' || form.tipo_pago === 'mixto') && (
             <>
               <Text style={styles.fieldLabel}>Precio kilo</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={String(form.precio_kilo)} onChangeText={(v) => update('precio_kilo', v)} placeholder="0" />
+              <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="numeric" value={String(form.precio_kilo)} onChangeText={(v) => update('precio_kilo', v)} placeholder="0" />
             </>
           )}
           <Text style={styles.fieldLabel}>Estado</Text>
@@ -219,7 +219,7 @@ function RegistroRow({ a, jornada, onGuardar, onPagar }) {
             ))}
           </View>
           <Text style={styles.fieldLabel}>Notas</Text>
-          <TextInput style={styles.input} value={form.notas} onChangeText={(v) => update('notas', v)} placeholder="Observaciones del trabajo" />
+          <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} value={form.notas} onChangeText={(v) => update('notas', v)} placeholder="Observaciones del trabajo" />
 
           <View style={styles.totalBox}>
             <View>
@@ -275,7 +275,7 @@ function CalificacionRow({ a, onCalificar }) {
           );
         })}
       </View>
-      <TextInput
+      <TextInput placeholderTextColor={COLORS.ink400}
         style={[styles.input, { marginTop: 8 }]}
         placeholder="Comentario interno (opcional)"
         value={comentario}
@@ -391,7 +391,7 @@ function AgregarTrabajadorModal({ visible, onClose, jornadaId, jornada, onAgrega
 
             {tab === 'buscar' ? (
               <>
-                <TextInput style={styles.input} placeholder="Nombre del trabajador…" value={busqueda} onChangeText={setBusqueda} />
+                <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} placeholder="Nombre del trabajador…" value={busqueda} onChangeText={setBusqueda} />
                 {cargandoB && <ActivityIndicator style={{ marginVertical: 8 }} />}
                 {resultados.slice(0, 12).map((t) => {
                   const activo = seleccionado?.id === t.id;
@@ -409,8 +409,8 @@ function AgregarTrabajadorModal({ visible, onClose, jornadaId, jornada, onAgrega
               </>
             ) : (
               <>
-                <TextInput style={styles.input} placeholder="Nombre completo" value={manual.nombre} onChangeText={(v) => setManual((m) => ({ ...m, nombre: v }))} />
-                <TextInput style={styles.input} placeholder="Teléfono (opcional)" keyboardType="phone-pad" value={manual.telefono} onChangeText={(v) => setManual((m) => ({ ...m, telefono: v }))} />
+                <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} placeholder="Nombre completo" value={manual.nombre} onChangeText={(v) => setManual((m) => ({ ...m, nombre: v }))} />
+                <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} placeholder="Teléfono (opcional)" keyboardType="phone-pad" value={manual.telefono} onChangeText={(v) => setManual((m) => ({ ...m, telefono: v }))} />
               </>
             )}
 
@@ -430,12 +430,12 @@ function AgregarTrabajadorModal({ visible, onClose, jornadaId, jornada, onAgrega
               ))}
             </View>
             {(pago.tipo_pago === 'jornal' || pago.tipo_pago === 'mixto') && (
-              <TextInput style={styles.input} keyboardType="numeric" placeholder="Precio jornal" value={String(pago.precio_jornal)} onChangeText={(v) => updatePago('precio_jornal', v)} />
+              <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="numeric" placeholder="Precio jornal" value={String(pago.precio_jornal)} onChangeText={(v) => updatePago('precio_jornal', v)} />
             )}
             {(pago.tipo_pago === 'por_kilo' || pago.tipo_pago === 'mixto') && (
               <>
-                <TextInput style={styles.input} keyboardType="numeric" placeholder="Precio kilo" value={String(pago.precio_kilo)} onChangeText={(v) => updatePago('precio_kilo', v)} />
-                <TextInput style={styles.input} keyboardType="decimal-pad" placeholder="Kg recolectados" value={String(pago.cantidad_kg)} onChangeText={(v) => updatePago('cantidad_kg', v)} />
+                <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="numeric" placeholder="Precio kilo" value={String(pago.precio_kilo)} onChangeText={(v) => updatePago('precio_kilo', v)} />
+                <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="decimal-pad" placeholder="Kg recolectados" value={String(pago.cantidad_kg)} onChangeText={(v) => updatePago('cantidad_kg', v)} />
               </>
             )}
 
@@ -548,12 +548,12 @@ function CerrarDiaModal({ visible, onClose, jornada, asistencias, onCerrada }) {
                       ))}
                     </View>
                     {(f.tipo_pago === 'jornal' || f.tipo_pago === 'mixto') && (
-                      <TextInput style={styles.input} keyboardType="numeric" placeholder="Precio jornal" value={String(f.precio_jornal)} onChangeText={(v) => setFila(i, 'precio_jornal', v)} />
+                      <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="numeric" placeholder="Precio jornal" value={String(f.precio_jornal)} onChangeText={(v) => setFila(i, 'precio_jornal', v)} />
                     )}
                     {(f.tipo_pago === 'por_kilo' || f.tipo_pago === 'mixto') && (
                       <>
-                        <TextInput style={styles.input} keyboardType="numeric" placeholder="Precio kilo" value={String(f.precio_kilo)} onChangeText={(v) => setFila(i, 'precio_kilo', v)} />
-                        <TextInput style={styles.input} keyboardType="decimal-pad" placeholder="Kg que recogió" value={String(f.cantidad_kg)} onChangeText={(v) => setFila(i, 'cantidad_kg', v)} />
+                        <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="numeric" placeholder="Precio kilo" value={String(f.precio_kilo)} onChangeText={(v) => setFila(i, 'precio_kilo', v)} />
+                        <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="decimal-pad" placeholder="Kg que recogió" value={String(f.cantidad_kg)} onChangeText={(v) => setFila(i, 'cantidad_kg', v)} />
                       </>
                     )}
                     <View style={[styles.rowStart, { marginTop: 6 }]}>
@@ -563,7 +563,7 @@ function CerrarDiaModal({ visible, onClose, jornada, asistencias, onCerrada }) {
                   </View>
                 );
               })}
-              <TextInput style={[styles.input, { minHeight: 60, marginTop: 8 }]} multiline placeholder="Observaciones del día (opcional)" value={obs} onChangeText={setObs} />
+              <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, { minHeight: 60, marginTop: 8 }]} multiline placeholder="Observaciones del día (opcional)" value={obs} onChangeText={setObs} />
               <View style={styles.totalBox}>
                 <View>
                   <Text style={styles.totalLabel}>Total del día</Text>

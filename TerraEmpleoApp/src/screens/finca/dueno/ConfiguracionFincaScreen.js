@@ -134,10 +134,10 @@ export default function ConfiguracionFincaScreen({ navigation }) {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Datos generales</Text>
-          <Campo label="Nombre de la finca"><TextInput style={styles.input} editable={esPropietario} value={form.nombre} onChangeText={(v) => set('nombre', v)} /></Campo>
-          <Campo label="Hectáreas"><TextInput style={styles.input} editable={esPropietario} keyboardType="numeric" value={form.hectareas} onChangeText={(v) => set('hectareas', v)} /></Campo>
-          <Campo label="Municipio"><TextInput style={styles.input} editable={esPropietario} value={form.municipio} onChangeText={(v) => set('municipio', v)} /></Campo>
-          <Campo label="Vereda"><TextInput style={styles.input} editable={esPropietario} value={form.vereda} onChangeText={(v) => set('vereda', v)} /></Campo>
+          <Campo label="Nombre de la finca"><TextInput placeholderTextColor={COLORS.ink400} style={styles.input} editable={esPropietario} value={form.nombre} onChangeText={(v) => set('nombre', v)} /></Campo>
+          <Campo label="Hectáreas"><TextInput placeholderTextColor={COLORS.ink400} style={styles.input} editable={esPropietario} keyboardType="numeric" value={form.hectareas} onChangeText={(v) => set('hectareas', v)} /></Campo>
+          <Campo label="Municipio"><TextInput placeholderTextColor={COLORS.ink400} style={styles.input} editable={esPropietario} value={form.municipio} onChangeText={(v) => set('municipio', v)} /></Campo>
+          <Campo label="Vereda"><TextInput placeholderTextColor={COLORS.ink400} style={styles.input} editable={esPropietario} value={form.vereda} onChangeText={(v) => set('vereda', v)} /></Campo>
         </View>
 
         <View style={styles.card}>
@@ -153,10 +153,10 @@ export default function ConfiguracionFincaScreen({ navigation }) {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>☕ Conversión cereza → pergamino</Text>
-          <Campo label="Factor (kg cereza / kg pergamino)"><TextInput style={styles.input} editable={esPropietario} keyboardType="decimal-pad" value={form.factor_conversion} onChangeText={(v) => set('factor_conversion', v)} /></Campo>
-          <Campo label="Kg por arroba"><TextInput style={styles.input} editable={esPropietario} keyboardType="decimal-pad" value={form.kg_por_arroba} onChangeText={(v) => set('kg_por_arroba', v)} /></Campo>
-          <Campo label="Kg por carga"><TextInput style={styles.input} editable={esPropietario} keyboardType="decimal-pad" value={form.kg_por_carga} onChangeText={(v) => set('kg_por_carga', v)} /></Campo>
-          <Campo label="Umbral alerta merma (%)"><TextInput style={styles.input} editable={esPropietario} keyboardType="decimal-pad" value={form.umbral_merma_pct} onChangeText={(v) => set('umbral_merma_pct', v)} /></Campo>
+          <Campo label="Factor (kg cereza / kg pergamino)"><TextInput placeholderTextColor={COLORS.ink400} style={styles.input} editable={esPropietario} keyboardType="decimal-pad" value={form.factor_conversion} onChangeText={(v) => set('factor_conversion', v)} /></Campo>
+          <Campo label="Kg por arroba"><TextInput placeholderTextColor={COLORS.ink400} style={styles.input} editable={esPropietario} keyboardType="decimal-pad" value={form.kg_por_arroba} onChangeText={(v) => set('kg_por_arroba', v)} /></Campo>
+          <Campo label="Kg por carga"><TextInput placeholderTextColor={COLORS.ink400} style={styles.input} editable={esPropietario} keyboardType="decimal-pad" value={form.kg_por_carga} onChangeText={(v) => set('kg_por_carga', v)} /></Campo>
+          <Campo label="Umbral alerta merma (%)"><TextInput placeholderTextColor={COLORS.ink400} style={styles.input} editable={esPropietario} keyboardType="decimal-pad" value={form.umbral_merma_pct} onChangeText={(v) => set('umbral_merma_pct', v)} /></Campo>
           <View style={styles.ejemploBox}>
             <Text style={styles.ejemploText}>Ejemplo: {ejemploCereza.toLocaleString('es-CO')} kg cereza → {Math.round(pergamino).toLocaleString('es-CO')} kg pergamino · {(pergamino / kgArroba).toFixed(1)} @ · {(pergamino / kgCarga).toFixed(1)} cargas</Text>
           </View>
@@ -213,8 +213,8 @@ export default function ConfiguracionFincaScreen({ navigation }) {
               {modoInvitar === 'crear' ? (
                 <View style={{ marginTop: 8 }}>
                   <Text style={styles.cardHint}>Tú eliges el celular y la contraseña; el capataz no necesita registrarse.</Text>
-                  <Campo label="Nombre del capataz"><TextInput style={styles.input} value={nueva.nombre_completo} onChangeText={(v) => setNueva((p) => ({ ...p, nombre_completo: v }))} placeholder="Ej: Carlos Ramírez" /></Campo>
-                  <Campo label="Celular (será su usuario)"><TextInput style={styles.input} keyboardType="phone-pad" value={nueva.celular} onChangeText={(v) => setNueva((p) => ({ ...p, celular: v.replace(/\D/g, '') }))} placeholder="3001234567" /></Campo>
+                  <Campo label="Nombre del capataz"><TextInput placeholderTextColor={COLORS.ink400} style={styles.input} value={nueva.nombre_completo} onChangeText={(v) => setNueva((p) => ({ ...p, nombre_completo: v }))} placeholder="Ej: Carlos Ramírez" /></Campo>
+                  <Campo label="Celular (será su usuario)"><TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="phone-pad" value={nueva.celular} onChangeText={(v) => setNueva((p) => ({ ...p, celular: v.replace(/\D/g, '') }))} placeholder="3001234567" /></Campo>
                   <Text style={styles.fieldLabel}>Rol</Text>
                   <View style={styles.wrapRow}>
                     {['administrador', 'auxiliar', 'contador'].map((r) => (
@@ -225,7 +225,7 @@ export default function ConfiguracionFincaScreen({ navigation }) {
                   </View>
                   <Text style={styles.fieldLabel}>Contraseña</Text>
                   <View style={styles.rowStart}>
-                    <TextInput style={[styles.input, { flex: 1 }]} value={nueva.password} onChangeText={(v) => setNueva((p) => ({ ...p, password: v }))} />
+                    <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, { flex: 1 }]} value={nueva.password} onChangeText={(v) => setNueva((p) => ({ ...p, password: v }))} />
                     <Pressable onPress={() => setNueva((p) => ({ ...p, password: generarPassword() }))} style={styles.regenBtn}><Ionicons name="refresh" size={15} color={COLORS.ink700} /></Pressable>
                   </View>
                   <Pressable onPress={crearCuenta} disabled={creando} style={styles.btnPrimary}>
@@ -234,7 +234,7 @@ export default function ConfiguracionFincaScreen({ navigation }) {
                 </View>
               ) : (
                 <View style={{ marginTop: 8 }}>
-                  <Campo label="Celular del usuario (ya registrado)"><TextInput style={styles.input} value={inv.celular} onChangeText={(v) => setInv((p) => ({ ...p, celular: v }))} placeholder="3001234567" /></Campo>
+                  <Campo label="Celular del usuario (ya registrado)"><TextInput placeholderTextColor={COLORS.ink400} style={styles.input} value={inv.celular} onChangeText={(v) => setInv((p) => ({ ...p, celular: v }))} placeholder="3001234567" /></Campo>
                   <Text style={styles.fieldLabel}>Rol</Text>
                   <View style={styles.wrapRow}>
                     {['auxiliar', 'administrador', 'contador'].map((r) => (

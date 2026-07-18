@@ -139,7 +139,7 @@ function CalculadoraRapida({ finca }) {
   return (
     <View style={styles.calcCard}>
       <Text style={styles.calcTitle}>⚖️ Calculadora cereza → pergamino</Text>
-      <TextInput style={styles.input} keyboardType="decimal-pad" value={kg} onChangeText={setKg} placeholder="Kg recogidos en cereza" />
+      <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="decimal-pad" value={kg} onChangeText={setKg} placeholder="Kg recogidos en cereza" />
       <View style={styles.calcGrid}>
         <View style={styles.calcBox}><Text style={styles.calcLabel}>Pergamino</Text><Text style={styles.calcValue}>{num(pergamino)} kg</Text></View>
         <View style={styles.calcBox}><Text style={styles.calcLabel}>Arrobas</Text><Text style={styles.calcValue}>{num(pergamino / kgArroba)} @</Text></View>
@@ -237,14 +237,14 @@ function LoteDetalle({ loteId, onChanged }) {
         ))
       )}
       <View style={styles.formRow}>
-        <TextInput style={[styles.input, { flex: 1 }]} keyboardType="decimal-pad" placeholder="Kg pergamino" value={form.kg_pergamino_real} onChangeText={(v) => setForm((f) => ({ ...f, kg_pergamino_real: v }))} />
+        <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, { flex: 1 }]} keyboardType="decimal-pad" placeholder="Kg pergamino" value={form.kg_pergamino_real} onChangeText={(v) => setForm((f) => ({ ...f, kg_pergamino_real: v }))} />
         <Pressable onPress={() => setForm((f) => ({ ...f, destino: f.destino === 'venta' ? 'almacen' : 'venta' }))} style={styles.destinoBtn}>
           <Text style={styles.destinoBtnText}>{form.destino === 'venta' ? 'Venta' : 'Almacén'}</Text>
         </Pressable>
       </View>
       <View style={styles.formRow}>
-        <TextInput style={[styles.input, { flex: 1 }]} keyboardType="numeric" placeholder="Precio (opc.)" value={form.precio_venta} onChangeText={(v) => setForm((f) => ({ ...f, precio_venta: v }))} />
-        <TextInput style={[styles.input, { flex: 1 }]} placeholder="Comprador (opc.)" value={form.comprador} onChangeText={(v) => setForm((f) => ({ ...f, comprador: v }))} />
+        <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, { flex: 1 }]} keyboardType="numeric" placeholder="Precio (opc.)" value={form.precio_venta} onChangeText={(v) => setForm((f) => ({ ...f, precio_venta: v }))} />
+        <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, { flex: 1 }]} placeholder="Comprador (opc.)" value={form.comprador} onChangeText={(v) => setForm((f) => ({ ...f, comprador: v }))} />
       </View>
       <Pressable onPress={agregarReal} style={styles.btnPrimarySmall}><Text style={styles.btnPrimarySmallText}>Registrar</Text></Pressable>
 
@@ -258,7 +258,7 @@ function LoteDetalle({ loteId, onChanged }) {
               </Pressable>
             ))}
           </View>
-          <TextInput style={styles.input} placeholder="Justificación (ej. merma por lluvia)" value={just.justificacion} onChangeText={(v) => setJust((j) => ({ ...j, justificacion: v }))} />
+          <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} placeholder="Justificación (ej. merma por lluvia)" value={just.justificacion} onChangeText={(v) => setJust((j) => ({ ...j, justificacion: v }))} />
           <Pressable onPress={guardarAlerta} style={styles.btnPrimarySmall}><Text style={styles.btnPrimarySmallText}>Guardar</Text></Pressable>
         </View>
       )}
@@ -306,13 +306,13 @@ function NuevoLoteModal({ finca, rangoInicial, onClose, onCreated }) {
         <ScrollView>
           <Text style={styles.modalTitle}>Nuevo lote de café</Text>
           <Text style={styles.fieldLabel}>Fecha del lote (AAAA-MM-DD)</Text>
-          <TextInput style={styles.input} value={form.fecha} onChangeText={(v) => setForm((f) => ({ ...f, fecha: v }))} />
+          <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} value={form.fecha} onChangeText={(v) => setForm((f) => ({ ...f, fecha: v }))} />
           <Text style={styles.fieldLabel}>Recolección desde</Text>
-          <TextInput style={styles.input} value={form.rango_desde} onChangeText={(v) => setForm((f) => ({ ...f, rango_desde: v }))} placeholder="2026-07-01" />
+          <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} value={form.rango_desde} onChangeText={(v) => setForm((f) => ({ ...f, rango_desde: v }))} placeholder="2026-07-01" />
           <Text style={styles.fieldLabel}>Recolección hasta</Text>
-          <TextInput style={styles.input} value={form.rango_hasta} onChangeText={(v) => setForm((f) => ({ ...f, rango_hasta: v }))} placeholder="2026-07-07" />
+          <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} value={form.rango_hasta} onChangeText={(v) => setForm((f) => ({ ...f, rango_hasta: v }))} placeholder="2026-07-07" />
           <Text style={styles.fieldLabel}>Descripción (opcional)</Text>
-          <TextInput style={styles.input} value={form.descripcion} onChangeText={(v) => setForm((f) => ({ ...f, descripcion: v }))} />
+          <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} value={form.descripcion} onChangeText={(v) => setForm((f) => ({ ...f, descripcion: v }))} />
 
           <View style={styles.previewBox}>
             {preview ? (

@@ -65,11 +65,11 @@ export default function PublicarMuroScreen({ navigation }) {
           ))}
         </View>
         {producto === 'Otro' && (
-          <TextInput style={styles.input} placeholder="¿Cuál producto?" value={productoOtro} onChangeText={setProductoOtro} />
+          <TextInput placeholderTextColor={COLORS.textLight} style={styles.input} placeholder="¿Cuál producto?" value={productoOtro} onChangeText={setProductoOtro} />
         )}
 
         <Text style={styles.label}>Cantidad</Text>
-        <TextInput style={styles.input} keyboardType="numeric" value={cantidad} onChangeText={setCantidad} placeholder="Ej: 10" />
+        <TextInput placeholderTextColor={COLORS.textLight} style={styles.input} keyboardType="numeric" value={cantidad} onChangeText={setCantidad} placeholder="Ej: 10" />
 
         <Text style={styles.label}>Unidad</Text>
         <View style={styles.chipsRow}>
@@ -81,13 +81,13 @@ export default function PublicarMuroScreen({ navigation }) {
         </View>
 
         <Text style={styles.label}>Precio (COP)</Text>
-        <TextInput style={styles.input} keyboardType="numeric" value={precio} onChangeText={setPrecio} placeholder="Ej: 15000" />
+        <TextInput placeholderTextColor={COLORS.textLight} style={styles.input} keyboardType="numeric" value={precio} onChangeText={setPrecio} placeholder="Ej: 15000" />
 
         <Text style={styles.label}>Ubicación</Text>
-        <TextInput style={styles.input} value={ubicacion} onChangeText={setUbicacion} placeholder="Vereda, municipio" />
+        <TextInput placeholderTextColor={COLORS.textLight} style={styles.input} value={ubicacion} onChangeText={setUbicacion} placeholder="Vereda, municipio" />
 
         <Text style={styles.label}>Descripción (opcional)</Text>
-        <TextInput style={[styles.input, { minHeight: 70 }]} multiline value={descripcion} onChangeText={setDescripcion} />
+        <TextInput placeholderTextColor={COLORS.textLight} style={[styles.input, { minHeight: 70 }]} multiline value={descripcion} onChangeText={setDescripcion} />
 
         <TouchableOpacity style={styles.fotoBtn} onPress={elegirFoto}>
           {foto ? <Image source={{ uri: foto }} style={styles.fotoPreview} /> : (

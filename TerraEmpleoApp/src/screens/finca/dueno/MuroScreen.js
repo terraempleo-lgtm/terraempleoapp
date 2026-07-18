@@ -160,7 +160,7 @@ export default function MuroScreen({ navigation }) {
         </Pressable>
       </View>
 
-      <TextInput style={styles.search} placeholder="Buscar café, plátano…" value={busqueda} onChangeText={setBusqueda} />
+      <TextInput placeholderTextColor={COLORS.ink400} style={styles.search} placeholder="Buscar café, plátano…" value={busqueda} onChangeText={setBusqueda} />
       <View style={styles.filtrosRow}>
         {FILTROS.map((t) => (
           <Pressable key={t.key} onPress={() => setFiltro(t.key)} style={[styles.filtroChip, filtro === t.key && styles.filtroChipActivo]}>

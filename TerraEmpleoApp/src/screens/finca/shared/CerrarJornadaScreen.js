@@ -167,7 +167,7 @@ function SelectorOtro({ onAgregar }) {
   };
   return (
     <View style={styles.otroRow}>
-      <TextInput
+      <TextInput placeholderTextColor={COLORS.ink400}
         autoFocus
         value={texto}
         onChangeText={setTexto}
@@ -263,18 +263,18 @@ function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonal
           <View style={[styles.rowStart, { marginTop: 10, gap: 8 }]}>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Hora que entró</Text>
-              <TextInput value={t.hora_entrada} onChangeText={(v) => upd('hora_entrada', v)} placeholder="06:00" style={styles.input} />
+              <TextInput placeholderTextColor={COLORS.ink400} value={t.hora_entrada} onChangeText={(v) => upd('hora_entrada', v)} placeholder="06:00" style={styles.input} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Hora que salió</Text>
-              <TextInput value={t.hora_salida} onChangeText={(v) => upd('hora_salida', v)} placeholder="15:30" style={styles.input} />
+              <TextInput placeholderTextColor={COLORS.ink400} value={t.hora_salida} onChangeText={(v) => upd('hora_salida', v)} placeholder="15:30" style={styles.input} />
             </View>
           </View>
 
           {(t.tipo_pago === 'por_kilo' || t.tipo_pago === 'mixto') && (
             <View style={{ marginTop: 10 }}>
               <Text style={styles.fieldLabel}>¿Cuántos kilos recogió?</Text>
-              <TextInput
+              <TextInput placeholderTextColor={COLORS.ink400}
                 value={String(t.cantidad_kg)} onChangeText={(v) => upd('cantidad_kg', v)}
                 keyboardType="decimal-pad" placeholder="0" style={styles.input}
               />
@@ -288,11 +288,11 @@ function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonal
               <Text style={styles.switchLabel}>Alimentación ({formatMoney(Number(precios.alimentacion) || 0)})</Text>
             </View>
             <View style={[styles.rowStart, { marginTop: 8, gap: 8 }]}>
-              <TextInput
+              <TextInput placeholderTextColor={COLORS.ink400}
                 placeholder="Tienda / otro ($)" keyboardType="numeric" value={String(t.deuda_otro)}
                 onChangeText={(v) => upd('deuda_otro', v)} style={[styles.input, { flex: 1 }]}
               />
-              <TextInput
+              <TextInput placeholderTextColor={COLORS.ink400}
                 placeholder="Concepto (ej: tienda)" value={t.deuda_concepto}
                 onChangeText={(v) => upd('deuda_concepto', v)} style={[styles.input, { flex: 1 }]}
               />
@@ -594,7 +594,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
             <Text style={styles.stepTitle}>  ¿Cuándo fue la jornada?</Text>
           </View>
           <Text style={styles.fieldLabel}>Fecha (AAAA-MM-DD)</Text>
-          <TextInput value={fecha} onChangeText={setFecha} style={styles.input} placeholder="2026-07-16" />
+          <TextInput placeholderTextColor={COLORS.ink400} value={fecha} onChangeText={setFecha} style={styles.input} placeholder="2026-07-16" />
           <Text style={styles.fieldLabel}>Vacante asociada (opcional)</Text>
           <View style={styles.wrapRow}>
             <Chip label="— Sin vacante —" activo={!vacanteId} color="ink" onPress={() => setVacanteId('')} />
@@ -631,7 +631,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
             ))}
             <SelectorOtro onAgregar={(nombre) => { agregarLaborPersonalizada(nombre); setLabor(nombre); }} />
           </View>
-          <TextInput value={titulo} onChangeText={setTitulo} placeholder="Título de la jornada" style={[styles.input, { marginTop: 8 }]} />
+          <TextInput placeholderTextColor={COLORS.ink400} value={titulo} onChangeText={setTitulo} placeholder="Título de la jornada" style={[styles.input, { marginTop: 8 }]} />
         </View>
 
         {/* Precios (colapsable) */}
@@ -645,11 +645,11 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         {preciosOpen && (
           <View style={styles.preciosBody}>
             <Text style={styles.fieldLabel}>Precio jornal (COP)</Text>
-            <TextInput value={String(precios.jornal)} onChangeText={(v) => setPrecios((p) => ({ ...p, jornal: v }))} keyboardType="numeric" placeholder="Ej: 70000" style={styles.input} />
+            <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.jornal)} onChangeText={(v) => setPrecios((p) => ({ ...p, jornal: v }))} keyboardType="numeric" placeholder="Ej: 70000" style={styles.input} />
             <Text style={styles.fieldLabel}>Precio por kilo (COP)</Text>
-            <TextInput value={String(precios.kilo)} onChangeText={(v) => setPrecios((p) => ({ ...p, kilo: v }))} keyboardType="numeric" placeholder="Ej: 1100" style={styles.input} />
+            <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.kilo)} onChangeText={(v) => setPrecios((p) => ({ ...p, kilo: v }))} keyboardType="numeric" placeholder="Ej: 1100" style={styles.input} />
             <Text style={styles.fieldLabel}>Precio alimentación (COP)</Text>
-            <TextInput value={String(precios.alimentacion)} onChangeText={(v) => setPrecios((p) => ({ ...p, alimentacion: v }))} keyboardType="numeric" placeholder="Ej: 12000" style={styles.input} />
+            <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.alimentacion)} onChangeText={(v) => setPrecios((p) => ({ ...p, alimentacion: v }))} keyboardType="numeric" placeholder="Ej: 12000" style={styles.input} />
           </View>
         )}
 
@@ -678,7 +678,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
 
           <View style={[styles.rowStart, { marginTop: 10 }]}>
             <Ionicons name="search" size={15} color={COLORS.ink400} />
-            <TextInput
+            <TextInput placeholderTextColor={COLORS.ink400}
               placeholder="Buscar registrado en TerraEmpleo…" value={busqueda} onChangeText={setBusqueda}
               style={[styles.input, { flex: 1, marginLeft: 6 }]}
             />
@@ -701,8 +701,8 @@ export default function CerrarJornadaScreen({ navigation, route }) {
           </Pressable>
           {externoOpen && (
             <View style={{ marginTop: 8, gap: 8 }}>
-              <TextInput placeholder="Nombre completo" value={externo.nombre} onChangeText={(v) => setExterno((x) => ({ ...x, nombre: v }))} style={styles.input} />
-              <TextInput placeholder="Teléfono (opcional)" keyboardType="phone-pad" value={externo.telefono} onChangeText={(v) => setExterno((x) => ({ ...x, telefono: v }))} style={styles.input} />
+              <TextInput placeholderTextColor={COLORS.ink400} placeholder="Nombre completo" value={externo.nombre} onChangeText={(v) => setExterno((x) => ({ ...x, nombre: v }))} style={styles.input} />
+              <TextInput placeholderTextColor={COLORS.ink400} placeholder="Teléfono (opcional)" keyboardType="phone-pad" value={externo.telefono} onChangeText={(v) => setExterno((x) => ({ ...x, telefono: v }))} style={styles.input} />
               <Pressable style={styles.addBtn} onPress={agregarExterno}><Text style={styles.addBtnText}>Agregar</Text></Pressable>
             </View>
           )}
@@ -721,9 +721,9 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         {/* Gastos y observaciones */}
         <View style={styles.step}>
           <Text style={styles.fieldLabel}>Costos generales del día (transporte, comida, etc.)</Text>
-          <TextInput value={String(costosGenerales)} onChangeText={setCostosGenerales} keyboardType="numeric" placeholder="0" style={styles.input} />
+          <TextInput placeholderTextColor={COLORS.ink400} value={String(costosGenerales)} onChangeText={setCostosGenerales} keyboardType="numeric" placeholder="0" style={styles.input} />
           <Text style={styles.fieldLabel}>Observaciones (opcional)</Text>
-          <TextInput value={observaciones} onChangeText={setObservaciones} placeholder="Notas del día" style={[styles.input, { height: 70 }]} multiline />
+          <TextInput placeholderTextColor={COLORS.ink400} value={observaciones} onChangeText={setObservaciones} placeholder="Notas del día" style={[styles.input, { height: 70 }]} multiline />
         </View>
 
         {trabajadores.length > 0 && (

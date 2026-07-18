@@ -208,7 +208,7 @@ export default function HistorialTrabajadorScreen({ route, navigation }) {
                   </Pressable>
                 ))}
               </View>
-              <TextInput style={[styles.input, { minHeight: 60, marginTop: 8 }]} multiline placeholder="Escribe una nota interna…" value={notaTexto} onChangeText={setNotaTexto} />
+              <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, { minHeight: 60, marginTop: 8 }]} multiline placeholder="Escribe una nota interna…" value={notaTexto} onChangeText={setNotaTexto} />
               <View style={[styles.rowStart, { justifyContent: 'flex-end', gap: 8, marginTop: 8 }]}>
                 <Pressable onPress={() => setNotaAbierta(false)} style={styles.btnGhostSmall}><Text style={styles.btnGhostSmallText}>Cancelar</Text></Pressable>
                 <Pressable onPress={guardarNota} disabled={guardandoNota} style={styles.btnPrimarySmall}>
