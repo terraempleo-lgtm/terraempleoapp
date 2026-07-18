@@ -58,6 +58,9 @@ function laborInfo(label) {
 const LABORES_PERSONALIZADAS_KEY = 'cuaderno_labores_personalizadas_v1';
 const CACHE_KEY = 'cuaderno_cierre_cache_v1';
 const BORRADOR_KEY = 'cuaderno_cierre_borrador_v1';
+// Los precios (jornal/kilo/alimentación) no se resetean cada semana como el
+// resto de la plantilla — se guardan aparte, sin fecha de vencimiento.
+const PRECIOS_KEY = 'cuaderno_precios_v1';
 
 async function leerJSON(key, fallback) {
   try {
@@ -397,25 +400,26 @@ export default function CerrarJornadaScreen({ navigation, route }) {
     (async () => {
       const c = await leerCache();
       const borrador = await leerBorrador();
+      const preciosGuardados = await leerJSON(PRECIOS_KEY, null);
       if (borrador) {
         setVacanteId(borrador.vacante_id || '');
         setLabor(borrador.labor || '');
         setTitulo(borrador.titulo || '');
-        setPrecios(borrador.precios || { jornal: '', kilo: '', alimentacion: '' });
+        setPrecios(borrador.precios || preciosGuardados || { jornal: '', kilo: '', alimentacion: '' });
         setSugeridos(borrador.sugeridos || []);
         setTrabajadores(borrador.trabajadores || []);
         setCostosGenerales(borrador.costosGenerales || '');
         setObservaciones(borrador.observaciones || '');
-        setPreciosOpen(!borrador.precios?.jornal);
+        setPreciosOpen(!(borrador.precios?.jornal || preciosGuardados?.jornal));
         toast.info('Recuperamos lo que habías escrito antes de guardar');
       } else {
         setVacanteId(c?.vacante_id || '');
         setLabor(c?.labor || '');
         setTitulo(c?.titulo || '');
-        setPrecios(c?.precios || { jornal: '', kilo: '', alimentacion: '' });
+        setPrecios(preciosGuardados || { jornal: '', kilo: '', alimentacion: '' });
         setSugeridos(c?.sugeridos || []);
         setTrabajadores((c?.trabajadores || []).map(nuevoTrabajador));
-        setPreciosOpen(!c?.precios?.jornal);
+        setPreciosOpen(!preciosGuardados?.jornal);
       }
       fincaAPI.misFincas().then((r) => {
         const list = r.data?.fincas || [];
@@ -449,15 +453,12 @@ export default function CerrarJornadaScreen({ navigation, route }) {
     guardarBorrador({ fecha, vacante_id: vacanteId, labor, titulo, precios, sugeridos, trabajadores, costosGenerales, observaciones });
   }, [cargado, fecha, vacanteId, labor, titulo, precios, sugeridos, trabajadores, costosGenerales, observaciones]);
 
-  // Los precios configurados se guardan de una vez en el cache semanal (no
-  // solo al cerrar la jornada), para que no se pierdan si el capataz los
-  // configura y aún no ha cerrado ninguna jornada esta semana.
+  // Los precios configurados se guardan aparte del cache semanal y NUNCA se
+  // borran solos (ni al cerrar una jornada ni al empezar una semana nueva) —
+  // solo cambian si el capataz los edita a mano.
   useEffect(() => {
     if (!cargado) return;
-    (async () => {
-      const c = (await leerCache()) || {};
-      await guardarCache({ ...c, precios });
-    })();
+    guardarJSON(PRECIOS_KEY, precios);
   }, [cargado, precios]);
 
   useEffect(() => {
@@ -587,7 +588,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
       await cuadernoAPI.actualizarJornada(jornadaId, { estado: 'cerrada' });
 
       await guardarCache({
-        vacante_id: vacanteId, finca: fincaSel, labor, titulo, precios, sugeridos,
+        vacante_id: vacanteId, finca: fincaSel, labor, titulo, sugeridos,
         trabajadores: trabajadores.map((t) => ({
           trabajador_id: t.trabajador_id, nombre: t.nombre, foto: t.foto,
           manual_nombre: t.nombre, manual_telefono: t.manual_telefono,
@@ -627,12 +628,12 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         <Pressable
           style={styles.nuevaSemanaBtn}
           onPress={() => {
-            Alert.alert('¿Empezar semana nueva?', 'Se borran los trabajadores, labores y precios recordados. La próxima jornada empieza en blanco.', [
+            Alert.alert('¿Empezar semana nueva?', 'Se borran los trabajadores y labores recordados. Los precios configurados NO se borran. La próxima jornada empieza en blanco.', [
               { text: 'Cancelar', style: 'cancel' },
               {
                 text: 'Empezar de nuevo', style: 'destructive', onPress: async () => {
                   await AsyncStorage.removeItem(CACHE_KEY);
-                  setSugeridos([]); setTrabajadores([]); setLabor(''); setPreciosOpen(true);
+                  setSugeridos([]); setTrabajadores([]); setLabor('');
                   toast.success('Semana reiniciada');
                 },
               },
@@ -647,7 +648,8 @@ export default function CerrarJornadaScreen({ navigation, route }) {
             El cuaderno se llena una sola vez al final del día: eliges los trabajadores, marcas qué hizo cada
             uno y el pago se calcula solo con los precios que configures. Al guardar, la jornada queda
             cerrada y la nómina de la semana se arma sola. El formulario recuerda los trabajadores y
-            precios toda la semana (se limpia cada lunes).
+            labores toda la semana (se limpia cada lunes). Los precios que configures quedan guardados
+            siempre, no se borran solos.
           </Text>
         )}
 
