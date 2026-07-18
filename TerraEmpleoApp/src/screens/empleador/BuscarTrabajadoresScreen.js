@@ -608,15 +608,26 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
     <View>
       {/* Title row */}
       <View style={styles.titleRow}>
-        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Trabajadores</Text>
-        <View style={styles.subtitleRow}>
-          <View style={styles.greenDot} />
-          <Text style={[styles.subtitleText, { color: COLORS.primary }]}>
-            {filtrados.length} disponible{filtrados.length !== 1 ? 's' : ''}
-          </Text>
-          <Text style={[styles.subtitleSep, { color: colors.textMuted }]}> · </Text>
-          <Text style={[styles.subtitleMuted, { color: colors.textMuted }]}>Talento cerca de ti</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Trabajadores</Text>
+          <View style={styles.subtitleRow}>
+            <View style={styles.greenDot} />
+            <Text style={[styles.subtitleText, { color: COLORS.primary }]}>
+              {filtrados.length} disponible{filtrados.length !== 1 ? 's' : ''}
+            </Text>
+            <Text style={[styles.subtitleSep, { color: colors.textMuted }]}> · </Text>
+            <Text style={[styles.subtitleMuted, { color: colors.textMuted }]}>Talento cerca de ti</Text>
+          </View>
         </View>
+        <AnimatedPressable
+          style={styles.verMapaBtn}
+          onPress={() => navigation.navigate('TrabajadoresMapa', { search })}
+          scaleValue={0.96}
+          haptic
+        >
+          <Ionicons name="map" size={16} color={COLORS.white} />
+          <Text style={styles.verMapaBtnText}>  Ver mapa</Text>
+        </AnimatedPressable>
       </View>
 
       {/* Banner: sin ubicación + filtro cercanos */}
@@ -714,14 +725,6 @@ export default function BuscarTrabajadoresScreen({ navigation }) {
             </AnimatedPressable>
           );
         })}
-        <AnimatedPressable
-          style={[styles.mapCircleBtn, { backgroundColor: COLORS.primary }]}
-          onPress={() => navigation.navigate('TrabajadoresMapa', { search })}
-          scaleValue={0.95}
-          haptic
-        >
-          <Ionicons name="map-outline" size={18} color={COLORS.white} />
-        </AnimatedPressable>
       </View>
 
       {/* ── OFERTAS DE ESPECIALISTAS (arriba del feed) ── */}
@@ -881,10 +884,26 @@ const styles = StyleSheet.create({
 
   /* Title */
   titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.md,
     paddingBottom: 12,
   },
+  verMapaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  verMapaBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 13 },
   screenTitle: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
   subtitleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
   greenDot: {
@@ -945,13 +964,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   ordenTabText: { fontSize: 13, fontWeight: '700' },
-  mapCircleBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 
   /* Disponibilidad */
   dispScrollView: { flexGrow: 0, marginBottom: 12 },

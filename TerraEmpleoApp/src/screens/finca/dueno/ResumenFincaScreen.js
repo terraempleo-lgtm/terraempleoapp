@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { MotiView } from 'moti';
 import { cuadernoAPI } from '../../../services/api';
 import Avatar from '../shared/Avatar';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
@@ -49,7 +50,12 @@ function BarRow({ label, value, max, color = COLORS.primary, sub }) {
         <Text style={styles.barSub}>{sub}</Text>
       </View>
       <View style={styles.barTrack}>
-        <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: color }]} />
+        <MotiView
+          from={{ width: '0%' }}
+          animate={{ width: `${pct}%` }}
+          transition={{ type: 'timing', duration: 700 }}
+          style={[styles.barFill, { backgroundColor: color }]}
+        />
       </View>
     </View>
   );
@@ -172,12 +178,17 @@ export default function ResumenFincaScreen({ navigation }) {
             <Text style={styles.heroEmpty}>Aún no hay registros mensuales</Text>
           ) : (
             <View style={styles.barsRow}>
-              {[...(data?.mensual || [])].reverse().map((m) => {
+              {[...(data?.mensual || [])].reverse().map((m, i) => {
                 const altura = Math.max(8, Math.round((Number(m.pago) / maxMensual) * 100));
                 return (
                   <View key={m.mes} style={styles.barCol}>
                     <Text style={styles.barValueLabel}>{formatMoney(m.pago)}</Text>
-                    <View style={[styles.monthBar, { height: `${altura}%` }]} />
+                    <MotiView
+                      from={{ height: '0%' }}
+                      animate={{ height: `${altura}%` }}
+                      transition={{ type: 'timing', duration: 600, delay: i * 80 }}
+                      style={styles.monthBar}
+                    />
                     <Text style={styles.barMonthLabel}>
                       {new Date(m.mes + '-01').toLocaleDateString('es-CO', { month: 'short' })}
                     </Text>
@@ -281,11 +292,16 @@ export default function ResumenFincaScreen({ navigation }) {
           <SectionHeader icon="trending-up-outline" title="Producción semanal" />
           {(data?.semanal || []).length === 0 ? <Text style={styles.emptyText}>Sin datos.</Text> : (
             <View style={styles.barsRowSmall}>
-              {data.semanal.map((s) => {
+              {data.semanal.map((s, i) => {
                 const h = Math.max(6, Math.round((Number(s.pago) / maxSemanal) * 100));
                 return (
                   <View key={s.semana} style={styles.barColSmall}>
-                    <View style={[styles.weekBar, { height: `${h}%` }]} />
+                    <MotiView
+                      from={{ height: '0%' }}
+                      animate={{ height: `${h}%` }}
+                      transition={{ type: 'timing', duration: 600, delay: i * 60 }}
+                      style={styles.weekBar}
+                    />
                     <Text style={styles.barWeekLabel}>
                       {new Date(s.desde).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' })}
                     </Text>
