@@ -1069,6 +1069,7 @@ export default function PerfilScreen({ navigation }) {
             <View style={[empS.card, { backgroundColor: colors.surface }]}>
               {[
                 { icon: 'create-outline', label: 'Editar perfil', color: COLORS.primary, bg: '#F0FDF4', onPress: () => navigation.navigate('EditarPerfil', { userData, perfil }) },
+                { icon: 'settings-outline', label: 'Configuración de finca', color: COLORS.primary, bg: '#F0FDF4', onPress: () => navigation.navigate('Cuaderno', { screen: 'ConfiguracionFinca' }) },
                 { icon: isDark ? 'sunny-outline' : 'moon-outline', label: isDark ? 'Modo claro' : 'Modo oscuro', color: colors.primary, bg: isDark ? '#1a2f22' : '#F0FDF4', onPress: toggleMode },
                 { icon: 'chatbox-ellipses-outline', label: 'Peticiones y Quejas', color: '#2563EB', bg: '#EFF6FF', onPress: () => navigation.navigate('Pqrs') },
               ].map((row, i) => (
