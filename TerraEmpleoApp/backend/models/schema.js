@@ -1098,6 +1098,15 @@ async function initializeDatabase() {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fin_periodos.precio_venta_kilo:', e.message);
   }
 
+  // Migración: precio de venta del kilo de café CEREZA (recién recogido,
+  // antes de beneficio) — distinto del precio_venta_kilo (café procesado),
+  // mismo patrón, mismo mes.
+  try {
+    await query('ALTER TABLE fin_periodos ADD COLUMN IF NOT EXISTS precio_venta_kilo_cereza DECIMAL(10,2) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fin_periodos.precio_venta_kilo_cereza:', e.message);
+  }
+
   // ── Muro de compra/venta (mercado entre agricultores) ─────────────────────
   await query(`
     CREATE TABLE IF NOT EXISTS muro_publicaciones (

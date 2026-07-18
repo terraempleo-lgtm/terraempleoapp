@@ -346,9 +346,11 @@ async function cambiarEstadoPeriodo(req, res) {
   }
 }
 
-// PUT /finanzas/periodos/:id/precio-venta { precio_venta_kilo }
-// Precio al que se vendió el café ese mes — cambia mes a mes, a diferencia
-// de meta_kg_semanal que vive en la finca y no cambia.
+// PUT /finanzas/periodos/:id/precio-venta { precio_venta_kilo, precio_venta_kilo_cereza }
+// Precios de venta del mes — cambian mes a mes, a diferencia de
+// meta_kg_semanal que vive en la finca y no cambia. precio_venta_kilo es
+// café procesado; precio_venta_kilo_cereza es café recién recogido, sin
+// beneficio. Cualquiera de los dos, o ambos, en el mismo body.
 async function actualizarPrecioVenta(req, res) {
   try {
     const id = Number(req.params.id);
@@ -357,13 +359,32 @@ async function actualizarPrecioVenta(req, res) {
     const acc = await accesoFinca(Number(rows[0].finca_id), req.user.id, { escribir: true });
     if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
 
-    const valor = req.body.precio_venta_kilo;
-    const precio = valor === '' || valor === null || valor === undefined ? null : Number(valor);
-    if (precio !== null && (Number.isNaN(precio) || precio < 0)) {
-      return res.status(400).json({ error: 'precio_venta_kilo inválido' });
+    const normalizar = (valor) => (valor === '' || valor === null || valor === undefined ? null : Number(valor));
+    const sets = [];
+    const params = [];
+    const resultado = {};
+
+    if (req.body.precio_venta_kilo !== undefined) {
+      const precio = normalizar(req.body.precio_venta_kilo);
+      if (precio !== null && (Number.isNaN(precio) || precio < 0)) {
+        return res.status(400).json({ error: 'precio_venta_kilo inválido' });
+      }
+      sets.push('precio_venta_kilo = ?'); params.push(precio);
+      resultado.precio_venta_kilo = precio;
     }
-    await query('UPDATE fin_periodos SET precio_venta_kilo = ? WHERE id = ?', [precio, id]);
-    res.json({ ok: true, precio_venta_kilo: precio });
+    if (req.body.precio_venta_kilo_cereza !== undefined) {
+      const precioCereza = normalizar(req.body.precio_venta_kilo_cereza);
+      if (precioCereza !== null && (Number.isNaN(precioCereza) || precioCereza < 0)) {
+        return res.status(400).json({ error: 'precio_venta_kilo_cereza inválido' });
+      }
+      sets.push('precio_venta_kilo_cereza = ?'); params.push(precioCereza);
+      resultado.precio_venta_kilo_cereza = precioCereza;
+    }
+    if (!sets.length) return res.status(400).json({ error: 'Nada que actualizar' });
+
+    params.push(id);
+    await query(`UPDATE fin_periodos SET ${sets.join(', ')} WHERE id = ?`, params);
+    res.json({ ok: true, ...resultado });
   } catch (err) {
     console.error('actualizarPrecioVenta:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
