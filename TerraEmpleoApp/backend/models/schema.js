@@ -1079,6 +1079,16 @@ async function initializeDatabase() {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fincas.meta_kg_semanal:', e.message);
   }
 
+  // Migración: kg totales esperados de la cosecha (el dueño la configura a
+  // mano al iniciar temporada — se prefirió sobre calcularla con hectáreas ×
+  // benchmark porque ese promedio nacional varía demasiado entre fincas).
+  // Usada por el gráfico "días para terminar la cosecha".
+  try {
+    await query('ALTER TABLE fincas ADD COLUMN IF NOT EXISTS meta_kg_cosecha DECIMAL(10,2) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fincas.meta_kg_cosecha:', e.message);
+  }
+
   // Migración: precio de venta del kilo de café, cambia mes a mes — vive en
   // el período mensual de Finanzas (no en la finca) para el gráfico
   // "Costo por kilo por semana".
