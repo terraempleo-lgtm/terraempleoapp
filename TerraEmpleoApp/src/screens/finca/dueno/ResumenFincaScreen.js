@@ -4,10 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import { cuadernoAPI } from '../../../services/api';
+import { cuadernoAPI, fincaAPI, finanzasAPI } from '../../../services/api';
+import { useFinca } from '../../../context/FincaContext';
 import Avatar from '../shared/Avatar';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
 import { formatMoney, formatDate, formatLabor } from '../../../utils/fincaFormat';
+import {
+  KilosPorSemanaChart, CostoPorKiloChart, RendimientoTrabajadorChart,
+  RendimientoLoteChart, MargenDonaChart, ComparativaFincasChart,
+} from '../../../components/charts/CuadernoCharts';
 
 const COLORS = {
   primary: '#008d49', primaryDark: '#006635', primaryLight: '#55c53e', primarySoft: '#e5f6ec',
@@ -86,8 +91,11 @@ function calificacionScore(t) {
 }
 
 export default function ResumenFincaScreen({ navigation }) {
+  const { activeFinca, activeFincaId, recargarFincas } = useFinca();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [periodo, setPeriodo] = useState(null);
+  const [lotesRendimiento, setLotesRendimiento] = useState([]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -100,11 +108,41 @@ export default function ResumenFincaScreen({ navigation }) {
     }, [])
   );
 
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!activeFincaId) return;
+      let mounted = true;
+      const hoy = new Date();
+      finanzasAPI.tablero({ finca_id: activeFincaId, anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 })
+        .then((r) => mounted && setPeriodo(r.data?.periodo || null))
+        .catch(() => {});
+      const desde = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-01`;
+      const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+      const hasta = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+      fincaAPI.rendimientoLotes(activeFincaId, { desde, hasta })
+        .then((r) => mounted && setLotesRendimiento(r.data?.lotes || []))
+        .catch(() => {});
+      return () => { mounted = false; };
+    }, [activeFincaId])
+  );
+
+  const guardarMetaKgSemanal = async (valor) => {
+    if (!activeFincaId) return;
+    try { await fincaAPI.actualizar(activeFincaId, { meta_kg_semanal: valor }); recargarFincas(); }
+    catch (e) { console.error('meta_kg_semanal:', e); }
+  };
+
+  const guardarPrecioVenta = async (valor) => {
+    if (!periodo?.id) return;
+    try {
+      await finanzasAPI.actualizarPrecioVenta(periodo.id, { precio_venta_kilo: valor });
+      setPeriodo((p) => ({ ...p, precio_venta_kilo: valor }));
+    } catch (e) { console.error('precio_venta_kilo:', e); }
+  };
+
   const resumen = data?.resumen || {};
   const maxRendimiento = useMemo(() => Math.max(1, ...((data?.rendimiento_tipo || []).map((r) => Number(r.pago) || 0))), [data]);
-  const maxFinca = useMemo(() => Math.max(1, ...((data?.por_finca || []).map((r) => Number(r.pago) || 0))), [data]);
   const maxMensual = useMemo(() => Math.max(1, ...((data?.mensual || []).map((r) => Number(r.pago) || 0))), [data]);
-  const maxSemanal = useMemo(() => Math.max(1, ...((data?.semanal || []).map((r) => Number(r.pago) || 0))), [data]);
 
   if (loading) {
     return (
@@ -276,41 +314,24 @@ export default function ResumenFincaScreen({ navigation }) {
           )}
         </View>
 
-        {/* Comparativa entre fincas */}
-        <View style={styles.card}>
-          <SectionHeader icon="location-outline" title="Comparativa entre fincas" />
-          {(data?.por_finca || []).length === 0 ? <Text style={styles.emptyText}>Sin datos.</Text> : (
-            data.por_finca.map((f) => (
-              <BarRow key={f.finca} label={f.finca} value={Number(f.pago)} max={maxFinca} color={COLORS.primaryLight}
-                sub={`${formatMoney(f.pago)} · ${f.jornadas} jornadas`} />
-            ))
-          )}
-        </View>
-
-        {/* Producción semanal */}
-        <View style={styles.card}>
-          <SectionHeader icon="trending-up-outline" title="Producción semanal" />
-          {(data?.semanal || []).length === 0 ? <Text style={styles.emptyText}>Sin datos.</Text> : (
-            <View style={styles.barsRowSmall}>
-              {data.semanal.map((s, i) => {
-                const h = Math.max(6, Math.round((Number(s.pago) / maxSemanal) * 100));
-                return (
-                  <View key={s.semana} style={styles.barColSmall}>
-                    <MotiView
-                      from={{ height: '0%' }}
-                      animate={{ height: `${h}%` }}
-                      transition={{ type: 'timing', duration: 600, delay: i * 60 }}
-                      style={styles.weekBar}
-                    />
-                    <Text style={styles.barWeekLabel}>
-                      {new Date(s.desde).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' })}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </View>
+        {/* Gráficas interactivas de producción y rendimiento */}
+        <KilosPorSemanaChart
+          semanal={data?.semanal || []}
+          metaKgSemanal={activeFinca?.meta_kg_semanal ? Number(activeFinca.meta_kg_semanal) : null}
+          onGuardarMeta={guardarMetaKgSemanal}
+        />
+        <CostoPorKiloChart
+          semanal={data?.semanal || []}
+          precioVentaKilo={periodo?.precio_venta_kilo ? Number(periodo.precio_venta_kilo) : null}
+          onGuardarPrecio={guardarPrecioVenta}
+        />
+        <RendimientoTrabajadorChart topTrabajadores={data?.top_trabajadores || []} />
+        <RendimientoLoteChart lotes={lotesRendimiento} />
+        <MargenDonaChart
+          semanal={data?.semanal || []}
+          precioVentaKilo={periodo?.precio_venta_kilo ? Number(periodo.precio_venta_kilo) : null}
+        />
+        <ComparativaFincasChart porFinca={data?.por_finca || []} />
 
         {/* Historial de pagos */}
         <View style={styles.card}>

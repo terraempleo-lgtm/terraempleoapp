@@ -479,6 +479,7 @@ export const fincaAPI = {
   listarLotesFinca: (id) => api.get(`/finca/${id}/lotes`),
   crearLoteFinca: (id, data) => api.post(`/finca/${id}/lotes`, data),
   eliminarLoteFinca: (id, loteId) => api.delete(`/finca/${id}/lotes/${loteId}`),
+  rendimientoLotes: (id, params) => api.get(`/finca/${id}/lotes/rendimiento`, { params }),
 };
 
 // Cuaderno (jornadas, asistencias, registros, calificaciones, notas, dashboard)
@@ -567,6 +568,7 @@ export const finanzasAPI = {
   actualizarConcepto: (id, data) => api.put(`/finanzas/conceptos/${id}`, data),
   eliminarConcepto: (id) => api.delete(`/finanzas/conceptos/${id}`),
   cambiarEstadoPeriodo: (id, data) => api.put(`/finanzas/periodos/${id}/estado`, data),
+  actualizarPrecioVenta: (id, data) => api.put(`/finanzas/periodos/${id}/precio-venta`, data),
 };
 
 export default api;
