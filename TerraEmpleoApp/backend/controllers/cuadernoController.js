@@ -717,6 +717,23 @@ async function dashboard(req, res) {
       s.trabajadores = trabajadoresMap.get(String(s.semana)) || 0;
     }
 
+    // Nómina de SOLO recolección por semana — `pago` mezcla todas las
+    // labores (guadaña, fertilización, etc.) que no producen kilos, así
+    // que dividir pago/kg infla el costo por kilo real. `pago_recoleccion`
+    // es lo correcto para ese cálculo.
+    const recoleccionPorSemana = await query(`
+      SELECT YEARWEEK(j.fecha, 1) AS semana,
+        COALESCE(SUM(r.pago_total),0) AS pago_recoleccion
+      FROM cuaderno_jornadas j
+      JOIN cuaderno_registros_trabajo r ON r.jornada_id = j.id
+      WHERE ${scope('j')} AND j.fecha >= ? AND j.tipo_trabajo = 'Recolección'
+      GROUP BY semana
+    `, [fincaIds, usuarioId, semanaDesde]);
+    const recoleccionMap = new Map((recoleccionPorSemana || []).map((r) => [String(r.semana), Number(r.pago_recoleccion)]));
+    for (const s of semanal || []) {
+      s.pago_recoleccion = recoleccionMap.get(String(s.semana)) || 0;
+    }
+
     // Tendencia mensual últimos 6 meses
     const mensual = await query(`
       SELECT DATE_FORMAT(j.fecha, '%Y-%m') AS mes,
