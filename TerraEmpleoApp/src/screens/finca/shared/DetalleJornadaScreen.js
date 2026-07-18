@@ -10,7 +10,7 @@ import { cuadernoAPI, trabajadoresAPI, fincaAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 import Avatar from './Avatar';
 import { useToast } from './useFincaToast';
-import { formatMoney, formatDate, asText } from '../../../utils/fincaFormat';
+import { formatMoney, formatDate, asText, formatLabor } from '../../../utils/fincaFormat';
 
 const COLORS = {
   primary: '#008d49', primaryDark: '#006635', primarySoft: '#e5f6ec',
@@ -683,7 +683,7 @@ export default function DetalleJornadaScreen({ route, navigation }) {
               <View style={[styles.wrapRow, { marginTop: 6 }]}>
                 {j.finca && <Text style={styles.heroMeta}>📍 {j.finca}</Text>}
                 {j.vacante_titulo && <Text style={styles.heroMeta}>💼 {asText(j.vacante_titulo)}</Text>}
-                {j.tipo_trabajo && <Text style={styles.heroMeta}>📈 {j.tipo_trabajo}</Text>}
+                {j.tipo_trabajo && <Text style={styles.heroMeta}>📈 {formatLabor(j.tipo_trabajo)}</Text>}
               </View>
             </View>
           </View>

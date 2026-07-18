@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { cuadernoAPI } from '../../../services/api';
 import Avatar from './Avatar';
 import { useToast } from './useFincaToast';
-import { formatMoney, formatDate } from '../../../utils/fincaFormat';
+import { formatMoney, formatDate, formatLabor } from '../../../utils/fincaFormat';
 
 const COLORS = {
   primary: '#008d49', primarySoft: '#e5f6ec',
@@ -90,7 +90,7 @@ export default function HistorialTrabajadorScreen({ route, navigation }) {
   const tiposTrabajo = useMemo(() => {
     if (!data?.jornadas) return [];
     const m = new Map();
-    for (const j of data.jornadas) { const k = j.tipo_trabajo || 'Sin especificar'; m.set(k, (m.get(k) || 0) + 1); }
+    for (const j of data.jornadas) { const k = formatLabor(j.tipo_trabajo) || 'Sin especificar'; m.set(k, (m.get(k) || 0) + 1); }
     return Array.from(m.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
   }, [data]);
 

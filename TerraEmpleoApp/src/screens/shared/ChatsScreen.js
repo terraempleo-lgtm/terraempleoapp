@@ -238,18 +238,34 @@ export default function ChatsScreen({ navigation, route }) {
               easing: Easing.inOut(Easing.ease),
             }}
           >
-            <View style={[styles.emptyIconWrap, { backgroundColor: colors.primary + '18' }]}>
+            <View style={[styles.emptyIconWrap, { backgroundColor: '#EAF3DE' }]}>
               <Ionicons name="chatbubbles-outline" size={48} color={colors.primary} />
             </View>
           </MotiView>
           <FadeInView delay={200}>
-            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sin conversaciones</Text>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+              {user?.rol === 'empleador' ? 'Aún no tienes más conversaciones' : 'Sin conversaciones'}
+            </Text>
           </FadeInView>
           <FadeInView delay={300}>
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              Los chats aparecen cuando un empleador acepta tu postulación.
+              {user?.rol === 'empleador'
+                ? 'Los chats aparecen cuando contactas a un trabajador o él acepta tu oferta.'
+                : 'Los chats aparecen cuando un empleador acepta tu postulación.'}
             </Text>
           </FadeInView>
+          {user?.rol === 'empleador' && (
+            <FadeInView delay={380}>
+              <AnimatedPressable
+                style={[styles.emptyCta, { borderColor: colors.primary }]}
+                onPress={() => navigation.navigate('Trabajadores', { screen: 'BuscarTrabajadoresHome' })}
+                scaleValue={0.97}
+              >
+                <Ionicons name="search-outline" size={16} color={colors.primary} />
+                <Text style={[styles.emptyCtaText, { color: colors.primary }]}>  Explorar trabajadores</Text>
+              </AnimatedPressable>
+            </FadeInView>
+          )}
         </View>
       ) : (
         <FlatList
@@ -306,6 +322,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  emptyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 12,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1.5,
+  },
+  emptyCtaText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 
   /* Chat item */

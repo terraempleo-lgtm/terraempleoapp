@@ -19,3 +19,19 @@ export function asText(v) {
   if (typeof v === 'string' || typeof v === 'number') return String(v);
   return v.titulo || v.nombre || v.nombre_completo || '';
 }
+
+// tipo_trabajo/labor queda guardado tal cual se escribió en la jornada — datos
+// viejos pueden tener "recoleccion" sin tilde/mayúscula. Normaliza a la
+// etiqueta canónica de los chips de labor dondequiera que se muestre.
+const LABORES_CANONICAS = [
+  'Recolección', 'Desyerba / Guadaña', 'Fumigación', 'Fertilización', 'Poda', 'Siembra',
+];
+const sinAcentos = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const LABOR_POR_CLAVE = new Map(LABORES_CANONICAS.map((l) => [sinAcentos(l), l]));
+
+export function formatLabor(tipo) {
+  if (!tipo) return tipo;
+  const clave = sinAcentos(tipo);
+  if (LABOR_POR_CLAVE.has(clave)) return LABOR_POR_CLAVE.get(clave);
+  return tipo;
+}

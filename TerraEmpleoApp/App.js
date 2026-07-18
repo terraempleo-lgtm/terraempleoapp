@@ -444,19 +444,17 @@ function EmpleadorTabs() {
   const unread = useChatUnread();
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
-      <Tab.Screen name="Muro" component={MuroStack}
-        options={{ tabBarLabel: 'Mercado' }} />
       <Tab.Screen name="Cuaderno" component={CuadernoStack}
         options={{ tabBarLabel: 'Cuaderno' }} />
+      <Tab.Screen name="Muro" component={MuroStack}
+        options={{ tabBarLabel: 'Mercado' }} />
       <Tab.Screen name="MisVacantes" component={EmpleadorVacantesStack}
-        options={{ tabBarLabel: 'Mis Vacantes' }} />
+        options={{ tabBarLabel: 'Vacantes' }} />
       <Tab.Screen name="Trabajadores" component={BuscarTrabajadoresStack}
         options={{ tabBarLabel: 'Trabajadores' }}
         listeners={({ navigation }) => ({
           tabPress: () => navigation.navigate('Trabajadores', { screen: 'BuscarTrabajadoresHome' }),
         })} />
-      <Tab.Screen name="Mapa" component={TrabajadoresMapaTabStack}
-        options={{ tabBarLabel: 'Mapa' }} />
       <Tab.Screen name="Mensajes" component={ChatsStack}
         options={({ route }) => ({ tabBarLabel: 'Mensajes', tabBarBadge: unread > 0 ? unread : undefined, ...mensajesTabBarOptions(route) })} />
       <Tab.Screen name="Perfil" component={PerfilStack}
@@ -575,19 +573,6 @@ function EmpleadorVacantesStack() {
         <Stack.Screen name="DetalleVacanteReferencia" component={DetalleVacanteReferenciaScreen}
           options={{ title: 'Detalle de referencia' }} />
         <Stack.Screen name="DetalleServicio" component={DetalleServicioScreen}
-          options={{ headerShown: false }} />
-      </Stack.Navigator>
-    </S>
-  );
-}
-
-function TrabajadoresMapaTabStack() {
-  return (
-    <S>
-      <Stack.Navigator screenOptions={stackScreenOptions}>
-        <Stack.Screen name="TrabajadoresMapaHome" component={TrabajadoresMapaScreen}
-          options={{ headerShown: false }} />
-        <Stack.Screen name="PerfilPublicoTrabajador" component={PerfilPublicoTrabajadorScreen}
           options={{ headerShown: false }} />
       </Stack.Navigator>
     </S>

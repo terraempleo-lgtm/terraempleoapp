@@ -5,7 +5,7 @@ const lightColors = {
   primary: '#008d49',
   primaryDark: '#006635',
   accent: '#c1ff72',
-  background: '#f3fbf7',
+  background: '#FFFFFF',
   surface: '#ffffff',
   card: '#ffffff',
   border: '#d8ece0',

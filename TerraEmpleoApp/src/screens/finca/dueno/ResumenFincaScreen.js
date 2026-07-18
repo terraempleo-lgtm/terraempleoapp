@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { cuadernoAPI } from '../../../services/api';
 import Avatar from '../shared/Avatar';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
-import { formatMoney, formatDate } from '../../../utils/fincaFormat';
+import { formatMoney, formatDate, formatLabor } from '../../../utils/fincaFormat';
 
 const COLORS = {
   primary: '#008d49', primaryDark: '#006635', primaryLight: '#55c53e', primarySoft: '#e5f6ec',
@@ -223,7 +223,7 @@ export default function ResumenFincaScreen({ navigation }) {
           <SectionHeader icon="pulse-outline" title="Rendimiento por tipo de trabajo" />
           {(data?.rendimiento_tipo || []).length === 0 ? <Text style={styles.emptyText}>Aún no hay datos.</Text> : (
             data.rendimiento_tipo.map((r) => (
-              <BarRow key={r.tipo} label={r.tipo} value={Number(r.pago)} max={maxRendimiento}
+              <BarRow key={r.tipo} label={formatLabor(r.tipo)} value={Number(r.pago)} max={maxRendimiento}
                 sub={`${formatMoney(r.pago)} · ${Number(r.kg).toLocaleString()} kg`} />
             ))
           )}
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 10, textTransform: 'uppercase', color: COLORS.ink500, fontWeight: '700' },
   statValue: { fontSize: 18, fontWeight: '900', color: COLORS.ink900, marginTop: 2 },
   statHint: { fontSize: 10, color: COLORS.ink400, marginTop: 2 },
-  heroCard: { borderRadius: 20, padding: 18, marginBottom: 20, backgroundColor: COLORS.primaryDark },
+  heroCard: { borderRadius: 20, padding: 18, marginBottom: 20, backgroundColor: '#1B512D' },
   heroKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: 'rgba(255,255,255,0.65)' },
   heroTitle: { fontSize: 18, fontWeight: '900', color: '#fff', marginTop: 2 },
   heroHint: { fontSize: 11, color: 'rgba(255,255,255,0.7)' },
