@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const { accesoFinca } = require('./fincaController');
 const { registrarAuditoria, ipDe } = require('../helpers/auditoria');
+const { deleteFromS3 } = require('../config/s3');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers de calendario
@@ -391,6 +392,64 @@ async function actualizarPrecioVenta(req, res) {
   }
 }
 
+// Helper: resuelve finca_id + estado del período a partir de un movimiento.
+async function fincaDeMovimiento(movimientoId) {
+  const rows = await query(
+    `SELECT m.id, p.finca_id, p.estado
+       FROM fin_movimientos m
+       JOIN fin_periodos p ON p.id = m.periodo_id
+      WHERE m.id = ?`,
+    [movimientoId]
+  );
+  return rows && rows[0] ? rows[0] : null;
+}
+
+// POST /finanzas/movimientos/:movimientoId/foto (multipart, campo `foto`)
+// Solo actualiza un movimiento YA existente (creado antes vía upsertMovimiento).
+async function subirFotoMovimiento(req, res) {
+  try {
+    const movimientoId = Number(req.params.movimientoId);
+    const mov = await fincaDeMovimiento(movimientoId);
+    if (!mov) return res.status(404).json({ error: 'Movimiento no encontrado' });
+    const acc = await accesoFinca(Number(mov.finca_id), req.user.id, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+    if (mov.estado === 'cerrado' && acc.rol !== 'propietario') {
+      return res.status(403).json({ error: 'El período está cerrado' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'La foto es obligatoria' });
+
+    const fotoUrl = req.file.location;
+    await query('UPDATE fin_movimientos SET foto_url = ? WHERE id = ?', [fotoUrl, movimientoId]);
+    res.status(201).json({ foto_url: fotoUrl });
+  } catch (err) {
+    console.error('subirFotoMovimiento:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// DELETE /finanzas/movimientos/:movimientoId/foto
+async function eliminarFotoMovimiento(req, res) {
+  try {
+    const movimientoId = Number(req.params.movimientoId);
+    const mov = await fincaDeMovimiento(movimientoId);
+    if (!mov) return res.status(404).json({ error: 'Movimiento no encontrado' });
+    const acc = await accesoFinca(Number(mov.finca_id), req.user.id, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+    if (mov.estado === 'cerrado' && acc.rol !== 'propietario') {
+      return res.status(403).json({ error: 'El período está cerrado' });
+    }
+
+    const rows = await query('SELECT foto_url FROM fin_movimientos WHERE id = ?', [movimientoId]);
+    const fotoActual = rows && rows[0] && rows[0].foto_url;
+    await query('UPDATE fin_movimientos SET foto_url = NULL WHERE id = ?', [movimientoId]);
+    if (fotoActual) await deleteFromS3(fotoActual);
+    res.json({ message: 'Foto eliminada' });
+  } catch (err) {
+    console.error('eliminarFotoMovimiento:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
   genSemanas,
   ensurePeriodo,
@@ -401,4 +460,6 @@ module.exports = {
   eliminarConcepto,
   cambiarEstadoPeriodo,
   actualizarPrecioVenta,
+  subirFotoMovimiento,
+  eliminarFotoMovimiento,
 };

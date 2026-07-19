@@ -735,6 +735,38 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Herramientas, maquinaria y vehículos de la finca — con su historial de
+  // mantenimientos para saber cuándo toca el próximo (el frontend calcula
+  // el semáforo al/próximo/vencido con fecha_compra + último mantenimiento
+  // + frecuencia_mantenimiento_dias; el backend solo guarda los datos crudos).
+  await query(`
+    CREATE TABLE IF NOT EXISTS herramientas (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      finca_id INT NOT NULL,
+      nombre VARCHAR(150) NOT NULL,
+      tipo ENUM('maquinaria','vehiculo','herramienta_manual') NOT NULL DEFAULT 'herramienta_manual',
+      fecha_compra DATE DEFAULT NULL,
+      costo_compra DECIMAL(12,2) DEFAULT NULL,
+      frecuencia_mantenimiento_dias INT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_herramientas_finca (finca_id),
+      FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS herramienta_mantenimientos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      herramienta_id INT NOT NULL,
+      fecha DATE NOT NULL,
+      costo DECIMAL(12,2) DEFAULT NULL,
+      descripcion VARCHAR(400) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_mant_herramienta (herramienta_id),
+      FOREIGN KEY (herramienta_id) REFERENCES herramientas(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Roles internos por finca (separación de funciones para antifraude).
   await query(`
     CREATE TABLE IF NOT EXISTS finca_usuarios (
@@ -1105,6 +1137,13 @@ async function initializeDatabase() {
     await query('ALTER TABLE fin_periodos ADD COLUMN IF NOT EXISTS precio_venta_kilo_cereza DECIMAL(10,2) DEFAULT NULL');
   } catch (e) {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fin_periodos.precio_venta_kilo_cereza:', e.message);
+  }
+
+  // Migración: foto adjunta a un movimiento (factura) de Finanzas.
+  try {
+    await query('ALTER TABLE fin_movimientos ADD COLUMN IF NOT EXISTS foto_url VARCHAR(500) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fin_movimientos.foto_url:', e.message);
   }
 
   // ── Muro de compra/venta (mercado entre agricultores) ─────────────────────
