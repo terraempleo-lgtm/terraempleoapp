@@ -854,6 +854,25 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Precio de venta por cultivo y mes (café ya tiene precio_venta_kilo en
+  // fin_periodos; esto cubre el resto de cultivos para "Rendimiento por
+  // cultivo"). Upsert por (finca_id, periodo_id, cultivo).
+  await query(`
+    CREATE TABLE IF NOT EXISTS finanzas_precio_venta_cultivo (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      finca_id INT NOT NULL,
+      periodo_id INT NOT NULL,
+      cultivo VARCHAR(100) NOT NULL,
+      precio_venta_kilo DECIMAL(10,2) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_precio_cultivo_periodo (periodo_id, cultivo),
+      INDEX idx_precio_cultivo_finca (finca_id),
+      FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE,
+      FOREIGN KEY (periodo_id) REFERENCES fin_periodos(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // ── Módulo Finca Cafetera · Fase 2: Nómina enriquecida ─────────────────────
   // Ajustes a la liquidación de un trabajador en una jornada: bonificaciones,
   // descuentos, anticipos y labores extra (ej. "guadañando x 120").
@@ -1144,6 +1163,17 @@ async function initializeDatabase() {
     await query('ALTER TABLE fin_movimientos ADD COLUMN IF NOT EXISTS foto_url VARCHAR(500) DEFAULT NULL');
   } catch (e) {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fin_movimientos.foto_url:', e.message);
+  }
+
+  // Migración: cultivo trabajado en ese registro (para "Rendimiento por
+  // cultivo") — análoga a finca_lote_id, sin FK explícita por el mismo
+  // motivo (sintaxis de constraint condicional no soportada en toda
+  // versión de MariaDB). Texto libre, no id, porque el cultivo no vive en
+  // una tabla propia (a diferencia de los lotes).
+  try {
+    await query('ALTER TABLE cuaderno_registros_trabajo ADD COLUMN IF NOT EXISTS cultivo VARCHAR(100) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_registros_trabajo.cultivo:', e.message);
   }
 
   // ── Muro de compra/venta (mercado entre agricultores) ─────────────────────

@@ -27,6 +27,9 @@ router.get('/:id/lotes', finca.listarLotesFinca);
 router.post('/:id/lotes', finca.crearLoteFinca);
 router.delete('/:id/lotes/:loteId', finca.eliminarLoteFinca);
 
+// Rendimiento por cultivo
+router.get('/:id/cultivos/rendimiento', finca.listarRendimientoCultivos);
+
 // Herramientas, maquinaria y vehículos de la finca
 router.get('/:id/herramientas', herramientas.listar);
 router.post('/:id/herramientas', herramientas.crear);

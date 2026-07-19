@@ -201,6 +201,7 @@ async function detalleJornada(req, res) {
         r.descuento_alimentacion, r.descuento_otro, r.descuento_nota,
         r.finca_lote_id, fl.nombre AS finca_lote_nombre,
         r.finca_lote_id AS lote_id, fl.nombre AS lote_nombre, -- alias para el frontend web, que usa este nombre
+        r.cultivo,
         c.id AS calificacion_id, c.nivel AS calif_nivel, c.comentario AS calif_comentario
       FROM cuaderno_asistencias a
       LEFT JOIN usuarios u ON u.id = a.trabajador_id
@@ -399,6 +400,7 @@ async function upsertRegistroTrabajo(req, res) {
       estado, notas, pagado, descuento_alimentacion, descuento_otro, descuento_nota,
       finca_lote_id, lote_id, // dos frontends (app móvil y web) contra este mismo endpoint —
       // aceptamos ambos nombres para el lote de finca (parcela física, NO cafe_lotes).
+      cultivo,
     } = req.body;
 
     const tipo = tipo_pago || a.tipo_pago_default || 'jornal';
@@ -431,13 +433,13 @@ async function upsertRegistroTrabajo(req, res) {
           cantidad_kg = ?, horas = ?, tipo_pago = ?, precio_jornal = ?, precio_kilo = ?,
           pago_total = ?, estado = ?, notas = ?, pagado = ?,
           descuento_alimentacion = ?, descuento_otro = ?, descuento_nota = ?,
-          finca_lote_id = ?
+          finca_lote_id = ?, cultivo = ?
         WHERE asistencia_id = ?
       `, [
         cantidad_kg ?? null, horas ?? null, tipo, pj, pk,
         pagoTotal, est, notas || null, pagado ? 1 : 0,
         descAlim, descOtro, descuento_nota || null,
-        loteId,
+        loteId, cultivo || null,
         asisId,
       ]);
       return res.json({ message: 'Registro actualizado', pago_total: pagoTotal });
@@ -447,12 +449,12 @@ async function upsertRegistroTrabajo(req, res) {
       INSERT INTO cuaderno_registros_trabajo
         (asistencia_id, jornada_id, cantidad_kg, horas, tipo_pago,
          precio_jornal, precio_kilo, pago_total, estado, notas, pagado,
-         descuento_alimentacion, descuento_otro, descuento_nota, finca_lote_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         descuento_alimentacion, descuento_otro, descuento_nota, finca_lote_id, cultivo)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       asisId, a.jornada_id, cantidad_kg ?? null, horas ?? null, tipo,
       pj, pk, pagoTotal, est, notas || null, pagado ? 1 : 0,
-      descAlim, descOtro, descuento_nota || null, loteId,
+      descAlim, descOtro, descuento_nota || null, loteId, cultivo || null,
     ]);
 
     res.status(201).json({ message: 'Registro creado', pago_total: pagoTotal });

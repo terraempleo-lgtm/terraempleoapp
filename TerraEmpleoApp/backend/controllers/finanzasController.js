@@ -450,6 +450,62 @@ async function eliminarFotoMovimiento(req, res) {
   }
 }
 
+// PUT /finanzas/periodos/:periodoId/precio-venta-cultivo { cultivo, precio_venta_kilo }
+// Upsert por (periodo_id, cultivo). Café sigue viviendo en
+// fin_periodos.precio_venta_kilo — esto es para el resto de cultivos.
+async function actualizarPrecioVentaCultivo(req, res) {
+  try {
+    const periodoId = Number(req.params.periodoId);
+    const { cultivo } = req.body;
+    if (!cultivo || !String(cultivo).trim()) {
+      return res.status(400).json({ error: 'cultivo es obligatorio' });
+    }
+    const rows = await query('SELECT finca_id FROM fin_periodos WHERE id = ?', [periodoId]);
+    if (!rows || !rows.length) return res.status(404).json({ error: 'Período no encontrado' });
+    const fincaId = Number(rows[0].finca_id);
+    const acc = await accesoFinca(fincaId, req.user.id, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+
+    const valor = req.body.precio_venta_kilo;
+    const precio = valor === '' || valor === null || valor === undefined ? null : Number(valor);
+    if (precio !== null && (Number.isNaN(precio) || precio < 0)) {
+      return res.status(400).json({ error: 'precio_venta_kilo inválido' });
+    }
+    const cultivoNorm = String(cultivo).trim();
+
+    await query(
+      `INSERT INTO finanzas_precio_venta_cultivo (finca_id, periodo_id, cultivo, precio_venta_kilo)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE precio_venta_kilo = VALUES(precio_venta_kilo)`,
+      [fincaId, periodoId, cultivoNorm, precio]
+    );
+    res.json({ ok: true, cultivo: cultivoNorm, precio_venta_kilo: precio });
+  } catch (err) {
+    console.error('actualizarPrecioVentaCultivo:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// GET /finanzas/periodos/:periodoId/precios-venta-cultivo
+async function listarPreciosVentaCultivo(req, res) {
+  try {
+    const periodoId = Number(req.params.periodoId);
+    const rows = await query('SELECT finca_id FROM fin_periodos WHERE id = ?', [periodoId]);
+    if (!rows || !rows.length) return res.status(404).json({ error: 'Período no encontrado' });
+    const acc = await accesoFinca(Number(rows[0].finca_id), req.user.id);
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+
+    const precios = await query(
+      'SELECT cultivo, precio_venta_kilo FROM finanzas_precio_venta_cultivo WHERE periodo_id = ? ORDER BY cultivo ASC',
+      [periodoId]
+    );
+    res.json(precios || []);
+  } catch (err) {
+    console.error('listarPreciosVentaCultivo:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
   genSemanas,
   ensurePeriodo,
@@ -462,4 +518,6 @@ module.exports = {
   actualizarPrecioVenta,
   subirFotoMovimiento,
   eliminarFotoMovimiento,
+  actualizarPrecioVentaCultivo,
+  listarPreciosVentaCultivo,
 };

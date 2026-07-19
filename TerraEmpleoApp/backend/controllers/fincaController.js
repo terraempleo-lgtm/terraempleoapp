@@ -515,6 +515,115 @@ async function listarRendimientoLotes(req, res) {
   }
 }
 
+// GET /finca/:id/cultivos/rendimiento?desde=&hasta=
+async function listarRendimientoCultivos(req, res) {
+  try {
+    const fincaId = Number(req.params.id);
+    const { desde, hasta } = req.query;
+    if (!desde || !hasta) {
+      return res.status(400).json({ error: 'desde y hasta son obligatorios' });
+    }
+    const acc = await accesoFinca(fincaId, req.user.id);
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+
+    // kg/horas/pago SOLO de recolección, por cultivo.
+    const recoleccion = await query(
+      `SELECT r.cultivo,
+              COALESCE(SUM(r.cantidad_kg), 0) AS kg_total,
+              COALESCE(SUM(r.horas), 0) AS horas_total,
+              COALESCE(SUM(r.pago_total), 0) AS pago_recoleccion_total
+         FROM cuaderno_registros_trabajo r
+         JOIN cuaderno_jornadas j ON j.id = r.jornada_id
+        WHERE j.finca_id = ? AND j.fecha BETWEEN ? AND ?
+          AND j.tipo_trabajo = 'Recolección' AND r.cultivo IS NOT NULL
+        GROUP BY r.cultivo`,
+      [fincaId, desde, hasta]
+    );
+
+    // Costo de TODAS las labores (no solo recolección) ligadas al cultivo.
+    const costoTotal = await query(
+      `SELECT r.cultivo, COALESCE(SUM(r.pago_total), 0) AS costo_cosecha_total
+         FROM cuaderno_registros_trabajo r
+         JOIN cuaderno_jornadas j ON j.id = r.jornada_id
+        WHERE j.finca_id = ? AND j.fecha BETWEEN ? AND ?
+          AND r.cultivo IS NOT NULL
+        GROUP BY r.cultivo`,
+      [fincaId, desde, hasta]
+    );
+    const costoPorCultivo = new Map((costoTotal || []).map((c) => [c.cultivo, Number(c.costo_cosecha_total)]));
+
+    // Ranking de trabajadores por cultivo (solo recolección).
+    const trabajadores = await query(
+      `SELECT r.cultivo, a.trabajador_id, COALESCE(u.nombre_completo, a.manual_nombre) AS nombre,
+              u.foto_selfie AS foto,
+              COALESCE(SUM(r.cantidad_kg), 0) AS kg,
+              COALESCE(SUM(r.horas), 0) AS horas,
+              COALESCE(SUM(r.pago_total), 0) AS pago
+         FROM cuaderno_registros_trabajo r
+         JOIN cuaderno_jornadas j ON j.id = r.jornada_id
+         JOIN cuaderno_asistencias a ON a.id = r.asistencia_id
+         LEFT JOIN usuarios u ON u.id = a.trabajador_id
+        WHERE j.finca_id = ? AND j.fecha BETWEEN ? AND ?
+          AND j.tipo_trabajo = 'Recolección' AND r.cultivo IS NOT NULL
+        GROUP BY r.cultivo, a.trabajador_id, nombre, foto
+        ORDER BY kg DESC`,
+      [fincaId, desde, hasta]
+    );
+    const trabajadoresPorCultivo = new Map();
+    for (const t of trabajadores || []) {
+      const lista = trabajadoresPorCultivo.get(t.cultivo) || [];
+      lista.push({
+        trabajador_id: t.trabajador_id, nombre: t.nombre || 'Trabajador', foto: t.foto || null,
+        kg: round2(Number(t.kg)), horas: round2(Number(t.horas)), pago: round2(Number(t.pago)),
+      });
+      trabajadoresPorCultivo.set(t.cultivo, lista);
+    }
+
+    // Precio de venta por cultivo — del mes de `desde`.
+    const [anio, mes] = String(desde).split('-').map(Number);
+    const periodoRows = await query(
+      'SELECT id FROM fin_periodos WHERE finca_id = ? AND anio = ? AND mes = ?',
+      [fincaId, anio, mes]
+    );
+    const periodoId = periodoRows && periodoRows[0] ? Number(periodoRows[0].id) : null;
+    const preciosPorCultivo = new Map();
+    if (periodoId) {
+      const precios = await query(
+        'SELECT cultivo, precio_venta_kilo FROM finanzas_precio_venta_cultivo WHERE periodo_id = ?',
+        [periodoId]
+      );
+      for (const p of precios || []) {
+        preciosPorCultivo.set(p.cultivo, p.precio_venta_kilo !== null ? Number(p.precio_venta_kilo) : null);
+      }
+    }
+
+    const cultivos = (recoleccion || []).map((r) => ({
+      cultivo: r.cultivo,
+      kg_total: round2(Number(r.kg_total)),
+      horas_total: round2(Number(r.horas_total)),
+      pago_recoleccion_total: round2(Number(r.pago_recoleccion_total)),
+      costo_cosecha_total: round2(costoPorCultivo.get(r.cultivo) || 0),
+      precio_venta_kilo: preciosPorCultivo.has(r.cultivo) ? preciosPorCultivo.get(r.cultivo) : null,
+      trabajadores: trabajadoresPorCultivo.get(r.cultivo) || [],
+    }));
+
+    const sinCultivoRows = await query(
+      `SELECT COUNT(*) AS n
+         FROM cuaderno_registros_trabajo r
+         JOIN cuaderno_jornadas j ON j.id = r.jornada_id
+        WHERE j.finca_id = ? AND j.fecha BETWEEN ? AND ?
+          AND j.tipo_trabajo = 'Recolección' AND r.cultivo IS NULL`,
+      [fincaId, desde, hasta]
+    );
+    const jornadas_sin_cultivo = sinCultivoRows && sinCultivoRows[0] ? Number(sinCultivoRows[0].n) : 0;
+
+    res.json({ cultivos, jornadas_sin_cultivo });
+  } catch (err) {
+    console.error('listarRendimientoCultivos:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 async function eliminarLoteFinca(req, res) {
   try {
     const fincaId = Number(req.params.id);
@@ -541,6 +650,7 @@ module.exports = {
   crearLoteFinca,
   eliminarLoteFinca,
   listarRendimientoLotes,
+  listarRendimientoCultivos,
   obtenerFincasUsuario, // reutilizado por cuaderno/nómina para scoping por finca
   sembrarConceptos,
   misFincas,
