@@ -114,6 +114,14 @@ async function crearJornada(req, res) {
 
     if (!fecha) return res.status(400).json({ error: 'La fecha es obligatoria' });
 
+    // tipo_pago_default es un ENUM en BD ('jornal'|'por_kilo'|'mixto') — un
+    // valor fuera de ese set (ej. otro frontend mandando "Por kilo" o una
+    // key distinta) revienta el INSERT con "Data truncated" (500). Se
+    // normaliza aquí para que un valor inesperado caiga a 'jornal' en vez
+    // de tumbar la creación de la jornada.
+    const TIPOS_PAGO_VALIDOS = ['jornal', 'por_kilo', 'mixto'];
+    const tipoPagoNorm = TIPOS_PAGO_VALIDOS.includes(tipo_pago_default) ? tipo_pago_default : 'jornal';
+
     // Resolver la finca del usuario logueado (dueña o capataz) con permiso de
     // escritura sobre el cuaderno — la jornada se crea siempre dentro de ella.
     const fincas = await obtenerFincasUsuario(usuarioId, req.user.rol);
@@ -144,7 +152,7 @@ async function crearJornada(req, res) {
       titulo || null,
       finca || null,
       tipo_trabajo || null,
-      tipo_pago_default || 'jornal',
+      tipoPagoNorm,
       precio_jornal || null,
       precio_kilo || null,
       costos_generales || 0,
@@ -227,10 +235,17 @@ async function actualizarJornada(req, res) {
     if (!guard.ok) return res.status(guard.status).json({ error: guard.error });
 
     const campos = ['fecha','titulo','finca','tipo_trabajo','tipo_pago_default','precio_jornal','precio_kilo','costos_generales','observaciones','estado'];
+    const TIPOS_PAGO_VALIDOS = ['jornal', 'por_kilo', 'mixto'];
+    const ESTADOS_VALIDOS = ['planeada', 'en_curso', 'cerrada'];
     const sets = [];
     const params = [];
     for (const c of campos) {
       if (req.body[c] !== undefined) {
+        // Columnas ENUM: un valor fuera del set revienta el UPDATE con
+        // "Data truncated" (500) — se descartan valores inválidos en vez
+        // de dejarlos pasar a la BD.
+        if (c === 'tipo_pago_default' && !TIPOS_PAGO_VALIDOS.includes(req.body[c])) continue;
+        if (c === 'estado' && !ESTADOS_VALIDOS.includes(req.body[c])) continue;
         sets.push(`${c} = ?`);
         params.push(req.body[c]);
       }
@@ -403,10 +418,13 @@ async function upsertRegistroTrabajo(req, res) {
       cultivo,
     } = req.body;
 
-    const tipo = tipo_pago || a.tipo_pago_default || 'jornal';
+    const TIPOS_PAGO_VALIDOS = ['jornal', 'por_kilo', 'mixto'];
+    const tipoCandidato = tipo_pago || a.tipo_pago_default || 'jornal';
+    const tipo = TIPOS_PAGO_VALIDOS.includes(tipoCandidato) ? tipoCandidato : 'jornal';
     const pj = precio_jornal != null ? Number(precio_jornal) : (a.j_pj || 0);
     const pk = precio_kilo != null ? Number(precio_kilo) : (a.j_pk || 0);
-    const est = estado || 'completo';
+    const ESTADOS_REGISTRO_VALIDOS = ['completo', 'parcial', 'cancelado'];
+    const est = ESTADOS_REGISTRO_VALIDOS.includes(estado) ? estado : 'completo';
     const descAlim = Number(descuento_alimentacion) || 0;
     const descOtro = Number(descuento_otro) || 0;
     const pagoTotal = calcPago({
