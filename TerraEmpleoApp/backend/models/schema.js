@@ -873,6 +873,27 @@ async function initializeDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Movimientos manuales de capital de la finca (aportes/retiros del dueño,
+  // otros ingresos/egresos que no son venta de café ni nómina/gastos de
+  // Finanzas) — para el "Balance de la finca", que combina esto con lo ya
+  // registrado en Finanzas y el Cuaderno.
+  await query(`
+    CREATE TABLE IF NOT EXISTS finca_balance_movimientos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      finca_id INT NOT NULL,
+      fecha DATE NOT NULL,
+      tipo ENUM('aporte','retiro','otro_ingreso','otro_egreso') NOT NULL,
+      categoria VARCHAR(150) NOT NULL,
+      descripcion TEXT DEFAULT NULL,
+      monto DECIMAL(14,2) NOT NULL,
+      creado_por INT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_balance_finca_fecha (finca_id, fecha),
+      FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE,
+      FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // ── Módulo Finca Cafetera · Fase 2: Nómina enriquecida ─────────────────────
   // Ajustes a la liquidación de un trabajador en una jornada: bonificaciones,
   // descuentos, anticipos y labores extra (ej. "guadañando x 120").

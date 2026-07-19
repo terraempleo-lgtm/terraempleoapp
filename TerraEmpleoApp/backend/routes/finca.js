@@ -3,6 +3,7 @@ const router = express.Router();
 const { authMiddleware, empleadorMiddleware } = require('../middleware/auth');
 const finca = require('../controllers/fincaController');
 const herramientas = require('../controllers/herramientasController');
+const balance = require('../controllers/balanceController');
 
 // El módulo de finca es para empleadores (propietarios) y admin.
 router.use(authMiddleware, empleadorMiddleware);
@@ -29,6 +30,11 @@ router.delete('/:id/lotes/:loteId', finca.eliminarLoteFinca);
 
 // Rendimiento por cultivo
 router.get('/:id/cultivos/rendimiento', finca.listarRendimientoCultivos);
+
+// Balance de la finca (Finanzas + Cuaderno + movimientos manuales de capital)
+router.get('/:id/balance', balance.balance);
+router.post('/:id/balance/movimientos', balance.crearMovimiento);
+router.delete('/:id/balance/movimientos/:movId', balance.eliminarMovimiento);
 
 // Herramientas, maquinaria y vehículos de la finca
 router.get('/:id/herramientas', herramientas.listar);
