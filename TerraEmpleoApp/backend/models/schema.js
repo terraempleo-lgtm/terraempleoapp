@@ -1143,6 +1143,24 @@ async function initializeDatabase() {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] finca_lotes.hectareas:', e.message);
   }
 
+  // Migración: unidad de tamaño del lote — aditiva, no reemplaza hectareas.
+  // El frontend llena solo la columna de la unidad elegida; las demás quedan NULL.
+  try {
+    await query('ALTER TABLE finca_lotes ADD COLUMN IF NOT EXISTS metros_cuadrados DECIMAL(12,2) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] finca_lotes.metros_cuadrados:', e.message);
+  }
+  try {
+    await query('ALTER TABLE finca_lotes ADD COLUMN IF NOT EXISTS palos_cafe INT DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] finca_lotes.palos_cafe:', e.message);
+  }
+  try {
+    await query("ALTER TABLE finca_lotes ADD COLUMN IF NOT EXISTS unidad_tamano ENUM('hectareas','metros2','palos_cafe') DEFAULT 'hectareas'");
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] finca_lotes.unidad_tamano:', e.message);
+  }
+
   // Migración: meta de kg/semana (se configura una vez por finca, no cambia
   // mes a mes) para el gráfico "Kilos por semana" del Resumen del Cuaderno.
   try {

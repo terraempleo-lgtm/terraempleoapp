@@ -445,22 +445,31 @@ async function crearLoteFinca(req, res) {
     const fincaId = Number(req.params.id);
     const acc = await accesoFinca(fincaId, req.user.id, { escribir: true });
     if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
-    const { nombre, cultivo, hectareas } = req.body;
+    const { nombre, cultivo, hectareas, unidad_tamano, metros_cuadrados, palos_cafe } = req.body;
     if (!nombre || !String(nombre).trim()) {
       return res.status(400).json({ error: 'El nombre del lote es obligatorio' });
     }
-    const hectareasNum = hectareas !== undefined && hectareas !== null && hectareas !== ''
-      ? Number(hectareas) : null;
+    const aNum = (v) => (v !== undefined && v !== null && v !== '' ? Number(v) : null);
+    const hectareasNum = aNum(hectareas);
+    const metrosNum = aNum(metros_cuadrados);
+    const palosNum = aNum(palos_cafe);
+    const UNIDADES_VALIDAS = ['hectareas', 'metros2', 'palos_cafe'];
+    const unidadNorm = UNIDADES_VALIDAS.includes(unidad_tamano) ? unidad_tamano : 'hectareas';
+
     const result = await query(
-      'INSERT INTO finca_lotes (finca_id, nombre, cultivo, hectareas) VALUES (?, ?, ?, ?)',
-      [fincaId, String(nombre).trim(), cultivo || null, hectareasNum]
+      'INSERT INTO finca_lotes (finca_id, nombre, cultivo, hectareas, metros_cuadrados, palos_cafe, unidad_tamano) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [fincaId, String(nombre).trim(), cultivo || null, hectareasNum, metrosNum, palosNum, unidadNorm]
     );
     const loteId = Number(result.insertId);
     await registrarAuditoria({
       fincaId, usuarioId: req.user.id, entidad: 'finca_lote', registroId: loteId, accion: 'crear',
-      nuevo: { nombre, cultivo, hectareas: hectareasNum }, descripcion: `Lote "${nombre}" creado`, ip: ipDe(req),
+      nuevo: { nombre, cultivo, hectareas: hectareasNum, unidad_tamano: unidadNorm, metros_cuadrados: metrosNum, palos_cafe: palosNum },
+      descripcion: `Lote "${nombre}" creado`, ip: ipDe(req),
     });
-    res.status(201).json({ id: loteId, nombre: String(nombre).trim(), cultivo: cultivo || null, hectareas: hectareasNum });
+    res.status(201).json({
+      id: loteId, nombre: String(nombre).trim(), cultivo: cultivo || null,
+      hectareas: hectareasNum, unidad_tamano: unidadNorm, metros_cuadrados: metrosNum, palos_cafe: palosNum,
+    });
   } catch (err) {
     console.error('crearLoteFinca:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -478,7 +487,7 @@ async function listarRendimientoLotes(req, res) {
     if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
 
     const lotes = await query(
-      'SELECT id, nombre, cultivo, hectareas FROM finca_lotes WHERE finca_id = ? AND activo = 1 ORDER BY nombre ASC',
+      'SELECT id, nombre, cultivo, hectareas, metros_cuadrados, palos_cafe, unidad_tamano FROM finca_lotes WHERE finca_id = ? AND activo = 1 ORDER BY nombre ASC',
       [fincaId]
     );
     const totales = await query(
@@ -503,6 +512,9 @@ async function listarRendimientoLotes(req, res) {
         nombre: l.nombre,
         cultivo: l.cultivo,
         hectareas: l.hectareas !== null && l.hectareas !== undefined ? Number(l.hectareas) : null,
+        metros_cuadrados: l.metros_cuadrados !== null && l.metros_cuadrados !== undefined ? Number(l.metros_cuadrados) : null,
+        palos_cafe: l.palos_cafe !== null && l.palos_cafe !== undefined ? Number(l.palos_cafe) : null,
+        unidad_tamano: l.unidad_tamano || 'hectareas',
         kg_total: t ? round2(Number(t.kg_total)) : 0,
         jornales: t ? Number(t.jornales) : 0,
         costo_mano_obra: t ? round2(Number(t.costo_mano_obra)) : 0,
