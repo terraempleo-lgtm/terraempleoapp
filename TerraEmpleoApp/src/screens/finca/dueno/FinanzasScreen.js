@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, ScrollView, Pressable, TextInput, StyleSheet, ActivityIndicator, Alert,
+  View, Text, ScrollView, Pressable, TextInput, StyleSheet, ActivityIndicator, Alert, Image, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { finanzasAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
@@ -94,6 +95,12 @@ export default function FinanzasScreen({ navigation }) {
     for (const c of conceptos) (g[c.tipo] || (g[c.tipo] = [])).push(c);
     return g;
   }, [conceptos]);
+
+  const movimientosMap = useMemo(() => {
+    const m = new Map();
+    for (const mov of data?.movimientos || []) m.set(keyMov(mov.concepto_id, mov.semana_id), mov);
+    return m;
+  }, [data]);
 
   const valNum = (conceptoId, semanaId) => Number(onlyNum(valores[keyMov(conceptoId, semanaId)] || 0)) || 0;
   const totalConcepto = (c) => (c.tipo === 'factura' ? valNum(c.id, null) : semanas.reduce((acc, s) => acc + valNum(c.id, s.id), 0));
@@ -226,8 +233,13 @@ export default function FinanzasScreen({ navigation }) {
                       <View key={c.id} style={styles.tRow}>
                         <Text style={[styles.tConcepto, { width: 140 }]} numberOfLines={1}>{c.nombre}</Text>
                         {esFactura ? (
-                          <Celda width={100} value={valores[keyMov(c.id, null)] || ''} disabled={soloLectura}
-                            onChange={(v) => setValores((p) => ({ ...p, [keyMov(c.id, null)]: v }))} onBlur={() => guardar(c.id, null)} />
+                          <>
+                            <Celda width={100} value={valores[keyMov(c.id, null)] || ''} disabled={soloLectura}
+                              onChange={(v) => setValores((p) => ({ ...p, [keyMov(c.id, null)]: v }))} onBlur={() => guardar(c.id, null)} />
+                            {!soloLectura && (
+                              <FotoFacturaButton movimiento={movimientosMap.get(keyMov(c.id, null))} onSubido={cargarTablero} />
+                            )}
+                          </>
                         ) : (
                           semanas.map((s) => (
                             <Celda key={s.id} width={90} value={valores[keyMov(c.id, s.id)] || ''} disabled={soloLectura}
@@ -302,6 +314,72 @@ function Celda({ value, onChange, onBlur, disabled, width }) {
       onBlur={onBlur}
       placeholder="—"
     />
+  );
+}
+
+// Foto adjunta a una factura — solo aplica sobre un movimiento YA guardado.
+// Flujo con confirmación explícita: elegir imagen -> vista previa -> "Guardar
+// foto" (o "Cancelar"); si falla la subida, el error se ve en el mismo modal
+// y se puede reintentar sin volver a elegir la imagen.
+function FotoFacturaButton({ movimiento, onSubido }) {
+  const [uriElegida, setUriElegida] = useState(null);
+  const [subiendo, setSubiendo] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!movimiento?.id) return <View style={{ width: 30 }} />;
+
+  const elegirFoto = async () => {
+    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permiso.granted) { Alert.alert('Permiso necesario', 'Activa el acceso a fotos para adjuntar la factura.'); return; }
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7 });
+    if (res.canceled || !res.assets?.[0]?.uri) return;
+    setError('');
+    setUriElegida(res.assets[0].uri);
+  };
+
+  const confirmarSubida = async () => {
+    setSubiendo(true);
+    setError('');
+    try {
+      await finanzasAPI.subirFotoMovimiento(movimiento.id, uriElegida);
+      setUriElegida(null);
+      onSubido?.();
+    } catch (e) {
+      setError(e.response?.data?.error || 'No se pudo subir la foto. Intenta de nuevo.');
+    } finally { setSubiendo(false); }
+  };
+
+  const eliminarFoto = () => {
+    Alert.alert('¿Eliminar foto?', '', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => { try { await finanzasAPI.eliminarFotoMovimiento(movimiento.id); onSubido?.(); } catch (e) { console.error(e); } } },
+    ]);
+  };
+
+  return (
+    <>
+      <Pressable onPress={movimiento.foto_url ? eliminarFoto : elegirFoto} style={{ width: 30, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={movimiento.foto_url ? 'image' : 'camera-outline'} size={16} color={movimiento.foto_url ? COLORS.primary : COLORS.ink400} />
+      </Pressable>
+
+      <Modal visible={!!uriElegida} transparent animationType="fade" onRequestClose={() => !subiendo && setUriElegida(null)}>
+        <View style={styles.fotoModalOverlay}>
+          <View style={styles.fotoModalCard}>
+            <Text style={styles.fotoModalTitle}>Factura</Text>
+            {uriElegida && <Image source={{ uri: uriElegida }} style={styles.fotoModalImg} resizeMode="contain" />}
+            {!!error && <Text style={styles.fotoModalError}>{error}</Text>}
+            <View style={styles.fotoModalRow}>
+              <Pressable onPress={() => setUriElegida(null)} disabled={subiendo} style={styles.fotoModalBtnGhost}>
+                <Text style={styles.fotoModalBtnGhostText}>Cancelar</Text>
+              </Pressable>
+              <Pressable onPress={confirmarSubida} disabled={subiendo} style={styles.fotoModalBtnPrimary}>
+                {subiendo ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.fotoModalBtnPrimaryText}>{error ? 'Reintentar' : 'Guardar foto'}</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -505,4 +583,14 @@ const styles = StyleSheet.create({
   semanaChipTextActivo: { color: '#fff' },
   notaError: { fontSize: 12, color: COLORS.danger, fontWeight: '600', marginTop: 8 },
   notaOk: { fontSize: 12, color: COLORS.primary, fontWeight: '600', marginTop: 8 },
+  fotoModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  fotoModalCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, maxHeight: '80%' },
+  fotoModalTitle: { fontSize: 16, fontWeight: '900', color: COLORS.ink900, marginBottom: 10 },
+  fotoModalImg: { width: '100%', height: 260, borderRadius: 10, backgroundColor: COLORS.lineLight },
+  fotoModalError: { fontSize: 12, color: COLORS.danger, marginTop: 10, fontWeight: '600' },
+  fotoModalRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  fotoModalBtnGhost: { flex: 1, borderWidth: 1, borderColor: COLORS.line, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  fotoModalBtnGhostText: { color: COLORS.ink700, fontWeight: '700' },
+  fotoModalBtnPrimary: { flex: 1, backgroundColor: COLORS.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  fotoModalBtnPrimaryText: { color: '#fff', fontWeight: '900' },
 });

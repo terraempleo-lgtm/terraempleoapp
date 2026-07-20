@@ -82,6 +82,14 @@ export default function HoraField({ label, value, onChange, placeholder = '--:--
         <Text style={[styles.value, !value && styles.placeholder]}>
           {value || placeholder}
         </Text>
+        {!!value && (
+          <TouchableOpacity
+            onPress={(e) => { e.stopPropagation?.(); onChange(''); }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="close-circle" size={16} color={COLORS.ink400} />
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
 
       {showPicker && Platform.OS === 'android' && (
@@ -139,6 +147,7 @@ const styles = StyleSheet.create({
   value: {
     ...FONTS.body,
     color: COLORS.ink900,
+    flex: 1,
   },
   placeholder: {
     color: COLORS.ink400,

@@ -18,6 +18,8 @@ const COLORS = {
 };
 
 const num = (n) => Number(n || 0).toLocaleString('es-CO', { maximumFractionDigits: 1 });
+const arrobas = (kg, kgArroba) => (Number(kg) || 0) / (Number(kgArroba) || 12.5);
+const kgDeArrobas = (arr, kgArroba) => (Number(arr) || 0) * (Number(kgArroba) || 12.5);
 const SEV = {
   ok: { label: 'OK', soft: COLORS.primarySoft, color: COLORS.primary },
   revisar: { label: 'Revisar', soft: COLORS.warningSoft, color: COLORS.warning },
@@ -141,8 +143,11 @@ function CalculadoraRapida({ finca }) {
       <Text style={styles.calcTitle}>⚖️ Calculadora cereza → pergamino</Text>
       <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} keyboardType="decimal-pad" value={kg} onChangeText={setKg} placeholder="Kg recogidos en cereza" />
       <View style={styles.calcGrid}>
-        <View style={styles.calcBox}><Text style={styles.calcLabel}>Pergamino</Text><Text style={styles.calcValue}>{num(pergamino)} kg</Text></View>
-        <View style={styles.calcBox}><Text style={styles.calcLabel}>Arrobas</Text><Text style={styles.calcValue}>{num(pergamino / kgArroba)} @</Text></View>
+        <View style={styles.calcBox}>
+          <Text style={styles.calcLabel}>Arrobas</Text>
+          <Text style={styles.calcValue}>{num(pergamino / kgArroba)} @</Text>
+          <Text style={styles.calcSecundario}>({num(pergamino)} kg pergamino)</Text>
+        </View>
         <View style={styles.calcBox}><Text style={styles.calcLabel}>Cargas</Text><Text style={styles.calcValue}>{num(pergamino / kgCarga)}</Text></View>
       </View>
     </View>
@@ -167,7 +172,7 @@ function LoteCard({ lote, open, onToggle, onChanged }) {
             )}
           </View>
           <Text style={styles.loteMeta}>
-            {num(lote.total_kg_cereza)} kg cereza → {num(lote.kg_pergamino_estimado)} kg pergamino · {num(lote.arrobas_estimadas)} @
+            {num(lote.total_kg_cereza)} kg cereza → {num(lote.arrobas_estimadas)} @ ({num(lote.kg_pergamino_estimado)} kg pergamino)
           </Text>
         </View>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.ink400} />
@@ -178,9 +183,10 @@ function LoteCard({ lote, open, onToggle, onChanged }) {
 }
 
 function LoteDetalle({ loteId, onChanged }) {
-  const { rolFinca } = useFinca();
+  const { rolFinca, activeFinca } = useFinca();
+  const kgArroba = Number(activeFinca?.kg_por_arroba) || 12.5;
   const [data, setData] = useState(null);
-  const [form, setForm] = useState({ kg_pergamino_real: '', destino: 'venta', precio_venta: '', comprador: '' });
+  const [form, setForm] = useState({ arrobas_real: '', destino: 'venta', precio_venta: '', comprador: '' });
   const [just, setJust] = useState({ estado: 'justificada', justificacion: '' });
 
   const cargar = useCallback(() => {
@@ -193,13 +199,15 @@ function LoteDetalle({ loteId, onChanged }) {
   const sev = SEV[alerta?.severidad] || SEV.ok;
 
   const agregarReal = async () => {
-    if (!(Number(form.kg_pergamino_real) > 0)) return;
+    if (!(Number(form.arrobas_real) > 0)) return;
     try {
       await cafeAPI.registrarReal(loteId, {
-        kg_pergamino_real: Number(form.kg_pergamino_real), destino: form.destino,
+        // El usuario escribe arrobas (unidad principal); se convierte a kg
+        // internamente antes de mandarlo — el backend sigue esperando kg.
+        kg_pergamino_real: kgDeArrobas(form.arrobas_real, kgArroba), destino: form.destino,
         precio_venta: form.precio_venta ? Number(form.precio_venta) : null, comprador: form.comprador || null, fecha: lote.fecha,
       });
-      setForm({ kg_pergamino_real: '', destino: 'venta', precio_venta: '', comprador: '' });
+      setForm({ arrobas_real: '', destino: 'venta', precio_venta: '', comprador: '' });
       cargar(); onChanged?.();
     } catch (e) { Alert.alert('Error', e.response?.data?.error || 'No se pudo registrar'); }
   };
@@ -214,15 +222,16 @@ function LoteDetalle({ loteId, onChanged }) {
     <View style={styles.loteDetalle}>
       <View style={styles.miniGrid}>
         <Mini label="Cereza" value={`${num(lote.total_kg_cereza)} kg`} />
-        <Mini label="Pergamino estimado" value={`${num(lote.kg_pergamino_estimado)} kg`} />
-        <Mini label="Real registrado" value={`${num(alerta?.real_kg)} kg`} />
+        <Mini label="Pergamino estimado" value={`${num(arrobas(lote.kg_pergamino_estimado, kgArroba))} @`} sub={`${num(lote.kg_pergamino_estimado)} kg`} />
+        <Mini label="Real registrado" value={`${num(arrobas(alerta?.real_kg, kgArroba))} @`} sub={`${num(alerta?.real_kg)} kg`} />
         <Mini label="Merma" value={alerta && Number(alerta.real_kg) > 0 ? `${num(alerta.diferencia_pct)}%` : '—'} color={sev.color} />
       </View>
 
       {alerta && Number(alerta.real_kg) > 0 && alerta.severidad !== 'ok' && (
         <View style={[styles.alertBox, { backgroundColor: sev.soft }]}>
           <Text style={[styles.alertBoxText, { color: sev.color }]}>
-            Diferencia significativa. Estimaste {num(alerta.estimado_kg)} kg pergamino y registraste {num(alerta.real_kg)} kg ({num(alerta.diferencia_kg)} kg menos).
+            Diferencia significativa. Estimaste {num(arrobas(alerta.estimado_kg, kgArroba))} @ y registraste {num(arrobas(alerta.real_kg, kgArroba))} @
+            ({num(arrobas(alerta.diferencia_kg, kgArroba))} @ menos).
           </Text>
         </View>
       )}
@@ -244,13 +253,13 @@ function LoteDetalle({ loteId, onChanged }) {
       {reales.length === 0 ? <Text style={styles.emptyHint}>Aún no registras lo vendido/almacenado.</Text> : (
         reales.map((r) => (
           <View key={r.id} style={styles.realRow}>
-            <Text style={styles.realText}>{num(r.kg_pergamino_real)} kg · {r.destino === 'venta' ? 'Venta' : 'Almacén'}{r.comprador ? ` · ${r.comprador}` : ''}{r.precio_venta ? ` · ${formatMoney(r.precio_venta)}` : ''}</Text>
+            <Text style={styles.realText}>{num(arrobas(r.kg_pergamino_real, kgArroba))} @ ({num(r.kg_pergamino_real)} kg) · {r.destino === 'venta' ? 'Venta' : 'Almacén'}{r.comprador ? ` · ${r.comprador}` : ''}{r.precio_venta ? ` · ${formatMoney(r.precio_venta)}` : ''}</Text>
             <Pressable onPress={() => borrarReal(r.id)}><Ionicons name="trash-outline" size={14} color={COLORS.ink400} /></Pressable>
           </View>
         ))
       )}
       <View style={styles.formRow}>
-        <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, { flex: 1 }]} keyboardType="decimal-pad" placeholder="Kg pergamino" value={form.kg_pergamino_real} onChangeText={(v) => setForm((f) => ({ ...f, kg_pergamino_real: v }))} />
+        <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, { flex: 1 }]} keyboardType="decimal-pad" placeholder="Arrobas pergamino" value={form.arrobas_real} onChangeText={(v) => setForm((f) => ({ ...f, arrobas_real: v }))} />
         <Pressable onPress={() => setForm((f) => ({ ...f, destino: f.destino === 'venta' ? 'almacen' : 'venta' }))} style={styles.destinoBtn}>
           <Text style={styles.destinoBtnText}>{form.destino === 'venta' ? 'Venta' : 'Almacén'}</Text>
         </Pressable>
@@ -279,11 +288,12 @@ function LoteDetalle({ loteId, onChanged }) {
   );
 }
 
-function Mini({ label, value, color }) {
+function Mini({ label, value, sub, color }) {
   return (
     <View style={styles.miniBox}>
       <Text style={styles.miniLabel}>{label}</Text>
       <Text style={[styles.miniValue, color && { color }]}>{value}</Text>
+      {sub ? <Text style={styles.miniSub}>({sub})</Text> : null}
     </View>
   );
 }
@@ -330,7 +340,7 @@ function NuevoLoteModal({ finca, rangoInicial, onClose, onCreated }) {
           <View style={styles.previewBox}>
             {preview ? (
               <Text style={styles.previewText}>
-                {num(preview.total_kg_cereza)} kg cereza → {num(preview.kg_pergamino_estimado)} kg pergamino · {num(preview.arrobas_estimadas)} @ · {num(preview.cargas_estimadas)} cargas
+                {num(preview.total_kg_cereza)} kg cereza → {num(preview.arrobas_estimadas)} @ ({num(preview.kg_pergamino_estimado)} kg pergamino) · {num(preview.cargas_estimadas)} cargas
               </Text>
             ) : (
               <Text style={styles.emptyHint}>Elige un rango de fechas para ver la estimación de pergamino.</Text>
@@ -384,6 +394,7 @@ const styles = StyleSheet.create({
   calcBox: { flex: 1, backgroundColor: COLORS.primarySoft, borderRadius: 12, padding: 10, alignItems: 'center' },
   calcLabel: { fontSize: 9, fontWeight: '700', color: COLORS.ink500, textTransform: 'uppercase' },
   calcValue: { fontSize: 15, fontWeight: '900', color: COLORS.primaryDark },
+  calcSecundario: { fontSize: 9, color: COLORS.ink500, marginTop: 2 },
   emptyCard: { alignItems: 'center', padding: 30 },
   emptyText: { fontSize: 13, color: COLORS.ink500, marginTop: 8 },
   emptyHint: { fontSize: 11, color: COLORS.ink400, textAlign: 'center', marginTop: 4 },
@@ -398,6 +409,7 @@ const styles = StyleSheet.create({
   miniBox: { width: '47%', backgroundColor: COLORS.lineLight, borderRadius: 10, padding: 10 },
   miniLabel: { fontSize: 9, fontWeight: '700', color: COLORS.ink500, textTransform: 'uppercase' },
   miniValue: { fontSize: 14, fontWeight: '900', color: COLORS.ink900, marginTop: 2 },
+  miniSub: { fontSize: 9, color: COLORS.ink400, marginTop: 1 },
   miniTitle: { fontSize: 11, fontWeight: '700', color: COLORS.ink500, textTransform: 'uppercase', marginBottom: 6, marginTop: 8 },
   alertBox: { borderRadius: 10, padding: 10, marginBottom: 10 },
   alertBoxText: { fontSize: 12, fontWeight: '600' },

@@ -11,7 +11,7 @@ import CuadernoTopNav from '../shared/CuadernoTopNav';
 import { formatMoney, formatDate, formatLabor } from '../../../utils/fincaFormat';
 import {
   KilosPorSemanaChart, CostoPorKiloChart, RendimientoTrabajadorChart,
-  RendimientoLoteChart, MargenDonaChart, ComparativaFincasChart,
+  RendimientoLoteChart, MargenDonaChart, ComparativaFincasChart, RendimientoCultivoSection,
 } from '../../../components/charts/CuadernoCharts';
 
 const COLORS = {
@@ -24,7 +24,7 @@ const COLORS = {
   line: '#e4e6de', lineLight: '#f4f5f0',
 };
 
-function StatCard({ icon, label, value, accent = 'primary', hint }) {
+function StatCard({ icon, label, value, accent = 'primary', hint, full }) {
   const palette = {
     primary: { bg: COLORS.primarySoft, fg: COLORS.primary },
     accent: { bg: COLORS.accentSoft, fg: COLORS.accentDark },
@@ -33,7 +33,7 @@ function StatCard({ icon, label, value, accent = 'primary', hint }) {
     danger: { bg: COLORS.dangerSoft, fg: COLORS.danger },
   }[accent];
   return (
-    <View style={styles.statCard}>
+    <View style={[styles.statCard, full && { width: '100%' }]}>
       <View style={[styles.statIcon, { backgroundColor: palette.bg }]}>
         <Ionicons name={icon} size={18} color={palette.fg} />
       </View>
@@ -96,6 +96,7 @@ export default function ResumenFincaScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState(null);
   const [lotesRendimiento, setLotesRendimiento] = useState([]);
+  const [cultivosRendimiento, setCultivosRendimiento] = useState({ cultivos: [], jornadas_sin_cultivo: 0 });
 
   useFocusEffect(
     React.useCallback(() => {
@@ -122,9 +123,23 @@ export default function ResumenFincaScreen({ navigation }) {
       fincaAPI.rendimientoLotes(activeFincaId, { desde, hasta })
         .then((r) => mounted && setLotesRendimiento(r.data?.lotes || []))
         .catch(() => {});
+      fincaAPI.rendimientoCultivos(activeFincaId, { desde, hasta })
+        .then((r) => mounted && setCultivosRendimiento({ cultivos: r.data?.cultivos || [], jornadas_sin_cultivo: r.data?.jornadas_sin_cultivo || 0 }))
+        .catch(() => {});
       return () => { mounted = false; };
     }, [activeFincaId])
   );
+
+  const guardarPrecioVentaCultivo = async (cultivo, valor) => {
+    if (!periodo?.id) return;
+    try {
+      await finanzasAPI.actualizarPrecioVentaCultivo(periodo.id, { cultivo, precio_venta_kilo: valor });
+      setCultivosRendimiento((prev) => ({
+        ...prev,
+        cultivos: prev.cultivos.map((c) => (c.cultivo === cultivo ? { ...c, precio_venta_kilo: valor } : c)),
+      }));
+    } catch (e) { console.error('precio_venta_kilo_cultivo:', e); }
+  };
 
   const guardarMetaKgSemanal = async (valor) => {
     if (!activeFincaId) return;
@@ -195,9 +210,10 @@ export default function ResumenFincaScreen({ navigation }) {
           <StatCard icon="people-outline" label="Trabajadores" value={resumen.trabajadores_contratados || 0} accent="primary" hint="contratados" />
           <StatCard icon="calendar-outline" label="Jornadas" value={resumen.jornadas_total || 0} accent="accent"
             hint={`${resumen.jornadas_activas || 0} activas · ${resumen.jornadas_pendientes || 0} pendientes`} />
+        </View>
+        <View style={{ marginBottom: 16 }}>
           <StatCard icon="cash-outline" label="Pagado" value={formatMoney(resumen.total_pagado || 0)} accent="info"
-            hint={`${Number(resumen.total_kg || 0).toLocaleString()} kg producidos`} />
-          <StatCard icon="alert-circle-outline" label="Asistencia" value={`${resumen.promedio_asistencia || 0}%`} accent="warning" hint="promedio del periodo" />
+            hint={`${Number(resumen.total_kg || 0).toLocaleString()} kg producidos`} full />
         </View>
 
         {/* Tendencia mensual */}
@@ -327,6 +343,11 @@ export default function ResumenFincaScreen({ navigation }) {
         />
         <RendimientoTrabajadorChart topTrabajadores={data?.top_trabajadores || []} />
         <RendimientoLoteChart lotes={lotesRendimiento} />
+        <RendimientoCultivoSection
+          cultivos={cultivosRendimiento.cultivos}
+          jornadasSinCultivo={cultivosRendimiento.jornadas_sin_cultivo}
+          onGuardarPrecioCultivo={guardarPrecioVentaCultivo}
+        />
         <MargenDonaChart
           semanal={data?.semanal || []}
           precioVentaKilo={periodo?.precio_venta_kilo ? Number(periodo.precio_venta_kilo) : null}

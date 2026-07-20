@@ -7,6 +7,7 @@ import { useFinca } from '../../../context/FincaContext';
 const ITEMS = [
   { key: 'ResumenFincaHome', label: 'Resumen', icon: 'book-outline' },
   { key: 'FinanzasHome', label: 'Finanzas', icon: 'pulse-outline' },
+  { key: 'BalanceFincaHome', label: 'Balance', icon: 'business-outline' },
   { key: 'NominaHome', label: 'Nómina', icon: 'clipboard-outline' },
   { key: 'RendimientoHome', label: 'Rendimiento', icon: 'trending-up-outline' },
   { key: 'JornadasHome', label: 'Jornadas', icon: 'calendar-outline' },

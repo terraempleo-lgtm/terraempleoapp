@@ -27,7 +27,7 @@ export default function ConfiguracionFincaScreen({ navigation }) {
   const [form, setForm] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
   const [lotes, setLotes] = useState([]);
-  const [nuevoLote, setNuevoLote] = useState({ nombre: '', cultivo: '' });
+  const [nuevoLote, setNuevoLote] = useState({ nombre: '', cultivo: '', unidad_tamano: 'hectareas', tamano: '' });
   const [creandoLote, setCreandoLote] = useState(false);
   const [errorLote, setErrorLote] = useState('');
   const [loading, setLoading] = useState(true);
@@ -116,13 +116,34 @@ export default function ConfiguracionFincaScreen({ navigation }) {
     if (!nuevoLote.nombre.trim()) { setErrorLote('Escribe un nombre para el lote (ej: Lote 1).'); return; }
     setCreandoLote(true);
     try {
-      const r = await fincaAPI.crearLoteFinca(activeFincaId, { nombre: nuevoLote.nombre.trim(), cultivo: nuevoLote.cultivo.trim() || null });
-      setLotes((p) => [...p, { id: r.data.id, nombre: nuevoLote.nombre.trim(), cultivo: nuevoLote.cultivo.trim() || null }].sort((a, b) => a.nombre.localeCompare(b.nombre)));
-      setNuevoLote({ nombre: '', cultivo: '' });
+      const tamanoNum = nuevoLote.tamano.trim() ? Number(nuevoLote.tamano) : null;
+      const payload = {
+        nombre: nuevoLote.nombre.trim(),
+        cultivo: nuevoLote.cultivo.trim() || null,
+        unidad_tamano: nuevoLote.unidad_tamano,
+        hectareas: nuevoLote.unidad_tamano === 'hectareas' ? tamanoNum : null,
+        metros_cuadrados: nuevoLote.unidad_tamano === 'metros2' ? tamanoNum : null,
+        palos_cafe: nuevoLote.unidad_tamano === 'palos_cafe' ? tamanoNum : null,
+      };
+      const r = await fincaAPI.crearLoteFinca(activeFincaId, payload);
+      setLotes((p) => [...p, { id: r.data.id, ...payload }].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      setNuevoLote({ nombre: '', cultivo: '', unidad_tamano: 'hectareas', tamano: '' });
     } catch (e) {
       setErrorLote(e.response?.data?.error || 'No se pudo crear el lote.');
     } finally { setCreandoLote(false); }
   };
+
+  const UNIDADES_TAMANO = [
+    { val: 'hectareas', label: 'Hectáreas', sufijo: 'ha' },
+    { val: 'metros2', label: 'Metros²', sufijo: 'm²' },
+    { val: 'palos_cafe', label: 'Palos de café', sufijo: 'palos' },
+  ];
+  function tamanoLote(l) {
+    if (l.unidad_tamano === 'metros2' && l.metros_cuadrados != null) return `${Number(l.metros_cuadrados).toLocaleString('es-CO')} m²`;
+    if (l.unidad_tamano === 'palos_cafe' && l.palos_cafe != null) return `${Number(l.palos_cafe).toLocaleString('es-CO')} palos`;
+    if (l.hectareas != null) return `${Number(l.hectareas).toLocaleString('es-CO')} ha`;
+    return null;
+  }
 
   const eliminarLote = (lote) => {
     Alert.alert('¿Eliminar lote?', `¿Eliminar "${lote.nombre}"? Las jornadas ya registradas conservan el historial.`, [
@@ -203,7 +224,9 @@ export default function ConfiguracionFincaScreen({ navigation }) {
               <View key={l.id} style={styles.loteRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.userNombre}>{l.nombre}</Text>
-                  {l.cultivo ? <Text style={styles.userCelular}>{l.cultivo}</Text> : null}
+                  {(l.cultivo || tamanoLote(l)) ? (
+                    <Text style={styles.userCelular}>{[l.cultivo, tamanoLote(l)].filter(Boolean).join(' · ')}</Text>
+                  ) : null}
                 </View>
                 {esPropietario && (
                   <Pressable onPress={() => eliminarLote(l)} style={{ padding: 6 }}>
@@ -229,6 +252,23 @@ export default function ConfiguracionFincaScreen({ navigation }) {
                   onChangeText={(v) => setNuevoLote((p) => ({ ...p, cultivo: v }))}
                 />
               </View>
+              <View style={[styles.wrapRow, { marginTop: 8 }]}>
+                {UNIDADES_TAMANO.map((u) => (
+                  <Pressable
+                    key={u.val}
+                    onPress={() => setNuevoLote((p) => ({ ...p, unidad_tamano: u.val }))}
+                    style={[styles.modChip, nuevoLote.unidad_tamano === u.val && styles.modChipActivo]}
+                  >
+                    <Text style={[styles.modChipText, nuevoLote.unidad_tamano === u.val && styles.modChipTextActivo]}>{u.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                style={[styles.input, { marginTop: 8 }]} placeholderTextColor={COLORS.ink400}
+                placeholder={`Tamaño en ${UNIDADES_TAMANO.find((u) => u.val === nuevoLote.unidad_tamano)?.sufijo || ''} (opcional)`}
+                keyboardType="decimal-pad" value={nuevoLote.tamano}
+                onChangeText={(v) => setNuevoLote((p) => ({ ...p, tamano: v }))}
+              />
               <Pressable onPress={crearLote} disabled={creandoLote} style={styles.btnPrimarySmall}>
                 {creandoLote ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnPrimarySmallText}>+ Agregar lote</Text>}
               </Pressable>

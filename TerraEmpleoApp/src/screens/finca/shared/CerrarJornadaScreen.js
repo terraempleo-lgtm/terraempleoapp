@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet, Modal,
   Switch, ActivityIndicator, LayoutAnimation, Platform, UIManager, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { cuadernoAPI, fincaAPI, trabajadoresAPI, vacantesAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
@@ -81,6 +82,22 @@ function lunesKey() {
   const d = new Date(); d.setHours(0, 0, 0, 0);
   const dow = d.getDay();
   d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+const MESES_CORTOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+function formatFechaCorta(ymd) {
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}/.test(ymd)) return ymd || '';
+  const [y, m, d] = ymd.split('-').map(Number);
+  return `${d} ${MESES_CORTOS[m - 1]}`;
+}
+function fechaToDate(ymd) {
+  if (ymd && /^\d{4}-\d{2}-\d{2}/.test(ymd)) {
+    const [y, m, d] = ymd.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date();
+}
+function dateToFecha(d) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
@@ -263,6 +280,7 @@ function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonal
             </Text>
           </Pressable>
 
+          <Text style={styles.smallLabel}>Tipo de pago</Text>
           <View style={[styles.wrapRow, { marginTop: 10 }]}>
             {TIPOS_PAGO.map((tp) => (
               <Pressable
@@ -361,7 +379,8 @@ export default function CerrarJornadaScreen({ navigation, route }) {
   const [vacantes, setVacantes] = useState([]);
   const [fincas, setFincas] = useState([]);
   const [fincaSel, setFincaSel] = useState('');
-  const [labor, setLabor] = useState('');
+  const [labor, setLabor] = useState([]);
+  const toggleLaborGeneral = (l) => setLabor((prev) => (prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]));
   const [titulo, setTitulo] = useState('');
   const [precios, setPrecios] = useState({ jornal: '', kilo: '', alimentacion: '' });
   const [trabajadores, setTrabajadores] = useState([]);
@@ -375,6 +394,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
   const [laboresPersonalizadas, setLaboresPersonalizadas] = useState([]);
   const [lotesFinca, setLotesFinca] = useState([]);
   const [loteModalFor, setLoteModalFor] = useState(null);
+  const [showFechaPicker, setShowFechaPicker] = useState(false);
   const [cargado, setCargado] = useState(false);
 
   useEffect(() => {
@@ -403,7 +423,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
       const preciosGuardados = await leerJSON(PRECIOS_KEY, null);
       if (borrador) {
         setVacanteId(borrador.vacante_id || '');
-        setLabor(borrador.labor || '');
+        setLabor(borrador.labor || []);
         setTitulo(borrador.titulo || '');
         setPrecios(borrador.precios || preciosGuardados || { jornal: '', kilo: '', alimentacion: '' });
         setSugeridos(borrador.sugeridos || []);
@@ -414,7 +434,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         toast.info('Recuperamos lo que habías escrito antes de guardar');
       } else {
         setVacanteId(c?.vacante_id || '');
-        setLabor(c?.labor || '');
+        setLabor(c?.labor || []);
         setTitulo(c?.titulo || '');
         setPrecios(preciosGuardados || { jornal: '', kilo: '', alimentacion: '' });
         setSugeridos(c?.sugeridos || []);
@@ -461,6 +481,17 @@ export default function CerrarJornadaScreen({ navigation, route }) {
     guardarJSON(PRECIOS_KEY, precios);
   }, [cargado, precios]);
 
+  // Si se cambia la fecha con trabajadores ya agregados, su hora de
+  // entrada/salida y tipo de pago quedan de OTRO día — se limpian de una
+  // vez (antes solo se limpiaban al cerrar y volver a abrir el formulario).
+  const fechaPrevRef = useRef(fecha);
+  useEffect(() => {
+    if (!cargado) return;
+    if (fechaPrevRef.current === fecha) return;
+    fechaPrevRef.current = fecha;
+    setTrabajadores((prev) => prev.map((t) => ({ ...t, hora_entrada: '', hora_salida: '', tipo_pago: 'jornal' })));
+  }, [fecha, cargado]);
+
   useEffect(() => {
     if (!vacanteId) return;
     const v = vacantes.find((x) => String(x.id) === String(vacanteId));
@@ -479,7 +510,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
     }).catch(() => {});
   }, [vacanteId]);
 
-  useEffect(() => { if (labor) setTitulo(labor); }, [labor]);
+  useEffect(() => { if (labor.length) setTitulo(labor.join(', ')); }, [labor]);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -502,7 +533,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
       const key = seleccionKey(s);
       const existe = prev.find((t) => t.key === key);
       if (existe) return prev.filter((t) => t.key !== key);
-      return [...prev, nuevoTrabajador({ ...s, manual_nombre: s.nombre, labores: labor ? [labor] : [] })];
+      return [...prev, nuevoTrabajador({ ...s, manual_nombre: s.nombre, labores: [...labor] })];
     });
   };
 
@@ -519,7 +550,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
     const s = { trabajador_id: null, nombre, manual_telefono: externo.telefono };
     setSugeridos((prev) => (prev.some((x) => !x.trabajador_id && x.nombre === nombre) ? prev : [...prev, s]));
     if (!trabajadores.some((t) => !t.trabajador_id && t.nombre === nombre)) {
-      setTrabajadores((prev) => [...prev, nuevoTrabajador({ ...s, manual_nombre: nombre, labores: labor ? [labor] : [] })]);
+      setTrabajadores((prev) => [...prev, nuevoTrabajador({ ...s, manual_nombre: nombre, labores: [...labor] })]);
     }
     setExterno({ nombre: '', telefono: '' }); setExternoOpen(false);
   };
@@ -538,8 +569,8 @@ export default function CerrarJornadaScreen({ navigation, route }) {
     setSaving(true);
     try {
       const r = await cuadernoAPI.crearJornada({
-        fecha, titulo: titulo || labor || 'Jornada', finca: fincaSel || null,
-        tipo_trabajo: labor || null, vacante_id: vacanteId ? Number(vacanteId) : null,
+        fecha, titulo: titulo || labor.join(', ') || 'Jornada', finca: fincaSel || null,
+        tipo_trabajo: labor.join(',') || null, vacante_id: vacanteId ? Number(vacanteId) : null,
         tipo_pago_default: trabajadores[0]?.tipo_pago || 'jornal',
         precio_jornal: Number(precios.jornal) || null, precio_kilo: Number(precios.kilo) || null,
         costos_generales: Number(costosGenerales) || 0, observaciones: observaciones || null,
@@ -562,8 +593,10 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         if (!a) continue;
         await cuadernoAPI.actualizarAsistencia(a.id, {
           estado: 'llego',
-          ...(t.hora_entrada && !a.hora_llegada ? { hora_llegada: `${t.hora_entrada}:00` } : {}),
-          ...(t.hora_salida && !a.hora_salida ? { hora_salida: `${t.hora_salida}:00` } : {}),
+          // Siempre se manda la llave, con null si el campo quedó vacío —
+          // omitirla hacía que "limpiar hora" no se guardara.
+          hora_llegada: t.hora_entrada ? `${t.hora_entrada}:00` : null,
+          hora_salida: t.hora_salida ? `${t.hora_salida}:00` : null,
         });
         const horas = horasEntre(t.hora_entrada, t.hora_salida);
         const partesNota = [];
@@ -633,7 +666,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
               {
                 text: 'Empezar de nuevo', style: 'destructive', onPress: async () => {
                   await AsyncStorage.removeItem(CACHE_KEY);
-                  setSugeridos([]); setTrabajadores([]); setLabor('');
+                  setSugeridos([]); setTrabajadores([]); setLabor([]);
                   toast.success('Semana reiniciada');
                 },
               },
@@ -659,8 +692,29 @@ export default function CerrarJornadaScreen({ navigation, route }) {
             <PasoBadge n={1} color="primary" />
             <Text style={styles.stepTitle}>  ¿Cuándo fue la jornada?</Text>
           </View>
-          <Text style={styles.fieldLabel}>Fecha (AAAA-MM-DD)</Text>
-          <TextInput placeholderTextColor={COLORS.ink400} value={fecha} onChangeText={setFecha} style={styles.input} placeholder="2026-07-16" />
+          <Text style={styles.fieldLabel}>Fecha</Text>
+          <Pressable style={styles.fechaDropdown} onPress={() => setShowFechaPicker(true)}>
+            <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+            <Text style={styles.fechaDropdownText}>{formatFechaCorta(fecha)}</Text>
+            <Ionicons name="chevron-down" size={16} color={COLORS.ink400} />
+          </Pressable>
+          {showFechaPicker && (
+            <DateTimePicker
+              value={fechaToDate(fecha)}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, selectedDate) => {
+                setShowFechaPicker(Platform.OS === 'ios');
+                if (event.type === 'set' && selectedDate) setFecha(dateToFecha(selectedDate));
+                else if (Platform.OS === 'ios' && selectedDate) setFecha(dateToFecha(selectedDate));
+              }}
+            />
+          )}
+          {showFechaPicker && Platform.OS === 'ios' && (
+            <Pressable style={styles.fechaListoBtn} onPress={() => setShowFechaPicker(false)}>
+              <Text style={styles.fechaListoText}>Listo</Text>
+            </Pressable>
+          )}
           <Text style={styles.fieldLabel}>Vacante asociada (opcional)</Text>
           <View style={styles.wrapRow}>
             <Chip label="— Sin vacante —" activo={!vacanteId} color="ink" onPress={() => setVacanteId('')} />
@@ -690,10 +744,10 @@ export default function CerrarJornadaScreen({ navigation, route }) {
           <Text style={styles.hintText}>Puedes cambiarla persona por persona más abajo.</Text>
           <View style={styles.wrapRow}>
             {LABORES_JORNADA.map((l) => (
-              <Chip key={l.label} label={l.label} icon={l.icon} color={l.color} activo={labor === l.label} onPress={() => setLabor(l.label)} />
+              <Chip key={l.label} label={l.label} icon={l.icon} color={l.color} activo={labor.includes(l.label)} onPress={() => toggleLaborGeneral(l.label)} />
             ))}
             {laboresPersonalizadas.map((nombre) => (
-              <Chip key={nombre} label={nombre} icon="ellipsis-horizontal" color="ink" activo={labor === nombre} onPress={() => setLabor(nombre)} />
+              <Chip key={nombre} label={nombre} icon="ellipsis-horizontal" color="ink" activo={labor.includes(nombre)} onPress={() => toggleLaborGeneral(nombre)} />
             ))}
             <SelectorOtro onAgregar={(nombre) => { agregarLaborPersonalizada(nombre); setLabor(nombre); }} />
           </View>
@@ -871,6 +925,14 @@ const styles = StyleSheet.create({
   rowStart: { flexDirection: 'row', alignItems: 'center' },
   rowBetween: { flexDirection: 'row', alignItems: 'center' },
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  fechaDropdown: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#F9FAFB', borderWidth: 1.5, borderColor: COLORS.line,
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12,
+  },
+  fechaDropdownText: { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.ink900 },
+  fechaListoBtn: { alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 6 },
+  fechaListoText: { color: COLORS.primary, fontWeight: '700' },
   ayudaBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 12, backgroundColor: COLORS.infoSoft },
   ayudaBtnText: { color: COLORS.info, fontWeight: '700', fontSize: 13 },
   ayudaText: { fontSize: 12, color: COLORS.ink700, marginTop: -4, paddingHorizontal: 4 },

@@ -480,6 +480,10 @@ export const fincaAPI = {
   crearLoteFinca: (id, data) => api.post(`/finca/${id}/lotes`, data),
   eliminarLoteFinca: (id, loteId) => api.delete(`/finca/${id}/lotes/${loteId}`),
   rendimientoLotes: (id, params) => api.get(`/finca/${id}/lotes/rendimiento`, { params }),
+  rendimientoCultivos: (id, params) => api.get(`/finca/${id}/cultivos/rendimiento`, { params }),
+  balance: (id, params) => api.get(`/finca/${id}/balance`, params ? { params } : undefined),
+  crearMovimientoBalance: (id, data) => api.post(`/finca/${id}/balance/movimientos`, data),
+  eliminarMovimientoBalance: (id, movId) => api.delete(`/finca/${id}/balance/movimientos/${movId}`),
 };
 
 // Cuaderno (jornadas, asistencias, registros, calificaciones, notas, dashboard)
@@ -569,6 +573,28 @@ export const finanzasAPI = {
   eliminarConcepto: (id) => api.delete(`/finanzas/conceptos/${id}`),
   cambiarEstadoPeriodo: (id, data) => api.put(`/finanzas/periodos/${id}/estado`, data),
   actualizarPrecioVenta: (id, data) => api.put(`/finanzas/periodos/${id}/precio-venta`, data),
+  actualizarPrecioVentaCultivo: (id, data) => api.put(`/finanzas/periodos/${id}/precio-venta-cultivo`, data),
+  listarPreciosVentaCultivo: (id) => api.get(`/finanzas/periodos/${id}/precios-venta-cultivo`),
+  subirFotoMovimiento: async (movId, uri) => {
+    const form = new FormData();
+    const ext = (uri.split('.').pop() || 'jpg').split('?')[0].toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    if (typeof document !== 'undefined') {
+      const blob = await fetch(uri).then(r => r.blob());
+      form.append('foto', blob, `factura_${Date.now()}.${ext}`);
+    } else {
+      form.append('foto', { uri, type: mime, name: `factura_${Date.now()}.${ext}` });
+    }
+    const res = await fetch(`${api.defaults.baseURL}/finanzas/movimientos/${movId}/foto`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authToken}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw { response: { data, status: res.status } };
+    return { data };
+  },
+  eliminarFotoMovimiento: (movId) => api.delete(`/finanzas/movimientos/${movId}/foto`),
 };
 
 export default api;

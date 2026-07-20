@@ -393,6 +393,163 @@ export function ComparativaFincasChart({ porFinca = [] }) {
   );
 }
 
+// ── Rendimiento por cultivo ──────────────────────────────────────────────
+const TONOS = { bien: CHART_COLORS.primary, alerta: CHART_COLORS.terracota, critico: '#C0392B' };
+// Colores relativos al promedio del propio grupo de cultivos — no hay
+// benchmark absoluto de costo/kg (varía demasiado entre café, plátano, etc).
+function tonoRelativo(valor, promedio, invertido) {
+  if (!promedio) return 'bien';
+  const ratio = valor / promedio;
+  const malo = invertido ? ratio < 0.85 : ratio > 1.15;
+  const medio = invertido ? ratio < 1 : ratio > 1;
+  if (malo) return 'critico';
+  if (medio) return 'alerta';
+  return 'bien';
+}
+
+export function RendimientoCultivoSection({ cultivos = [], jornadasSinCultivo = 0, onGuardarPrecioCultivo }) {
+  const [filtro, setFiltro] = useState('todos');
+  const [sel, setSel] = useState(null);
+
+  const datos = useMemo(() => cultivos.map((c) => ({
+    ...c,
+    costoManoObraKg: Number(c.kg_total) > 0 ? Number(c.pago_recoleccion_total) / Number(c.kg_total) : 0,
+    kgPorHora: Number(c.horas_total) > 0 ? Number(c.kg_total) / Number(c.horas_total) : 0,
+    margenKg: c.precio_venta_kilo != null && Number(c.kg_total) > 0
+      ? Number(c.precio_venta_kilo) - (Number(c.pago_recoleccion_total) / Number(c.kg_total)) : null,
+  })), [cultivos]);
+
+  if (datos.length === 0) {
+    return (
+      <ChartCard title="Rendimiento por cultivo" icon="leaf-outline">
+        <ChartEmptyState texto="Aún no hay registros de recolección con cultivo asignado en este periodo." />
+      </ChartCard>
+    );
+  }
+
+  const promedioCosto = datos.reduce((s, c) => s + c.costoManoObraKg, 0) / datos.length;
+  const visibles = filtro === 'todos' ? datos : datos.filter((c) => c.cultivo === filtro);
+  const cultivoSel = sel != null ? visibles[sel] : null;
+  const maxCosto = Math.max(1, ...datos.map((c) => c.costoManoObraKg));
+  const maxCosecha = Math.max(1, ...datos.map((c) => Number(c.costo_cosecha_total) || 0));
+
+  return (
+    <ChartCard title="Rendimiento por cultivo" icon="leaf-outline">
+      <View style={[styles.wrapRow, { marginBottom: 12 }]}>
+        <Tocable onPress={() => setFiltro('todos')} style={[styles.filtroChip, filtro === 'todos' && styles.filtroChipActivo]}>
+          <Text style={[styles.filtroChipText, filtro === 'todos' && styles.filtroChipTextActivo]}>Todos</Text>
+        </Tocable>
+        {datos.map((c) => (
+          <Tocable key={c.cultivo} onPress={() => setFiltro(c.cultivo)} style={[styles.filtroChip, filtro === c.cultivo && styles.filtroChipActivo]}>
+            <Text style={[styles.filtroChipText, filtro === c.cultivo && styles.filtroChipTextActivo]}>{c.cultivo}</Text>
+          </Tocable>
+        ))}
+      </View>
+
+      {jornadasSinCultivo > 0 && (
+        <AnalisisCard
+          texto={`${jornadasSinCultivo} registro${jornadasSinCultivo > 1 ? 's' : ''} de recolección sin cultivo asignado en este periodo — no se cuentan en estas cifras.`}
+          tono="alerta"
+        />
+      )}
+
+      {/* Comparativa de costo por kg entre cultivos */}
+      <Text style={styles.cultivoSubtitulo}>Costo de mano de obra por kg</Text>
+      <View style={{ gap: 10, marginTop: 6 }}>
+        {visibles.map((c, i) => {
+          const pct = Math.max(4, Math.round((c.costoManoObraKg * 100) / maxCosto));
+          const tono = tonoRelativo(c.costoManoObraKg, promedioCosto, false);
+          const activo = sel === i;
+          return (
+            <Tocable key={c.cultivo} onPress={() => setSel(activo ? null : i)} style={{ width: '100%' }}>
+              <View style={styles.hRowLabel}>
+                <Text style={styles.hRowNombre} numberOfLines={1}>{c.cultivo}</Text>
+                <Text style={styles.hRowValor}>{formatMoney(Math.round(c.costoManoObraKg))}/kg</Text>
+              </View>
+              <View style={styles.hTrack}>
+                <MotiView
+                  from={{ width: '0%' }}
+                  animate={{ width: `${pct}%` }}
+                  transition={{ type: 'timing', duration: 500, delay: i * 60 }}
+                  style={[styles.hFill, { backgroundColor: TONOS[tono] }]}
+                />
+              </View>
+            </Tocable>
+          );
+        })}
+      </View>
+
+      {/* Costo total de cosecha por cultivo */}
+      <Text style={[styles.cultivoSubtitulo, { marginTop: 16 }]}>Costo total de cosecha</Text>
+      <View style={{ gap: 10, marginTop: 6 }}>
+        {visibles.map((c) => {
+          const pct = Math.max(4, Math.round(((Number(c.costo_cosecha_total) || 0) * 100) / maxCosecha));
+          return (
+            <View key={c.cultivo}>
+              <View style={styles.hRowLabel}>
+                <Text style={styles.hRowNombre} numberOfLines={1}>{c.cultivo}</Text>
+                <Text style={styles.hRowValor}>{formatMoney(c.costo_cosecha_total)}</Text>
+              </View>
+              <View style={styles.hTrack}>
+                <MotiView
+                  from={{ width: '0%' }}
+                  animate={{ width: `${pct}%` }}
+                  transition={{ type: 'timing', duration: 500 }}
+                  style={[styles.hFill, { backgroundColor: CHART_COLORS.primaryDark }]}
+                />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      {cultivoSel && (
+        <>
+          <Text style={[styles.cultivoSubtitulo, { marginTop: 16 }]}>{cultivoSel.cultivo} — detalle</Text>
+          <CampoConfigurable
+            label={`Precio de venta — ${cultivoSel.cultivo}`}
+            value={cultivoSel.precio_venta_kilo}
+            placeholder="Ej: 2600"
+            sufijo="/kg"
+            onGuardar={(v) => onGuardarPrecioCultivo?.(cultivoSel.cultivo, v)}
+          />
+          <View style={styles.grid3}>
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatLabel}>Costo/kg</Text>
+              <Text style={styles.miniStatValor}>{formatMoney(Math.round(cultivoSel.costoManoObraKg))}</Text>
+            </View>
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatLabel}>Kg/hora</Text>
+              <Text style={styles.miniStatValor}>{cultivoSel.kgPorHora.toFixed(1)}</Text>
+            </View>
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatLabel}>Margen/kg</Text>
+              <Text style={[styles.miniStatValor, cultivoSel.margenKg != null && { color: cultivoSel.margenKg > 0 ? CHART_COLORS.primary : '#C0392B' }]}>
+                {cultivoSel.margenKg != null ? formatMoney(Math.round(cultivoSel.margenKg)) : '—'}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={[styles.cultivoSubtitulo, { marginTop: 14 }]}>Ranking de trabajadores</Text>
+          {(cultivoSel.trabajadores || []).length === 0 ? (
+            <Text style={styles.rankingVacio}>Sin trabajadores registrados en este cultivo.</Text>
+          ) : (
+            <View style={{ marginTop: 6 }}>
+              {[...cultivoSel.trabajadores].sort((a, b) => Number(b.kg) - Number(a.kg)).map((t, i) => (
+                <View key={t.trabajador_id || i} style={styles.rankingRow}>
+                  <Text style={styles.rankingPos}>{i + 1}</Text>
+                  <Text style={styles.rankingNombre} numberOfLines={1}>{t.nombre}</Text>
+                  <Text style={styles.rankingKg}>{Math.round(Number(t.kg)).toLocaleString()} kg</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </>
+      )}
+    </ChartCard>
+  );
+}
+
 const styles = StyleSheet.create({
   barsWrap: { flexDirection: 'row', alignItems: 'flex-end', height: 140, gap: 6, marginTop: 4, position: 'relative' },
   barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%' },
@@ -418,4 +575,19 @@ const styles = StyleSheet.create({
   donaCenter: { alignItems: 'center' },
   donaPct: { fontSize: 24, fontWeight: '900', color: CHART_COLORS.ink900 },
   donaLabel: { fontSize: 11, color: CHART_COLORS.ink500, fontWeight: '600' },
+  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filtroChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: CHART_COLORS.grid },
+  filtroChipActivo: { backgroundColor: CHART_COLORS.primary },
+  filtroChipText: { fontSize: 12, fontWeight: '700', color: CHART_COLORS.ink700 },
+  filtroChipTextActivo: { color: '#fff' },
+  cultivoSubtitulo: { fontSize: 12, fontWeight: '800', color: CHART_COLORS.ink500, textTransform: 'uppercase' },
+  grid3: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  miniStat: { flex: 1, backgroundColor: CHART_COLORS.grid, borderRadius: 10, padding: 10, alignItems: 'center' },
+  miniStatLabel: { fontSize: 10, color: CHART_COLORS.ink500, fontWeight: '700' },
+  miniStatValor: { fontSize: 13, color: CHART_COLORS.ink900, fontWeight: '900', marginTop: 2 },
+  rankingVacio: { fontSize: 12, color: CHART_COLORS.ink400, marginTop: 6 },
+  rankingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderColor: CHART_COLORS.line },
+  rankingPos: { width: 20, fontSize: 12, fontWeight: '900', color: CHART_COLORS.ink400 },
+  rankingNombre: { flex: 1, fontSize: 13, fontWeight: '600', color: CHART_COLORS.ink700 },
+  rankingKg: { fontSize: 12, fontWeight: '700', color: CHART_COLORS.ink900 },
 });
