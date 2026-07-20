@@ -1,7 +1,7 @@
 const { query } = require('../config/database');
 const { accesoFinca } = require('./fincaController');
 const { registrarAuditoria, ipDe } = require('../helpers/auditoria');
-const { deleteFromS3 } = require('../config/s3');
+const { deleteFromS3, signUrl, signArrayField } = require('../config/s3');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers de calendario
@@ -135,6 +135,9 @@ async function tablero(req, res) {
       'SELECT * FROM fin_movimientos WHERE periodo_id = ?',
       [periodo.id]
     );
+    // El bucket es privado (sin ACL) — foto_url cruda de S3 no carga en el
+    // cliente, hay que firmarla igual que el resto de fotos del proyecto.
+    await signArrayField(movimientos, 'foto_url');
     const resumen = await calcularResumen(finca, periodo);
 
     res.json({
@@ -420,7 +423,7 @@ async function subirFotoMovimiento(req, res) {
 
     const fotoUrl = req.file.location;
     await query('UPDATE fin_movimientos SET foto_url = ? WHERE id = ?', [fotoUrl, movimientoId]);
-    res.status(201).json({ foto_url: fotoUrl });
+    res.status(201).json({ foto_url: await signUrl(fotoUrl) });
   } catch (err) {
     console.error('subirFotoMovimiento:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
