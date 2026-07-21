@@ -31,13 +31,29 @@ function fechaAYMD(fechaDDMMYYYY) {
   return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }
 
+// El tipo de pago viene en texto libre desde la planilla ("Por kilo",
+// "jornal", etc.) — se normaliza al enum que ya usa el backend.
+function normalizarTipoPago(v) {
+  const s = String(v || '').trim().toLowerCase();
+  if (s.includes('kilo')) return 'por_kilo';
+  if (s.includes('mixto')) return 'mixto';
+  if (s.includes('jornal')) return 'jornal';
+  return null;
+}
+
 let filaSeq = 0;
 function nuevaFila(t = {}) {
   filaSeq += 1;
   return {
     key: `fila-${filaSeq}`,
     nombre: t.nombre || '',
-    cedula: t.cedula || '',
+    cultivo: t.cultivo || '',
+    lote: t.lote || '',
+    labor: t.labor || '',
+    tipo_pago: t.tipo_pago || '',
+    tarifa: t.tarifa != null ? String(t.tarifa) : '',
+    hora_entrada: t.hora_entrada || '',
+    hora_salida: t.hora_salida || '',
     kg_cereza: t.kg_cereza != null ? String(t.kg_cereza) : '',
     notas: t.notas || '',
     trabajador_id: t.trabajador_id || null,
@@ -46,12 +62,13 @@ function nuevaFila(t = {}) {
 }
 
 export default function LeerPlanillaScreen({ navigation }) {
-  const { activeFinca, activeFincaId } = useFinca();
+  const { activeFinca } = useFinca();
   const toast = useToast();
   const [estado, setEstado] = useState('camara'); // camara | cargando | revision | error
   const [errorMsg, setErrorMsg] = useState('');
   const [fecha, setFecha] = useState(hoyYMD());
-  const [labor, setLabor] = useState('');
+  const [finca, setFinca] = useState('');
+  const [responsable, setResponsable] = useState('');
   const [filas, setFilas] = useState([]);
   const [guardando, setGuardando] = useState(false);
 
@@ -84,7 +101,8 @@ export default function LeerPlanillaScreen({ navigation }) {
       const r = await cuadernoAPI.leerPlanilla(base64);
       const data = r.data;
       setFecha(fechaAYMD(data.fecha));
-      setLabor(data.labor || '');
+      setFinca(data.finca || activeFinca?.nombre || '');
+      setResponsable(data.responsable || '');
       setFilas((data.trabajadores || []).map(nuevaFila));
       setEstado('revision');
     } catch (e) {
@@ -111,13 +129,15 @@ export default function LeerPlanillaScreen({ navigation }) {
     setGuardando(true);
     try {
       const fincas = await fincaAPI.misFincas();
-      const fincaNombre = activeFinca?.nombre || fincas.data?.fincas?.[0]?.nombre || null;
-      const precioKilo = activeFinca?.precio_kilo_default ? Number(activeFinca.precio_kilo_default) : null;
+      const fincaNombre = finca.trim() || activeFinca?.nombre || fincas.data?.fincas?.[0]?.nombre || null;
+      const precioKiloDefault = activeFinca?.precio_kilo_default ? Number(activeFinca.precio_kilo_default) : null;
+      const laborPrincipal = filasValidas.find((f) => f.labor.trim())?.labor || null;
 
       const jr = await cuadernoAPI.crearJornada({
-        fecha, titulo: labor || 'Jornada (planilla)', finca: fincaNombre,
-        tipo_trabajo: labor || null, tipo_pago_default: 'por_kilo',
-        precio_kilo: precioKilo, observaciones: 'Cargada desde foto de planilla',
+        fecha, titulo: laborPrincipal || 'Jornada (planilla)', finca: fincaNombre,
+        tipo_trabajo: laborPrincipal, tipo_pago_default: 'por_kilo',
+        precio_kilo: precioKiloDefault,
+        observaciones: responsable.trim() ? `Cargada desde foto de planilla · Responsable: ${responsable.trim()}` : 'Cargada desde foto de planilla',
       });
       const jornadaId = jr.data?.id;
       if (!jornadaId) throw new Error('sin id de jornada');
@@ -128,13 +148,23 @@ export default function LeerPlanillaScreen({ navigation }) {
           : { manual_nombre: f.nombre.trim() });
         const asisId = ar.data?.id;
         if (!asisId) continue;
-        await cuadernoAPI.actualizarAsistencia(asisId, { estado: 'llego' });
+
+        const tipoPago = normalizarTipoPago(f.tipo_pago) || 'por_kilo';
+        const tarifaNum = f.tarifa ? Number(f.tarifa) : null;
+
+        await cuadernoAPI.actualizarAsistencia(asisId, {
+          estado: 'llego',
+          hora_llegada: f.hora_entrada ? `${f.hora_entrada}:00` : null,
+          hora_salida: f.hora_salida ? `${f.hora_salida}:00` : null,
+        });
         await cuadernoAPI.upsertRegistro(asisId, {
           cantidad_kg: f.kg_cereza ? Number(f.kg_cereza) : null,
-          tipo_pago: 'por_kilo',
-          precio_kilo: precioKilo,
+          tipo_pago: tipoPago,
+          precio_kilo: tipoPago !== 'jornal' ? (tarifaNum ?? precioKiloDefault) : null,
+          precio_jornal: tipoPago !== 'por_kilo' ? tarifaNum : null,
+          cultivo: f.cultivo.trim() || null,
           estado: 'completo',
-          notas: [f.cedula ? `Cédula: ${f.cedula}` : null, f.notas || null].filter(Boolean).join(' · ') || null,
+          notas: f.notas || null,
           pagado: 0,
         });
       }
@@ -198,8 +228,12 @@ export default function LeerPlanillaScreen({ navigation }) {
             <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !fecha && styles.inputError]} value={fecha} onChangeText={setFecha} placeholder="YYYY-MM-DD" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.fieldLabel}>Labor</Text>
-            <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} value={labor} onChangeText={setLabor} placeholder="Ej: Recolección" />
+            <Text style={styles.fieldLabel}>Finca</Text>
+            <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !finca && styles.inputError]} value={finca} onChangeText={setFinca} placeholder="Nombre de la finca" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>Responsable</Text>
+            <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !responsable && styles.inputError]} value={responsable} onChangeText={setResponsable} placeholder="Nombre" />
           </View>
         </View>
 
@@ -218,15 +252,45 @@ export default function LeerPlanillaScreen({ navigation }) {
               </Pressable>
             </View>
 
+            {/* Fila 1 — Nombre */}
             <Text style={styles.fieldLabel}>Nombre</Text>
             <TextInput placeholderTextColor={COLORS.ink400}
               style={[styles.input, !f.nombre.trim() && styles.inputError]}
               value={f.nombre} onChangeText={(v) => actualizarFila(f.key, 'nombre', v)} placeholder="Nombre completo"
             />
+
+            {/* Fila 2 — Cultivo / Lote */}
             <View style={styles.rowGap}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Cédula</Text>
-                <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} value={f.cedula} onChangeText={(v) => actualizarFila(f.key, 'cedula', v)} keyboardType="numeric" placeholder="—" />
+                <Text style={styles.fieldLabel}>Cultivo</Text>
+                <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.cultivo && styles.inputError]} value={f.cultivo} onChangeText={(v) => actualizarFila(f.key, 'cultivo', v)} placeholder="Ej: Café" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Lote</Text>
+                <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.lote && styles.inputError]} value={f.lote} onChangeText={(v) => actualizarFila(f.key, 'lote', v)} placeholder="Ej: Lote 1" />
+              </View>
+            </View>
+
+            {/* Fila 3 — Labor / Tipo de pago */}
+            <View style={styles.rowGap}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Labor</Text>
+                <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.labor && styles.inputError]} value={f.labor} onChangeText={(v) => actualizarFila(f.key, 'labor', v)} placeholder="Ej: Recolección" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Tipo de pago</Text>
+                <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.tipo_pago && styles.inputError]} value={f.tipo_pago} onChangeText={(v) => actualizarFila(f.key, 'tipo_pago', v)} placeholder="Jornal / Por kilo / Mixto" />
+              </View>
+            </View>
+
+            {/* Fila 4 — Tarifa / Kg cereza */}
+            <View style={styles.rowGap}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Tarifa $</Text>
+                <TextInput placeholderTextColor={COLORS.ink400}
+                  style={[styles.input, !f.tarifa && styles.inputError]}
+                  value={f.tarifa} onChangeText={(v) => actualizarFila(f.key, 'tarifa', v)} keyboardType="numeric" placeholder="0"
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fieldLabel}>Kg cereza</Text>
@@ -236,6 +300,20 @@ export default function LeerPlanillaScreen({ navigation }) {
                 />
               </View>
             </View>
+
+            {/* Fila 5 — Hora entrada / Hora salida */}
+            <View style={styles.rowGap}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Hora entrada</Text>
+                <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.hora_entrada && styles.inputError]} value={f.hora_entrada} onChangeText={(v) => actualizarFila(f.key, 'hora_entrada', v)} placeholder="06:00" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Hora salida</Text>
+                <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.hora_salida && styles.inputError]} value={f.hora_salida} onChangeText={(v) => actualizarFila(f.key, 'hora_salida', v)} placeholder="15:00" />
+              </View>
+            </View>
+
+            {/* Fila 6 — Notas */}
             <Text style={styles.fieldLabel}>Notas</Text>
             <TextInput placeholderTextColor={COLORS.ink400} style={styles.input} value={f.notas} onChangeText={(v) => actualizarFila(f.key, 'notas', v)} placeholder="Descuentos, anticipos, observaciones…" />
           </View>

@@ -3,7 +3,7 @@ const { invocarConImagen } = require('../config/bedrock');
 const { signUrl } = require('../config/s3');
 const { fincaIdsDeUsuario } = require('./cuadernoController');
 
-const PROMPT_PLANILLA = 'Esta es una planilla de registro de jornada agrícola de TerraEmpleo. Extrae los datos de cada fila de trabajador y devuélvelos ÚNICAMENTE en formato JSON válido, sin texto adicional, sin explicaciones, sin bloques de código. El JSON debe tener esta estructura exacta: {"fecha": "DD/MM/YYYY o null si no se lee", "finca": "nombre o null", "labor": "labor del día o null", "trabajadores": [{"nombre": "string o null", "cedula": "string o null", "kg_cereza": number o null, "notas": "string o null"}]}. Si un campo no es legible escribe null. No inventes datos. Si la imagen no es una planilla de TerraEmpleo responde: {"error": "no_es_planilla"}.';
+const PROMPT_PLANILLA = 'Esta es una planilla de registro de jornada agrícola de TerraEmpleo. Extrae los datos de cada fila de trabajador y devuélvelos ÚNICAMENTE en formato JSON válido, sin texto adicional, sin explicaciones, sin bloques de código. El JSON debe tener esta estructura exacta: {"fecha": "DD/MM/YYYY o null si no se lee", "finca": "nombre o null", "responsable": "nombre o null", "trabajadores": [{"nombre": "string o null", "cultivo": "string o null", "lote": "string o null", "labor": "string o null", "tipo_pago": "string o null", "tarifa": number o null, "hora_entrada": "HH:MM o null", "hora_salida": "HH:MM o null", "kg_cereza": number o null, "notas": "string o null"}]}. Si un campo no es legible escribe null. No inventes datos. Si la imagen no es una planilla de TerraEmpleo responde: {"error": "no_es_planilla"}.';
 
 // La respuesta debería venir sin nada más que el JSON (se lo pedimos
 // explícito en el prompt), pero los modelos a veces igual envuelven en
@@ -60,11 +60,12 @@ async function leerPlanilla(req, res) {
     }
 
     // Candidatos para vincular: trabajadores con los que este empleador ya
-    // ha trabajado (por finca), con cédula si la tienen registrada.
+    // ha trabajado (por finca). La planilla ya no trae cédula — el
+    // matching es solo por nombre.
     const usuarioId = req.user.id;
     const fincaIds = await fincaIdsDeUsuario(usuarioId, req.user.rol);
     const candidatos = await query(
-      `SELECT DISTINCT u.id AS trabajador_id, u.nombre_completo, u.cedula, u.foto_selfie
+      `SELECT DISTINCT u.id AS trabajador_id, u.nombre_completo, u.foto_selfie
          FROM cuaderno_asistencias a
          JOIN cuaderno_jornadas j ON j.id = a.jornada_id
          JOIN usuarios u ON u.id = a.trabajador_id
@@ -75,10 +76,7 @@ async function leerPlanilla(req, res) {
     const trabajadores = [];
     for (const t of (datos.trabajadores || [])) {
       let match = null;
-      if (t.cedula) {
-        match = candidatos.find((c) => c.cedula && String(c.cedula).trim() === String(t.cedula).trim());
-      }
-      if (!match && t.nombre) {
+      if (t.nombre) {
         const nombreNorm = normalizar(t.nombre);
         let mejor = null, mejorDist = Infinity;
         for (const c of candidatos) {
@@ -91,7 +89,13 @@ async function leerPlanilla(req, res) {
       }
       trabajadores.push({
         nombre: t.nombre ?? null,
-        cedula: t.cedula ?? null,
+        cultivo: t.cultivo ?? null,
+        lote: t.lote ?? null,
+        labor: t.labor ?? null,
+        tipo_pago: t.tipo_pago ?? null,
+        tarifa: t.tarifa ?? null,
+        hora_entrada: t.hora_entrada ?? null,
+        hora_salida: t.hora_salida ?? null,
         kg_cereza: t.kg_cereza ?? null,
         notas: t.notas ?? null,
         trabajador_id: match ? match.trabajador_id : null,
@@ -103,7 +107,7 @@ async function leerPlanilla(req, res) {
       success: true,
       fecha: datos.fecha ?? null,
       finca: datos.finca ?? null,
-      labor: datos.labor ?? null,
+      responsable: datos.responsable ?? null,
       trabajadores,
     });
   } catch (err) {
