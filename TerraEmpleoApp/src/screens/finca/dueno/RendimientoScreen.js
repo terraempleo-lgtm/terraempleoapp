@@ -15,23 +15,27 @@ const COLORS = {
   danger: '#dc2626', dangerSoft: '#fee2e2',
   ink900: '#171a15', ink700: '#3f4438', ink500: '#6b7060', ink400: '#8b9080',
   line: '#e4e6de', lineLight: '#f4f5f0',
+  // Tokens del rediseño de tarjetas de Rendimiento
+  surface2: '#F2F4EE', border: '#e4e6de', textPrimary: '#171a15', textSecondary: '#6b7060',
+  terracota: '#C0652A',
 };
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const num = (n) => Number(n || 0).toLocaleString('es-CO', { maximumFractionDigits: 1 });
 const keyMov = (conceptoId, semanaId) => `${conceptoId}:${semanaId ?? 'mes'}`;
 
-const NIVEL = {
-  bien: { color: COLORS.primary, soft: COLORS.primarySoft, icon: 'checkmark-circle', label: 'Bien' },
-  regular: { color: COLORS.warning, soft: COLORS.warningSoft, icon: 'alert-circle', label: 'Atención' },
-  alerta: { color: COLORS.danger, soft: COLORS.dangerSoft, icon: 'warning', label: 'Alerta' },
-  sinDatos: { color: COLORS.ink500, soft: COLORS.lineLight, icon: 'help-circle', label: 'Sin datos' },
+// Badges: solo 3 estados posibles, colores fijos por el rediseño.
+const BADGE = {
+  bien: { bg: '#EAF3DE', fg: '#27500A', label: 'Bien' },
+  revisar: { bg: '#FAEEDA', fg: '#633806', label: 'Revisar' },
+  alerta: { bg: '#FCEBEB', fg: '#791F1F', label: 'Alerta' },
 };
 
-function procesarMes(tableroData, jornaladas, trabajadoresAgg) {
+function procesarMes(tableroData, jornaladas, trabajadoresAgg, kgTotal) {
   const semanas = tableroData?.semanas || [];
   const conceptos = tableroData?.conceptos || [];
   const resumen = tableroData?.resumen || {};
+  const periodo = tableroData?.periodo || {};
   const valores = {};
   for (const m of tableroData?.movimientos || []) valores[keyMov(m.concepto_id, m.semana_id)] = Number(m.monto) || 0;
 
@@ -46,33 +50,48 @@ function procesarMes(tableroData, jornaladas, trabajadoresAgg) {
   const nominaTotal = Number(resumen.total_nomina || 0) + totalTipo('nomina');
   const gastoFijo = Number(resumen.total_gastos_fijos || 0);
   const gastoVariable = Number(resumen.total_gastos_variables || 0);
+  const totalGastos = nominaTotal + gastoFijo + gastoVariable;
 
   const costoMedioJornal = jornaladas > 0 ? nominaTotal / jornaladas : 0;
   const roiPersonal = nominaTotal > 0 ? totalVentas / nominaTotal : 0;
   const semanasConVenta = semanas.filter((s) => totalSemanaTipo('ingreso', s.id) > 0).length;
-  const relacionGastos = gastoFijo > 0 ? gastoVariable / gastoFijo : null;
   const mayorCultivo = cultivos[0] || null;
-  const balance = totalVentas - (nominaTotal + gastoFijo + gastoVariable);
+  const balance = totalVentas - totalGastos;
 
-  return { semanas, totalVentas, nominaTotal, gastoFijo, gastoVariable, jornaladas, costoMedioJornal, roiPersonal, semanasConVenta, relacionGastos, cultivos, mayorCultivo, balance, trabajadores: trabajadoresAgg || [] };
+  const costoPorKg = kgTotal > 0 ? nominaTotal / kgTotal : null;
+  const precioVentaKilo = periodo.precio_venta_kilo != null ? Number(periodo.precio_venta_kilo) : null;
+  const ingresoPorKilo = precioVentaKilo != null && costoPorKg != null ? precioVentaKilo - costoPorKg : null;
+
+  const mayorGasto = [
+    { nombre: 'Nómina', valor: nominaTotal },
+    { nombre: 'Gastos fijos', valor: gastoFijo },
+    { nombre: 'Gastos variables', valor: gastoVariable },
+  ].sort((a, b) => b.valor - a.valor)[0];
+  const mayorGastoPct = totalGastos > 0 && mayorGasto ? (mayorGasto.valor / totalGastos) * 100 : 0;
+
+  return {
+    semanas, totalVentas, nominaTotal, gastoFijo, gastoVariable, totalGastos, jornaladas,
+    costoMedioJornal, roiPersonal, semanasConVenta, cultivos, mayorCultivo, balance,
+    trabajadores: trabajadoresAgg || [], kgTotal, costoPorKg, precioVentaKilo, ingresoPorKilo,
+    mayorGasto, mayorGastoPct,
+  };
 }
 
-function delta(actual, anterior) {
-  if (!(anterior > 0)) return null;
-  const pct = ((actual - anterior) / anterior) * 100;
-  return { pct, subio: pct > 0.5, bajo: pct < -0.5 };
-}
-
-function DeltaTag({ d, favorableSiSube = true }) {
-  if (!d) return null;
-  const neutro = !d.subio && !d.bajo;
-  const bueno = neutro ? null : (d.subio === favorableSiSube);
-  const icon = neutro ? 'remove' : d.subio ? 'trending-up' : 'trending-down';
-  const color = neutro ? COLORS.ink400 : bueno ? COLORS.primary : COLORS.danger;
+// Diferencia en pesos vs. mes anterior — los finqueros entienden pesos, no
+// porcentajes. `favorableSiSube` decide el color/flecha (para nómina, que
+// baje es lo bueno).
+function DeltaPesos({ actual, anterior, favorableSiSube = true }) {
+  if (actual == null || anterior == null || !(Math.abs(anterior) > 0)) return null;
+  const diff = actual - anterior;
+  if (Math.abs(diff) < 1) return null;
+  const subio = diff > 0;
+  const bueno = subio === favorableSiSube;
+  const color = bueno ? COLORS.primary : COLORS.terracota;
+  const icon = subio ? 'arrow-up' : 'arrow-down';
   return (
-    <View style={styles.rowStart}>
+    <View style={[styles.rowStart, { marginTop: 6 }]}>
       <Ionicons name={icon} size={11} color={color} />
-      <Text style={[styles.deltaText, { color }]}>  {num(Math.abs(d.pct))}% vs. mes pasado</Text>
+      <Text style={[styles.deltaText, { color }]}>  {subio ? 'Subió' : 'Bajó'} {formatMoney(Math.abs(diff))} frente al mes pasado</Text>
     </View>
   );
 }
@@ -90,12 +109,14 @@ export default function RendimientoScreen({ navigation }) {
     const r = await finanzasAPI.tablero({ finca_id: activeFincaId, anio: a, mes: m });
     const semanas = r.data?.semanas || [];
     let jornaladas = 0;
+    let kgTotal = 0;
     const porTrabajador = new Map();
     try {
       const porSemana = await Promise.all(semanas.map((s) => cuadernoAPI.nomina({ desde: s.fecha_inicio, hasta: s.fecha_fin }).catch(() => null)));
       for (const resp of porSemana) {
         for (const f of (resp?.data?.filas || [])) {
           jornaladas += Number(f.dias) || 0;
+          kgTotal += Number(f.total_kg) || 0;
           const key = f.key || f.nombre;
           const prev = porTrabajador.get(key) || { nombre: f.nombre, foto: f.foto, dias: 0, kg: 0, neto: 0 };
           prev.dias += Number(f.dias) || 0; prev.kg += Number(f.total_kg) || 0; prev.neto += Number(f.neto) || 0;
@@ -103,7 +124,7 @@ export default function RendimientoScreen({ navigation }) {
         }
       }
     } catch { /* usa lo que se alcanzó a sumar */ }
-    return { tableroData: r.data, jornaladas, trabajadoresAgg: Array.from(porTrabajador.values()) };
+    return { tableroData: r.data, jornaladas, kgTotal, trabajadoresAgg: Array.from(porTrabajador.values()) };
   }, [activeFincaId]);
 
   const cargar = useCallback(() => {
@@ -113,8 +134,8 @@ export default function RendimientoScreen({ navigation }) {
     if (mesAnt < 1) { mesAnt = 12; anioAnt -= 1; }
     Promise.all([cargarMes(anio, mes), cargarMes(anioAnt, mesAnt)])
       .then(([act, ant]) => {
-        setActual(procesarMes(act.tableroData, act.jornaladas, act.trabajadoresAgg));
-        setAnterior(procesarMes(ant.tableroData, ant.jornaladas, ant.trabajadoresAgg));
+        setActual(procesarMes(act.tableroData, act.jornaladas, act.trabajadoresAgg, act.kgTotal));
+        setAnterior(procesarMes(ant.tableroData, ant.jornaladas, ant.trabajadoresAgg, ant.kgTotal));
       })
       .catch((e) => console.error('rendimiento:', e))
       .finally(() => setLoading(false));
@@ -129,31 +150,24 @@ export default function RendimientoScreen({ navigation }) {
     setMes(m); setAnio(a);
   };
 
-  const nivelDependencia = useMemo(() => {
-    if (!actual?.mayorCultivo) return 'sinDatos';
-    const pct = actual.mayorCultivo.pct;
-    return pct >= 60 ? 'alerta' : pct >= 40 ? 'regular' : 'bien';
-  }, [actual]);
-  const nivelRoi = useMemo(() => {
-    if (!actual?.nominaTotal) return 'sinDatos';
-    if (actual.roiPersonal >= 2) return 'bien';
-    if (actual.roiPersonal >= 1) return 'regular';
+  // Tarjeta 1 — Ingreso por kilo: solo si hay precio configurado y más de
+  // un cultivo activo con ventas.
+  const mostrarIngresoKilo = (actual?.cultivos?.length || 0) > 1;
+
+  // Tarjeta 3 — Por cada $1.000 en jornales
+  const nivelRoi = useMemo(() => (actual?.roiPersonal >= 2 ? 'bien' : 'revisar'), [actual]);
+
+  // Tarjeta 4 — Semanas que vendió: bien 4-5, revisar 2-3, alerta 0-1
+  const nivelConsistencia = useMemo(() => {
+    if (!actual?.semanas?.length) return null;
+    const n = actual.semanasConVenta;
+    if (n >= 4) return 'bien';
+    if (n >= 2) return 'revisar';
     return 'alerta';
   }, [actual]);
-  const nivelConsistencia = useMemo(() => {
-    if (!actual?.semanas?.length) return 'sinDatos';
-    const pct = actual.semanasConVenta / actual.semanas.length;
-    return pct === 1 ? 'bien' : pct >= 0.5 ? 'regular' : 'alerta';
-  }, [actual]);
-  const deltaCostoJornal = useMemo(() => delta(actual?.costoMedioJornal, anterior?.costoMedioJornal), [actual, anterior]);
-  const nivelCostoJornal = useMemo(() => {
-    if (!actual?.jornaladas) return 'sinDatos';
-    if (!deltaCostoJornal) return 'bien';
-    if (deltaCostoJornal.pct > 15) return 'alerta';
-    if (deltaCostoJornal.pct > 5) return 'regular';
-    return 'bien';
-  }, [actual, deltaCostoJornal]);
-  const nivelBalance = useMemo(() => (!actual ? 'sinDatos' : actual.balance >= 0 ? 'bien' : 'alerta'), [actual]);
+
+  // Tarjeta 6 — Balance del mes
+  const nivelBalance = useMemo(() => (!actual ? null : actual.balance >= 0 ? 'bien' : 'alerta'), [actual]);
 
   const ranking = useMemo(() => {
     if (!actual?.trabajadores) return [];
@@ -165,19 +179,6 @@ export default function RendimientoScreen({ navigation }) {
         return a.costoKg - b.costoKg;
       });
   }, [actual]);
-
-  const recomendaciones = useMemo(() => {
-    if (!actual) return [];
-    const r = [];
-    if (nivelDependencia === 'alerta') r.push({ color: COLORS.warning, texto: `Dependes en ${num(actual.mayorCultivo.pct)}% de un solo cultivo (${actual.mayorCultivo.nombre}). Considera diversificar.` });
-    if (nivelRoi === 'alerta') r.push({ color: COLORS.danger, texto: 'Estás generando menos de lo que gastas en nómina. Revisa precios de venta o el costo del jornal/kilo.' });
-    else if (nivelRoi === 'regular') r.push({ color: COLORS.warning, texto: 'El retorno por peso invertido en personal es apenas positivo.' });
-    if (nivelCostoJornal === 'alerta') r.push({ color: COLORS.danger, texto: `El costo por jornal subió ${num(deltaCostoJornal.pct)}% respecto al mes pasado.` });
-    if (nivelConsistencia === 'alerta') r.push({ color: COLORS.warning, texto: 'Solo vendiste en algunas semanas del mes. Vender más seguido ayuda al flujo de caja.' });
-    if (nivelBalance === 'alerta') r.push({ color: COLORS.danger, texto: 'Este mes gastaste más de lo que vendiste. Revisa el detalle de gastos en Finanzas.' });
-    if (r.length === 0) r.push({ color: COLORS.primary, texto: 'Este mes los indicadores principales están en buen rango. Sigue así.' });
-    return r;
-  }, [actual, nivelDependencia, nivelRoi, nivelCostoJornal, nivelConsistencia, nivelBalance, deltaCostoJornal]);
 
   if (loading && !actual) {
     return (
@@ -207,36 +208,70 @@ export default function RendimientoScreen({ navigation }) {
           </View>
         </View>
 
-        <View style={{ marginTop: 14, gap: 6 }}>
-          {recomendaciones.map((r, i) => (
-            <View key={i} style={styles.recoBox}>
-              <View style={[styles.recoDot, { backgroundColor: r.color }]} />
-              <Text style={styles.recoText}>{r.texto}</Text>
-            </View>
-          ))}
-        </View>
-
         <View style={styles.grid2}>
-          <IndicadorCard icon="pie-chart-outline" nivel={nivelDependencia} titulo="Dependencia de cultivo"
-            valor={actual?.mayorCultivo ? `${num(actual.mayorCultivo.pct)}%` : '—'}
-            detalle={actual?.mayorCultivo ? `${actual.mayorCultivo.nombre} es el mayor generador de ventas` : 'Sin ventas registradas aún'} />
-          <IndicadorCard icon="wallet-outline" nivel={nivelCostoJornal} titulo="Costo medio por jornal"
+          {/* Tarjeta 1 — Ingreso por kilo este mes */}
+          {mostrarIngresoKilo && actual?.precioVentaKilo == null ? (
+            <MetricaCard icon="pricetag-outline" titulo="Ingreso por kilo este mes">
+              <Text style={styles.avisoText}>Configure el precio de venta para ver esta métrica.</Text>
+            </MetricaCard>
+          ) : mostrarIngresoKilo && actual?.ingresoPorKilo != null ? (
+            <MetricaCard icon="pricetag-outline" titulo="Ingreso por kilo este mes"
+              valor={formatMoney(actual.ingresoPorKilo)}
+              detalle={`Por cada kilo que vende le quedan ${formatMoney(actual.ingresoPorKilo)} después de pagar jornales.`}
+            />
+          ) : null}
+
+          {/* Tarjeta 2 — Cuánto le cuesta cada jornal */}
+          <MetricaCard icon="wallet-outline" titulo="Cuánto le cuesta cada jornal"
             valor={actual?.jornaladas > 0 ? formatMoney(actual.costoMedioJornal) : '—'}
-            detalle={`${num(actual?.jornaladas || 0)} jornal(es) pagado(s) este mes`}
-            deltaEl={<DeltaTag d={deltaCostoJornal} favorableSiSube={false} />} />
-          <IndicadorCard icon="trending-up-outline" nivel={nivelRoi} titulo="ROI-N (retorno por peso en personal)"
-            valor={actual?.roiPersonal > 0 ? `${num(actual.roiPersonal)}x` : '—'}
-            detalle={actual?.roiPersonal > 0 ? `Cada peso de nómina generó ${num(actual.roiPersonal)} en ventas` : 'Aún no hay ventas o nómina este mes'}
-            deltaEl={<DeltaTag d={delta(actual?.roiPersonal, anterior?.roiPersonal)} />} />
-          <IndicadorCard icon="calendar-outline" nivel={nivelConsistencia} titulo="Consistencia de flujo"
-            valor={actual?.semanas?.length ? `${actual.semanasConVenta} de ${actual.semanas.length}` : '—'}
-            detalle="Semanas del mes con alguna venta registrada" />
-          <IndicadorCard icon="scale-outline" nivel={actual?.relacionGastos != null ? 'bien' : 'sinDatos'} titulo="Gasto variable vs. fijo"
-            valor={actual?.relacionGastos != null ? `${num(actual.relacionGastos)}x` : '—'}
-            detalle={actual?.relacionGastos != null ? (actual.relacionGastos > 1.5 ? 'Estructura de costos flexible' : 'Estructura de costos balanceada') : 'Registra gastos fijos para calcularlo'} />
-          <IndicadorCard icon="shield-checkmark-outline" nivel={nivelBalance} titulo="Balance del mes"
-            valor={actual ? formatMoney(actual.balance) : '—'} detalle="Ventas menos nómina y gastos"
-            deltaEl={<DeltaTag d={delta(actual?.balance, anterior?.balance)} />} />
+            detalle={actual?.jornaladas > 0 ? `Este mes pagó ${num(actual.jornaladas)} jornales con un costo promedio de ${formatMoney(actual.costoMedioJornal)} cada uno.` : 'Aún no hay jornales pagados este mes.'}
+          >
+            <DeltaPesos actual={actual?.costoMedioJornal} anterior={anterior?.costoMedioJornal} favorableSiSube={false} />
+          </MetricaCard>
+
+          {/* Tarjeta 3 — Por cada $1.000 en jornales */}
+          <MetricaCard icon="trending-up-outline" titulo="Por cada $1.000 invertido en personal"
+            badge={actual?.nominaTotal > 0 ? BADGE[nivelRoi] : null}
+            valor={actual?.nominaTotal > 0 ? formatMoney(Math.round(actual.roiPersonal * 1000)) : '—'}
+            detalle={actual?.nominaTotal > 0 ? `Este mes la nómina generó ${num(actual.roiPersonal)} veces su valor en ventas.` : 'Aún no hay ventas o nómina este mes.'}
+          />
+
+          {/* Tarjeta 4 — Semanas que vendió este mes */}
+          <MetricaCard icon="calendar-outline" titulo="Semanas que vendió este mes"
+            badge={nivelConsistencia ? BADGE[nivelConsistencia] : null}
+            valor={actual?.semanas?.length ? `${actual.semanasConVenta} de ${actual.semanas.length} semanas` : '—'}
+            detalle={
+              !actual?.semanas?.length ? 'Aún no hay semanas registradas este mes.'
+              : actual.semanasConVenta >= 4
+                ? 'Vendió todas las semanas del mes — buen flujo de caja.'
+                : `Tuvo ${actual.semanas.length - actual.semanasConVenta} semana(s) sin registrar ventas. Si tiene café listo para vender, puede estar dejando dinero sin cobrar.`
+            }
+          />
+
+          {/* Tarjeta 5 — Su mayor gasto este mes */}
+          {actual?.mayorGasto && actual.mayorGasto.valor > 0 && (
+            <MetricaCard icon="bar-chart-outline" titulo={actual.mayorGasto.nombre.toUpperCase()}
+              valor={formatMoney(actual.mayorGasto.valor)}
+              detalle={
+                `${actual.mayorGasto.nombre} representó el ${num(actual.mayorGastoPct)}% de sus gastos totales este mes.`
+                + (actual.mayorGastoPct > 60 ? ' Eso es alto para un mes de cosecha — normal. En meses sin cosecha debería bajar.' : '')
+              }
+            />
+          )}
+
+          {/* Tarjeta 6 — Lo que le sobró este mes */}
+          <MetricaCard icon="shield-checkmark-outline" titulo="Lo que le sobró este mes"
+            badge={nivelBalance ? BADGE[nivelBalance] : null}
+            valor={actual ? formatMoney(actual.balance) : '—'}
+            detalle={
+              !actual ? ''
+              : actual.balance >= 0
+                ? `Después de pagar jornales y gastos le sobraron ${formatMoney(actual.balance)}.`
+                : `Este mes los gastos superaron las ventas por ${formatMoney(Math.abs(actual.balance))}.`
+            }
+          >
+            <DeltaPesos actual={actual?.balance} anterior={anterior?.balance} favorableSiSube />
+          </MetricaCard>
         </View>
 
         <View style={styles.card}>
@@ -279,22 +314,26 @@ export default function RendimientoScreen({ navigation }) {
   );
 }
 
-function IndicadorCard({ icon, nivel, titulo, valor, detalle, deltaEl }) {
-  const info = NIVEL[nivel] || NIVEL.sinDatos;
+// Tarjeta de métrica rediseñada: ícono en círculo 36px (bg tenue del color
+// del badge), label uppercase, número 26px/500, descripción, badge opcional
+// y children para la comparación en pesos vs. mes anterior.
+function MetricaCard({ icon, titulo, valor, detalle, badge, children }) {
+  const iconBg = badge ? badge.bg : COLORS.lineLight;
+  const iconFg = badge ? badge.fg : COLORS.ink500;
   return (
-    <View style={styles.indicadorCard}>
-      <View style={styles.rowStart}>
-        <View style={[styles.indicadorIcon, { backgroundColor: info.soft }]}><Ionicons name={icon} size={16} color={info.color} /></View>
-        <Text style={styles.indicadorTitulo}>  {titulo}</Text>
+    <View style={styles.metricaCard}>
+      <View style={styles.rowBetween}>
+        <View style={[styles.metricaIcon, { backgroundColor: iconBg }]}><Ionicons name={icon} size={16} color={iconFg} /></View>
+        {badge && (
+          <View style={[styles.nivelBadge, { backgroundColor: badge.bg }]}>
+            <Text style={[styles.nivelBadgeText, { color: badge.fg }]}>{badge.label}</Text>
+          </View>
+        )}
       </View>
-      <View style={[styles.rowStart, { marginTop: 6 }]}>
-        <Text style={styles.indicadorValor}>{valor}</Text>
-        <View style={[styles.nivelBadge, { backgroundColor: info.soft }]}>
-          <Ionicons name={info.icon} size={11} color={info.color} /><Text style={[styles.nivelBadgeText, { color: info.color }]}>  {info.label}</Text>
-        </View>
-      </View>
-      <Text style={styles.indicadorDetalle}>{detalle}</Text>
-      {deltaEl}
+      <Text style={styles.metricaTitulo}>{titulo}</Text>
+      {valor != null && <Text style={styles.metricaValor}>{valor}</Text>}
+      {!!detalle && <Text style={styles.metricaDetalle}>{detalle}</Text>}
+      {children}
     </View>
   );
 }
@@ -309,18 +348,19 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 12, color: COLORS.ink500 },
   monthNav: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.line, borderRadius: 12 },
   monthLabel: { fontWeight: '700', color: COLORS.ink900, fontSize: 12, minWidth: 90, textAlign: 'center' },
-  recoBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: COLORS.lineLight, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10 },
-  recoDot: { width: 6, height: 6, borderRadius: 3, marginTop: 5 },
-  recoText: { flex: 1, fontSize: 12, fontWeight: '500', color: COLORS.ink700, lineHeight: 17 },
   grid2: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  indicadorCard: { width: '47%', backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.line, borderRadius: 14, padding: 12 },
-  indicadorIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  indicadorTitulo: { fontSize: 10, fontWeight: '700', color: COLORS.ink500, textTransform: 'uppercase', flex: 1 },
-  indicadorValor: { fontSize: 18, fontWeight: '900', color: COLORS.ink900 },
-  nivelBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, marginLeft: 8 },
-  nivelBadgeText: { fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
-  indicadorDetalle: { fontSize: 11, color: COLORS.ink500, marginTop: 4 },
-  deltaText: { fontSize: 10, fontWeight: '700' },
+  metricaCard: {
+    width: '47%', backgroundColor: COLORS.surface2, borderWidth: 0.5, borderColor: COLORS.border,
+    borderRadius: 12, padding: 14,
+  },
+  metricaIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  metricaTitulo: { fontSize: 10, fontWeight: '700', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10 },
+  metricaValor: { fontSize: 26, fontWeight: '500', color: COLORS.textPrimary, marginTop: 4 },
+  metricaDetalle: { fontSize: 12, color: COLORS.textSecondary, marginTop: 6, lineHeight: 18 },
+  avisoText: { fontSize: 12, color: COLORS.textSecondary, marginTop: 10, lineHeight: 18, fontStyle: 'italic' },
+  nivelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  nivelBadgeText: { fontSize: 10, fontWeight: '800' },
+  deltaText: { fontSize: 11, fontWeight: '700' },
   card: { backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.line, borderRadius: 16, padding: 16, marginTop: 16 },
   cardTitle: { fontWeight: '800', fontSize: 14, color: COLORS.ink900 },
   cardHint: { fontSize: 11, color: COLORS.ink500, marginTop: 2, marginBottom: 4 },
