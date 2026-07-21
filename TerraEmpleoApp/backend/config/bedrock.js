@@ -17,7 +17,10 @@ const bedrock = new BedrockRuntimeClient({
 // Modelo económico con visión nativa (ver AGENTS/prompt del módulo de
 // planillas). Si la precisión no alcanza, escalar via esta env var a algo
 // como "anthropic.claude-haiku-4-5-20251001-v1:0" sin tocar código.
-const MODELO_PLANILLA = process.env.BEDROCK_MODEL_PLANILLA || 'amazon.nova-2-lite-v1:0';
+// Nova no admite invocación "on-demand" por model ID directo — Bedrock exige
+// el inference profile (prefijo de región). Confirmado en producción:
+// "amazon.nova-2-lite-v1:0" solo → ValidationException pidiendo el profile.
+const MODELO_PLANILLA = process.env.BEDROCK_MODEL_PLANILLA || 'us.amazon.nova-2-lite-v1:0';
 
 /**
  * Llama a Bedrock (Converse API — funciona igual para Nova y Claude, así
