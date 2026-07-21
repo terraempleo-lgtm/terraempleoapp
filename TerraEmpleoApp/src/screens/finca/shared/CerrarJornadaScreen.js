@@ -698,22 +698,39 @@ export default function CerrarJornadaScreen({ navigation, route }) {
             <Text style={styles.fechaDropdownText}>{formatFechaCorta(fecha)}</Text>
             <Ionicons name="chevron-down" size={16} color={COLORS.ink400} />
           </Pressable>
-          {showFechaPicker && (
+          {showFechaPicker && Platform.OS === 'android' && (
             <DateTimePicker
               value={fechaToDate(fecha)}
               mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              display="default"
               onChange={(event, selectedDate) => {
-                setShowFechaPicker(Platform.OS === 'ios');
+                setShowFechaPicker(false);
                 if (event.type === 'set' && selectedDate) setFecha(dateToFecha(selectedDate));
-                else if (Platform.OS === 'ios' && selectedDate) setFecha(dateToFecha(selectedDate));
               }}
             />
           )}
-          {showFechaPicker && Platform.OS === 'ios' && (
-            <Pressable style={styles.fechaListoBtn} onPress={() => setShowFechaPicker(false)}>
-              <Text style={styles.fechaListoText}>Listo</Text>
-            </Pressable>
+          {Platform.OS === 'ios' && (
+            <Modal visible={showFechaPicker} transparent animationType="slide" onRequestClose={() => setShowFechaPicker(false)}>
+              <View style={styles.fechaModalOverlay}>
+                <Pressable style={styles.fechaModalBackdrop} onPress={() => setShowFechaPicker(false)} />
+                <View style={styles.fechaModalCard}>
+                  <Pressable style={styles.fechaListoBtn} onPress={() => setShowFechaPicker(false)}>
+                    <Text style={styles.fechaListoText}>Listo</Text>
+                  </Pressable>
+                  <DateTimePicker
+                    value={fechaToDate(fecha)}
+                    mode="date"
+                    display="spinner"
+                    themeVariant="light"
+                    textColor={COLORS.ink900}
+                    style={styles.fechaSpinner}
+                    onChange={(event, selectedDate) => {
+                      if (selectedDate) setFecha(dateToFecha(selectedDate));
+                    }}
+                  />
+                </View>
+              </View>
+            </Modal>
           )}
           <Text style={styles.fieldLabel}>Vacante asociada (opcional)</Text>
           <View style={styles.wrapRow}>
@@ -931,8 +948,12 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12,
   },
   fechaDropdownText: { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.ink900 },
-  fechaListoBtn: { alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 6 },
-  fechaListoText: { color: COLORS.primary, fontWeight: '700' },
+  fechaListoBtn: { alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 8 },
+  fechaListoText: { color: COLORS.primary, fontWeight: '700', fontSize: 16 },
+  fechaModalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
+  fechaModalBackdrop: { ...StyleSheet.absoluteFillObject },
+  fechaModalCard: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 16 },
+  fechaSpinner: { height: 216, width: '100%' },
   ayudaBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 12, backgroundColor: COLORS.infoSoft },
   ayudaBtnText: { color: COLORS.info, fontWeight: '700', fontSize: 13 },
   ayudaText: { fontSize: 12, color: COLORS.ink700, marginTop: -4, paddingHorizontal: 4 },
