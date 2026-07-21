@@ -384,6 +384,14 @@ async function actualizarPrecioVenta(req, res) {
       sets.push('precio_venta_kilo_cereza = ?'); params.push(precioCereza);
       resultado.precio_venta_kilo_cereza = precioCereza;
     }
+    if (req.body.precio_venta_arroba !== undefined) {
+      const precioArroba = normalizar(req.body.precio_venta_arroba);
+      if (precioArroba !== null && (Number.isNaN(precioArroba) || precioArroba < 0)) {
+        return res.status(400).json({ error: 'precio_venta_arroba inválido' });
+      }
+      sets.push('precio_venta_arroba = ?'); params.push(precioArroba);
+      resultado.precio_venta_arroba = precioArroba;
+    }
     if (!sets.length) return res.status(400).json({ error: 'Nada que actualizar' });
 
     params.push(id);

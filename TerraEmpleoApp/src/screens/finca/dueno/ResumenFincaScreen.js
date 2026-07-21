@@ -133,12 +133,13 @@ export default function ResumenFincaScreen({ navigation }) {
     catch (e) { console.error('meta_kg_semanal:', e); }
   };
 
-  const guardarPrecioVenta = async (valor) => {
+  // campo: 'precio_venta_kilo' | 'precio_venta_kilo_cereza' | 'precio_venta_arroba'
+  const guardarPrecioVenta = async (campo, valor) => {
     if (!periodo?.id) return;
     try {
-      await finanzasAPI.actualizarPrecioVenta(periodo.id, { precio_venta_kilo: valor });
-      setPeriodo((p) => ({ ...p, precio_venta_kilo: valor }));
-    } catch (e) { console.error('precio_venta_kilo:', e); }
+      await finanzasAPI.actualizarPrecioVenta(periodo.id, { [campo]: valor });
+      setPeriodo((p) => ({ ...p, [campo]: valor }));
+    } catch (e) { console.error(`${campo}:`, e); }
   };
 
   const resumen = data?.resumen || {};
@@ -288,7 +289,12 @@ export default function ResumenFincaScreen({ navigation }) {
         />
         <CostoPorKiloChart
           semanal={data?.semanal || []}
-          precioVentaKilo={periodo?.precio_venta_kilo ? Number(periodo.precio_venta_kilo) : null}
+          finca={activeFinca}
+          precios={{
+            precio_venta_kilo: periodo?.precio_venta_kilo ?? null,
+            precio_venta_kilo_cereza: periodo?.precio_venta_kilo_cereza ?? null,
+            precio_venta_arroba: periodo?.precio_venta_arroba ?? null,
+          }}
           onGuardarPrecio={guardarPrecioVenta}
         />
         <RendimientoTrabajadorChart topTrabajadores={data?.top_trabajadores || []} />
@@ -300,7 +306,12 @@ export default function ResumenFincaScreen({ navigation }) {
         />
         <MargenDonaChart
           semanal={data?.semanal || []}
-          precioVentaKilo={periodo?.precio_venta_kilo ? Number(periodo.precio_venta_kilo) : null}
+          finca={activeFinca}
+          precios={{
+            precio_venta_kilo: periodo?.precio_venta_kilo ?? null,
+            precio_venta_kilo_cereza: periodo?.precio_venta_kilo_cereza ?? null,
+            precio_venta_arroba: periodo?.precio_venta_arroba ?? null,
+          }}
         />
         <ComparativaFincasChart porFinca={data?.por_finca || []} />
 

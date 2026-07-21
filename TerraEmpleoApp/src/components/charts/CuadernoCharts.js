@@ -95,15 +95,37 @@ const LINE_CHART_H = 170;
 const LINE_CHART_PAD_TOP = 26; // espacio para el label de valor sobre cada punto
 const Y_AXIS_WIDTH = 52;
 
-export function CostoPorKiloChart({ semanal = [], precioVentaKilo, onGuardarPrecio }) {
+const UNIDADES_COSTO = [
+  { key: 'cereza', label: 'Cereza', sufijo: '/kg', campoPrecio: 'precio_venta_kilo_cereza', nombreUnidad: 'kilo (cereza)' },
+  { key: 'pergamino', label: 'Pergamino', sufijo: '/kg', campoPrecio: 'precio_venta_kilo', nombreUnidad: 'kilo (pergamino)' },
+  { key: 'arroba', label: 'Arroba', sufijo: '/arroba', campoPrecio: 'precio_venta_arroba', nombreUnidad: 'arroba' },
+];
+
+// cerezaKg (lo que ya trae data.semanal.kg) → pergamino → arrobas, con los
+// mismos factores que usa el módulo Café (finca.factor_conversion,
+// finca.kg_por_arroba) — sin esos datos, cae a los defaults de esa pantalla.
+function unidadDe(cerezaKg, unidad, finca) {
+  const factor = Number(finca?.factor_conversion) || 5;
+  const kgArroba = Number(finca?.kg_por_arroba) || 12.5;
+  if (unidad === 'cereza') return Number(cerezaKg) || 0;
+  const pergamino = (Number(cerezaKg) || 0) / factor;
+  if (unidad === 'pergamino') return pergamino;
+  return pergamino / kgArroba;
+}
+
+export function CostoPorKiloChart({ semanal = [], finca, precios = {}, onGuardarPrecio }) {
   const [sel, setSel] = useState(null);
   const [ancho, setAncho] = useState(0);
-  const datos = useMemo(() => semanal.slice(-8).map((s) => ({
-    ...s,
-    costoKg: Number(s.kg) > 0 ? Number(s.pago) / Number(s.kg) : 0,
-  })), [semanal]);
+  const [unidad, setUnidad] = useState('pergamino');
+  const unidadInfo = UNIDADES_COSTO.find((u) => u.key === unidad);
+  const precioVenta = precios[unidadInfo.campoPrecio] != null ? Number(precios[unidadInfo.campoPrecio]) : null;
 
-  if (datos.length === 0 || datos.every((d) => !d.costoKg)) {
+  const datos = useMemo(() => semanal.slice(-8).map((s) => {
+    const cantidad = unidadDe(s.kg, unidad, finca);
+    return { ...s, cantidadUnidad: cantidad, costoUnidad: cantidad > 0 ? Number(s.pago) / cantidad : 0 };
+  }), [semanal, unidad, finca]);
+
+  if (datos.length === 0 || datos.every((d) => !d.costoUnidad)) {
     return (
       <ChartCard title="Costo por kilo por semana" icon="pricetag-outline">
         <ChartEmptyState texto="Aún no hay suficientes datos de kilos y pagos para calcular el costo por kilo." />
@@ -111,37 +133,43 @@ export function CostoPorKiloChart({ semanal = [], precioVentaKilo, onGuardarPrec
     );
   }
 
-  const maxCosto = Math.max(...datos.map((d) => d.costoKg));
-  const maxVal = Math.max(1, maxCosto, Number(precioVentaKilo) || 0) * 1.15;
+  const maxCosto = Math.max(...datos.map((d) => d.costoUnidad));
+  const maxVal = Math.max(1, maxCosto, precioVenta || 0) * 1.15;
   const ultimo = datos[datos.length - 1];
   const anterior = datos[datos.length - 2];
-  const flecha = anterior ? (ultimo.costoKg > anterior.costoKg ? '↑ subió' : ultimo.costoKg < anterior.costoKg ? '↓ bajó' : '— igual') : '';
 
   let analisis, tono = 'ok';
-  if (!precioVentaKilo) {
-    analisis = 'Ingresa el precio al que vendió el café este mes para ver cuánto le queda por kilo.';
+  if (!precioVenta) {
+    analisis = `Ingresa el precio al que vendió el café este mes (por ${unidadInfo.nombreUnidad}) para ver cuánto le queda.`;
     tono = 'alerta';
   } else {
-    const margen = precioVentaKilo - ultimo.costoKg;
-    analisis = `Esta semana cada kilo le costó ${formatMoney(Math.round(ultimo.costoKg))} en mano de obra. Como lo está vendiendo a ${formatMoney(precioVentaKilo)}, le quedan ${formatMoney(Math.round(margen))} por kilo.`;
+    const margen = precioVenta - ultimo.costoUnidad;
+    analisis = `Esta semana cada ${unidadInfo.nombreUnidad.replace(' (cereza)', '').replace(' (pergamino)', '')} le costó ${formatMoney(Math.round(ultimo.costoUnidad))} producirla en mano de obra. Como la está vendiendo a ${formatMoney(precioVenta)}${unidadInfo.sufijo}, le quedan ${formatMoney(Math.round(margen))}${unidadInfo.sufijo}.`;
     tono = margen > 0 ? 'ok' : 'riesgo';
   }
 
   const n = datos.length;
   const yDe = (v) => LINE_CHART_H - (v / maxVal) * LINE_CHART_H;
   const xDe = (i) => (n <= 1 ? ancho / 2 : (i / (n - 1)) * ancho);
-  const puntos = datos.map((d, i) => ({ x: xDe(i), y: yDe(d.costoKg), sobrePrecio: precioVentaKilo != null && d.costoKg > precioVentaKilo }));
-  const yPrecio = precioVentaKilo != null ? yDe(precioVentaKilo) : null;
+  const puntos = datos.map((d, i) => ({ x: xDe(i), y: yDe(d.costoUnidad), sobrePrecio: precioVenta != null && d.costoUnidad > precioVenta }));
+  const yPrecio = precioVenta != null ? yDe(precioVenta) : null;
   const yLabels = [maxVal, maxVal / 2, 0];
 
   return (
     <ChartCard title="Costo por kilo por semana" icon="pricetag-outline">
+      <View style={[styles.wrapRow, { marginBottom: 10 }]}>
+        {UNIDADES_COSTO.map((u) => (
+          <Tocable key={u.key} onPress={() => setUnidad(u.key)} style={[styles.filtroChip, unidad === u.key && styles.filtroChipActivo]}>
+            <Text style={[styles.filtroChipText, unidad === u.key && styles.filtroChipTextActivo]}>{u.label}</Text>
+          </Tocable>
+        ))}
+      </View>
       <CampoConfigurable
-        label="Precio de venta (mes)"
-        value={precioVentaKilo}
+        label={`Precio de venta por ${unidadInfo.label.toLowerCase()} (mes)`}
+        value={precioVenta}
         placeholder="Ej: 3200"
-        sufijo="/kg"
-        onGuardar={onGuardarPrecio}
+        sufijo={unidadInfo.sufijo}
+        onGuardar={(v) => onGuardarPrecio?.(unidadInfo.campoPrecio, v)}
       />
       <View style={{ flexDirection: 'row', marginTop: LINE_CHART_PAD_TOP }}>
         <View style={styles.yAxis}>
@@ -158,7 +186,7 @@ export function CostoPorKiloChart({ semanal = [], precioVentaKilo, onGuardarPrec
               {/* área bajo la línea, aproximada por columnas */}
               {datos.map((d, i) => {
                 const w = n <= 1 ? ancho : ancho / n;
-                const h = LINE_CHART_H - yDe(d.costoKg);
+                const h = LINE_CHART_H - yDe(d.costoUnidad);
                 return (
                   <View key={`area-${d.semana}`} style={{
                     position: 'absolute', left: xDe(i) - w / 2, bottom: 0, width: w, height: Math.max(0, h),
@@ -205,7 +233,7 @@ export function CostoPorKiloChart({ semanal = [], precioVentaKilo, onGuardarPrec
                     onPress={() => setSel(activo ? null : i)}
                     style={{ position: 'absolute', left: p.x - 16, top: p.y - 16, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <Text style={styles.puntoValorLabel}>{formatMoney(Math.round(d.costoKg))}</Text>
+                    <Text style={styles.puntoValorLabel}>{formatMoney(Math.round(d.costoUnidad))}</Text>
                     {p.sobrePrecio && <Ionicons name="warning" size={11} color="#C0392B" style={{ marginBottom: 1 }} />}
                     <MotiView
                       from={{ opacity: 0, scale: 0 }}
@@ -229,11 +257,11 @@ export function CostoPorKiloChart({ semanal = [], precioVentaKilo, onGuardarPrec
         {sel != null && (
           <>
             <TooltipLine label="Semana del" value={fechaCorta(datos[sel].desde)} />
-            <TooltipLine label="Costo por kilo" value={formatMoney(Math.round(datos[sel].costoKg))} />
+            <TooltipLine label={`Costo por ${unidadInfo.label.toLowerCase()}`} value={formatMoney(Math.round(datos[sel].costoUnidad))} />
             {sel > 0 && (
               <TooltipLine
                 label="Vs. semana anterior"
-                value={datos[sel].costoKg > datos[sel - 1].costoKg ? '↑ subió' : datos[sel].costoKg < datos[sel - 1].costoKg ? '↓ bajó' : '— igual'}
+                value={datos[sel].costoUnidad > datos[sel - 1].costoUnidad ? '↑ subió' : datos[sel].costoUnidad < datos[sel - 1].costoUnidad ? '↓ bajó' : '— igual'}
               />
             )}
           </>
@@ -380,30 +408,48 @@ export function RendimientoLoteChart({ lotes = [] }) {
 
 // ── 5) Margen por kilo (dona armada con Views, sin SVG) ─────────────────────
 const DONA_TICKS = 36;
-export function MargenDonaChart({ semanal = [], precioVentaKilo }) {
+export function MargenDonaChart({ semanal = [], finca, precios = {} }) {
   const [sel, setSel] = useState(null);
-  const costoPromedio = useMemo(() => {
-    const totalKg = semanal.reduce((s, w) => s + (Number(w.kg) || 0), 0);
-    const totalPago = semanal.reduce((s, w) => s + (Number(w.pago) || 0), 0);
-    return totalKg > 0 ? totalPago / totalKg : 0;
-  }, [semanal]);
+  const [unidad, setUnidad] = useState('pergamino');
+  const unidadInfo = UNIDADES_COSTO.find((u) => u.key === unidad);
+  const precioVenta = precios[unidadInfo.campoPrecio] != null ? Number(precios[unidadInfo.campoPrecio]) : null;
 
-  if (!precioVentaKilo || !costoPromedio) {
+  const costoPromedio = useMemo(() => {
+    const totalUnidad = semanal.reduce((s, w) => s + unidadDe(w.kg, unidad, finca), 0);
+    const totalPago = semanal.reduce((s, w) => s + (Number(w.pago) || 0), 0);
+    return totalUnidad > 0 ? totalPago / totalUnidad : 0;
+  }, [semanal, unidad, finca]);
+
+  if (!precioVenta || !costoPromedio) {
     return (
       <ChartCard title="Margen por kilo" icon="pie-chart-outline">
+        <View style={[styles.wrapRow, { marginBottom: 10 }]}>
+          {UNIDADES_COSTO.map((u) => (
+            <Tocable key={u.key} onPress={() => setUnidad(u.key)} style={[styles.filtroChip, unidad === u.key && styles.filtroChipActivo]}>
+              <Text style={[styles.filtroChipText, unidad === u.key && styles.filtroChipTextActivo]}>{u.label}</Text>
+            </Tocable>
+          ))}
+        </View>
         <ChartEmptyState texto="Configura el precio de venta en la gráfica de costo por kilo para ver su margen aquí." />
       </ChartCard>
     );
   }
 
-  const margen = precioVentaKilo - costoPromedio;
-  const pctMargen = Math.max(0, Math.round((margen * 100) / precioVentaKilo));
+  const margen = precioVenta - costoPromedio;
+  const pctMargen = Math.max(0, Math.round((margen * 100) / precioVenta));
   const filled = Math.round((pctMargen / 100) * DONA_TICKS);
   const tono = pctMargen >= 50 && pctMargen <= 70 ? 'ok' : 'riesgo';
-  const analisis = `Le están pagando ${formatMoney(precioVentaKilo)}. La mano de obra le cuesta ${formatMoney(Math.round(costoPromedio))}. Le quedan ${formatMoney(Math.round(margen))} (${pctMargen}%). Un margen saludable en café está entre 50% y 70%.`;
+  const analisis = `Le están pagando ${formatMoney(precioVenta)}${unidadInfo.sufijo}. La mano de obra le cuesta ${formatMoney(Math.round(costoPromedio))}${unidadInfo.sufijo}. Le quedan ${formatMoney(Math.round(margen))} (${pctMargen}%). Un margen saludable en café está entre 50% y 70%.`;
 
   return (
     <ChartCard title="Margen por kilo" icon="pie-chart-outline">
+      <View style={[styles.wrapRow, { marginBottom: 4 }]}>
+        {UNIDADES_COSTO.map((u) => (
+          <Tocable key={u.key} onPress={() => setUnidad(u.key)} style={[styles.filtroChip, unidad === u.key && styles.filtroChipActivo]}>
+            <Text style={[styles.filtroChipText, unidad === u.key && styles.filtroChipTextActivo]}>{u.label}</Text>
+          </Tocable>
+        ))}
+      </View>
       <Tocable onPress={() => setSel(sel == null ? 0 : null)} style={styles.donaWrap}>
         {Array.from({ length: DONA_TICKS }).map((_, i) => {
           const angle = (360 / DONA_TICKS) * i;
@@ -428,7 +474,7 @@ export function MargenDonaChart({ semanal = [], precioVentaKilo }) {
         </View>
       </Tocable>
       <ChartTooltip visible={sel != null}>
-        <TooltipLine label="Precio de venta" value={formatMoney(precioVentaKilo)} />
+        <TooltipLine label="Precio de venta" value={formatMoney(precioVenta)} />
         <TooltipLine label="Costo de mano de obra" value={formatMoney(Math.round(costoPromedio))} />
         <TooltipLine label="Le queda por kilo" value={formatMoney(Math.round(margen))} />
       </ChartTooltip>

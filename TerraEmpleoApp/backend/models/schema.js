@@ -1197,6 +1197,15 @@ async function initializeDatabase() {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fin_periodos.precio_venta_kilo_cereza:', e.message);
   }
 
+  // Migración: precio de venta por ARROBA de pergamino — misma familia que
+  // precio_venta_kilo/precio_venta_kilo_cereza, para el toggle Cereza/
+  // Pergamino/Arroba del gráfico de costo por unidad.
+  try {
+    await query('ALTER TABLE fin_periodos ADD COLUMN IF NOT EXISTS precio_venta_arroba DECIMAL(10,2) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fin_periodos.precio_venta_arroba:', e.message);
+  }
+
   // Migración: foto adjunta a un movimiento (factura) de Finanzas.
   try {
     await query('ALTER TABLE fin_movimientos ADD COLUMN IF NOT EXISTS foto_url VARCHAR(500) DEFAULT NULL');

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Alert, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { fincaAPI } from '../../../services/api';
+import { fincaAPI, finanzasAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 
 const COLORS = {
@@ -39,6 +39,10 @@ export default function ConfiguracionFincaScreen({ navigation }) {
   const [nueva, setNueva] = useState({ nombre_completo: '', celular: '', password: generarPassword(), rol_finca: 'administrador' });
   const [creando, setCreando] = useState(false);
   const [credenciales, setCredenciales] = useState(null);
+  const [periodo, setPeriodo] = useState(null);
+  const [unidadVenta, setUnidadVenta] = useState('pergamino');
+  const [precioVenta, setPrecioVenta] = useState('');
+  const [guardandoPrecio, setGuardandoPrecio] = useState(false);
 
   useEffect(() => {
     if (!activeFinca) return;
@@ -51,7 +55,38 @@ export default function ConfiguracionFincaScreen({ navigation }) {
     });
     fincaAPI.listarUsuarios(activeFincaId).then((r) => setUsuarios(r.data?.usuarios || [])).catch(() => {}).finally(() => setLoading(false));
     fincaAPI.listarLotesFinca(activeFincaId).then((r) => setLotes(r.data?.lotes || [])).catch(() => {});
+    const hoy = new Date();
+    finanzasAPI.tablero({ finca_id: activeFincaId, anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 })
+      .then((r) => setPeriodo(r.data?.periodo || null))
+      .catch(() => {});
   }, [activeFinca]);
+
+  const UNIDADES_VENTA = [
+    { key: 'cereza', label: 'Cereza (kg)', campo: 'precio_venta_kilo_cereza' },
+    { key: 'pergamino', label: 'Pergamino (kg)', campo: 'precio_venta_kilo' },
+    { key: 'arroba', label: 'Arroba', campo: 'precio_venta_arroba' },
+  ];
+  const campoVentaActivo = UNIDADES_VENTA.find((u) => u.key === unidadVenta)?.campo;
+
+  useEffect(() => {
+    if (!periodo || !campoVentaActivo) return;
+    const v = periodo[campoVentaActivo];
+    setPrecioVenta(v != null ? String(v) : '');
+  }, [periodo, campoVentaActivo]);
+
+  const guardarPrecioVenta = async () => {
+    if (!periodo?.id) return;
+    setGuardandoPrecio(true);
+    try {
+      const valor = precioVenta.trim() ? Number(precioVenta) : null;
+      await finanzasAPI.actualizarPrecioVenta(periodo.id, { [campoVentaActivo]: valor });
+      setPeriodo((p) => ({ ...p, [campoVentaActivo]: valor }));
+      setMsg('Precio de venta guardado.');
+      setTimeout(() => setMsg(''), 2500);
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo guardar el precio.');
+    } finally { setGuardandoPrecio(false); }
+  };
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -213,6 +248,29 @@ export default function ConfiguracionFincaScreen({ navigation }) {
             {guardando ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Guardar cambios</Text>}
           </Pressable>
         )}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>💰 Venta de café</Text>
+          <Text style={styles.cardHint}>Elige en qué unidad vende el café este mes y a qué precio, para que las gráficas de costo/margen del Cuaderno lo usen.</Text>
+          <View style={[styles.wrapRow, { marginTop: 8 }]}>
+            {UNIDADES_VENTA.map((u) => (
+              <Pressable key={u.key} disabled={!esPropietario} onPress={() => setUnidadVenta(u.key)} style={[styles.modChip, unidadVenta === u.key && styles.modChipActivo]}>
+                <Text style={[styles.modChipText, unidadVenta === u.key && styles.modChipTextActivo]}>{u.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Campo label={`Precio de venta por ${UNIDADES_VENTA.find((u) => u.key === unidadVenta)?.label.toLowerCase()} este mes (COP)`}>
+            <TextInput
+              placeholderTextColor={COLORS.ink400} style={styles.input} editable={esPropietario}
+              keyboardType="numeric" placeholder="Ej: 3200" value={precioVenta} onChangeText={setPrecioVenta}
+            />
+          </Campo>
+          {esPropietario && (
+            <Pressable onPress={guardarPrecioVenta} disabled={guardandoPrecio || !periodo} style={styles.btnPrimarySmall}>
+              {guardandoPrecio ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnPrimarySmallText}>Guardar precio</Text>}
+            </Pressable>
+          )}
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>🌱 Lotes de la finca</Text>
