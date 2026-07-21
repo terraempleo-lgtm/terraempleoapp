@@ -95,7 +95,9 @@ export default function LeerPlanillaScreen({ navigation }) {
     }
     const res = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      // La planilla es una hoja ancha (horizontal) — el recorte forzado de
+      // allowsEditing usaba un marco que la cortaba. Se usa la foto completa.
+      allowsEditing: false,
       quality: 0.8,
       base64: true,
     });
@@ -116,7 +118,9 @@ export default function LeerPlanillaScreen({ navigation }) {
     }
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      // La planilla es una hoja ancha (horizontal) — el recorte forzado de
+      // allowsEditing usaba un marco que la cortaba. Se usa la foto completa.
+      allowsEditing: false,
       quality: 0.8,
       base64: true,
     });
