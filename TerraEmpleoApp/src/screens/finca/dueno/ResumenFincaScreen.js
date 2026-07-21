@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { cuadernoAPI, fincaAPI, finanzasAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
-import Avatar from '../shared/Avatar';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
 import { formatMoney, formatDate, formatLabor } from '../../../utils/fincaFormat';
 import {
@@ -75,19 +74,6 @@ function SectionHeader({ icon, title }) {
       <Text style={styles.sectionTitle}>  {title}</Text>
     </View>
   );
-}
-
-function calificacionScore(t) {
-  // El backend devuelve SUM()/COUNT() como string (bigNumberStrings en el
-  // pool de MariaDB) — hay que forzar Number() antes de sumar, si no "0"+"0"
-  // concatena en vez de sumar y el total nunca da 0, produciendo NaN abajo.
-  const bien = Number(t.calif_bien) || 0;
-  const regular = Number(t.calif_regular) || 0;
-  const mal = Number(t.calif_mal) || 0;
-  const total = bien + regular + mal;
-  if (total === 0) return null;
-  const score = (bien * 1 + regular * 0.5) / total;
-  return Math.round(score * 100);
 }
 
 export default function ResumenFincaScreen({ navigation }) {
@@ -291,42 +277,6 @@ export default function ResumenFincaScreen({ navigation }) {
               <BarRow key={r.tipo} label={formatLabor(r.tipo)} value={Number(r.pago)} max={maxRendimiento}
                 sub={`${formatMoney(r.pago)} · ${Number(r.kg).toLocaleString()} kg`} />
             ))
-          )}
-        </View>
-
-        {/* Top trabajadores */}
-        <View style={styles.card}>
-          <SectionHeader icon="ribbon-outline" title="Trabajadores mejor calificados" />
-          {(data?.top_trabajadores || []).length === 0 ? (
-            <Text style={styles.emptyText}>Aún no hay calificaciones. Cierra una jornada y califica para verlos aquí.</Text>
-          ) : (
-            data.top_trabajadores.slice(0, 6).map((t, idx) => {
-              const score = calificacionScore(t);
-              return (
-                <Pressable
-                  key={t.trabajador_id || idx}
-                  style={styles.trabajadorRow}
-                  onPress={() => t.trabajador_id && navigation.navigate('HistorialTrabajador', { trabajadorId: t.trabajador_id })}
-                >
-                  <View>
-                    <Avatar src={t.foto} name={t.nombre} size={36} />
-                    <View style={styles.rankBadge}><Text style={styles.rankBadgeText}>{idx + 1}</Text></View>
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.trabajadorNombre}>{t.nombre || 'Trabajador'}</Text>
-                    <Text style={styles.trabajadorMeta}>{t.jornadas} jornadas · {Number(t.total_kg).toLocaleString()} kg</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    {score != null && !Number.isNaN(score) ? (
-                      <View style={styles.rowStart}><Ionicons name="star" size={11} color={COLORS.primary} /><Text style={styles.scoreText}>  {score}</Text></View>
-                    ) : (
-                      <Text style={styles.scoreTextMuted}>Sin calificar</Text>
-                    )}
-                    <Text style={styles.trabajadorPago}>{formatMoney(t.total_pagado)}</Text>
-                  </View>
-                </Pressable>
-              );
-            })
           )}
         </View>
 

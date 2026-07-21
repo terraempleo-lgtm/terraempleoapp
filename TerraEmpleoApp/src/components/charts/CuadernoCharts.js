@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { formatMoney } from '../../utils/fincaFormat';
 import {
@@ -90,8 +91,13 @@ export function KilosPorSemanaChart({ semanal = [], metaKgSemanal, onGuardarMeta
 }
 
 // ── 2) Costo por kilo por semana ────────────────────────────────────────────
+const LINE_CHART_H = 170;
+const LINE_CHART_PAD_TOP = 26; // espacio para el label de valor sobre cada punto
+const Y_AXIS_WIDTH = 52;
+
 export function CostoPorKiloChart({ semanal = [], precioVentaKilo, onGuardarPrecio }) {
   const [sel, setSel] = useState(null);
+  const [ancho, setAncho] = useState(0);
   const datos = useMemo(() => semanal.slice(-8).map((s) => ({
     ...s,
     costoKg: Number(s.kg) > 0 ? Number(s.pago) / Number(s.kg) : 0,
@@ -105,7 +111,8 @@ export function CostoPorKiloChart({ semanal = [], precioVentaKilo, onGuardarPrec
     );
   }
 
-  const maxVal = Math.max(1, ...datos.map((d) => d.costoKg));
+  const maxCosto = Math.max(...datos.map((d) => d.costoKg));
+  const maxVal = Math.max(1, maxCosto, Number(precioVentaKilo) || 0) * 1.15;
   const ultimo = datos[datos.length - 1];
   const anterior = datos[datos.length - 2];
   const flecha = anterior ? (ultimo.costoKg > anterior.costoKg ? '↑ subió' : ultimo.costoKg < anterior.costoKg ? '↓ bajó' : '— igual') : '';
@@ -120,6 +127,13 @@ export function CostoPorKiloChart({ semanal = [], precioVentaKilo, onGuardarPrec
     tono = margen > 0 ? 'ok' : 'riesgo';
   }
 
+  const n = datos.length;
+  const yDe = (v) => LINE_CHART_H - (v / maxVal) * LINE_CHART_H;
+  const xDe = (i) => (n <= 1 ? ancho / 2 : (i / (n - 1)) * ancho);
+  const puntos = datos.map((d, i) => ({ x: xDe(i), y: yDe(d.costoKg), sobrePrecio: precioVentaKilo != null && d.costoKg > precioVentaKilo }));
+  const yPrecio = precioVentaKilo != null ? yDe(precioVentaKilo) : null;
+  const yLabels = [maxVal, maxVal / 2, 0];
+
   return (
     <ChartCard title="Costo por kilo por semana" icon="pricetag-outline">
       <CampoConfigurable
@@ -129,31 +143,99 @@ export function CostoPorKiloChart({ semanal = [], precioVentaKilo, onGuardarPrec
         sufijo="/kg"
         onGuardar={onGuardarPrecio}
       />
-      <View style={styles.lineWrap}>
-        {datos.map((d, i) => {
-          const h = Math.max(4, Math.round((d.costoKg * 100) / maxVal));
-          const activo = sel === i;
-          return (
-            <Tocable key={d.semana} onPress={() => setSel(activo ? null : i)} style={styles.lineCol}>
-              <View style={styles.lineColInner}>
-                <MotiView
-                  from={{ opacity: 0, translateY: 8 }}
-                  animate={{ opacity: 1, translateY: 0, bottom: `${h}%` }}
-                  transition={{ type: 'timing', duration: 400, delay: i * 50 }}
-                  style={[styles.point, activo && styles.pointActivo]}
-                />
-              </View>
-              <Text style={styles.barLabel}>{fechaCorta(d.desde)}</Text>
-            </Tocable>
-          );
-        })}
+      <View style={{ flexDirection: 'row', marginTop: LINE_CHART_PAD_TOP }}>
+        <View style={styles.yAxis}>
+          {yLabels.map((v, i) => (
+            <Text key={i} style={styles.yAxisLabel}>{formatMoney(Math.round(v))}</Text>
+          ))}
+        </View>
+        <View
+          style={{ flex: 1, height: LINE_CHART_H }}
+          onLayout={(e) => setAncho(e.nativeEvent.layout.width)}
+        >
+          {ancho > 0 && (
+            <>
+              {/* área bajo la línea, aproximada por columnas */}
+              {datos.map((d, i) => {
+                const w = n <= 1 ? ancho : ancho / n;
+                const h = LINE_CHART_H - yDe(d.costoKg);
+                return (
+                  <View key={`area-${d.semana}`} style={{
+                    position: 'absolute', left: xDe(i) - w / 2, bottom: 0, width: w, height: Math.max(0, h),
+                    backgroundColor: CHART_COLORS.emptyIconBg, opacity: 0.3,
+                  }} />
+                );
+              })}
+
+              {/* línea de precio de venta */}
+              {yPrecio != null && (
+                <View style={{ position: 'absolute', left: 0, right: 0, top: yPrecio }}>
+                  <View style={styles.precioLinea} />
+                  <Text style={styles.precioLabel}>Precio venta</Text>
+                </View>
+              )}
+
+              {/* segmentos conectando los puntos */}
+              {puntos.slice(0, -1).map((p, i) => {
+                const p2 = puntos[i + 1];
+                const dx = p2.x - p.x, dy = p2.y - p.y;
+                const largo = Math.sqrt(dx * dx + dy * dy);
+                const angulo = Math.atan2(dy, dx) * (180 / Math.PI);
+                const cx = (p.x + p2.x) / 2, cy = (p.y + p2.y) / 2;
+                return (
+                  <View
+                    key={`seg-${i}`}
+                    style={{
+                      position: 'absolute', left: cx - largo / 2, top: cy - 1, width: largo, height: 2,
+                      backgroundColor: CHART_COLORS.primary,
+                      transform: [{ rotate: `${angulo}deg` }],
+                    }}
+                  />
+                );
+              })}
+
+              {/* puntos + labels */}
+              {datos.map((d, i) => {
+                const p = puntos[i];
+                const activo = sel === i;
+                const color = p.sobrePrecio ? '#C0392B' : CHART_COLORS.primary;
+                return (
+                  <Tocable
+                    key={d.semana}
+                    onPress={() => setSel(activo ? null : i)}
+                    style={{ position: 'absolute', left: p.x - 16, top: p.y - 16, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Text style={styles.puntoValorLabel}>{formatMoney(Math.round(d.costoKg))}</Text>
+                    {p.sobrePrecio && <Ionicons name="warning" size={11} color="#C0392B" style={{ marginBottom: 1 }} />}
+                    <MotiView
+                      from={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: activo ? 1.3 : 1 }}
+                      transition={{ type: 'timing', duration: 300, delay: i * 50 }}
+                      style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, borderWidth: 2, borderColor: '#fff' }}
+                    />
+                  </Tocable>
+                );
+              })}
+            </>
+          )}
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', marginLeft: Y_AXIS_WIDTH }}>
+        {datos.map((d) => (
+          <Text key={d.semana} style={[styles.barLabel, { flex: 1, textAlign: 'center' }]}>{fechaCorta(d.desde)}</Text>
+        ))}
       </View>
       <ChartTooltip visible={sel != null}>
         {sel != null && (
           <>
             <TooltipLine label="Semana del" value={fechaCorta(datos[sel].desde)} />
             <TooltipLine label="Costo por kilo" value={formatMoney(Math.round(datos[sel].costoKg))} />
-            {sel === datos.length - 1 && anterior && <TooltipLine label="Vs. semana anterior" value={flecha} />}
+            {sel > 0 && (
+              <TooltipLine
+                label="Vs. semana anterior"
+                value={datos[sel].costoKg > datos[sel - 1].costoKg ? '↑ subió' : datos[sel].costoKg < datos[sel - 1].costoKg ? '↓ bajó' : '— igual'}
+              />
+            )}
           </>
         )}
       </ChartTooltip>
@@ -184,6 +266,8 @@ export function RendimientoTrabajadorChart({ topTrabajadores = [] }) {
   }
 
   const maxVal = Math.max(1, ...datos.map((t) => t.kgPorJornal));
+  const promedio = datos.reduce((s, t) => s + t.kgPorJornal, 0) / datos.length;
+  const pctPromedio = Math.max(2, Math.min(98, Math.round((promedio * 100) / maxVal)));
   const mejor = datos[0];
   const peor = datos[datos.length - 1];
   const pctMasRentable = peor.kgPorJornal > 0 ? Math.round(((mejor.kgPorJornal - peor.kgPorJornal) * 100) / peor.kgPorJornal) : 0;
@@ -193,27 +277,34 @@ export function RendimientoTrabajadorChart({ topTrabajadores = [] }) {
 
   return (
     <ChartCard title="Rendimiento por trabajador" icon="people-outline">
-      <View style={{ gap: 10 }}>
-        {datos.map((t, i) => {
-          const pct = Math.max(4, Math.round((t.kgPorJornal * 100) / maxVal));
-          const activo = sel === i;
-          return (
-            <Tocable key={t.trabajador_id || i} onPress={() => setSel(activo ? null : i)} style={{ width: '100%' }}>
-              <View style={styles.hRowLabel}>
-                <Text style={styles.hRowNombre} numberOfLines={1}>{t.nombre || 'Trabajador'}</Text>
-                <Text style={styles.hRowValor}>{Math.round(t.kgPorJornal)} kg/jornal</Text>
-              </View>
-              <View style={styles.hTrack}>
-                <MotiView
-                  from={{ width: '0%' }}
-                  animate={{ width: `${pct}%` }}
-                  transition={{ type: 'timing', duration: 500, delay: i * 60 }}
-                  style={[styles.hFill, activo && { backgroundColor: CHART_COLORS.primaryDark }]}
-                />
-              </View>
-            </Tocable>
-          );
-        })}
+      <View style={{ position: 'relative', paddingTop: 18 }}>
+        <View style={[styles.promedioLinea, { left: `${pctPromedio}%` }]}>
+          <Text style={styles.promedioLabel}>Promedio</Text>
+        </View>
+        <View style={{ gap: 12 }}>
+          {datos.map((t, i) => {
+            const pct = Math.max(4, Math.round((t.kgPorJornal * 100) / maxVal));
+            const activo = sel === i;
+            const sobrePromedio = t.kgPorJornal >= promedio;
+            const color = sobrePromedio ? CHART_COLORS.primary : CHART_COLORS.terracota;
+            return (
+              <Tocable key={t.trabajador_id || i} onPress={() => setSel(activo ? null : i)} style={{ width: '100%' }}>
+                <View style={styles.hRowLabel}>
+                  <Text style={styles.hRowNombre} numberOfLines={1}>{t.nombre || 'Trabajador'}</Text>
+                  <Text style={styles.hRowValorBold}>{Math.round(t.kgPorJornal)} kg/jornal</Text>
+                </View>
+                <View style={styles.hTrack}>
+                  <MotiView
+                    from={{ width: '0%' }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ type: 'timing', duration: 500, delay: i * 60 }}
+                    style={[styles.hFill, { backgroundColor: activo ? CHART_COLORS.primaryDark : color }]}
+                  />
+                </View>
+              </Tocable>
+            );
+          })}
+        </View>
       </View>
       <ChartTooltip visible={sel != null}>
         {sel != null && (
@@ -221,6 +312,7 @@ export function RendimientoTrabajadorChart({ topTrabajadores = [] }) {
             <TooltipLine label="Trabajador" value={datos[sel].nombre || '—'} />
             <TooltipLine label="Kg por jornal" value={`${Math.round(datos[sel].kgPorJornal)} kg`} />
             <TooltipLine label="Costo por kilo" value={formatMoney(Math.round(datos[sel].costoKg))} />
+            <TooltipLine label="Posición en el ranking" value={`#${sel + 1} de ${datos.length}`} />
             <TooltipLine label="Total pagado" value={formatMoney(datos[sel].total_pagado)} />
             <TooltipLine label="Recontratar" value={datos[sel].kgPorJornal >= 50 ? 'Sí' : 'Revisar rendimiento antes de recontratar'} />
           </>
@@ -556,16 +648,19 @@ const styles = StyleSheet.create({
   bar: { width: '100%', borderRadius: 6, backgroundColor: CHART_COLORS.primary, minHeight: 4 },
   barLabel: { fontSize: 9, color: CHART_COLORS.axis, fontWeight: '700', marginTop: 4 },
   metaLine: { position: 'absolute', left: 0, right: 0, height: 0, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: CHART_COLORS.terracota, zIndex: 2 },
-  lineWrap: { flexDirection: 'row', alignItems: 'flex-end', height: 140, gap: 6, marginTop: 4 },
-  lineCol: { flex: 1, alignItems: 'center', height: '100%' },
-  lineColInner: { flex: 1, width: '100%', position: 'relative' },
-  point: { position: 'absolute', left: '50%', marginLeft: -5, width: 10, height: 10, borderRadius: 5, backgroundColor: CHART_COLORS.primary },
-  pointActivo: { backgroundColor: CHART_COLORS.primaryDark, width: 13, height: 13, borderRadius: 7, marginLeft: -6.5 },
+  yAxis: { width: Y_AXIS_WIDTH, justifyContent: 'space-between', paddingRight: 6, height: LINE_CHART_H },
+  yAxisLabel: { fontSize: 9, color: CHART_COLORS.axis, fontWeight: '700', textAlign: 'right' },
+  precioLinea: { height: 0, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: CHART_COLORS.terracota },
+  precioLabel: { position: 'absolute', right: 0, top: -14, fontSize: 9, fontWeight: '800', color: CHART_COLORS.terracota },
+  puntoValorLabel: { fontSize: 9, fontWeight: '800', color: CHART_COLORS.ink700, marginBottom: 2 },
   hRowLabel: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 },
   hRowNombre: { fontSize: 12, fontWeight: '600', color: CHART_COLORS.ink700, flex: 1 },
   hRowValor: { fontSize: 12, fontWeight: '700', color: CHART_COLORS.ink900 },
+  hRowValorBold: { fontSize: 12, fontWeight: '900', color: CHART_COLORS.ink900 },
   hTrack: { height: 10, borderRadius: 999, backgroundColor: CHART_COLORS.grid, overflow: 'hidden' },
   hFill: { height: '100%', borderRadius: 999, backgroundColor: CHART_COLORS.primary },
+  promedioLinea: { position: 'absolute', top: 0, bottom: 0, width: 0, borderLeftWidth: 1.5, borderStyle: 'dashed', borderColor: CHART_COLORS.axis },
+  promedioLabel: { position: 'absolute', top: -16, left: -20, width: 40, fontSize: 9, fontWeight: '800', color: CHART_COLORS.axis, textAlign: 'center' },
   heatWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, minHeight: 90 },
   heatCell: { minWidth: 90, minHeight: 80, borderRadius: 10, padding: 8, justifyContent: 'flex-end' },
   heatNombre: { fontSize: 11, fontWeight: '800', color: '#fff' },
