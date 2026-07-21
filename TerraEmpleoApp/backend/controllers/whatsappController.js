@@ -182,6 +182,15 @@ async function recibirWebhook(req, res) {
   res.sendStatus(200);
 
   try {
+    // El gateway Evolution puede alojar más de una instancia (p. ej. números
+    // personales usados para otros fines). Si el evento no viene de la instancia
+    // del bot, se descarta aquí — nunca debe procesarse ni contestarse.
+    const instanciaEsperada = process.env.WHATSAPP_INSTANCE || 'terraempleo';
+    if (req.body?.instance && req.body.instance !== instanciaEsperada) {
+      console.warn(`[WhatsApp] Evento ignorado: instancia "${req.body.instance}" != "${instanciaEsperada}"`);
+      return;
+    }
+
     const info = extraerMensaje(req.body);
     if (!info || info.fromMe || info.isGroup) return;
     if (!info.texto && !info.esImagen) return;
