@@ -38,18 +38,18 @@ const COLORS = {
   accent: '#5a7d12', accentSoft: '#f3ffd9',
   ink900: '#171a15', ink700: '#3f4438', ink500: '#6b7060', ink400: '#8b9080',
   line: '#e4e6de', lineLight: '#f4f5f0', white: '#ffffff',
+  // Rediseño "solo CSS" del modal de Nueva jornada: fondo blanco/verde
+  // uniforme para botones y chips, secciones diferenciadas por fondo.
+  surface1: '#FAFAF9', surface2: '#F2F4EE', border: '#e4e6de', textSecondary: '#6b7060',
+  seccionBadge: '#1B512D', loteAccent: '#EAF3DE', loteAccentBorder: '#C0DD97',
 };
 
+// Chips/botones: blanco en reposo, verde sólido al seleccionar — sin
+// colores por categoría ni estados intermedios (regla del rediseño).
 function laborStyle(color, activo) {
-  const map = {
-    primary: { bg: activo ? COLORS.primary : COLORS.primarySoft, fg: activo ? '#fff' : COLORS.primaryDark },
-    warning: { bg: activo ? COLORS.warning : COLORS.warningSoft, fg: activo ? '#fff' : COLORS.warning },
-    danger: { bg: activo ? COLORS.danger : COLORS.dangerSoft, fg: activo ? '#fff' : COLORS.danger },
-    info: { bg: activo ? COLORS.info : COLORS.infoSoft, fg: activo ? '#fff' : COLORS.info },
-    accent: { bg: activo ? COLORS.accent : COLORS.accentSoft, fg: activo ? '#fff' : COLORS.ink900 },
-    ink: { bg: activo ? COLORS.ink700 : COLORS.lineLight, fg: activo ? '#fff' : COLORS.ink700 },
-  };
-  return map[color] || map.ink;
+  return activo
+    ? { bg: COLORS.primary, fg: '#fff' }
+    : { bg: '#fff', fg: COLORS.textSecondary };
 }
 function laborInfo(label) {
   return LABORES_JORNADA.find((l) => l.label === label) || { label, icon: 'ellipsis-horizontal', color: 'ink' };
@@ -169,7 +169,7 @@ function Chip({ label, icon, color = 'ink', activo, onPress, small }) {
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, small && styles.chipSmall, { backgroundColor: s.bg, borderColor: s.bg }]}
+      style={[styles.chip, small && styles.chipSmall, { backgroundColor: s.bg, borderColor: activo ? s.bg : COLORS.border }]}
     >
       {icon && <Ionicons name={icon} size={small ? 13 : 15} color={s.fg} />}
       <Text style={[styles.chipText, small && styles.chipTextSmall, { color: s.fg }]}>{label}</Text>
@@ -206,10 +206,9 @@ function SelectorOtro({ onAgregar }) {
   );
 }
 
-function PasoBadge({ n, color = 'primary' }) {
-  const bg = { primary: COLORS.primary, warning: COLORS.warning, info: COLORS.info, danger: COLORS.danger }[color] || COLORS.primary;
+function PasoBadge({ n }) {
   return (
-    <View style={[styles.pasoBadge, { backgroundColor: bg }]}>
+    <View style={styles.pasoBadge}>
       <Text style={styles.pasoBadgeText}>{n}</Text>
     </View>
   );
@@ -273,8 +272,8 @@ function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonal
           </View>
 
           <Text style={styles.smallLabel}>¿Qué lote trabajó?</Text>
-          <Pressable onPress={() => onAbrirLote(t)} style={[styles.loteBtn, t.lote_id && { backgroundColor: COLORS.primary }]}>
-            <Ionicons name="location-outline" size={14} color={t.lote_id ? '#fff' : COLORS.primary} />
+          <Pressable onPress={() => onAbrirLote(t)} style={[styles.loteBtn, t.lote_id && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}>
+            <Ionicons name="location-outline" size={14} color={t.lote_id ? '#fff' : COLORS.textSecondary} />
             <Text style={[styles.loteBtnText, t.lote_id && { color: '#fff' }]}>
               {t.lote_nombre || 'Elegir lote'}
             </Text>
@@ -689,7 +688,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         {/* Paso 1 */}
         <View style={styles.step}>
           <View style={styles.rowStart}>
-            <PasoBadge n={1} color="primary" />
+            <PasoBadge n={1} />
             <Text style={styles.stepTitle}>  ¿Cuándo fue la jornada?</Text>
           </View>
           <Text style={styles.fieldLabel}>Fecha</Text>
@@ -753,9 +752,9 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         )}
 
         {/* Paso 2 */}
-        <View style={styles.step}>
+        <View style={[styles.step, styles.stepAlt]}>
           <View style={styles.rowStart}>
-            <PasoBadge n={2} color="warning" />
+            <PasoBadge n={2} />
             <Text style={styles.stepTitle}>  ¿Qué se va a hacer, en general?</Text>
           </View>
           <Text style={styles.hintText}>Puedes cambiarla persona por persona más abajo.</Text>
@@ -772,28 +771,30 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         </View>
 
         {/* Precios (colapsable) */}
-        <Pressable style={styles.preciosHeader} onPress={() => { animate(); setPreciosOpen((o) => !o); }}>
-          <View style={styles.rowStart}>
-            <PasoBadge n={3} color="warning" />
-            <Text style={styles.stepTitle}>  Precios: jornal, kilo y alimentación</Text>
-          </View>
-          <Ionicons name="chevron-down" size={16} color={COLORS.ink700} style={{ transform: [{ rotate: preciosOpen ? '180deg' : '0deg' }] }} />
-        </Pressable>
-        {preciosOpen && (
-          <View style={styles.preciosBody}>
-            <Text style={styles.fieldLabel}>Precio jornal (COP)</Text>
-            <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.jornal)} onChangeText={(v) => setPrecios((p) => ({ ...p, jornal: v }))} keyboardType="numeric" placeholder="Ej: 70000" style={styles.input} />
-            <Text style={styles.fieldLabel}>Precio por kilo (COP)</Text>
-            <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.kilo)} onChangeText={(v) => setPrecios((p) => ({ ...p, kilo: v }))} keyboardType="numeric" placeholder="Ej: 1100" style={styles.input} />
-            <Text style={styles.fieldLabel}>Precio alimentación (COP)</Text>
-            <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.alimentacion)} onChangeText={(v) => setPrecios((p) => ({ ...p, alimentacion: v }))} keyboardType="numeric" placeholder="Ej: 12000" style={styles.input} />
-          </View>
-        )}
+        <View style={styles.step}>
+          <Pressable style={[styles.rowBetween, { justifyContent: 'space-between' }]} onPress={() => { animate(); setPreciosOpen((o) => !o); }}>
+            <View style={styles.rowStart}>
+              <PasoBadge n={3} />
+              <Text style={styles.stepTitle}>  Precios: jornal, kilo y alimentación</Text>
+            </View>
+            <Ionicons name="chevron-down" size={16} color={COLORS.ink700} style={{ transform: [{ rotate: preciosOpen ? '180deg' : '0deg' }] }} />
+          </Pressable>
+          {preciosOpen && (
+            <View style={styles.preciosBody}>
+              <Text style={styles.fieldLabel}>Precio jornal (COP)</Text>
+              <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.jornal)} onChangeText={(v) => setPrecios((p) => ({ ...p, jornal: v }))} keyboardType="numeric" placeholder="Ej: 70000" style={styles.input} />
+              <Text style={styles.fieldLabel}>Precio por kilo (COP)</Text>
+              <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.kilo)} onChangeText={(v) => setPrecios((p) => ({ ...p, kilo: v }))} keyboardType="numeric" placeholder="Ej: 1100" style={styles.input} />
+              <Text style={styles.fieldLabel}>Precio alimentación (COP)</Text>
+              <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.alimentacion)} onChangeText={(v) => setPrecios((p) => ({ ...p, alimentacion: v }))} keyboardType="numeric" placeholder="Ej: 12000" style={styles.input} />
+            </View>
+          )}
+        </View>
 
         {/* Trabajadores */}
-        <View style={styles.step}>
+        <View style={[styles.step, styles.stepAlt]}>
           <View style={styles.rowStart}>
-            <PasoBadge n={4} color="primary" />
+            <PasoBadge n={4} />
             <Text style={styles.stepTitle}>  Trabajadores de la jornada</Text>
           </View>
           <Text style={styles.hintText}>Toca los nombres para agregarlos o quitarlos.</Text>
@@ -804,6 +805,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
                 const activo = trabajadores.some((t) => t.key === seleccionKey(s));
                 return (
                   <Pressable key={seleccionKey(s)} onPress={() => toggleSeleccion(s)} style={[styles.sugeridoChip, activo && styles.sugeridoChipActivo]}>
+                    {activo && <Ionicons name="checkmark" size={13} color="#fff" style={{ marginRight: 2 }} />}
                     <Avatar src={s.foto} name={s.nombre} size={24} />
                     <Text style={[styles.sugeridoText, activo && styles.sugeridoTextActivo]}>  {s.nombre}</Text>
                     {!s.trabajador_id && <Text style={styles.badgeExterno}>  externo</Text>}
@@ -813,12 +815,18 @@ export default function CerrarJornadaScreen({ navigation, route }) {
             </View>
           )}
 
-          <View style={[styles.rowStart, { marginTop: 10 }]}>
-            <Ionicons name="search" size={15} color={COLORS.ink400} />
-            <TextInput placeholderTextColor={COLORS.ink400}
-              placeholder="Buscar registrado en TerraEmpleo…" value={busqueda} onChangeText={setBusqueda}
-              style={[styles.input, { flex: 1, marginLeft: 6 }]}
-            />
+          <View style={[styles.rowStart, { marginTop: 10, gap: 8 }]}>
+            <View style={[styles.rowStart, styles.buscarInputWrap]}>
+              <Ionicons name="search" size={15} color={COLORS.ink400} />
+              <TextInput placeholderTextColor={COLORS.ink400}
+                placeholder="Buscar registrado en TerraEmpleo…" value={busqueda} onChangeText={setBusqueda}
+                style={[styles.input, styles.buscarInput]}
+              />
+            </View>
+            <Pressable style={styles.agregarNuevoBtn} onPress={() => { animate(); setExternoOpen((o) => !o); }}>
+              <Ionicons name="person-add-outline" size={14} color={COLORS.seccionBadge} />
+              <Text style={styles.agregarNuevoText}>  Agregar nuevo</Text>
+            </Pressable>
           </View>
           {buscando && <ActivityIndicator style={{ marginTop: 6 }} />}
           {resultados.slice(0, 8).map((r) => (
@@ -832,10 +840,6 @@ export default function CerrarJornadaScreen({ navigation, route }) {
             </Pressable>
           ))}
 
-          <Pressable style={[styles.rowStart, { marginTop: 12 }]} onPress={() => { animate(); setExternoOpen((o) => !o); }}>
-            <Ionicons name="person-add-outline" size={15} color={COLORS.primary} />
-            <Text style={styles.externoToggle}>  ¿No aparece? Agrégalo como externo</Text>
-          </Pressable>
           {externoOpen && (
             <View style={{ marginTop: 8, gap: 8 }}>
               <TextInput placeholderTextColor={COLORS.ink400} placeholder="Nombre completo" value={externo.nombre} onChangeText={(v) => setExterno((x) => ({ ...x, nombre: v }))} style={styles.input} />
@@ -843,21 +847,32 @@ export default function CerrarJornadaScreen({ navigation, route }) {
               <Pressable style={styles.addBtn} onPress={agregarExterno}><Text style={styles.addBtnText}>Agregar</Text></Pressable>
             </View>
           )}
-
-          {trabajadores.map((t) => (
-            <TrabajadorJornadaCard
-              key={t.key} t={t} precios={precios}
-              onChange={(nt) => setTrabajadores((prev) => prev.map((x) => (x.key === nt.key ? nt : x)))}
-              onQuitar={(x) => setTrabajadores((prev) => prev.filter((y) => y.key !== x.key))}
-              laboresPersonalizadas={laboresPersonalizadas}
-              onAgregarLaborPersonalizada={agregarLaborPersonalizada}
-              onAbrirLote={setLoteModalFor}
-            />
-          ))}
         </View>
 
+        {/* Trabajadores agregados */}
+        {trabajadores.length > 0 && (
+          <View style={styles.step}>
+            <View style={styles.rowStart}>
+              <PasoBadge n={5} />
+              <Text style={styles.stepTitle}>  Trabajadores agregados</Text>
+            </View>
+            <View style={{ marginTop: 10, gap: 10 }}>
+              {trabajadores.map((t) => (
+                <TrabajadorJornadaCard
+                  key={t.key} t={t} precios={precios}
+                  onChange={(nt) => setTrabajadores((prev) => prev.map((x) => (x.key === nt.key ? nt : x)))}
+                  onQuitar={(x) => setTrabajadores((prev) => prev.filter((y) => y.key !== x.key))}
+                  laboresPersonalizadas={laboresPersonalizadas}
+                  onAgregarLaborPersonalizada={agregarLaborPersonalizada}
+                  onAbrirLote={setLoteModalFor}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Gastos y observaciones */}
-        <View style={styles.step}>
+        <View style={[styles.step, styles.stepAlt]}>
           <Text style={styles.fieldLabel}>Costos generales del día (transporte, comida, etc.)</Text>
           <TextInput placeholderTextColor={COLORS.ink400} value={String(costosGenerales)} onChangeText={setCostosGenerales} keyboardType="numeric" placeholder="0" style={styles.input} />
           <Text style={styles.fieldLabel}>Observaciones (opcional)</Text>
@@ -944,10 +959,10 @@ const styles = StyleSheet.create({
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   fechaDropdown: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#F9FAFB', borderWidth: 1.5, borderColor: COLORS.line,
-    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12,
+    backgroundColor: COLORS.surface1, borderWidth: 0.5, borderColor: COLORS.border,
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 12,
   },
-  fechaDropdownText: { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.ink900 },
+  fechaDropdownText: { flex: 1, fontSize: 13, fontWeight: '700', color: COLORS.ink900 },
   fechaListoBtn: { alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 8 },
   fechaListoText: { color: COLORS.primary, fontWeight: '700', fontSize: 16 },
   fechaModalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
@@ -959,13 +974,14 @@ const styles = StyleSheet.create({
   ayudaText: { fontSize: 12, color: COLORS.ink700, marginTop: -4, paddingHorizontal: 4 },
   nuevaSemanaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
   nuevaSemanaBtnText: { color: COLORS.ink500, fontSize: 12, fontWeight: '600' },
-  step: { borderWidth: 2, borderColor: COLORS.line, borderRadius: 12, padding: 12, backgroundColor: '#fff' },
-  stepTitle: { fontWeight: '900', color: COLORS.ink900, fontSize: 14 },
+  step: { borderRadius: 12, paddingVertical: 16, paddingHorizontal: 20, backgroundColor: COLORS.surface1 },
+  stepAlt: { backgroundColor: COLORS.surface2 },
+  stepTitle: { fontWeight: '800', color: COLORS.ink900, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6 },
   hintText: { fontSize: 12, color: COLORS.ink500, marginBottom: 8, marginLeft: 30 },
   fieldLabel: { fontSize: 11, fontWeight: '700', color: COLORS.ink500, textTransform: 'uppercase', marginTop: 8, marginBottom: 4 },
   smallLabel: { fontSize: 11, fontWeight: '700', color: COLORS.ink500, textTransform: 'uppercase', marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: COLORS.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: COLORS.ink900, backgroundColor: '#fff' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, borderWidth: 1 },
+  input: { borderWidth: 0.5, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: COLORS.ink900, backgroundColor: COLORS.surface1 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 20, borderWidth: 0.5, backgroundColor: '#fff' },
   chipSmall: { paddingHorizontal: 8, paddingVertical: 4 },
   chipText: { fontWeight: '700', fontSize: 13 },
   chipTextSmall: { fontSize: 11 },
@@ -973,11 +989,10 @@ const styles = StyleSheet.create({
   otroInput: { borderWidth: 2, borderColor: COLORS.ink400, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, fontSize: 13, color: COLORS.ink900, width: 170 },
   otroBtn: { backgroundColor: COLORS.primary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9 },
   otroBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  pasoBadge: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  pasoBadge: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.seccionBadge },
   pasoBadgeText: { color: '#fff', fontWeight: '900', fontSize: 12 },
-  preciosHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, backgroundColor: COLORS.warningSoft, borderRadius: 12, borderWidth: 2, borderColor: 'rgba(217,119,6,0.3)' },
-  preciosBody: { padding: 4 },
-  card: { borderWidth: 2, borderColor: COLORS.line, borderRadius: 12, padding: 12, backgroundColor: '#fff' },
+  preciosBody: { marginTop: 12, gap: 4 },
+  card: { borderWidth: 0.5, borderColor: COLORS.border, borderLeftWidth: 3, borderLeftColor: COLORS.primary, borderRadius: 12, padding: 12, backgroundColor: COLORS.surface2 },
   cardName: { fontWeight: '900', color: COLORS.ink900, fontSize: 15 },
   badgeExterno: { fontSize: 10, fontWeight: '600', color: COLORS.ink400, backgroundColor: COLORS.lineLight, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, marginLeft: 6 },
   moneyPrimary: { fontWeight: '700', color: COLORS.primary, fontSize: 12 },
@@ -985,9 +1000,9 @@ const styles = StyleSheet.create({
   moneyBold: { fontWeight: '700', color: COLORS.ink900, fontSize: 12 },
   dotSep: { color: COLORS.ink500 },
   cardBody: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: COLORS.line },
-  tipoPagoBtn: { flex: 1, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: COLORS.line, backgroundColor: COLORS.primarySoft, alignItems: 'center' },
+  tipoPagoBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 0.5, borderColor: COLORS.border, backgroundColor: '#fff', alignItems: 'center' },
   tipoPagoBtnActivo: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  tipoPagoText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+  tipoPagoText: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary },
   tipoPagoTextActivo: { color: '#fff' },
   deudaBox: { marginTop: 10, backgroundColor: COLORS.lineLight, borderRadius: 12, borderWidth: 1, borderColor: COLORS.line, padding: 10 },
   switchLabel: { marginLeft: 8, fontSize: 13, color: COLORS.ink700 },
@@ -996,16 +1011,20 @@ const styles = StyleSheet.create({
   totalValuePrimary: { fontSize: 17, fontWeight: '900', color: COLORS.primaryDark },
   totalValueDanger: { fontSize: 17, fontWeight: '900', color: COLORS.danger },
   totalValueInk: { fontSize: 17, fontWeight: '900', color: COLORS.ink900 },
-  sugeridoChip: { flexDirection: 'row', alignItems: 'center', paddingLeft: 4, paddingRight: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: COLORS.line, backgroundColor: '#fff' },
-  sugeridoChipActivo: { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primary },
-  sugeridoText: { fontSize: 13, fontWeight: '600', color: COLORS.ink700 },
-  sugeridoTextActivo: { color: COLORS.primaryDark },
+  sugeridoChip: { flexDirection: 'row', alignItems: 'center', paddingLeft: 4, paddingRight: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 0.5, borderColor: COLORS.border, backgroundColor: '#fff' },
+  sugeridoChipActivo: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  sugeridoText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
+  sugeridoTextActivo: { color: '#fff' },
   resultRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
   resultName: { fontSize: 13, fontWeight: '600', color: COLORS.ink900 },
   resultPhone: { fontSize: 11, color: COLORS.ink500 },
   externoToggle: { color: COLORS.primary, fontWeight: '700', fontSize: 13 },
-  addBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  addBtn: { backgroundColor: COLORS.primary, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   addBtnText: { color: '#fff', fontWeight: '700' },
+  buscarInputWrap: { flex: 1, backgroundColor: COLORS.surface1, borderWidth: 0.5, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 12 },
+  buscarInput: { flex: 1, borderWidth: 0, backgroundColor: 'transparent', marginLeft: 6, paddingHorizontal: 0 },
+  agregarNuevoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.loteAccent, borderWidth: 1, borderColor: COLORS.loteAccentBorder, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  agregarNuevoText: { color: COLORS.seccionBadge, fontWeight: '700', fontSize: 12 },
   resumenBox: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.primarySoft, borderRadius: 12, borderWidth: 2, borderColor: 'rgba(0,141,73,0.2)', padding: 14, flexWrap: 'wrap', gap: 6 },
   resumenText: { fontWeight: '700', color: COLORS.primaryDark },
   resumenTotal: { fontWeight: '900', color: COLORS.primaryDark, fontSize: 17 },
@@ -1014,8 +1033,8 @@ const styles = StyleSheet.create({
   btnGhostText: { fontWeight: '700', color: COLORS.ink700 },
   btnPrimary: { flex: 1, backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   btnPrimaryText: { color: '#fff', fontWeight: '900', fontSize: 15 },
-  loteBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: COLORS.primarySoft, marginTop: 6 },
-  loteBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+  loteBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, borderWidth: 0.5, borderColor: COLORS.border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#fff', marginTop: 6 },
+  loteBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 16 },
   modalCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16 },
   modalTitle: { fontWeight: '900', fontSize: 16, color: COLORS.ink900, marginBottom: 10 },
