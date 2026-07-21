@@ -98,7 +98,7 @@ export default function LeerPlanillaScreen({ navigation }) {
       // La planilla es una hoja ancha (horizontal) — el recorte forzado de
       // allowsEditing usaba un marco que la cortaba. Se usa la foto completa.
       allowsEditing: false,
-      quality: 0.8,
+      quality: 0.5,
       base64: true,
     });
     if (res.canceled || !res.assets?.[0]?.base64) {
@@ -121,7 +121,7 @@ export default function LeerPlanillaScreen({ navigation }) {
       // La planilla es una hoja ancha (horizontal) — el recorte forzado de
       // allowsEditing usaba un marco que la cortaba. Se usa la foto completa.
       allowsEditing: false,
-      quality: 0.8,
+      quality: 0.5,
       base64: true,
     });
     if (res.canceled || !res.assets?.[0]?.base64) {
@@ -142,9 +142,12 @@ export default function LeerPlanillaScreen({ navigation }) {
       setFilas((data.trabajadores || []).map(nuevaFila));
       setEstado('revision');
     } catch (e) {
+      const esTimeout = e.code === 'ECONNABORTED' || !e.response;
       setErrorMsg(
         e.response?.data?.error ||
-        'No pudimos leer la planilla. Asegúrese de tomar la foto con buena luz y que la planilla esté completamente visible.'
+        (esTimeout
+          ? 'La conexión se demoró demasiado leyendo la planilla. Revisa tu señal e intenta de nuevo.'
+          : 'No pudimos leer la planilla. Asegúrese de tomar la foto con buena luz y que la planilla esté completamente visible.')
       );
       setEstado('error');
     }
