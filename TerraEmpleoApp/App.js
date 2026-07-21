@@ -75,6 +75,7 @@ const TrabajadoresMapaScreen         = lazyWeb(() => import('./src/screens/emple
 // ── Finca cafetera — lazy en web ──────────────────────────────────────────
 const ResumenFincaScreen        = lazyWeb(() => import('./src/screens/finca/dueno/ResumenFincaScreen'));
 const JornadasScreen            = lazyWeb(() => import('./src/screens/finca/dueno/JornadasScreen'));
+const LeerPlanillaScreen        = lazyWeb(() => import('./src/screens/finca/shared/LeerPlanillaScreen'));
 const MuroScreen                = lazyWeb(() => import('./src/screens/finca/dueno/MuroScreen'));
 const PublicarMuroScreen        = lazyWeb(() => import('./src/screens/finca/dueno/PublicarMuroScreen'));
 const CafeScreen                = lazyWeb(() => import('./src/screens/finca/dueno/CafeScreen'));
@@ -367,6 +368,7 @@ function fincaSharedScreens() {
     <>
       <Stack.Screen name="DetalleJornada" component={DetalleJornadaScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CerrarJornada" component={CerrarJornadaScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="LeerPlanilla" component={LeerPlanillaScreen} options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       <Stack.Screen name="HistorialTrabajador" component={HistorialTrabajadorScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Precios" component={PreciosScreen} options={{ headerShown: false }} />
     </>

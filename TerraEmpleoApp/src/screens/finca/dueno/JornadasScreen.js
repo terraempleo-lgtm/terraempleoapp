@@ -13,6 +13,7 @@ const COLORS = {
   info: '#2563eb', infoSoft: '#e0edff',
   ink900: '#171a15', ink700: '#3f4438', ink500: '#6b7060', ink400: '#8b9080',
   line: '#e4e6de', lineLight: '#f4f5f0',
+  planillaBg: '#EAF3DE', planillaBorder: '#008d49', planillaText: '#1B512D',
 };
 
 const ESTADO_META = {
@@ -119,9 +120,15 @@ export default function JornadasScreen({ navigation }) {
               <View style={styles.countBadge}><Text style={styles.countBadgeText}>{jornadas.length}</Text></View>
             )}
           </View>
-          <Pressable style={styles.fab} onPress={() => navigation.navigate('CerrarJornada')}>
-            <Ionicons name="add" size={20} color="#fff" />
-          </Pressable>
+          <View style={styles.rowStart}>
+            <Pressable style={styles.planillaBtn} onPress={() => navigation.navigate('LeerPlanilla')}>
+              <Ionicons name="camera-outline" size={16} color={COLORS.planillaText} />
+              <Text style={styles.planillaBtnText}>  Subir planilla</Text>
+            </Pressable>
+            <Pressable style={styles.fab} onPress={() => navigation.navigate('CerrarJornada')}>
+              <Ionicons name="add" size={20} color="#fff" />
+            </Pressable>
+          </View>
         </View>
         <Text style={styles.subtitle}>Lleva control de cada día de trabajo en tus fincas</Text>
 
@@ -171,7 +178,12 @@ const styles = StyleSheet.create({
   h1: { fontSize: 24, fontWeight: '900', color: COLORS.ink900 },
   countBadge: { minWidth: 24, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   countBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  fab: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  fab: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  planillaBtn: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 9,
+    borderRadius: 10, borderWidth: 0.5, borderColor: COLORS.planillaBorder, backgroundColor: COLORS.planillaBg,
+  },
+  planillaBtnText: { color: COLORS.planillaText, fontWeight: '700', fontSize: 12 },
   subtitle: { fontSize: 13, color: COLORS.ink500, marginTop: 4, marginBottom: 12 },
   filtrosRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   filtroChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: COLORS.line, backgroundColor: '#fff' },

@@ -495,6 +495,7 @@ export const cuadernoAPI = {
   historialTrabajador: (id, params) => api.get(`/cuaderno/trabajadores/${id}/historial`, params ? { params } : undefined),
   listarJornadas: (params) => api.get('/cuaderno/jornadas', params ? { params } : undefined),
   crearJornada: (data) => api.post('/cuaderno/jornadas', data),
+  leerPlanilla: (imagenBase64) => api.post('/cuaderno/jornadas/leer-planilla', { imagen: imagenBase64 }),
   detalleJornada: (id) => api.get(`/cuaderno/jornadas/${id}`),
   actualizarJornada: (id, data) => api.put(`/cuaderno/jornadas/${id}`, data),
   eliminarJornada: (id) => api.delete(`/cuaderno/jornadas/${id}`),
