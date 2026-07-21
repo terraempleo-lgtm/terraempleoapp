@@ -72,7 +72,18 @@ export default function LeerPlanillaScreen({ navigation }) {
   const [filas, setFilas] = useState([]);
   const [guardando, setGuardando] = useState(false);
 
-  useEffect(() => { abrirCamara(); }, []);
+  useEffect(() => { elegirOrigen(); }, []);
+
+  // Deja elegir entre tomar la foto en el momento o subir una ya existente
+  // de la galería (antes solo cámara).
+  const elegirOrigen = () => {
+    setErrorMsg('');
+    Alert.alert('Foto de la planilla', '¿Cómo quieres subirla?', [
+      { text: 'Cancelar', style: 'cancel', onPress: () => navigation.goBack() },
+      { text: 'Elegir de galería', onPress: abrirGaleria },
+      { text: 'Tomar foto', onPress: abrirCamara },
+    ]);
+  };
 
   const abrirCamara = async () => {
     setErrorMsg('');
@@ -83,6 +94,27 @@ export default function LeerPlanillaScreen({ navigation }) {
       return;
     }
     const res = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+      base64: true,
+    });
+    if (res.canceled || !res.assets?.[0]?.base64) {
+      navigation.goBack();
+      return;
+    }
+    procesarFoto(res.assets[0].base64);
+  };
+
+  const abrirGaleria = async () => {
+    setErrorMsg('');
+    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permiso.granted) {
+      setEstado('error');
+      setErrorMsg('Necesitamos permiso para acceder a tus fotos.');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
@@ -193,7 +225,7 @@ export default function LeerPlanillaScreen({ navigation }) {
         <View style={styles.centro}>
           <Ionicons name="alert-circle-outline" size={48} color={COLORS.danger} />
           <Text style={styles.errorText}>{errorMsg}</Text>
-          <Pressable style={styles.btnPrimary} onPress={abrirCamara}>
+          <Pressable style={styles.btnPrimary} onPress={elegirOrigen}>
             <Text style={styles.btnPrimaryText}>Intentar de nuevo</Text>
           </Pressable>
           <Pressable style={{ marginTop: 12 }} onPress={() => navigation.goBack()}>
@@ -326,7 +358,7 @@ export default function LeerPlanillaScreen({ navigation }) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={styles.btnGhost} onPress={abrirCamara} disabled={guardando}>
+        <Pressable style={styles.btnGhost} onPress={elegirOrigen} disabled={guardando}>
           <Ionicons name="camera-outline" size={16} color={COLORS.ink700} />
           <Text style={styles.btnGhostText}>  Volver a tomar</Text>
         </Pressable>
