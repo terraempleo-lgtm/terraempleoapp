@@ -529,8 +529,80 @@ async function solicitarContacto(req, res) {
   }
 }
 
+/**
+ * Devuelve los trabajadores con mejor match para un empleador (para reutilizar fuera
+ * de HTTP, p. ej. el bot de WhatsApp). Reutiliza obtenerReferenciaMatch + calcularPuntajeMatch,
+ * la MISMA lógica de puntaje que la app. No firma fotos (lista de texto liviana).
+ * @param {number} empleadorId
+ * @param {{minPuntaje?:number, limite?:number, vacanteId?:number|null}} opts
+ * @returns {Promise<Array>} trabajadores ordenados por match desc (>= minPuntaje)
+ */
+async function obtenerTrabajadoresMatch(empleadorId, { minPuntaje = 0, limite = 50, vacanteId = null } = {}) {
+  const referencia = await obtenerReferenciaMatch(empleadorId, vacanteId);
+  if (!referencia) return [];
+
+  const trabajadores = await query(`
+    SELECT u.id, u.nombre_completo, u.departamento, u.municipio,
+      u.calificacion_promedio, u.total_calificaciones,
+      pt.id as perfil_id, pt.anios_experiencia, pt.disponibilidad
+    FROM usuarios u
+    JOIN perfil_trabajador pt ON pt.usuario_id = u.id
+    WHERE u.rol = 'trabajador' AND u.activo = 1
+      AND (u.eliminado IS NULL OR u.eliminado = 0)
+      AND u.id NOT IN (SELECT bloqueado_id FROM usuarios_bloqueados WHERE bloqueador_id = ?)
+      AND u.id NOT IN (SELECT bloqueador_id FROM usuarios_bloqueados WHERE bloqueado_id = ?)
+  `, [empleadorId, empleadorId]).catch(() => []);
+
+  const resultados = await Promise.all(
+    (trabajadores || []).map(async (t) => {
+      const habilidadesRows = await query(
+        'SELECT habilidad FROM trabajador_habilidades WHERE perfil_trabajador_id = ?',
+        [t.perfil_id]
+      );
+      const cultivosRows = await query(
+        'SELECT cultivo FROM trabajador_cultivos WHERE perfil_trabajador_id = ?',
+        [t.perfil_id]
+      );
+      const habs = habilidadesRows.map((h) => h.habilidad.toLowerCase());
+      const cults = cultivosRows.map((c) => c.cultivo.toLowerCase());
+
+      const { puntaje, proximidad } = calcularPuntajeMatch({
+        referenciaCultivos: referencia.cultivos,
+        referenciaLabores: referencia.labores,
+        trabajadorCultivos: cults,
+        trabajadorHabilidades: habs,
+        referenciaDepartamento: referencia.departamento,
+        referenciaMunicipio: referencia.municipio,
+        trabajadorDepartamento: t.departamento?.toLowerCase() || null,
+        trabajadorMunicipio: t.municipio?.toLowerCase() || null,
+      });
+
+      return {
+        id: t.id,
+        nombre_completo: t.nombre_completo,
+        departamento: t.departamento,
+        municipio: t.municipio,
+        calificacion_promedio: parseFloat(t.calificacion_promedio || 0),
+        total_calificaciones: Number(t.total_calificaciones || 0),
+        anios_experiencia: t.anios_experiencia,
+        disponibilidad: t.disponibilidad,
+        habilidades: habilidadesRows.map((h) => h.habilidad),
+        cultivos: cultivosRows.map((c) => c.cultivo),
+        puntaje_match: puntaje,
+        proximidad,
+      };
+    })
+  );
+
+  return resultados
+    .filter((t) => t && t.puntaje_match >= minPuntaje)
+    .sort((a, b) => b.puntaje_match - a.puntaje_match || b.calificacion_promedio - a.calificacion_promedio)
+    .slice(0, limite);
+}
+
 module.exports = {
   listarTrabajadores,
   trabajadoresRecomendados,
   solicitarContacto,
+  obtenerTrabajadoresMatch,
 };

@@ -165,7 +165,7 @@ function bienvenidaPersonal(usuario) {
   const n = usuario && usuario.nombre_completo ? ' ' + usuario.nombre_completo.split(' ')[0] : '';
   const s = pick([`¡Hola${n}! 👋`, `¡Buenas${n}! 🌱`, `¡Qué más${n}! 👋`, `¡Hola${n}! 🙌`]);
   if (usuario && (usuario.rol === 'empleador' || usuario.rol === 'admin')) {
-    return `${s} Soy el asistente de TerraEmpleo. Para publicar una vacante escribe *Necesito trabajadores*. ¿En qué te ayudo?`;
+    return `${s} Soy el asistente de TerraEmpleo. Para publicar una vacante escribe *Necesito trabajadores*, o *Ver trabajadores* para ver quién encaja con tu perfil. ¿En qué te ayudo?`;
   }
   if (usuario && usuario.rol === 'trabajador') {
     return `${s} Soy el asistente de TerraEmpleo. Escribe *OFERTAS* para ver los trabajos disponibles. ¿En qué te ayudo?`;
@@ -406,6 +406,73 @@ async function enviarOfertas(destino) {
   return { reply: null };
 }
 
+/**
+ * ¿El mensaje pide VER trabajadores disponibles (distinto de "necesito trabajadores",
+ * que crea una vacante)? Requiere mencionar trabajadores/personal + una acción de ver,
+ * y NO ser una intención de contratar/publicar.
+ */
+function pareceVerTrabajadores(textoLower) {
+  const t = textoLower || '';
+  // Señales fuertes que por sí solas indican "ver perfiles".
+  if (/(candidat|hoja[s]? de vida|mano de obra)/i.test(t)) return true;
+  // Intención de CREAR vacante → no es "ver".
+  if (/(necesito|contratar|contrata|requiero|publicar|solicitud)/i.test(t)) return false;
+  const mencionaTrab = /(trabajador|personal|recolector|jornalero|obrero|gente)/i.test(t);
+  const accionVer = /(ver|mostrar|mu[eé]str|disponible|quien|quién|cu[aá]les|list|tienes|ten[eé]s|hay)/i.test(t);
+  return mencionaTrab && accionVer;
+}
+
+/** Nombre corto para el teaser (primer nombre + inicial del apellido) — privacidad. */
+function nombreCorto(nombre) {
+  const parts = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'Trabajador';
+  const inicial = parts[1] ? ` ${parts[1][0].toUpperCase()}.` : '';
+  return parts[0] + inicial;
+}
+
+/**
+ * Muestra al EMPLEADOR los trabajadores con 40%+ de coincidencia (mismo puntaje que la app),
+ * como teaser de texto. Para contactarlos debe entrar a la app (por seguridad: no se
+ * comparten teléfonos ni datos de contacto por WhatsApp).
+ */
+async function enviarTrabajadores(destino, empleador) {
+  const { obtenerTrabajadoresMatch } = require('../controllers/trabajadoresController');
+  const lista = await obtenerTrabajadoresMatch(empleador.id, { minPuntaje: 40, limite: 6 }).catch((e) => {
+    console.error('[WhatsApp] obtenerTrabajadoresMatch:', e.message);
+    return [];
+  });
+
+  if (!lista || lista.length === 0) {
+    return {
+      reply:
+        '🔎 Por ahora no encontré trabajadores con *40%* o más de coincidencia con tu perfil o vacante.\n\n' +
+        'Publica una solicitud con *Necesito trabajadores* para afinar la búsqueda, o revisa todos los perfiles en la app 👉 ' +
+        LINK_APP,
+    };
+  }
+
+  const lineas = lista.map((t, i) => {
+    const lugar = [t.municipio, t.departamento].filter(Boolean).join(', ') || 'Colombia';
+    const estrellas = t.total_calificaciones > 0
+      ? `⭐ ${t.calificacion_promedio.toFixed(1)} (${t.total_calificaciones})`
+      : '⭐ Sin calificaciones aún';
+    const exp = t.anios_experiencia ? ` · ${t.anios_experiencia} año(s) exp.` : '';
+    const skills = (t.habilidades || []).slice(0, 3).join(', ');
+    return (
+      `*${i + 1}. ${nombreCorto(t.nombre_completo)}* — ${t.puntaje_match}% de match\n` +
+      `   📍 ${lugar}${exp}\n` +
+      `   ${estrellas}` +
+      (skills ? `\n   🛠️ ${skills}` : '')
+    );
+  });
+
+  return {
+    reply:
+      `👷 *Trabajadores que encajan contigo (40%+):*\n\n${lineas.join('\n\n')}\n\n` +
+      `🔒 Por seguridad, para *contactarlos* entra a la app TerraEmpleo y ábrelos desde ahí:\n👉 ${LINK_APP}`,
+  };
+}
+
 // Preguntas del flujo de registro (orden común + ramas por rol).
 const PREG_REG = {
   rol: '¿Qué eres? Responde *TRABAJADOR* (buscas trabajo) o *EMPLEADOR* (tienes finca/empresa).',
@@ -560,11 +627,33 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     const pareceRegistro = PALABRAS_REGISTRO.some((p) => textoLower.includes(p));
     const pareceSaludo = PALABRAS_SALUDO.some((p) => textoLower === p || textoLower.startsWith(p + ' ') || textoLower.startsWith(p + ','));
     const pareceClave = PALABRAS_CLAVE.some((p) => textoLower.includes(p));
+    const pareceVerTrab = pareceVerTrabajadores(textoLower);
 
     // 1) Soporte tiene prioridad: cualquiera puede pedir ayuda humana.
     if (pareceSoporte) {
       const id = await crearConversacion(telefono, usuario ? usuario.id : null, FLUJO_SOPORTE, 'describir');
       return { reply: soporteIntro(), conversacionId: id };
+    }
+
+    // 1.6) Ver trabajadores disponibles (empleador): top match 40%+, contacto en la app.
+    //      Va ANTES del flujo de crear vacante para distinguir "ver" de "necesito".
+    if (pareceVerTrab) {
+      if (esEmpleador) {
+        return await enviarTrabajadores(jid || telefono, usuario);
+      }
+      if (usuario && usuario.rol === 'trabajador') {
+        return { reply: 'Esa opción es para empleadores 🌱. Si buscas trabajo, escribe *OFERTAS* para ver las vacantes disponibles.' };
+      }
+      // No reconocido: por seguridad, primero verificar que sea un empleador registrado.
+      const id = await crearConversacion(telefono, null, FLUJO_IDENT, 'celular');
+      await actualizarConversacion(id, { datos: { intencion: 'ver_trabajadores' } });
+      return {
+        reply:
+          'Para ver trabajadores necesitas una cuenta de *empleador* en TerraEmpleo (por seguridad). 🔒\n\n' +
+          'Envíame el *número de celular* con el que te registraste como empleador (ej: 3001234567), ' +
+          'o escribe *REGISTRARME* si eres nuevo.',
+        conversacionId: id,
+      };
     }
 
     // 1.5) Crear / cambiar contraseña (para poder entrar a la app).
@@ -735,9 +824,19 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     await guardarIdentidad(jid, u.id);
     await whatsappService.setOptIn(u.id, true).catch(() => {});
     await actualizarConversacion(conv.id, { estado: 'completada' });
-    // Arrancar el flujo de empleador de inmediato (ya identificado).
+    const primerNombre = (u.nombre_completo || '').split(' ')[0] || '';
+
+    // Si venía a VER trabajadores, mostrar la lista (no arrancar creación de vacante).
+    const datosIdent = parseDatos(conv.datos);
+    if (datosIdent.intencion === 'ver_trabajadores') {
+      const r = await enviarTrabajadores(jid || telefono, u);
+      r.reply = `✅ ¡Listo, ${primerNombre}! Te reconocí.\n\n` + (r.reply || '');
+      return r;
+    }
+
+    // Por defecto: arrancar el flujo de empleador de inmediato (ya identificado).
     const r = await iniciarFlujoEmpleador(telefono, u, '');
-    r.reply = `✅ ¡Listo, ${ (u.nombre_completo || '').split(' ')[0] || '' }! Te reconocí.\n\n` + (r.reply || '');
+    r.reply = `✅ ¡Listo, ${primerNombre}! Te reconocí.\n\n` + (r.reply || '');
     return r;
   }
 
@@ -874,6 +973,9 @@ module.exports = {
   crearUsuarioDesdeWhatsapp,
   setPasswordUsuario,
   enviarOfertas,
+  enviarTrabajadores,
+  pareceVerTrabajadores,
+  nombreCorto,
   limpiarRespuesta,
   FLUJO_EMPLEADOR,
   FLUJO_REGISTRO,
