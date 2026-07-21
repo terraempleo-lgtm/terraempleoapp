@@ -3,9 +3,13 @@ const router = express.Router();
 const { authMiddleware, empleadorMiddleware } = require('../middleware/auth');
 const cuaderno = require('../controllers/cuadernoController');
 const nomina = require('../controllers/nominaController');
+const planilla = require('../controllers/planillaController');
 
 // Todas las rutas del cuaderno requieren rol empleador
 router.use(authMiddleware, empleadorMiddleware);
+
+// Lectura de planilla física por foto (Amazon Bedrock)
+router.post('/jornadas/leer-planilla', planilla.leerPlanilla);
 
 // Dashboard + analítica
 router.get('/dashboard', cuaderno.dashboard);

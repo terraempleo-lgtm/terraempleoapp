@@ -1091,4 +1091,5 @@ module.exports = {
   // dashboard + historial
   dashboard, historialTrabajador, postulantesVacante, misTrabajadores,
   crearTrabajadorExterno,
+  fincaIdsDeUsuario, // reutilizado por planillaController para el matching de trabajador
 };
