@@ -702,6 +702,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
               value={fechaToDate(fecha)}
               mode="date"
               display="default"
+              locale="es-ES"
               onChange={(event, selectedDate) => {
                 setShowFechaPicker(false);
                 if (event.type === 'set' && selectedDate) setFecha(dateToFecha(selectedDate));
@@ -720,6 +721,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
                     value={fechaToDate(fecha)}
                     mode="date"
                     display="spinner"
+                    locale="es-ES"
                     themeVariant="light"
                     textColor={COLORS.ink900}
                     style={styles.fechaSpinner}

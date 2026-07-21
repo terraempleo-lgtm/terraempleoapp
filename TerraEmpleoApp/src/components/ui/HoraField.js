@@ -98,6 +98,7 @@ export default function HoraField({ label, value, onChange, placeholder = '--:--
           mode="time"
           is24Hour
           display="default"
+          locale="es-ES"
           onChange={handleNativeChange}
         />
       )}
@@ -115,6 +116,7 @@ export default function HoraField({ label, value, onChange, placeholder = '--:--
                 mode="time"
                 is24Hour
                 display="spinner"
+                locale="es-ES"
                 themeVariant="light"
                 textColor={COLORS.ink900}
                 style={styles.iosSpinner}
