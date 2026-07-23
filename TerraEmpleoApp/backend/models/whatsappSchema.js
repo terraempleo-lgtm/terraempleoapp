@@ -125,6 +125,10 @@ async function initWhatsappSchema() {
   try { await query('ALTER TABLE vacantes ADD COLUMN whatsapp_seguimiento_count INT NOT NULL DEFAULT 0'); } catch (_) {}
   try { await query('ALTER TABLE vacantes ADD COLUMN whatsapp_seguimiento_detenido TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
 
+  // PASO 5: confirmación de asistencia del trabajador tras ser aceptado (por WhatsApp: "CONFIRMO").
+  try { await query('ALTER TABLE postulaciones ADD COLUMN asistencia_confirmada TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
+  try { await query('ALTER TABLE postulaciones ADD COLUMN asistencia_confirmada_at TIMESTAMP NULL DEFAULT NULL'); } catch (_) {}
+
   console.log('[WhatsApp] Schema del módulo de mensajería inicializado.');
 }
 

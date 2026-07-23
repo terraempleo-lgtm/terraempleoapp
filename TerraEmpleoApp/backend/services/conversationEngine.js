@@ -725,6 +725,17 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     if (usuario && usuario.rol === 'trabajador') {
       const limpio = textoLower.normalize('NFD').replace(/[̀-ͯ]/g, '')
         .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+      // PASO 5 — confirmación de asistencia tras ser aceptado: "CONFIRMO".
+      if (['confirmo', 'confirmar', 'confirmado', 'confirmada', 'confirmo asistencia', 'confirmo mi asistencia'].includes(limpio)) {
+        const { confirmarAsistenciaTrabajador } = require('../controllers/vacantesController');
+        const rc = await confirmarAsistenciaTrabajador(usuario.id).catch(() => ({ ok: false }));
+        if (rc && rc.ok) {
+          return { reply: `✅ ¡Confirmado! El empleador ya sabe que cuentas para *${rc.titulo}*. Llega puntual y mucha suerte 🌱` };
+        }
+        // Sin aceptación pendiente de confirmar → sigue el flujo normal.
+      }
+
       const SI_OFERTA = ['si', 'sisi', 'si quiero', 'si acepto', 'acepto', 'dale', 'listo', 'voy', 'claro', 'ok', 'okay', 'vale', 'quiero', 'me interesa', '1'];
       const NO_OFERTA = ['no', 'nel', 'paso', 'no puedo', 'no me interesa', 'no gracias', 'no voy', '2'];
       const afirmativo = SI_OFERTA.includes(limpio);

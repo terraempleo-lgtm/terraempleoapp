@@ -456,7 +456,8 @@ async function actualizarPostulacion(req, res) {
 
     // Notificar al trabajador
     const postInfo = await query(`
-      SELECT p.trabajador_id, p.vacante_id, v.titulo FROM postulaciones p
+      SELECT p.trabajador_id, p.vacante_id, v.titulo, v.municipio, v.departamento, v.vereda, v.monto_pago
+      FROM postulaciones p
       JOIN vacantes v ON v.id = p.vacante_id
       WHERE p.id = ?
     `, [id]);
@@ -466,6 +467,27 @@ async function actualizarPostulacion(req, res) {
         // Crear chat primero para tener el chat_id disponible en la notificación
         const chatId = await crearChat(Number(vacante_id), empleadorId, trabajador_id);
         await crearNotificacion(trabajador_id, 'postulacion_aceptada', '¡Postulación aceptada!', `Tu postulación a "${titulo}" fue aceptada. Ahora puedes chatear con el empleador.`, { vacante_id, conversacion_id: chatId });
+        // PASO 5 — invitación de asistencia por WhatsApp (best-effort, si el trabajador dio opt-in).
+        try {
+          const t = await query('SELECT nombre_completo, whatsapp_opt_in FROM usuarios WHERE id = ?', [trabajador_id]);
+          if (t && t[0] && t[0].whatsapp_opt_in) {
+            const destino = await whatsappService.mejorDestino(trabajador_id);
+            if (destino) {
+              const v = postInfo[0];
+              const lugar = [v.vereda, v.municipio, v.departamento].filter(Boolean).join(', ') || 'la finca';
+              const pago = v.monto_pago ? `\n💰 Pago: $${Number(v.monto_pago).toLocaleString('es-CO')}` : '';
+              const nombre = (t[0].nombre_completo || '').split(' ')[0] || '';
+              await whatsappService.enviarTexto(
+                destino,
+                `🎉 ¡Felicidades ${nombre}! Te aceptaron para *${titulo}*.\n` +
+                `📍 ${lugar}${pago}\n\n` +
+                `Coordina el *día y la hora* con el empleador en el chat de la app 👉 ${whatsappService.linkVacante(vacante_id)}\n\n` +
+                `Responde *CONFIRMO* para asegurar tu cupo. ✅`,
+                { usuarioId: trabajador_id }
+              );
+            }
+          }
+        } catch (_) {}
       } else {
         await crearNotificacion(trabajador_id, 'rechazado', 'Postulación rechazada', `Tu postulación a "${titulo}" no fue seleccionada en esta ocasión.`, { vacante_id });
       }
@@ -1164,10 +1186,64 @@ async function responderOfertaTrabajador(trabajadorId, acepta) {
   }
 }
 
+/**
+ * PASO 5 — el trabajador respondió *CONFIRMO* por WhatsApp tras ser aceptado. Marca la
+ * asistencia como confirmada en su postulación `aceptada` más reciente y avisa al empleador.
+ * @param {number} trabajadorId
+ * @returns {Promise<{ok:boolean, titulo?:string}>} ok=false si no hay aceptación pendiente de confirmar.
+ */
+async function confirmarAsistenciaTrabajador(trabajadorId) {
+  try {
+    const rows = await query(
+      `SELECT p.id, p.vacante_id, v.titulo, v.empleador_id
+       FROM postulaciones p
+       JOIN vacantes v ON v.id = p.vacante_id
+       WHERE p.trabajador_id = ? AND p.estado = 'aceptada'
+         AND (p.asistencia_confirmada IS NULL OR p.asistencia_confirmada = 0)
+         AND v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
+       ORDER BY p.updated_at DESC LIMIT 1`,
+      [trabajadorId]
+    );
+    if (!rows || rows.length === 0) return { ok: false };
+    const post = rows[0];
+
+    await query('UPDATE postulaciones SET asistencia_confirmada = 1, asistencia_confirmada_at = NOW() WHERE id = ?', [post.id]);
+
+    const tRows = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [trabajadorId]).catch(() => []);
+    const nombreTrab = (tRows && tRows[0] && tRows[0].nombre_completo) || 'El trabajador';
+
+    // Avisar al empleador: in-app + WhatsApp (best-effort).
+    await crearNotificacion(
+      post.empleador_id, 'asistencia_confirmada', 'Asistencia confirmada',
+      `${nombreTrab} confirmó su asistencia para "${post.titulo}".`,
+      { vacante_id: post.vacante_id }
+    ).catch(() => {});
+    try {
+      const optin = await query('SELECT whatsapp_opt_in FROM usuarios WHERE id = ?', [post.empleador_id]);
+      if (optin && optin[0] && optin[0].whatsapp_opt_in) {
+        const destino = await whatsappService.mejorDestino(post.empleador_id);
+        if (destino) {
+          await whatsappService.enviarTexto(
+            destino,
+            `✅ *${nombreTrab}* confirmó su asistencia para tu vacante *${post.titulo}*. ¡Ya cuentas con él/ella! 🌱`,
+            { usuarioId: post.empleador_id }
+          );
+        }
+      }
+    } catch (_) {}
+
+    return { ok: true, titulo: post.titulo };
+  } catch (err) {
+    console.error('[PASO5] confirmarAsistenciaTrabajador:', err.message);
+    return { ok: false };
+  }
+}
+
 module.exports = {
   crearVacante, actualizarVacante, eliminarVacante, misVacantes, listarVacantes, detalleVacante,
   postularse, verPostulaciones, actualizarPostulacion, responderSolicitudContacto,
   misPostulaciones, cerrarVacante, subirFotosVacante, eliminarFotoVacante,
   ejecutarMatching, ejecutarMatchingEndpoint, ejecutarMatchingParaTrabajador,
-  perfilPublicoTrabajador, vacantesRecomendadas, responderOfertaTrabajador
+  perfilPublicoTrabajador, vacantesRecomendadas, responderOfertaTrabajador,
+  confirmarAsistenciaTrabajador
 };
