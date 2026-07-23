@@ -27,6 +27,9 @@ const PALABRAS_CLAVE = ['contraseña', 'contrasena', 'clave', 'password', 'olvid
 // Palabra que dispara el embudo del Cuaderno Digital (marketing/ventas).
 const PALABRAS_CUADERNO = ['cuaderno'];
 
+// Respuesta del empleador al seguimiento semanal: ya cubrió la vacante → dejar de recordarle.
+const PALABRAS_CONTRATE = ['contraté', 'contrate', 'ya contraté', 'ya contrate', 'conseguí', 'consegui', 'ya conseguí', 'ya consegui', 'ya la llené', 'ya la llene', 'ya contrate a alguien', 'ya la cubrí', 'ya la cubri'];
+
 // Pasos del flujo del empleador, en orden.
 const PASOS = ['finca', 'labor', 'cantidad', 'fecha', 'pago', 'descripcion', 'fotos', 'confirmar'];
 
@@ -390,6 +393,27 @@ async function registrarLeadCuaderno(usuario, telefono, tipo, detalle) {
   }
 }
 
+/**
+ * El empleador respondió "CONTRATÉ" al seguimiento semanal: detiene el recordatorio de su
+ * vacante activa más reciente que ya estaba en seguimiento. No toca `estado` (el job
+ * reactivarVacantes reabre las 'cerradas' al reiniciar), solo marca `whatsapp_seguimiento_detenido`.
+ * @returns {Promise<{ok:boolean, titulo?:string}>}
+ */
+async function detenerSeguimientoVacante(empleadorId) {
+  if (!empleadorId) return { ok: false };
+  const rows = await query(
+    `SELECT id, titulo FROM vacantes
+     WHERE empleador_id = ? AND estado = 'activa' AND (eliminado IS NULL OR eliminado = 0)
+       AND whatsapp_seguimiento_at IS NOT NULL
+       AND (whatsapp_seguimiento_detenido IS NULL OR whatsapp_seguimiento_detenido = 0)
+     ORDER BY whatsapp_seguimiento_at DESC LIMIT 1`,
+    [empleadorId]
+  ).catch(() => []);
+  if (!rows || !rows[0]) return { ok: false };
+  await query('UPDATE vacantes SET whatsapp_seguimiento_detenido = 1 WHERE id = ?', [rows[0].id]).catch(() => {});
+  return { ok: true, titulo: rows[0].titulo };
+}
+
 /** Busca un usuario empleador/admin por el celular que escribe (últimos 10 dígitos). */
 async function matchUsuarioPorCelular(textoNumero) {
   const ult10 = String(textoNumero || '').replace(/\D/g, '').slice(-10);
@@ -693,6 +717,16 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     const pareceClave = PALABRAS_CLAVE.some((p) => textoLower.includes(p));
     const pareceVerTrab = pareceVerTrabajadores(textoLower);
     const pareceCuaderno = PALABRAS_CUADERNO.some((p) => textoLower.includes(p));
+    const pareceContrate = PALABRAS_CONTRATE.some((p) => textoLower.includes(p));
+
+    // 0.5) Respuesta al seguimiento semanal: "CONTRATÉ" → dejar de recordar esa vacante (empleador).
+    if (esEmpleador && pareceContrate) {
+      const r = await detenerSeguimientoVacante(usuario.id);
+      if (r.ok) {
+        return { reply: `¡Felicidades! 🎉 No te recordaré más la vacante *${r.titulo}*. Gestiónala en la app cuando quieras 👉 ${LINK_APP}` };
+      }
+      return { reply: 'No tienes vacantes en seguimiento ahora mismo. Si necesitas gente escribe *Necesito trabajadores*, o *Ver trabajadores* para ver candidatos. 🌱' };
+    }
 
     // 1) Soporte tiene prioridad: cualquiera puede pedir ayuda humana.
     if (pareceSoporte) {
@@ -1100,6 +1134,7 @@ module.exports = {
   pareceVerTrabajadores,
   nombreCorto,
   registrarLeadCuaderno,
+  detenerSeguimientoVacante,
   limpiarRespuesta,
   FLUJO_EMPLEADOR,
   FLUJO_REGISTRO,

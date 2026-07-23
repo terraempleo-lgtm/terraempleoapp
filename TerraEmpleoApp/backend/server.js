@@ -160,8 +160,10 @@ async function reactivarVacantes() {
   }
 }
 
-// Seguimiento por WhatsApp a empleadores con vacantes activas (una vez por vacante,
-// tras ~2 días). Empuja a revisar postulados en la app. Solo a quienes dieron opt-in.
+// Seguimiento SEMANAL por WhatsApp a empleadores con vacantes activas: pregunta si ya
+// contrató a alguien. Recurrente cada 7 días, con tope de 4 recordatorios por vacante,
+// y se detiene si el empleador responde CONTRATÉ (whatsapp_seguimiento_detenido).
+// Solo a quienes dieron opt-in. El tick corre cada 24 h; la cadencia real la da la condición.
 async function seguimientoEmpleadores() {
   try {
     const vacs = await dbQuery(`
@@ -169,8 +171,12 @@ async function seguimientoEmpleadores() {
         (SELECT COUNT(*) FROM postulaciones p WHERE p.vacante_id = v.id) AS postulados
       FROM vacantes v
       WHERE v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
-        AND v.whatsapp_seguimiento_at IS NULL
-        AND v.created_at <= (NOW() - INTERVAL 2 DAY)
+        AND (v.whatsapp_seguimiento_detenido IS NULL OR v.whatsapp_seguimiento_detenido = 0)
+        AND (v.whatsapp_seguimiento_count IS NULL OR v.whatsapp_seguimiento_count < 4)
+        AND (
+          (v.whatsapp_seguimiento_at IS NULL AND v.created_at <= (NOW() - INTERVAL 2 DAY))
+          OR (v.whatsapp_seguimiento_at <= (NOW() - INTERVAL 7 DAY))
+        )
       LIMIT 20
     `).catch(() => []);
     if (!vacs || vacs.length === 0) return;
@@ -181,13 +187,22 @@ async function seguimientoEmpleadores() {
       if (u && u[0] && u[0].whatsapp_opt_in) {
         const destino = await wa.mejorDestino(v.empleador_id);
         if (destino) {
-          const txt = n > 0
-            ? `👋 Seguimiento de tu vacante *${v.titulo}*: ya tienes *${n}* postulado(s)/match(es). Entra a la app para revisarlos y contactarlos 👉 ${wa.linkVacante(v.id)}`
-            : `👋 Tu vacante *${v.titulo}* aún no tiene postulados. Puedes ajustar el pago o requisitos para atraer más gente. Edítala en la app 👉 ${wa.linkVacante(v.id)}`;
+          const candidatos = n > 0
+            ? `Ya tienes *${n}* candidato(s) esperando.`
+            : `Aún no tienes candidatos; ajusta el pago o requisitos en la app para atraer más gente.`;
+          const txt =
+            `👋 Seguimiento de tu vacante *${v.titulo}*.\n\n` +
+            `¿Ya *contrataste* a alguien para esta vacante?\n` +
+            `• Si ya la cubriste, responde *CONTRATÉ* y dejo de recordártelo.\n` +
+            `• Si sigues buscando, escribe *Ver trabajadores* para ver quién encaja. ${candidatos}\n\n` +
+            `👉 ${wa.linkVacante(v.id)}`;
           await wa.enviarTexto(destino, txt, { usuarioId: v.empleador_id }).catch(() => {});
         }
       }
-      await dbQuery('UPDATE vacantes SET whatsapp_seguimiento_at = NOW() WHERE id = ?', [v.id]).catch(() => {});
+      await dbQuery(
+        'UPDATE vacantes SET whatsapp_seguimiento_at = NOW(), whatsapp_seguimiento_count = COALESCE(whatsapp_seguimiento_count, 0) + 1 WHERE id = ?',
+        [v.id]
+      ).catch(() => {});
     }
     console.log(`[SEGUIMIENTO] ${vacs.length} vacante(s) procesada(s).`);
   } catch (err) {
