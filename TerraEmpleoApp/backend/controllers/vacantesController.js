@@ -1102,10 +1102,72 @@ async function vacantesRecomendadas(req, res) {
   }
 }
 
+/**
+ * PASO 4 — el trabajador respondió por WhatsApp a la oferta de una vacante (una postulación en
+ * estado `match_auto`, creada por ejecutarMatching). SÍ = aplica (match_auto→pendiente, igual que
+ * `postularse`) y se avisa al empleador; NO = rechazada. Reutilizable desde el bot.
+ * @param {number} trabajadorId
+ * @param {boolean} acepta  true = SÍ (aplica), false = NO
+ * @returns {Promise<{ok:boolean, acepta?:boolean, titulo?:string}>} ok=false si no hay oferta pendiente.
+ */
+async function responderOfertaTrabajador(trabajadorId, acepta) {
+  try {
+    // Oferta pendiente = la postulación `match_auto` más reciente aún sin responder.
+    const rows = await query(
+      `SELECT p.id, p.vacante_id, v.titulo, v.empleador_id
+       FROM postulaciones p
+       JOIN vacantes v ON v.id = p.vacante_id
+       WHERE p.trabajador_id = ? AND p.estado = 'match_auto'
+         AND v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
+       ORDER BY p.created_at DESC LIMIT 1`,
+      [trabajadorId]
+    );
+    if (!rows || rows.length === 0) return { ok: false };
+    const post = rows[0];
+
+    if (!acepta) {
+      await query("UPDATE postulaciones SET estado = 'rechazada' WHERE id = ?", [post.id]);
+      return { ok: true, acepta: false, titulo: post.titulo };
+    }
+
+    // SÍ → aplica (mismo modelo que `postularse`): match_auto → pendiente.
+    await query("UPDATE postulaciones SET estado = 'pendiente' WHERE id = ?", [post.id]);
+
+    const tRows = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [trabajadorId]).catch(() => []);
+    const nombreTrab = (tRows && tRows[0] && tRows[0].nombre_completo) || 'Un trabajador';
+
+    // Avisar al empleador: notificación in-app + WhatsApp (best-effort, si dio opt-in).
+    await crearNotificacion(
+      post.empleador_id, 'trabajador_interesado', 'Un trabajador está interesado',
+      `${nombreTrab} está interesado en tu vacante "${post.titulo}". Revísalo y acéptalo en la app.`,
+      { vacante_id: post.vacante_id }
+    ).catch(() => {});
+    try {
+      const optin = await query('SELECT whatsapp_opt_in FROM usuarios WHERE id = ?', [post.empleador_id]);
+      if (optin && optin[0] && optin[0].whatsapp_opt_in) {
+        const destino = await whatsappService.mejorDestino(post.empleador_id);
+        if (destino) {
+          await whatsappService.enviarTexto(
+            destino,
+            `🙋 *${nombreTrab}* está interesado en tu vacante *${post.titulo}*.\n\n` +
+            `Revísalo y acéptalo en la app 👉 ${whatsappService.linkVacante(post.vacante_id)}`,
+            { usuarioId: post.empleador_id }
+          );
+        }
+      }
+    } catch (_) {}
+
+    return { ok: true, acepta: true, titulo: post.titulo };
+  } catch (err) {
+    console.error('[PASO4] responderOfertaTrabajador:', err.message);
+    return { ok: false };
+  }
+}
+
 module.exports = {
   crearVacante, actualizarVacante, eliminarVacante, misVacantes, listarVacantes, detalleVacante,
   postularse, verPostulaciones, actualizarPostulacion, responderSolicitudContacto,
   misPostulaciones, cerrarVacante, subirFotosVacante, eliminarFotoVacante,
   ejecutarMatching, ejecutarMatchingEndpoint, ejecutarMatchingParaTrabajador,
-  perfilPublicoTrabajador, vacantesRecomendadas
+  perfilPublicoTrabajador, vacantesRecomendadas, responderOfertaTrabajador
 };

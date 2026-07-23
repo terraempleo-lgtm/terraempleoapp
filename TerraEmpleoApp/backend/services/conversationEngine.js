@@ -719,6 +719,30 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     const pareceCuaderno = PALABRAS_CUADERNO.some((p) => textoLower.includes(p));
     const pareceContrate = PALABRAS_CONTRATE.some((p) => textoLower.includes(p));
 
+    // 0.3) PASO 4 — el trabajador responde SÍ/NO a una oferta de vacante enviada por WhatsApp.
+    //       Va ANTES de soporte porque "no puedo" también es palabra de soporte; solo actúa si el
+    //       trabajador tiene una oferta pendiente (match_auto). Match exacto normalizado (sin acentos).
+    if (usuario && usuario.rol === 'trabajador') {
+      const limpio = textoLower.normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const SI_OFERTA = ['si', 'sisi', 'si quiero', 'si acepto', 'acepto', 'dale', 'listo', 'voy', 'claro', 'ok', 'okay', 'vale', 'quiero', 'me interesa', '1'];
+      const NO_OFERTA = ['no', 'nel', 'paso', 'no puedo', 'no me interesa', 'no gracias', 'no voy', '2'];
+      const afirmativo = SI_OFERTA.includes(limpio);
+      const negativo = NO_OFERTA.includes(limpio);
+      if (afirmativo || negativo) {
+        const { responderOfertaTrabajador } = require('../controllers/vacantesController');
+        const r = await responderOfertaTrabajador(usuario.id, afirmativo).catch(() => ({ ok: false }));
+        if (r && r.ok) {
+          return {
+            reply: r.acepta
+              ? `✅ ¡Listo! Enviamos tu interés en *${r.titulo}* al empleador. Si te acepta, te avisamos por aquí para coordinar. 🌱`
+              : `Entendido 👍 No te postulamos a *${r.titulo}*. Te seguimos avisando de otras oportunidades cerca de ti.`,
+          };
+        }
+        // Sin oferta pendiente → sigue el flujo normal (soporte, saludo, fallback...).
+      }
+    }
+
     // 0.5) Respuesta al seguimiento semanal: "CONTRATÉ" → dejar de recordar esa vacante (empleador).
     if (esEmpleador && pareceContrate) {
       const r = await detenerSeguimientoVacante(usuario.id);
@@ -811,7 +835,7 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
       if (upper === '2') {
         return { reply: pick(['Entendido, no te postulamos a esa vacante. Te avisaremos cuando haya otra que encaje. 👍', 'Listo 👍 No te postulamos a esa. Te aviso cuando salga otra para ti.']) };
       }
-      // No encajó en nada: que Haiku ayude o escale (degrada a menú variado).
+      // No encajó en nada: que la IA ayude o escale (degrada a menú variado).
       return { reply: await fallbackInteligente({ usuario, telefono, comando, esTrabajador: true }) };
     }
 

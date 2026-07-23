@@ -254,9 +254,12 @@ async function enviarVacanteAMatch(trabajadorId, vacante, puntaje) {
     const nombre = (u.nombre_completo || '').split(' ')[0] || '';
 
     const texto =
-      `Hola ${nombre} 👋, encontramos un trabajo que encaja con tu perfil:\n\n` +
+      `Hola ${nombre} 👋, ¡hay un trabajo que encaja con tu perfil!\n\n` +
       `🌱 *${vacante.titulo}*\n📍 ${lugar}${pago}\n\n` +
-      `👉 Postúlate en la app: ${linkVacante(vacante.id)}\n` +
+      `¿Te interesa?\n` +
+      `• Responde *SÍ* para aplicar ✅\n` +
+      `• Responde *NO* si no puedes\n\n` +
+      `Más detalles en la app 👉 ${linkVacante(vacante.id)}\n` +
       `(Responde *SALIR* para no recibir más mensajes.)`;
 
     return await enviarTexto(destino, texto, { usuarioId: trabajadorId });
