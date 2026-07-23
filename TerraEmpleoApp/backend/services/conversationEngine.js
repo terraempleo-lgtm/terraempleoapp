@@ -19,9 +19,13 @@ const FLUJO_SOPORTE = 'soporte';
 const FLUJO_IDENT = 'identificacion';
 const FLUJO_REGISTRO = 'registro';
 const FLUJO_CLAVE = 'clave';
+const FLUJO_CUADERNO = 'cuaderno'; // embudo de venta del Cuaderno Digital (info → DEMO/PRECIO → ACTIVAR)
 
 // Palabras para crear/cambiar contraseña.
 const PALABRAS_CLAVE = ['contraseña', 'contrasena', 'clave', 'password', 'olvidé mi contraseña', 'olvide mi contraseña', 'no tengo contraseña', 'no tengo clave', 'crear contraseña', 'cambiar contraseña', 'cambiar clave'];
+
+// Palabra que dispara el embudo del Cuaderno Digital (marketing/ventas).
+const PALABRAS_CUADERNO = ['cuaderno'];
 
 // Pasos del flujo del empleador, en orden.
 const PASOS = ['finca', 'labor', 'cantidad', 'fecha', 'pago', 'descripcion', 'fotos', 'confirmar'];
@@ -30,6 +34,34 @@ const PASOS = ['finca', 'labor', 'cantidad', 'fecha', 'pago', 'descripcion', 'fo
 const LINK_VACANTE = 'https://app.terrampleo.com/app/vacantes/';
 const LINK_APP = 'https://www.terraempleo.com.co';
 const LINK_HABEAS = 'https://app.terrampleo.com/privacidad.html';
+
+// ── Copia del embudo del Cuaderno Digital (texto literal aprobado por el equipo) ──
+const CUADERNO_INFO =
+  'Hola 👋 El *Cuaderno Digital de TerraEmpleo* le permite llevar el control completo de su personal y ' +
+  'sus finanzas desde el celular, sin papeles ni Excel. Con el Cuaderno usted puede:\n\n' +
+  '• Registrar quién trabajó cada día, en qué lote y qué labor hizo\n' +
+  '• Anotar cuántos kilos recolectó cada trabajador\n' +
+  '• Ver cuánto le debe pagar a cada uno al final de la semana\n' +
+  '• Generar la nómina automáticamente con espacio para firma digital\n' +
+  '• Subir su planilla física con una foto y el sistema lee los datos solo\n' +
+  '• Registrar gastos e ingresos de la finca en un solo lugar\n' +
+  '• Ver un tablero de análisis: costos por kilo, rentabilidad por cultivo, rendimiento por trabajador y más\n\n' +
+  '¿Quiere que le mostremos cómo funciona? Escriba *DEMO* para agendar una visita o *PRECIO* para conocer los planes.';
+
+const CUADERNO_DEMO =
+  'Perfecto. Uno de nuestros asesores lo llama para agendar una demostración en su finca sin costo. ' +
+  '¿Cuál es el mejor horario para llamarle?';
+
+const CUADERNO_PRECIO =
+  'Tenemos dos planes:\n\n' +
+  '*Plan Conexión — Gratis*\nPublique vacantes, reciba trabajadores verificados y chatee directo con ellos.\n\n' +
+  '*Plan Control — $85.000 al mes*\nTodo lo anterior más el Cuaderno Digital completo: registro de kilos, ' +
+  'nómina automática, score de trabajadores y recontratación en un clic.\n\n' +
+  '¿Le interesa activar el *Plan Control*? Escriba *ACTIVAR* y lo ayudamos a empezar hoy.';
+
+const CUADERNO_ACTIVAR =
+  'Excelente. En menos de 10 minutos tiene el Cuaderno activo en su finca. Lo llamamos ahora para ' +
+  'ayudarle a configurarlo. ¿A qué número lo contactamos?';
 
 // Palabras que disparan el flujo de soporte (atención humana).
 const PALABRAS_SOPORTE = [
@@ -165,7 +197,7 @@ function bienvenidaPersonal(usuario) {
   const n = usuario && usuario.nombre_completo ? ' ' + usuario.nombre_completo.split(' ')[0] : '';
   const s = pick([`¡Hola${n}! 👋`, `¡Buenas${n}! 🌱`, `¡Qué más${n}! 👋`, `¡Hola${n}! 🙌`]);
   if (usuario && (usuario.rol === 'empleador' || usuario.rol === 'admin')) {
-    return `${s} Soy el asistente de TerraEmpleo. Para publicar una vacante escribe *Necesito trabajadores*, o *Ver trabajadores* para ver quién encaja con tu perfil. ¿En qué te ayudo?`;
+    return `${s} Soy el asistente de TerraEmpleo. Para publicar una vacante escribe *Necesito trabajadores*, *Ver trabajadores* para ver quién encaja con tu perfil, o *CUADERNO* para conocer el Cuaderno Digital. ¿En qué te ayudo?`;
   }
   if (usuario && usuario.rol === 'trabajador') {
     return `${s} Soy el asistente de TerraEmpleo. Escribe *OFERTAS* para ver los trabajos disponibles. ¿En qué te ayudo?`;
@@ -323,6 +355,38 @@ async function escalarSoporte(usuario, telefono, descripcion) {
     }
   } catch (err) {
     console.error('[WhatsApp] escalarSoporte:', err.message);
+  }
+}
+
+/**
+ * Registra un lead del Cuaderno Digital (embudo CUADERNO) y avisa a los admins para que
+ * el equipo llame. Reutiliza el patrón de escalarSoporte (crearNotificacion a admins).
+ * @param {object|null} usuario  fila de usuarios (si se reconoce)
+ * @param {string} telefono      número del que escribe
+ * @param {'demo'|'activar'} tipo intención del lead
+ * @param {string} detalle       horario (demo) o número de contacto (activar)
+ */
+async function registrarLeadCuaderno(usuario, telefono, tipo, detalle) {
+  try {
+    const { crearNotificacion } = require('../controllers/notificacionesController');
+    const admins = await query(
+      `SELECT id FROM usuarios WHERE rol = 'admin' AND activo = 1`
+    ).catch(() => []);
+    const quien = usuario ? (usuario.nombre_completo || telefono) : telefono;
+    const titulo = tipo === 'activar' ? 'Lead Cuaderno: ACTIVAR' : 'Lead Cuaderno: DEMO';
+    const cuerpo = tipo === 'activar'
+      ? `${quien} (${telefono}) quiere ACTIVAR el Plan Control. Contactar al: ${detalle}`
+      : `${quien} (${telefono}) pidió una DEMO del Cuaderno. Horario preferido: ${detalle}`;
+    for (const a of (admins || [])) {
+      crearNotificacion(a.id, 'lead_cuaderno', titulo, cuerpo, { telefono, tipo, detalle }).catch(() => {});
+    }
+    // Bitácora reutilizando whatsapp_preguntas (para que quede registro consultable).
+    await query(
+      'INSERT INTO whatsapp_preguntas (telefono, usuario_id, texto, accion) VALUES (?, ?, ?, ?)',
+      [telefono, usuario ? usuario.id : null, `[${titulo}] ${detalle}`, `lead_${tipo}`]
+    ).catch(() => {});
+  } catch (err) {
+    console.error('[WhatsApp] registrarLeadCuaderno:', err.message);
   }
 }
 
@@ -628,11 +692,19 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     const pareceSaludo = PALABRAS_SALUDO.some((p) => textoLower === p || textoLower.startsWith(p + ' ') || textoLower.startsWith(p + ','));
     const pareceClave = PALABRAS_CLAVE.some((p) => textoLower.includes(p));
     const pareceVerTrab = pareceVerTrabajadores(textoLower);
+    const pareceCuaderno = PALABRAS_CUADERNO.some((p) => textoLower.includes(p));
 
     // 1) Soporte tiene prioridad: cualquiera puede pedir ayuda humana.
     if (pareceSoporte) {
       const id = await crearConversacion(telefono, usuario ? usuario.id : null, FLUJO_SOPORTE, 'describir');
       return { reply: soporteIntro(), conversacionId: id };
+    }
+
+    // 1.55) Embudo del Cuaderno Digital (venta del Plan Control). Disponible a cualquiera.
+    //       DEMO/PRECIO/ACTIVAR se manejan DENTRO del flujo (no como comandos globales).
+    if (pareceCuaderno) {
+      const id = await crearConversacion(telefono, usuario ? usuario.id : null, FLUJO_CUADERNO, 'menu');
+      return { reply: CUADERNO_INFO, conversacionId: id };
     }
 
     // 1.6) Ver trabajadores disponibles (empleador): top match 40%+, contacto en la app.
@@ -963,6 +1035,57 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     return { reply: soporteCierre(), conversacionId: conv.id };
   }
 
+  // ── Conversación activa: embudo del Cuaderno Digital ─────────────────────
+  if (conv.flujo === FLUJO_CUADERNO) {
+    const quiereDemo = upper.includes('DEMO');
+    const quierePrecio = upper.includes('PRECIO') || upper.includes('PLAN') || upper.includes('PLANES') || upper.includes('COSTO') || upper.includes('CUANTO') || upper.includes('CUÁNTO');
+    const quiereActivar = upper.includes('ACTIVAR');
+
+    switch (conv.paso) {
+      case 'menu':
+        if (quiereDemo) {
+          await actualizarConversacion(conv.id, { paso: 'demo_horario' });
+          return { reply: CUADERNO_DEMO, conversacionId: conv.id };
+        }
+        if (quierePrecio) {
+          await actualizarConversacion(conv.id, { paso: 'precio' });
+          return { reply: CUADERNO_PRECIO, conversacionId: conv.id };
+        }
+        return { reply: '¿Le muestro cómo funciona? Escriba *DEMO* para agendar una visita o *PRECIO* para conocer los planes. 🌱', conversacionId: conv.id };
+
+      case 'precio':
+        if (quiereActivar) {
+          await actualizarConversacion(conv.id, { paso: 'activar_numero' });
+          return { reply: CUADERNO_ACTIVAR, conversacionId: conv.id };
+        }
+        if (quiereDemo) {
+          await actualizarConversacion(conv.id, { paso: 'demo_horario' });
+          return { reply: CUADERNO_DEMO, conversacionId: conv.id };
+        }
+        return { reply: 'Para empezar hoy con el *Plan Control* escriba *ACTIVAR*, o *DEMO* si prefiere una demostración primero. 🌱', conversacionId: conv.id };
+
+      case 'demo_horario':
+        await registrarLeadCuaderno(usuario, telefono, 'demo', comando);
+        await actualizarConversacion(conv.id, { estado: 'completada' });
+        return {
+          reply: '¡Listo! ✅ Un asesor lo contactará en ese horario para la demostración. Gracias por su interés 🌱',
+          conversacionId: conv.id,
+        };
+
+      case 'activar_numero':
+        await registrarLeadCuaderno(usuario, telefono, 'activar', comando);
+        await actualizarConversacion(conv.id, { estado: 'completada' });
+        return {
+          reply: '¡Perfecto! ✅ Lo llamamos a ese número para activar su Cuaderno. Bienvenido a TerraEmpleo 🌱',
+          conversacionId: conv.id,
+        };
+
+      default:
+        await actualizarConversacion(conv.id, { estado: 'completada' });
+        return { reply: CUADERNO_INFO, conversacionId: conv.id };
+    }
+  }
+
   return { reply: null };
 }
 
@@ -976,9 +1099,15 @@ module.exports = {
   enviarTrabajadores,
   pareceVerTrabajadores,
   nombreCorto,
+  registrarLeadCuaderno,
   limpiarRespuesta,
   FLUJO_EMPLEADOR,
   FLUJO_REGISTRO,
   FLUJO_CLAVE,
+  FLUJO_CUADERNO,
+  CUADERNO_INFO,
+  CUADERNO_DEMO,
+  CUADERNO_PRECIO,
+  CUADERNO_ACTIVAR,
   PASOS,
 };
