@@ -268,11 +268,22 @@ async function enviarVacanteAMatch(trabajadorId, vacante, puntaje) {
     const lugar = [vacante.municipio, vacante.departamento].filter(Boolean).join(', ') || 'tu zona';
     const pago = vacante.monto_pago ? `\n💵 Pago: $${Number(vacante.monto_pago).toLocaleString('es-CO')}` : '';
     const cuando = formatCuando(vacante.fecha_jornada, vacante.hora_jornada);
+    // Cupos disponibles (si la vacante tiene cupos definidos).
+    let cuposLinea = '';
+    if (vacante.cupos != null) {
+      const oc = await query(
+        `SELECT COUNT(*) AS n FROM postulaciones WHERE vacante_id = ? AND estado = 'aceptada'
+           AND (no_asistira IS NULL OR no_asistira = 0) AND (en_lista_espera IS NULL OR en_lista_espera = 0)`,
+        [vacante.id]
+      ).catch(() => []);
+      const disp = Math.max(0, Number(vacante.cupos) - Number((oc && oc[0] && oc[0].n) || 0));
+      cuposLinea = `\n👥 Cupos disponibles: ${disp}`;
+    }
     const nombre = (u.nombre_completo || '').split(' ')[0] || '';
 
     const texto =
       `Hola ${nombre} 👋, ¡hay un trabajo que encaja con tu perfil!\n\n` +
-      `🌱 *${vacante.titulo}*\n📍 ${lugar}${cuando}${pago}\n\n` +
+      `🌱 *${vacante.titulo}*\n📍 ${lugar}${cuando}${pago}${cuposLinea}\n\n` +
       `¿Te interesa?\n` +
       `• Responde *SÍ* para aplicar ✅\n` +
       `• Responde *NO* si no puedes\n\n` +

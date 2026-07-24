@@ -495,6 +495,8 @@ async function actualizarPostulacion(req, res) {
         } catch (_) {}
       } else {
         await crearNotificacion(trabajador_id, 'rechazado', 'Postulación rechazada', `Tu postulación a "${titulo}" no fue seleccionada en esta ocasión.`, { vacante_id });
+        // El empleador rechazó → si liberó un cupo, ofrecerlo al siguiente en lista de espera.
+        await promoverListaEspera(vacante_id).catch(() => {});
       }
     }
 
@@ -1129,19 +1131,133 @@ async function vacantesRecomendadas(req, res) {
   }
 }
 
+/** Cupos ya reservados de una vacante (aceptada, sin no-show, no en lista de espera). */
+async function contarCuposOcupados(vacanteId) {
+  const r = await query(
+    `SELECT COUNT(*) AS n FROM postulaciones
+     WHERE vacante_id = ? AND estado = 'aceptada'
+       AND (no_asistira IS NULL OR no_asistira = 0)
+       AND (en_lista_espera IS NULL OR en_lista_espera = 0)`,
+    [vacanteId]
+  ).catch(() => []);
+  return Number((r && r[0] && r[0].n) || 0);
+}
+
+/** Texto de confirmación de cupo (PASO 5) para un trabajador y vacante. '' si falta info. */
+async function textoConfirmacionCupo(vacanteId, primerNombre) {
+  const vs = await query(
+    'SELECT titulo, municipio, departamento, vereda, monto_pago, fecha_jornada, hora_jornada FROM vacantes WHERE id = ?',
+    [vacanteId]
+  ).catch(() => []);
+  const v = vs && vs[0];
+  if (!v) return '';
+  const lugar = [v.vereda, v.municipio, v.departamento].filter(Boolean).join(', ') || 'la finca';
+  const pago = v.monto_pago ? `\n💰 Pago: $${Number(v.monto_pago).toLocaleString('es-CO')}` : '';
+  const cuando = whatsappService.formatCuando(v.fecha_jornada, v.hora_jornada);
+  return (
+    `🎉 *¡Quedaste confirmado${primerNombre ? ', ' + primerNombre : ''}!* Tu cupo está asegurado en:\n` +
+    `🌱 *${v.titulo}*\n📍 ${lugar}${cuando}${pago}\n\n` +
+    `📌 Llega puntual. Si no puedes ir, avísanos con tiempo.\n` +
+    `Responde *CONFIRMO* para que el capataz te tenga en su lista. ✅`
+  );
+}
+
+/** Envía (async, best-effort) la confirmación de cupo al trabajador por WhatsApp. */
+async function enviarConfirmacionCupo(trabajadorId, vacanteId) {
+  try {
+    const t = await query('SELECT nombre_completo, whatsapp_opt_in FROM usuarios WHERE id = ?', [trabajadorId]);
+    if (!t || !t[0] || !t[0].whatsapp_opt_in) return;
+    const destino = await whatsappService.mejorDestino(trabajadorId);
+    if (!destino) return;
+    const nombre = (t[0].nombre_completo || '').split(' ')[0] || '';
+    const txt = await textoConfirmacionCupo(vacanteId, nombre);
+    if (txt) await whatsappService.enviarTexto(destino, txt, { usuarioId: trabajadorId });
+  } catch (e) { console.error('[cupo] enviarConfirmacionCupo:', e.message); }
+}
+
+/** Avisa al empleador (in-app + WhatsApp) que hay un nuevo postulante (confirmado o en espera). */
+async function avisarEmpleadorPostulante(empleadorId, nombreTrab, titulo, vacanteId, enEspera) {
+  const cuerpo = enEspera
+    ? `${nombreTrab} aplicó a "${titulo}" y quedó en lista de espera (cupos llenos).`
+    : `${nombreTrab} aplicó y quedó confirmado para "${titulo}".`;
+  await crearNotificacion(empleadorId, 'trabajador_interesado', 'Nuevo postulante', cuerpo, { vacante_id: vacanteId }).catch(() => {});
+  try {
+    const optin = await query('SELECT whatsapp_opt_in FROM usuarios WHERE id = ?', [empleadorId]);
+    if (optin && optin[0] && optin[0].whatsapp_opt_in) {
+      const destino = await whatsappService.mejorDestino(empleadorId);
+      if (destino) {
+        await whatsappService.enviarTexto(
+          destino,
+          (enEspera
+            ? `🙋 *${nombreTrab}* aplicó a tu vacante *${titulo}* y quedó en *lista de espera* (cupos llenos).`
+            : `✅ *${nombreTrab}* aplicó y quedó *confirmado* para tu vacante *${titulo}*.`) +
+          `\nMíralo en la app 👉 ${whatsappService.linkVacante(vacanteId)}`,
+          { usuarioId: empleadorId }
+        );
+      }
+    }
+  } catch (_) {}
+}
+
 /**
- * PASO 4 — el trabajador respondió por WhatsApp a la oferta de una vacante (una postulación en
- * estado `match_auto`, creada por ejecutarMatching). SÍ = aplica (match_auto→pendiente, igual que
- * `postularse`) y se avisa al empleador; NO = rechazada. Reutilizable desde el bot.
- * @param {number} trabajadorId
- * @param {boolean} acepta  true = SÍ (aplica), false = NO
- * @returns {Promise<{ok:boolean, acepta?:boolean, titulo?:string}>} ok=false si no hay oferta pendiente.
+ * Promueve la lista de espera de una vacante cuando se libera un cupo: si hay cupo libre y un
+ * waitlister sin oferta activa, le ofrece el cupo (ventana de 30 min) con ACEPTO/NO.
+ */
+async function promoverListaEspera(vacanteId) {
+  try {
+    const vs = await query('SELECT cupos FROM vacantes WHERE id = ?', [vacanteId]).catch(() => []);
+    const cupos = vs && vs[0] ? vs[0].cupos : null;
+    if (cupos == null) return; // sin límite de cupos → no hay lista de espera
+    const ocupados = await contarCuposOcupados(vacanteId);
+    if (ocupados >= Number(cupos)) return; // no hay cupo libre
+    // ¿ya hay una oferta de cupo activa? (para no ofrecer a dos a la vez)
+    const activa = await query(
+      "SELECT id FROM postulaciones WHERE vacante_id = ? AND en_lista_espera = 1 AND espera_ofrecida_at IS NOT NULL LIMIT 1",
+      [vacanteId]
+    ).catch(() => []);
+    if (activa && activa.length) return;
+    // siguiente en espera sin oferta
+    const sig = await query(
+      `SELECT p.id, p.trabajador_id, v.titulo, v.municipio, v.departamento
+       FROM postulaciones p JOIN vacantes v ON v.id = p.vacante_id
+       WHERE p.vacante_id = ? AND p.en_lista_espera = 1 AND p.espera_ofrecida_at IS NULL
+         AND (p.no_asistira IS NULL OR p.no_asistira = 0)
+       ORDER BY p.created_at ASC LIMIT 1`,
+      [vacanteId]
+    ).catch(() => []);
+    if (!sig || !sig.length) return;
+    const s = sig[0];
+    await query('UPDATE postulaciones SET espera_ofrecida_at = NOW() WHERE id = ?', [s.id]);
+    const t = await query('SELECT nombre_completo, whatsapp_opt_in FROM usuarios WHERE id = ?', [s.trabajador_id]).catch(() => []);
+    if (t && t[0] && t[0].whatsapp_opt_in) {
+      const destino = await whatsappService.mejorDestino(s.trabajador_id);
+      if (destino) {
+        const nombre = (t[0].nombre_completo || '').split(' ')[0] || '';
+        const lugar = [s.municipio, s.departamento].filter(Boolean).join(', ') || '';
+        await whatsappService.enviarTexto(
+          destino,
+          `🔔 *¡Se liberó un cupo${nombre ? ', ' + nombre : ''}!*\n` +
+          `Hay un cupo disponible en *${s.titulo}*${lugar ? ` (${lugar})` : ''}.\n\n` +
+          `¿Puedes ir? Tienes *30 minutos* para responder:\n• Escribe *ACEPTO* para confirmar\n• Escribe *NO* si no puedes.`,
+          { usuarioId: s.trabajador_id }
+        );
+      }
+    }
+  } catch (err) {
+    console.error('[cupo] promoverListaEspera:', err.message);
+  }
+}
+
+/**
+ * PASO 4 / Disparador 2 — el trabajador respondió a la oferta (postulación `match_auto`).
+ * SÍ → si hay cupo se AUTO-CONFIRMA (reserva + manda confirmación PASO 5); si no, lista de espera.
+ * NO → rechazada. Reutilizable desde el bot. Devuelve `replyText` para que el bot lo muestre.
+ * @returns {Promise<{ok:boolean, replyText?:string}>} ok=false si no hay oferta pendiente.
  */
 async function responderOfertaTrabajador(trabajadorId, acepta) {
   try {
-    // Oferta pendiente = la postulación `match_auto` más reciente aún sin responder.
     const rows = await query(
-      `SELECT p.id, p.vacante_id, v.titulo, v.empleador_id
+      `SELECT p.id, p.vacante_id, v.titulo, v.empleador_id, v.cupos
        FROM postulaciones p
        JOIN vacantes v ON v.id = p.vacante_id
        WHERE p.trabajador_id = ? AND p.estado = 'match_auto'
@@ -1154,39 +1270,91 @@ async function responderOfertaTrabajador(trabajadorId, acepta) {
 
     if (!acepta) {
       await query("UPDATE postulaciones SET estado = 'rechazada' WHERE id = ?", [post.id]);
-      return { ok: true, acepta: false, titulo: post.titulo };
+      return { ok: true, replyText: `Entendido 👍 No te postulamos a *${post.titulo}*. Te seguimos avisando de otras oportunidades cerca de ti.` };
     }
-
-    // SÍ → aplica (mismo modelo que `postularse`): match_auto → pendiente.
-    await query("UPDATE postulaciones SET estado = 'pendiente' WHERE id = ?", [post.id]);
 
     const tRows = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [trabajadorId]).catch(() => []);
     const nombreTrab = (tRows && tRows[0] && tRows[0].nombre_completo) || 'Un trabajador';
+    const primerNombre = nombreTrab.split(' ')[0] || '';
 
-    // Avisar al empleador: notificación in-app + WhatsApp (best-effort, si dio opt-in).
-    await crearNotificacion(
-      post.empleador_id, 'trabajador_interesado', 'Un trabajador está interesado',
-      `${nombreTrab} está interesado en tu vacante "${post.titulo}". Revísalo y acéptalo en la app.`,
-      { vacante_id: post.vacante_id }
-    ).catch(() => {});
-    try {
-      const optin = await query('SELECT whatsapp_opt_in FROM usuarios WHERE id = ?', [post.empleador_id]);
-      if (optin && optin[0] && optin[0].whatsapp_opt_in) {
-        const destino = await whatsappService.mejorDestino(post.empleador_id);
-        if (destino) {
-          await whatsappService.enviarTexto(
-            destino,
-            `🙋 *${nombreTrab}* está interesado en tu vacante *${post.titulo}*.\n\n` +
-            `Revísalo y acéptalo en la app 👉 ${whatsappService.linkVacante(post.vacante_id)}`,
-            { usuarioId: post.empleador_id }
-          );
-        }
-      }
-    } catch (_) {}
+    const ocupados = await contarCuposOcupados(post.vacante_id);
+    const hayCupo = post.cupos == null || ocupados < Number(post.cupos);
 
-    return { ok: true, acepta: true, titulo: post.titulo };
+    if (hayCupo) {
+      // Auto-confirmar: reserva el cupo (aceptada) y avisa al empleador. El texto de confirmación
+      // (PASO 5, con detalles y CONFIRMO) se devuelve como reply del bot (un solo mensaje).
+      await query("UPDATE postulaciones SET estado = 'aceptada', en_lista_espera = 0 WHERE id = ?", [post.id]);
+      await avisarEmpleadorPostulante(post.empleador_id, nombreTrab, post.titulo, post.vacante_id, false);
+      const txt = await textoConfirmacionCupo(post.vacante_id, primerNombre);
+      return { ok: true, replyText: txt || `✅ ¡Quedaste confirmado para *${post.titulo}*! Responde *CONFIRMO* para asegurar tu cupo.` };
+    }
+
+    // Sin cupo → lista de espera.
+    await query("UPDATE postulaciones SET estado = 'pendiente', en_lista_espera = 1 WHERE id = ?", [post.id]);
+    await avisarEmpleadorPostulante(post.empleador_id, nombreTrab, post.titulo, post.vacante_id, true);
+    return {
+      ok: true,
+      replyText:
+        `⏳ *Estás en lista de espera* para *${post.titulo}*.\n\n` +
+        `Los cupos están llenos por ahora, pero si alguien cancela te avisamos de inmediato. 🌱`,
+    };
   } catch (err) {
     console.error('[PASO4] responderOfertaTrabajador:', err.message);
+    return { ok: false };
+  }
+}
+
+/**
+ * El trabajador respondió *ACEPTO* a un cupo liberado (ventana de 30 min). Si aún hay cupo, confirma.
+ * @returns {Promise<{ok:boolean, replyText?:string}>} ok=false si no tenía una oferta de cupo activa.
+ */
+async function aceptarCupoLiberado(trabajadorId) {
+  try {
+    const rows = await query(
+      `SELECT p.id, p.vacante_id, v.titulo, v.empleador_id, v.cupos
+       FROM postulaciones p JOIN vacantes v ON v.id = p.vacante_id
+       WHERE p.trabajador_id = ? AND p.en_lista_espera = 1 AND p.espera_ofrecida_at IS NOT NULL
+         AND p.espera_ofrecida_at >= (NOW() - INTERVAL 30 MINUTE)
+         AND v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
+       ORDER BY p.espera_ofrecida_at DESC LIMIT 1`,
+      [trabajadorId]
+    );
+    if (!rows || rows.length === 0) return { ok: false };
+    const post = rows[0];
+    const ocupados = await contarCuposOcupados(post.vacante_id);
+    if (post.cupos != null && ocupados >= Number(post.cupos)) {
+      await query('UPDATE postulaciones SET espera_ofrecida_at = NULL WHERE id = ?', [post.id]);
+      return { ok: true, replyText: 'Uy, ese cupo ya se ocupó 🙏. Sigues en la lista y te avisamos si se libera otro.' };
+    }
+    await query("UPDATE postulaciones SET estado = 'aceptada', en_lista_espera = 0, espera_ofrecida_at = NULL WHERE id = ?", [post.id]);
+    const tRows = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [trabajadorId]).catch(() => []);
+    const nombreTrab = (tRows && tRows[0] && tRows[0].nombre_completo) || 'Un trabajador';
+    await avisarEmpleadorPostulante(post.empleador_id, nombreTrab, post.titulo, post.vacante_id, false);
+    const txt = await textoConfirmacionCupo(post.vacante_id, nombreTrab.split(' ')[0] || '');
+    return { ok: true, replyText: txt || `✅ ¡Quedaste confirmado para *${post.titulo}*! Responde *CONFIRMO*.` };
+  } catch (err) {
+    console.error('[cupo] aceptarCupoLiberado:', err.message);
+    return { ok: false };
+  }
+}
+
+/** El trabajador declinó (NO) un cupo liberado: sale de la lista y se promueve al siguiente. */
+async function declinarCupoLiberado(trabajadorId) {
+  try {
+    const rows = await query(
+      `SELECT id, vacante_id FROM postulaciones
+       WHERE trabajador_id = ? AND en_lista_espera = 1 AND espera_ofrecida_at IS NOT NULL
+         AND espera_ofrecida_at >= (NOW() - INTERVAL 30 MINUTE)
+       ORDER BY espera_ofrecida_at DESC LIMIT 1`,
+      [trabajadorId]
+    );
+    if (!rows || rows.length === 0) return { ok: false };
+    const post = rows[0];
+    await query('UPDATE postulaciones SET en_lista_espera = 0, espera_ofrecida_at = NULL WHERE id = ?', [post.id]);
+    await promoverListaEspera(post.vacante_id);
+    return { ok: true, replyText: 'Entendido 👍 Te sacamos de la lista de espera de esa vacante. Te seguimos avisando de otras oportunidades.' };
+  } catch (err) {
+    console.error('[cupo] declinarCupoLiberado:', err.message);
     return { ok: false };
   }
 }
@@ -1291,6 +1459,9 @@ async function marcarNoAsiste(trabajadorId) {
       }
     } catch (_) {}
 
+    // Se liberó un cupo → ofrecer al siguiente en lista de espera (best-effort).
+    await promoverListaEspera(post.vacante_id).catch(() => {});
+
     return { ok: true, titulo: post.titulo };
   } catch (err) {
     console.error('[PASO5] marcarNoAsiste:', err.message);
@@ -1304,5 +1475,5 @@ module.exports = {
   misPostulaciones, cerrarVacante, subirFotosVacante, eliminarFotoVacante,
   ejecutarMatching, ejecutarMatchingEndpoint, ejecutarMatchingParaTrabajador,
   perfilPublicoTrabajador, vacantesRecomendadas, responderOfertaTrabajador,
-  confirmarAsistenciaTrabajador, marcarNoAsiste
+  confirmarAsistenciaTrabajador, marcarNoAsiste, aceptarCupoLiberado, declinarCupoLiberado
 };

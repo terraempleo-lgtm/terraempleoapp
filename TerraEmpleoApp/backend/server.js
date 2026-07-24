@@ -258,6 +258,32 @@ async function recordatorioAsistencia() {
   }
 }
 
+// Barrido de la lista de espera: caduca las ofertas de cupo liberado que superaron la ventana
+// de 30 min sin respuesta (el trabajador pierde el turno) y promueve al siguiente en la lista.
+async function barrerListaEspera() {
+  try {
+    const vencidas = await dbQuery(`
+      SELECT id, vacante_id FROM postulaciones
+      WHERE en_lista_espera = 1 AND espera_ofrecida_at IS NOT NULL
+        AND espera_ofrecida_at < (NOW() - INTERVAL 30 MINUTE)
+      LIMIT 50
+    `).catch(() => []);
+    if (!vencidas || vencidas.length === 0) return;
+    const { promoverListaEspera } = require('./controllers/vacantesController');
+    const vacantes = new Set();
+    for (const v of vencidas) {
+      await dbQuery('UPDATE postulaciones SET en_lista_espera = 0, espera_ofrecida_at = NULL WHERE id = ?', [v.id]).catch(() => {});
+      vacantes.add(v.vacante_id);
+    }
+    for (const vacanteId of vacantes) {
+      await promoverListaEspera(vacanteId).catch(() => {});
+    }
+    console.log(`[LISTA_ESPERA] ${vencidas.length} oferta(s) vencida(s) barrida(s).`);
+  } catch (err) {
+    console.error('[LISTA_ESPERA] error:', err.message);
+  }
+}
+
 // Validar variables de entorno críticas al arrancar
 function validateEnv() {
   const required = ['JWT_SECRET', 'COGNITO_REGION', 'COGNITO_USER_POOL_ID', 'COGNITO_CLIENT_ID'];
@@ -299,6 +325,9 @@ async function startServer() {
   // (solo actúa en la franja de la mañana Colombia).
   setTimeout(() => recordatorioAsistencia(), 3 * 60 * 1000);
   setInterval(() => recordatorioAsistencia(), 60 * 60 * 1000);
+
+  // Barrido de la lista de espera (ofertas de cupo vencidas): cada 10 min.
+  setInterval(() => barrerListaEspera(), 10 * 60 * 1000);
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🌿 TerraEmpleo API corriendo en http://localhost:${PORT}`);

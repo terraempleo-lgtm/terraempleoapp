@@ -338,11 +338,12 @@ async function crearVacanteDesdeWhatsapp(empleadorId, datos) {
     ? datos.descripcion
     : `Solicitud por WhatsApp · ${datos.cantidad || '-'} trabajador(es) · Fecha: ${datos.fecha || '-'}${datos.hora ? ' · Hora: ' + datos.hora : ''}`;
 
+  const cupos = Number.isFinite(+datos.cantidad) && +datos.cantidad > 0 ? Math.round(+datos.cantidad) : null;
   const result = await query(
     `INSERT INTO vacantes
-       (empleador_id, titulo, descripcion, tipo_pago, monto_pago, departamento, municipio, vereda, urgente, fecha_jornada, hora_jornada)
-     VALUES (?, ?, ?, 'jornal', ?, ?, ?, ?, 1, ?, ?)`,
-    [empleadorId, titulo, desc, monto, departamento, municipio, datos.finca || null, datos.fecha_jornada || null, datos.hora || null]
+       (empleador_id, titulo, descripcion, tipo_pago, monto_pago, departamento, municipio, vereda, urgente, fecha_jornada, hora_jornada, cupos)
+     VALUES (?, ?, ?, 'jornal', ?, ?, ?, ?, 1, ?, ?, ?)`,
+    [empleadorId, titulo, desc, monto, departamento, municipio, datos.finca || null, datos.fecha_jornada || null, datos.hora || null, cupos]
   );
   const vacanteId = Number(result.insertId);
 
@@ -793,6 +794,21 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
         // Sin aceptación vigente → sigue el flujo normal (p. ej. "no voy" como rechazo de una oferta).
       }
 
+      // Cupo liberado — "ACEPTO" (toma el cupo) o "NO" (declina; se promueve al siguiente).
+      if (['acepto', 'si acepto', 'acepto el cupo', 'lo tomo'].includes(limpio)) {
+        const { aceptarCupoLiberado } = require('../controllers/vacantesController');
+        const ra = await aceptarCupoLiberado(usuario.id).catch(() => ({ ok: false }));
+        if (ra && ra.ok) return { reply: ra.replyText };
+        // Sin oferta de cupo activa → sigue el flujo normal.
+      }
+      if (['no', 'no puedo', 'no gracias', '2'].includes(limpio)) {
+        const { declinarCupoLiberado } = require('../controllers/vacantesController');
+        const rd = await declinarCupoLiberado(usuario.id).catch(() => ({ ok: false }));
+        if (rd && rd.ok) return { reply: rd.replyText };
+        // Sin oferta de cupo activa → sigue como rechazo de oferta (abajo).
+      }
+
+      // PASO 4 / Disparador 2 — respuesta SÍ/NO a una oferta de vacante (auto-confirma o lista de espera).
       const SI_OFERTA = ['si', 'sisi', 'si quiero', 'si acepto', 'acepto', 'dale', 'listo', 'voy', 'claro', 'ok', 'okay', 'vale', 'quiero', 'me interesa', '1'];
       const NO_OFERTA = ['no', 'nel', 'paso', 'no puedo', 'no me interesa', 'no gracias', 'no voy', '2'];
       const afirmativo = SI_OFERTA.includes(limpio);
@@ -800,12 +816,8 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
       if (afirmativo || negativo) {
         const { responderOfertaTrabajador } = require('../controllers/vacantesController');
         const r = await responderOfertaTrabajador(usuario.id, afirmativo).catch(() => ({ ok: false }));
-        if (r && r.ok) {
-          return {
-            reply: r.acepta
-              ? `✅ ¡Listo! Enviamos tu interés en *${r.titulo}* al empleador. Si te acepta, te avisamos por aquí para coordinar. 🌱`
-              : `Entendido 👍 No te postulamos a *${r.titulo}*. Te seguimos avisando de otras oportunidades cerca de ti.`,
-          };
+        if (r && r.ok && r.replyText) {
+          return { reply: r.replyText };
         }
         // Sin oferta pendiente → sigue el flujo normal (soporte, saludo, fallback...).
       }

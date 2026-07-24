@@ -136,6 +136,11 @@ async function initWhatsappSchema() {
   try { await query('ALTER TABLE postulaciones ADD COLUMN recordatorio_voy_at TIMESTAMP NULL DEFAULT NULL'); } catch (_) {}
   try { await query('ALTER TABLE postulaciones ADD COLUMN no_asistira TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
 
+  // Cupos + lista de espera (modelo auto-confirmar).
+  try { await query('ALTER TABLE vacantes ADD COLUMN cupos INT NULL DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE postulaciones ADD COLUMN en_lista_espera TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
+  try { await query('ALTER TABLE postulaciones ADD COLUMN espera_ofrecida_at TIMESTAMP NULL DEFAULT NULL'); } catch (_) {}
+
   console.log('[WhatsApp] Schema del módulo de mensajería inicializado.');
 }
 
