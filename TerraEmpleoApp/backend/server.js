@@ -245,51 +245,134 @@ async function seguimientoEmpleadores() {
   }
 }
 
-// Recordatorio matutino de asistencia (PASO 5): la mañana de la jornada, a los trabajadores
-// aceptados que NO confirmaron, les pregunta VOY / NO VOY. Corre cada hora pero solo actúa
-// en la franja de la mañana (hora local Colombia 5–10) y una sola vez por postulación.
+// Recordatorio matutino de asistencia (PASO 5 / Disparador 4): la mañana de la jornada, a las
+// 5:30am (Colombia), a los trabajadores aceptados que NO confirmaron les pregunta VOY / NO VOY.
+// Disparador 5: si a las 6:00am siguen sin confirmar, alerta de riesgo de no-show al operador
+// Terra (admins) y al empleador. Corre cada 15 min pero cada bloque se auto-gatea por hora.
 async function recordatorioAsistencia() {
   try {
-    const horaCo = (new Date().getUTCHours() - 5 + 24) % 24; // hora local Colombia (UTC-5)
-    if (horaCo < 5 || horaCo > 10) return; // solo en la mañana
-    // Fecha "hoy" en Colombia (YYYY-MM-DD).
-    const hoyCo = new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10);
-
-    const posts = await dbQuery(`
-      SELECT p.id, p.trabajador_id, v.titulo, v.municipio, v.departamento, v.hora_jornada
-      FROM postulaciones p
-      JOIN vacantes v ON v.id = p.vacante_id
-      WHERE p.estado = 'aceptada'
-        AND (p.asistencia_confirmada IS NULL OR p.asistencia_confirmada = 0)
-        AND (p.no_asistira IS NULL OR p.no_asistira = 0)
-        AND p.recordatorio_voy_at IS NULL
-        AND v.fecha_jornada = ?
-        AND v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
-      LIMIT 50
-    `, [hoyCo]).catch(() => []);
-    if (!posts || posts.length === 0) return;
-
+    const ahoraCo = new Date(Date.now() - 5 * 3600 * 1000);
+    const horaCo = ahoraCo.getUTCHours();
+    const minCo = ahoraCo.getUTCMinutes();
+    if (horaCo < 5 || horaCo > 9) return; // solo en la mañana
+    const hoyCo = ahoraCo.toISOString().slice(0, 10); // "hoy" en Colombia (YYYY-MM-DD)
     const wa = require('./services/whatsappService');
-    for (const p of posts) {
-      const u = await dbQuery('SELECT nombre_completo, whatsapp_opt_in FROM usuarios WHERE id = ?', [p.trabajador_id]).catch(() => []);
-      if (u && u[0] && u[0].whatsapp_opt_in) {
-        const destino = await wa.mejorDestino(p.trabajador_id);
-        if (destino) {
-          const nombre = (u[0].nombre_completo || '').split(' ')[0] || '';
-          const lugar = [p.municipio, p.departamento].filter(Boolean).join(', ') || '';
-          const hora = p.hora_jornada ? ` a las *${p.hora_jornada}*` : '';
-          const txt =
-            `⏰ Buenos días ${nombre}. Hoy es tu jornada en *${p.titulo}*` +
-            `${lugar ? ` (${lugar})` : ''}${hora}.\n\n` +
-            `¿Vas a poder asistir?\n• Responde *VOY*\n• Responde *NO VOY* si no puedes.`;
-          await wa.enviarTexto(destino, txt, { usuarioId: p.trabajador_id }).catch(() => {});
+
+    // 1) Recordatorio VOY / NO VOY — se dispara a partir de las 5:30am (una vez por postulación).
+    if (horaCo > 5 || minCo >= 30) {
+      const posts = await dbQuery(`
+        SELECT p.id, p.trabajador_id, v.titulo, v.municipio, v.departamento, v.hora_jornada
+        FROM postulaciones p
+        JOIN vacantes v ON v.id = p.vacante_id
+        WHERE p.estado = 'aceptada'
+          AND (p.asistencia_confirmada IS NULL OR p.asistencia_confirmada = 0)
+          AND (p.no_asistira IS NULL OR p.no_asistira = 0)
+          AND p.recordatorio_voy_at IS NULL
+          AND v.fecha_jornada = ?
+          AND v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
+        LIMIT 50
+      `, [hoyCo]).catch(() => []);
+      for (const p of (posts || [])) {
+        const u = await dbQuery('SELECT nombre_completo, whatsapp_opt_in FROM usuarios WHERE id = ?', [p.trabajador_id]).catch(() => []);
+        if (u && u[0] && u[0].whatsapp_opt_in) {
+          const destino = await wa.mejorDestino(p.trabajador_id);
+          if (destino) {
+            const nombre = (u[0].nombre_completo || '').split(' ')[0] || '';
+            const lugar = [p.municipio, p.departamento].filter(Boolean).join(', ') || '';
+            const hora = p.hora_jornada ? ` a las *${p.hora_jornada}*` : '';
+            const txt =
+              `⏰ Buenos días ${nombre}. Hoy es tu jornada en *${p.titulo}*` +
+              `${lugar ? ` (${lugar})` : ''}${hora}.\n\n` +
+              `¿Vas a poder asistir?\n• Responde *VOY*\n• Responde *NO VOY* si no puedes.`;
+            await wa.enviarTexto(destino, txt, { usuarioId: p.trabajador_id }).catch(() => {});
+          }
         }
+        await dbQuery('UPDATE postulaciones SET recordatorio_voy_at = NOW() WHERE id = ?', [p.id]).catch(() => {});
       }
-      await dbQuery('UPDATE postulaciones SET recordatorio_voy_at = NOW() WHERE id = ?', [p.id]).catch(() => {});
+      if (posts && posts.length) console.log(`[RECORDATORIO] ${posts.length} recordatorio(s) de asistencia enviados.`);
     }
-    console.log(`[RECORDATORIO] ${posts.length} recordatorio(s) de asistencia enviados.`);
+
+    // 2) Alerta de no-show — a partir de las 6:00am, los que siguen sin confirmar ni decir NO VOY
+    //    se reportan al operador Terra (admins, notificación in-app) y al empleador (WhatsApp).
+    if (horaCo >= 6) {
+      const riesgo = await dbQuery(`
+        SELECT p.id, p.trabajador_id, v.titulo, v.empleador_id, v.municipio, v.departamento
+        FROM postulaciones p
+        JOIN vacantes v ON v.id = p.vacante_id
+        WHERE p.estado = 'aceptada'
+          AND (p.asistencia_confirmada IS NULL OR p.asistencia_confirmada = 0)
+          AND (p.no_asistira IS NULL OR p.no_asistira = 0)
+          AND p.alerta_noshow_at IS NULL
+          AND v.fecha_jornada = ?
+          AND v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
+        LIMIT 50
+      `, [hoyCo]).catch(() => []);
+      if (riesgo && riesgo.length) {
+        const { crearNotificacion } = require('./controllers/notificacionesController');
+        const admins = await dbQuery("SELECT id FROM usuarios WHERE rol = 'admin' AND activo = 1").catch(() => []);
+        for (const p of riesgo) {
+          const t = await dbQuery('SELECT nombre_completo FROM usuarios WHERE id = ?', [p.trabajador_id]).catch(() => []);
+          const nombreTrab = (t && t[0] && t[0].nombre_completo) || 'Un trabajador';
+          const lugar = [p.municipio, p.departamento].filter(Boolean).join(', ') || '';
+          // Operador Terra (admins) — notificación in-app.
+          for (const a of (admins || [])) {
+            await crearNotificacion(
+              a.id, 'riesgo_noshow', '⚠️ Riesgo de no-show',
+              `${nombreTrab} no ha confirmado asistencia a "${p.titulo}"${lugar ? ` (${lugar})` : ''} y hoy es la jornada.`,
+              { vacante_id: p.vacante_id, postulacion_id: p.id }
+            ).catch(() => {});
+          }
+          // Empleador — aviso por WhatsApp para que consiga reemplazo.
+          const e = await dbQuery('SELECT whatsapp_opt_in FROM usuarios WHERE id = ?', [p.empleador_id]).catch(() => []);
+          if (e && e[0] && e[0].whatsapp_opt_in) {
+            const destino = await wa.mejorDestino(p.empleador_id);
+            if (destino) {
+              await wa.enviarTexto(destino,
+                `⚠️ *Aviso TerraEmpleo* — ${nombreTrab.split(' ')[0]} aún no confirma asistencia a tu vacante *${p.titulo}* ` +
+                `y hoy es la jornada.\n\nTe recomendamos tener un reemplazo listo por si no se presenta. 🌱`,
+                { usuarioId: p.empleador_id }).catch(() => {});
+            }
+          }
+          await dbQuery('UPDATE postulaciones SET alerta_noshow_at = NOW() WHERE id = ?', [p.id]).catch(() => {});
+        }
+        console.log(`[NO-SHOW] ${riesgo.length} alerta(s) de riesgo enviadas.`);
+      }
+    }
   } catch (err) {
     console.error('[RECORDATORIO] error:', err.message);
+  }
+}
+
+// Reenvío de la oferta de vacante (Disparador 2): si el trabajador con match_auto no respondió
+// SÍ/NO en 2h, se le reenvía la oferta una sola vez. Corre cada 30 min.
+async function recordatorioOferta() {
+  try {
+    const pend = await dbQuery(`
+      SELECT p.id, p.trabajador_id, p.puntaje_match,
+             v.id AS vacante_id, v.titulo, v.municipio, v.departamento, v.monto_pago,
+             v.fecha_jornada, v.hora_jornada, v.cupos
+      FROM postulaciones p
+      JOIN vacantes v ON v.id = p.vacante_id
+      WHERE p.estado = 'match_auto'
+        AND p.oferta_recordatorio_at IS NULL
+        AND p.created_at <= (NOW() - INTERVAL 2 HOUR)
+        AND v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
+      LIMIT 50
+    `).catch(() => []);
+    if (!pend || pend.length === 0) return;
+
+    const wa = require('./services/whatsappService');
+    for (const p of pend) {
+      const vacante = {
+        id: p.vacante_id, titulo: p.titulo, municipio: p.municipio, departamento: p.departamento,
+        monto_pago: p.monto_pago, fecha_jornada: p.fecha_jornada, hora_jornada: p.hora_jornada, cupos: p.cupos
+      };
+      await wa.enviarVacanteAMatch(p.trabajador_id, vacante, p.puntaje_match).catch(() => ({}));
+      await dbQuery('UPDATE postulaciones SET oferta_recordatorio_at = NOW() WHERE id = ?', [p.id]).catch(() => {});
+    }
+    console.log(`[OFERTA-2H] ${pend.length} oferta(s) reenviada(s).`);
+  } catch (err) {
+    console.error('[OFERTA-2H] error:', err.message);
   }
 }
 
@@ -357,10 +440,14 @@ async function startServer() {
   setTimeout(() => seguimientoEmpleadores(), 2 * 60 * 1000);
   setInterval(() => seguimientoEmpleadores(), 60 * 60 * 1000);
 
-  // Recordatorio matutino de asistencia (VOY/NO VOY): corrida a los 3 min y luego cada hora
-  // (solo actúa en la franja de la mañana Colombia).
+  // Recordatorio matutino de asistencia (VOY/NO VOY a las 5:30am) + alerta de no-show a las 6am:
+  // corrida a los 3 min y luego cada 15 min (los bloques se auto-gatean por hora Colombia).
   setTimeout(() => recordatorioAsistencia(), 3 * 60 * 1000);
-  setInterval(() => recordatorioAsistencia(), 60 * 60 * 1000);
+  setInterval(() => recordatorioAsistencia(), 15 * 60 * 1000);
+
+  // Reenvío de la oferta de vacante a las 2h sin respuesta (una vez): corrida a los 4 min y cada 30 min.
+  setTimeout(() => recordatorioOferta(), 4 * 60 * 1000);
+  setInterval(() => recordatorioOferta(), 30 * 60 * 1000);
 
   // Barrido de la lista de espera (ofertas de cupo vencidas): cada 10 min.
   setInterval(() => barrerListaEspera(), 10 * 60 * 1000);
