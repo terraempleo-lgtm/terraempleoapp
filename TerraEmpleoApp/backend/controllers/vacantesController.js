@@ -1469,11 +1469,135 @@ async function marcarNoAsiste(trabajadorId) {
   }
 }
 
+// ── FASE 2 — Seguimiento semanal: LLENA / SIGUE / CANCELAR / VER / REACTIVAR ──────────────
+// Todos resuelven la vacante objetivo por el empleador (la más reciente en seguimiento).
+
+/** Vacante activa del empleador en seguimiento más reciente (para LLENA/SIGUE/CANCELAR/VER). */
+async function vacanteSeguimientoActiva(empleadorId) {
+  const rows = await query(
+    `SELECT id, titulo FROM vacantes
+     WHERE empleador_id = ? AND estado = 'activa' AND (eliminado IS NULL OR eliminado = 0)
+     ORDER BY (whatsapp_seguimiento_at IS NULL), whatsapp_seguimiento_at DESC, created_at DESC LIMIT 1`,
+    [empleadorId]
+  ).catch(() => []);
+  return rows && rows[0] ? rows[0] : null;
+}
+
+/** LLENA — el empleador dice que ya contrató. Pregunta si fue por TerraEmpleo (sub-flujo SI/NO). */
+async function seguimientoLLENA(empleadorId) {
+  const v = await vacanteSeguimientoActiva(empleadorId);
+  if (!v) return { ok: false };
+  await query('UPDATE vacantes SET seguimiento_llena_pendiente = 1, seguimiento_respondido = 1, whatsapp_seguimiento_count = 0 WHERE id = ?', [v.id]).catch(() => {});
+  return {
+    ok: true,
+    replyText:
+      `✅ ¡Perfecto! Nos alegra que encontraste tu personal para *${v.titulo}*.\n\n` +
+      `¿Lo contrataste a través de *TerraEmpleo*?\n` +
+      `1️⃣ Escribe *SI* para cerrar la vacante y calificar a los trabajadores\n` +
+      `2️⃣ Escribe *NO* para cerrar la vacante sin calificación`,
+  };
+}
+
+/** SI/NO tras LLENA — cierra la vacante (cerrada + detenido para que no la reabra reactivarVacantes). */
+async function seguimientoLLENAConfirmar(empleadorId, porTerraempleo) {
+  const rows = await query(
+    `SELECT id, titulo FROM vacantes
+     WHERE empleador_id = ? AND estado = 'activa' AND seguimiento_llena_pendiente = 1
+       AND (eliminado IS NULL OR eliminado = 0)
+     ORDER BY whatsapp_seguimiento_at DESC, created_at DESC LIMIT 1`,
+    [empleadorId]
+  ).catch(() => []);
+  if (!rows || !rows[0]) return { ok: false };
+  const v = rows[0];
+  await query("UPDATE vacantes SET estado = 'cerrada', whatsapp_seguimiento_detenido = 1, seguimiento_llena_pendiente = 0 WHERE id = ?", [v.id]).catch(() => {});
+  if (porTerraempleo) {
+    await query('UPDATE perfil_empleador SET matches_exitosos = COALESCE(matches_exitosos,0) + 1 WHERE usuario_id = ?', [empleadorId]).catch(() => {});
+    return { ok: true, replyText: `Excelente. Cerramos la vacante *${v.titulo}* y en breve te pedimos la calificación de los trabajadores. Su historial y el de ellos queda guardado para la próxima cosecha 🌱` };
+  }
+  return { ok: true, replyText: `Entendido. Cerramos la vacante *${v.titulo}*.\nRecuerda que con TerraEmpleo encuentras trabajadores verificados y con historial para tu próxima cosecha. Escribe *VACANTE* cuando necesites personal de nuevo.` };
+}
+
+/** SIGUE — mantiene la vacante activa y reinicia el conteo de ciclos sin respuesta. */
+async function seguimientoSIGUE(empleadorId) {
+  const v = await vacanteSeguimientoActiva(empleadorId);
+  if (!v) return { ok: false };
+  const cnt = await query('SELECT COUNT(*) AS n FROM postulaciones WHERE vacante_id = ?', [v.id]).catch(() => []);
+  const n = Number((cnt && cnt[0] && cnt[0].n) || 0);
+  await query('UPDATE vacantes SET seguimiento_respondido = 1, whatsapp_seguimiento_count = 0, seguimiento_llena_pendiente = 0 WHERE id = ?', [v.id]).catch(() => {});
+  return {
+    ok: true,
+    replyText:
+      `Perfecto, la vacante *${v.titulo}* sigue activa.\n` +
+      (n > 0
+        ? `Tienes *${n}* trabajador(es) que aplicaron y están esperando tu respuesta.\n¿Quieres revisarlos? Escribe *VER* para ver los perfiles o abre la app.`
+        : `Aún no tienes postulantes; la seguimos compartiendo con más trabajadores.`) +
+      `\n\nTe volvemos a escribir el próximo lunes 📅`,
+  };
+}
+
+/** CANCELAR — el empleador ya no necesita la vacante: estado 'cancelada' (no penaliza). */
+async function seguimientoCANCELAR(empleadorId) {
+  const v = await vacanteSeguimientoActiva(empleadorId);
+  if (!v) return { ok: false };
+  await query("UPDATE vacantes SET estado = 'cancelada', cancelada_motivo = 'cancelada por empleador por WhatsApp', seguimiento_respondido = 1, seguimiento_llena_pendiente = 0 WHERE id = ?", [v.id]).catch(() => {});
+  return { ok: true, replyText: `Entendido, cerramos la vacante *${v.titulo}*. Si en el futuro necesitas personal escríbenos *VACANTE* y te ayudamos de inmediato. 🌱` };
+}
+
+/** VER — top 3 postulantes de la vacante en seguimiento (nombre, score, disponibilidad). */
+async function seguimientoVER(empleadorId) {
+  const v = await vacanteSeguimientoActiva(empleadorId);
+  if (!v) return { ok: false };
+  await query('UPDATE vacantes SET seguimiento_respondido = 1 WHERE id = ?', [v.id]).catch(() => {});
+  const rows = await query(
+    `SELECT u.nombre_completo, p.puntaje_match, pt.disponibilidad
+     FROM postulaciones p
+     JOIN usuarios u ON u.id = p.trabajador_id
+     LEFT JOIN perfil_trabajador pt ON pt.usuario_id = u.id
+     WHERE p.vacante_id = ? AND (p.estado IS NULL OR p.estado <> 'rechazada')
+     ORDER BY p.puntaje_match DESC LIMIT 3`,
+    [v.id]
+  ).catch(() => []);
+  if (!rows || rows.length === 0) {
+    return { ok: true, replyText: `Aún no tienes postulantes para *${v.titulo}*. Compartimos tu vacante con más trabajadores. 🌱` };
+  }
+  const dispTxt = (d) => ({ tiempo_completo: 'Tiempo completo', disponible_inmediatamente: 'Disponible ya', temporada_cosecha: 'Temporada de cosecha', fines_semana: 'Fines de semana', por_dias: 'Por días' }[d] || 'Disponibilidad no indicada');
+  const lineas = rows.map((r, i) => {
+    const nombre = String(r.nombre_completo || 'Trabajador').split(' ').slice(0, 2).join(' ');
+    return `${i + 1}. *${nombre}* — ${Math.round(Number(r.puntaje_match || 0))}% de match\n   🕒 ${dispTxt(r.disponibilidad)}`;
+  });
+  return { ok: true, replyText: `👷 *Top postulantes para ${v.titulo}:*\n\n${lineas.join('\n\n')}\n\n👉 Contáctalos en la app: ${whatsappService.linkVacante(v.id)}` };
+}
+
+/** REACTIVAR — reactiva la vacante 'inactiva' (por vencimiento) más reciente del empleador. */
+async function seguimientoREACTIVAR(empleadorId) {
+  const rows = await query(
+    `SELECT id, titulo FROM vacantes
+     WHERE empleador_id = ? AND estado = 'inactiva' AND (eliminado IS NULL OR eliminado = 0)
+     ORDER BY updated_at DESC, created_at DESC LIMIT 1`,
+    [empleadorId]
+  ).catch(() => []);
+  if (!rows || !rows[0]) return { ok: false };
+  const v = rows[0];
+  await query("UPDATE vacantes SET estado = 'activa', whatsapp_seguimiento_count = 0, seguimiento_respondido = 0, seguimiento_recordatorio_at = NULL, whatsapp_seguimiento_at = NULL WHERE id = ?", [v.id]).catch(() => {});
+  return { ok: true, replyText: `✅ ¡Listo! Reactivamos tu vacante *${v.titulo}*. Volvemos a compartirla con trabajadores que encajen. 🌱` };
+}
+
+/** ¿El empleador tiene una vacante con LLENA pendiente (esperando SI/NO)? */
+async function tieneLlenaPendiente(empleadorId) {
+  const rows = await query(
+    "SELECT id FROM vacantes WHERE empleador_id = ? AND estado = 'activa' AND seguimiento_llena_pendiente = 1 AND (eliminado IS NULL OR eliminado = 0) LIMIT 1",
+    [empleadorId]
+  ).catch(() => []);
+  return !!(rows && rows[0]);
+}
+
 module.exports = {
   crearVacante, actualizarVacante, eliminarVacante, misVacantes, listarVacantes, detalleVacante,
   postularse, verPostulaciones, actualizarPostulacion, responderSolicitudContacto,
   misPostulaciones, cerrarVacante, subirFotosVacante, eliminarFotoVacante,
   ejecutarMatching, ejecutarMatchingEndpoint, ejecutarMatchingParaTrabajador,
   perfilPublicoTrabajador, vacantesRecomendadas, responderOfertaTrabajador,
-  confirmarAsistenciaTrabajador, marcarNoAsiste, aceptarCupoLiberado, declinarCupoLiberado
+  confirmarAsistenciaTrabajador, marcarNoAsiste, aceptarCupoLiberado, declinarCupoLiberado,
+  seguimientoLLENA, seguimientoLLENAConfirmar, seguimientoSIGUE, seguimientoCANCELAR,
+  seguimientoVER, seguimientoREACTIVAR, tieneLlenaPendiente
 };

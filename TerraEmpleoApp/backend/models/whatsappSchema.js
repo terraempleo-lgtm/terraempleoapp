@@ -141,6 +141,14 @@ async function initWhatsappSchema() {
   try { await query('ALTER TABLE postulaciones ADD COLUMN en_lista_espera TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
   try { await query('ALTER TABLE postulaciones ADD COLUMN espera_ofrecida_at TIMESTAMP NULL DEFAULT NULL'); } catch (_) {}
 
+  // FASE 2 — seguimiento semanal LLENA/SIGUE/CANCELAR/VER: estados terminales nuevos + control de ciclo.
+  try { await query("ALTER TABLE vacantes MODIFY COLUMN estado ENUM('activa','cerrada','pausada','cancelada','inactiva') DEFAULT 'activa'"); } catch (_) {}
+  try { await query('ALTER TABLE vacantes ADD COLUMN seguimiento_respondido TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
+  try { await query('ALTER TABLE vacantes ADD COLUMN seguimiento_recordatorio_at TIMESTAMP NULL DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE vacantes ADD COLUMN seguimiento_llena_pendiente TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
+  try { await query('ALTER TABLE vacantes ADD COLUMN cancelada_motivo VARCHAR(120) NULL DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE perfil_empleador ADD COLUMN matches_exitosos INT NOT NULL DEFAULT 0'); } catch (_) {}
+
   console.log('[WhatsApp] Schema del módulo de mensajería inicializado.');
 }
 

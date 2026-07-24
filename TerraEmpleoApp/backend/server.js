@@ -149,8 +149,10 @@ app.use((err, req, res, next) => {
 const { query: dbQuery } = require('./config/database');
 async function reactivarVacantes() {
   try {
+    // NO reabrir las vacantes que el bot cerró intencionalmente (LLENA por WhatsApp):
+    // esas quedan con whatsapp_seguimiento_detenido=1. 'cancelada'/'inactiva' tampoco se tocan.
     const result = await dbQuery(
-      "UPDATE vacantes SET estado = 'activa' WHERE estado = 'cerrada' AND eliminado = 0"
+      "UPDATE vacantes SET estado = 'activa' WHERE estado = 'cerrada' AND eliminado = 0 AND (whatsapp_seguimiento_detenido IS NULL OR whatsapp_seguimiento_detenido = 0)"
     );
     if (result.affectedRows > 0) {
       console.log(`[REACTIVAR] ${result.affectedRows} vacante(s) reactivada(s).`);
@@ -160,51 +162,84 @@ async function reactivarVacantes() {
   }
 }
 
-// Seguimiento SEMANAL por WhatsApp a empleadores con vacantes activas: pregunta si ya
-// contrató a alguien. Recurrente cada 7 días, con tope de 4 recordatorios por vacante,
-// y se detiene si el empleador responde CONTRATÉ (whatsapp_seguimiento_detenido).
-// Solo a quienes dieron opt-in. El tick corre cada 24 h; la cadencia real la da la condición.
+// Seguimiento SEMANAL al empleador (doc de Vero). Tick cada 1 h. Tres acciones:
+//  1) Lunes 8am Colombia → mensaje LLENA/SIGUE/CANCELAR por cada vacante activa ≥7 días.
+//  2) Recordatorio a las 24h si no respondió (una vez por ciclo).
+//  3) Expiración: 4 ciclos sin respuesta → estado 'inactiva' + REACTIVAR.
+// Solo a empleadores con opt-in. Las respuestas (LLENA/SIGUE/CANCELAR/VER) se manejan en conversationEngine.
 async function seguimientoEmpleadores() {
   try {
-    const vacs = await dbQuery(`
-      SELECT v.id, v.titulo, v.empleador_id,
-        (SELECT COUNT(*) FROM postulaciones p WHERE p.vacante_id = v.id) AS postulados
-      FROM vacantes v
-      WHERE v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
-        AND (v.whatsapp_seguimiento_detenido IS NULL OR v.whatsapp_seguimiento_detenido = 0)
-        AND (v.whatsapp_seguimiento_count IS NULL OR v.whatsapp_seguimiento_count < 4)
-        AND (
-          (v.whatsapp_seguimiento_at IS NULL AND v.created_at <= (NOW() - INTERVAL 2 DAY))
-          OR (v.whatsapp_seguimiento_at <= (NOW() - INTERVAL 7 DAY))
-        )
+    const wa = require('./services/whatsappService');
+    const enviar = async (empleadorId, texto) => {
+      const u = await dbQuery('SELECT whatsapp_opt_in FROM usuarios WHERE id = ?', [empleadorId]).catch(() => []);
+      if (!u || !u[0] || !u[0].whatsapp_opt_in) return;
+      const destino = await wa.mejorDestino(empleadorId);
+      if (destino) await wa.enviarTexto(destino, texto, { usuarioId: empleadorId }).catch(() => {});
+    };
+    const ahoraCo = new Date(Date.now() - 5 * 3600 * 1000); // hora local Colombia
+    const esLunes8 = ahoraCo.getUTCDay() === 1 && ahoraCo.getUTCHours() === 8;
+
+    // 3) Expiración por 4 ciclos sin respuesta (antes del envío para no re-contar el de hoy).
+    const expiradas = await dbQuery(`
+      SELECT id, titulo, empleador_id FROM vacantes
+      WHERE estado = 'activa' AND (eliminado IS NULL OR eliminado = 0)
+        AND (seguimiento_respondido IS NULL OR seguimiento_respondido = 0)
+        AND whatsapp_seguimiento_count >= 4
       LIMIT 20
     `).catch(() => []);
-    if (!vacs || vacs.length === 0) return;
-    const wa = require('./services/whatsappService');
-    for (const v of vacs) {
-      const n = Number(v.postulados || 0);
-      const u = await dbQuery('SELECT whatsapp_opt_in FROM usuarios WHERE id = ?', [v.empleador_id]).catch(() => []);
-      if (u && u[0] && u[0].whatsapp_opt_in) {
-        const destino = await wa.mejorDestino(v.empleador_id);
-        if (destino) {
-          const candidatos = n > 0
-            ? `Ya tienes *${n}* candidato(s) esperando.`
-            : `Aún no tienes candidatos; ajusta el pago o requisitos en la app para atraer más gente.`;
-          const txt =
-            `👋 Seguimiento de tu vacante *${v.titulo}*.\n\n` +
-            `¿Ya *contrataste* a alguien para esta vacante?\n` +
-            `• Si ya la cubriste, responde *CONTRATÉ* y dejo de recordártelo.\n` +
-            `• Si sigues buscando, escribe *Ver trabajadores* para ver quién encaja. ${candidatos}\n\n` +
-            `👉 ${wa.linkVacante(v.id)}`;
-          await wa.enviarTexto(destino, txt, { usuarioId: v.empleador_id }).catch(() => {});
-        }
-      }
-      await dbQuery(
-        'UPDATE vacantes SET whatsapp_seguimiento_at = NOW(), whatsapp_seguimiento_count = COALESCE(whatsapp_seguimiento_count, 0) + 1 WHERE id = ?',
-        [v.id]
-      ).catch(() => {});
+    for (const v of (expiradas || [])) {
+      await dbQuery("UPDATE vacantes SET estado = 'inactiva' WHERE id = ?", [v.id]).catch(() => {});
+      await enviar(v.empleador_id,
+        `⏸️ Tu vacante *${v.titulo}* lleva 4 semanas sin actividad y la pausamos automáticamente.\n\n` +
+        `Escribe *REACTIVAR* si sigues necesitando personal. 🌱`);
     }
-    console.log(`[SEGUIMIENTO] ${vacs.length} vacante(s) procesada(s).`);
+
+    // 2) Recordatorio a las 24h del envío si no respondió (una vez por ciclo).
+    const recordar = await dbQuery(`
+      SELECT id, titulo, empleador_id FROM vacantes
+      WHERE estado = 'activa' AND (eliminado IS NULL OR eliminado = 0)
+        AND (seguimiento_respondido IS NULL OR seguimiento_respondido = 0)
+        AND seguimiento_recordatorio_at IS NULL
+        AND whatsapp_seguimiento_at IS NOT NULL
+        AND whatsapp_seguimiento_at <= (NOW() - INTERVAL 24 HOUR)
+      LIMIT 20
+    `).catch(() => []);
+    for (const v of (recordar || [])) {
+      await dbQuery('UPDATE vacantes SET seguimiento_recordatorio_at = NOW() WHERE id = ?', [v.id]).catch(() => {});
+      await enviar(v.empleador_id,
+        `🔔 Recordatorio — tu vacante de *${v.titulo}* sigue activa en TerraEmpleo.\n\n` +
+        `Tienes trabajadores esperando tu respuesta. Escribe *VER* para revisarlos o *CANCELAR* si ya no la necesitas.`);
+    }
+
+    // 1) Envío del lunes 8am (por cada vacante activa ≥7 días que no se le escribió esta semana).
+    if (esLunes8) {
+      const vacs = await dbQuery(`
+        SELECT v.id, v.titulo, v.empleador_id, v.municipio, v.departamento, v.vereda,
+          DATEDIFF(NOW(), v.created_at) AS dias,
+          (SELECT COUNT(*) FROM postulaciones p WHERE p.vacante_id = v.id) AS postulados
+        FROM vacantes v
+        WHERE v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
+          AND v.created_at <= (NOW() - INTERVAL 7 DAY)
+          AND (v.whatsapp_seguimiento_at IS NULL OR v.whatsapp_seguimiento_at <= (NOW() - INTERVAL 6 DAY))
+        LIMIT 50
+      `).catch(() => []);
+      for (const v of (vacs || [])) {
+        const lugar = [v.vereda, v.municipio, v.departamento].filter(Boolean).join(', ') || 'tu finca';
+        const n = Number(v.postulados || 0);
+        await enviar(v.empleador_id,
+          `🌱 *TerraEmpleo* — Seguimiento de tu vacante\n\n` +
+          `Tienes una vacante activa:\n👷 *${v.titulo}*\n📍 ${lugar}\n📅 Publicada hace ${Number(v.dias || 0)} días\n👥 Postulantes recibidos: ${n}\n\n` +
+          `¿Ya encontraste a alguien para esta vacante?\n` +
+          `1️⃣ Escribe *LLENA* si ya contrataste\n` +
+          `2️⃣ Escribe *SIGUE* si sigues buscando\n` +
+          `3️⃣ Escribe *CANCELAR* si ya no la necesitas`);
+        await dbQuery(
+          'UPDATE vacantes SET whatsapp_seguimiento_at = NOW(), whatsapp_seguimiento_count = COALESCE(whatsapp_seguimiento_count, 0) + 1, seguimiento_respondido = 0, seguimiento_recordatorio_at = NULL WHERE id = ?',
+          [v.id]
+        ).catch(() => {});
+      }
+      if (vacs && vacs.length) console.log(`[SEGUIMIENTO] lunes: ${vacs.length} vacante(s).`);
+    }
   } catch (err) {
     console.error('[SEGUIMIENTO] error:', err.message);
   }
@@ -317,9 +352,10 @@ async function startServer() {
   // Reactivar vacantes cerradas automáticamente
   await reactivarVacantes();
 
-  // Seguimiento a empleadores: corrida a los 2 min y luego cada 24 h.
+  // Seguimiento a empleadores (LLENA/SIGUE/CANCELAR): corrida a los 2 min y luego cada 1 h
+  // (el envío del lunes 8am, el recordatorio 24h y la expiración se auto-gatean por hora/fecha).
   setTimeout(() => seguimientoEmpleadores(), 2 * 60 * 1000);
-  setInterval(() => seguimientoEmpleadores(), 24 * 60 * 60 * 1000);
+  setInterval(() => seguimientoEmpleadores(), 60 * 60 * 1000);
 
   // Recordatorio matutino de asistencia (VOY/NO VOY): corrida a los 3 min y luego cada hora
   // (solo actúa en la franja de la mañana Colombia).

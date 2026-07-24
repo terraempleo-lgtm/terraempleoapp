@@ -28,7 +28,13 @@ const PALABRAS_CLAVE = ['contraseña', 'contrasena', 'clave', 'password', 'olvid
 const PALABRAS_CUADERNO = ['cuaderno'];
 
 // Respuesta del empleador al seguimiento semanal: ya cubrió la vacante → dejar de recordarle.
-const PALABRAS_CONTRATE = ['contraté', 'contrate', 'ya contraté', 'ya contrate', 'conseguí', 'consegui', 'ya conseguí', 'ya consegui', 'ya la llené', 'ya la llene', 'ya contrate a alguien', 'ya la cubrí', 'ya la cubri'];
+// Respuestas del empleador al seguimiento semanal (match exacto normalizado en el router).
+const SEG_LLENA = ['llena', 'lleno', 'ya llene', 'ya contrate', 'ya contrate a alguien', 'ya la llene', 'ya la cubri', 'conseguí a alguien', 'consegui a alguien'];
+const SEG_SIGUE = ['sigue', 'sigo', 'sigo buscando', 'sigue activa', 'sigue buscando'];
+const SEG_CANCELAR = ['cancelar', 'cancela', 'cancelala', 'ya no la necesito', 'ya no'];
+const SEG_VER = ['ver', 'ver postulantes', 'ver perfiles'];
+const SEG_REACTIVAR = ['reactivar', 'reactiva', 'reactivala'];
+const SEG_VACANTE = ['vacante', 'nueva vacante', 'publicar vacante'];
 
 // Pasos del flujo del empleador, en orden.
 const PASOS = ['finca', 'labor', 'cantidad', 'fecha', 'hora', 'pago', 'descripcion', 'fotos', 'confirmar'];
@@ -441,26 +447,6 @@ async function registrarLeadCuaderno(usuario, telefono, tipo, detalle) {
   }
 }
 
-/**
- * El empleador respondió "CONTRATÉ" al seguimiento semanal: detiene el recordatorio de su
- * vacante activa más reciente que ya estaba en seguimiento. No toca `estado` (el job
- * reactivarVacantes reabre las 'cerradas' al reiniciar), solo marca `whatsapp_seguimiento_detenido`.
- * @returns {Promise<{ok:boolean, titulo?:string}>}
- */
-async function detenerSeguimientoVacante(empleadorId) {
-  if (!empleadorId) return { ok: false };
-  const rows = await query(
-    `SELECT id, titulo FROM vacantes
-     WHERE empleador_id = ? AND estado = 'activa' AND (eliminado IS NULL OR eliminado = 0)
-       AND whatsapp_seguimiento_at IS NOT NULL
-       AND (whatsapp_seguimiento_detenido IS NULL OR whatsapp_seguimiento_detenido = 0)
-     ORDER BY whatsapp_seguimiento_at DESC LIMIT 1`,
-    [empleadorId]
-  ).catch(() => []);
-  if (!rows || !rows[0]) return { ok: false };
-  await query('UPDATE vacantes SET whatsapp_seguimiento_detenido = 1 WHERE id = ?', [rows[0].id]).catch(() => {});
-  return { ok: true, titulo: rows[0].titulo };
-}
 
 /** Busca un usuario empleador/admin por el celular que escribe (últimos 10 dígitos). */
 async function matchUsuarioPorCelular(textoNumero) {
@@ -765,7 +751,6 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
     const pareceClave = PALABRAS_CLAVE.some((p) => textoLower.includes(p));
     const pareceVerTrab = pareceVerTrabajadores(textoLower);
     const pareceCuaderno = PALABRAS_CUADERNO.some((p) => textoLower.includes(p));
-    const pareceContrate = PALABRAS_CONTRATE.some((p) => textoLower.includes(p));
 
     // 0.3) PASO 4 — el trabajador responde SÍ/NO a una oferta de vacante enviada por WhatsApp.
     //       Va ANTES de soporte porque "no puedo" también es palabra de soporte; solo actúa si el
@@ -823,13 +808,38 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
       }
     }
 
-    // 0.5) Respuesta al seguimiento semanal: "CONTRATÉ" → dejar de recordar esa vacante (empleador).
-    if (esEmpleador && pareceContrate) {
-      const r = await detenerSeguimientoVacante(usuario.id);
-      if (r.ok) {
-        return { reply: `¡Felicidades! 🎉 No te recordaré más la vacante *${r.titulo}*. Gestiónala en la app cuando quieras 👉 ${LINK_APP}` };
+    // 0.5) Seguimiento semanal (empleador): LLENA / SIGUE / CANCELAR / VER / REACTIVAR + sub-flujo SI/NO.
+    if (esEmpleador) {
+      const limpioE = textoLower.normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const vc = require('../controllers/vacantesController');
+      const logSeg = (accion) => query(
+        'INSERT INTO whatsapp_preguntas (telefono, usuario_id, texto, accion) VALUES (?, ?, ?, ?)',
+        [telefono, usuario.id, comando, 'seg_' + accion]
+      ).catch(() => {});
+
+      // Sub-flujo LLENA → SI/NO (solo si hay una vacante con LLENA pendiente).
+      if (['si', 'no', '1', '2'].includes(limpioE)) {
+        if (await vc.tieneLlenaPendiente(usuario.id).catch(() => false)) {
+          const porTerra = limpioE === 'si' || limpioE === '1';
+          const r = await vc.seguimientoLLENAConfirmar(usuario.id, porTerra).catch(() => ({ ok: false }));
+          if (r && r.ok) { logSeg(porTerra ? 'llena_si' : 'llena_no'); return { reply: r.replyText }; }
+        }
       }
-      return { reply: 'No tienes vacantes en seguimiento ahora mismo. Si necesitas gente escribe *Necesito trabajadores*, o *Ver trabajadores* para ver candidatos. 🌱' };
+
+      let r = null, accion = null;
+      if (SEG_LLENA.includes(limpioE)) { accion = 'llena'; r = await vc.seguimientoLLENA(usuario.id).catch(() => null); }
+      else if (SEG_SIGUE.includes(limpioE)) { accion = 'sigue'; r = await vc.seguimientoSIGUE(usuario.id).catch(() => null); }
+      else if (SEG_CANCELAR.includes(limpioE)) { accion = 'cancelar'; r = await vc.seguimientoCANCELAR(usuario.id).catch(() => null); }
+      else if (SEG_VER.includes(limpioE)) { accion = 'ver'; r = await vc.seguimientoVER(usuario.id).catch(() => null); }
+      else if (SEG_REACTIVAR.includes(limpioE)) { accion = 'reactivar'; r = await vc.seguimientoREACTIVAR(usuario.id).catch(() => null); }
+      if (r && r.ok) { logSeg(accion); return { reply: r.replyText }; }
+      // Si el keyword no tenía vacante objetivo (r null/ok=false), cae al flujo normal.
+
+      // VACANTE → iniciar el flujo de crear vacante.
+      if (SEG_VACANTE.includes(limpioE)) {
+        return await iniciarFlujoEmpleador(telefono, usuario, comando);
+      }
     }
 
     // 1) Soporte tiene prioridad: cualquiera puede pedir ayuda humana.
@@ -1249,7 +1259,6 @@ module.exports = {
   pareceVerTrabajadores,
   nombreCorto,
   registrarLeadCuaderno,
-  detenerSeguimientoVacante,
   parseFechaJornada,
   limpiarRespuesta,
   FLUJO_EMPLEADOR,
