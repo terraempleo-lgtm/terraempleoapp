@@ -254,7 +254,20 @@ async function actualizarJornada(req, res) {
     if (req.body.estado === 'cerrada') sets.push('cerrada_at = CURRENT_TIMESTAMP');
     params.push(jornadaId);
 
+    // Detectar la TRANSICIÓN a 'cerrada' (para el resumen PASO 8, sin reenviar en re-cierres).
+    let eraCerrada = false;
+    if (req.body.estado === 'cerrada') {
+      const cur = await query('SELECT estado FROM cuaderno_jornadas WHERE id = ?', [jornadaId]).catch(() => []);
+      eraCerrada = !!(cur && cur[0] && cur[0].estado === 'cerrada');
+    }
+
     await query(`UPDATE cuaderno_jornadas SET ${sets.join(', ')} WHERE id = ?`, params);
+
+    // PASO 8 — resumen del día a cada trabajador (fire-and-forget, no bloquea la respuesta).
+    if (req.body.estado === 'cerrada' && !eraCerrada) {
+      enviarCierreJornada(jornadaId).catch((e) => console.error('[cierre-jornada] hook:', e.message));
+    }
+
     res.json({ message: 'Jornada actualizada' });
   } catch (err) {
     console.error('actualizarJornada:', err);
@@ -1077,6 +1090,67 @@ async function postulantesVacante(req, res) {
   }
 }
 
+/**
+ * PASO 8 — al cerrar la jornada, enviar por WhatsApp a cada trabajador que participó su resumen
+ * del día (labor, kg, pago, calificación). Best-effort: solo trabajadores registrados con opt-in;
+ * los externos (sin trabajador_id) se omiten. No bloquea; se llama fire-and-forget.
+ */
+async function enviarCierreJornada(jornadaId) {
+  try {
+    const filas = await query(`
+      SELECT a.id, a.trabajador_id,
+        j.titulo, j.finca, j.fecha, j.tipo_trabajo,
+        r.cantidad_kg, r.pago_total,
+        c.nivel AS calif,
+        u.nombre_completo, u.whatsapp_opt_in
+      FROM cuaderno_asistencias a
+      JOIN cuaderno_jornadas j ON j.id = a.jornada_id
+      LEFT JOIN cuaderno_registros_trabajo r ON r.asistencia_id = a.id
+      LEFT JOIN cuaderno_calificaciones_internas c ON c.asistencia_id = a.id
+      JOIN usuarios u ON u.id = a.trabajador_id
+      WHERE a.jornada_id = ? AND a.trabajador_id IS NOT NULL
+        AND a.estado IN ('llego', 'llego_tarde')
+    `, [jornadaId]).catch(() => []);
+    if (!filas || filas.length === 0) return;
+
+    const whatsappService = require('../services/whatsappService');
+    const CALIF = { bien: '⭐ Excelente', regular: '👍 Regular', mal: 'Por mejorar' };
+    const fmtFecha = (f) => {
+      if (!f) return '';
+      const iso = f instanceof Date ? f.toISOString().slice(0, 10) : String(f).slice(0, 10);
+      const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+    };
+
+    for (const row of filas) {
+      try {
+        if (!row.whatsapp_opt_in) continue;
+        const destino = await whatsappService.mejorDestino(row.trabajador_id);
+        if (!destino) continue;
+        const nombre = (row.nombre_completo || '').split(' ')[0] || '';
+        const labor = row.tipo_trabajo || row.titulo || 'Jornada';
+        const kgLinea = row.cantidad_kg != null ? `\n⚖️ Kg recolectados: ${Number(row.cantidad_kg)} kg` : '';
+        const pago = row.pago_total != null ? `$${Number(row.pago_total).toLocaleString('es-CO')}` : '-';
+        const califLinea = row.calif ? `\n⭐ Calificación recibida: ${CALIF[row.calif] || row.calif}` : '';
+        const txt =
+          `✅ *Jornada cerrada — ${row.finca || row.titulo || 'la finca'}*\n` +
+          `📅 ${fmtFecha(row.fecha)}\n\n` +
+          `Tu registro del día${nombre ? ', ' + nombre : ''}:\n` +
+          `👷 Labor: ${labor}${kgLinea}\n` +
+          `💰 Total a pagar: *${pago}*${califLinea}\n\n` +
+          `El pago será procesado según lo acordado con la finca.\n` +
+          `Gracias por tu trabajo hoy 🌱`;
+        await whatsappService.enviarTexto(destino, txt, { usuarioId: row.trabajador_id });
+      } catch (e) {
+        console.error('[cierre-jornada] envío a trabajador', row.trabajador_id, ':', e.message);
+      }
+    }
+    console.log(`[cierre-jornada] jornada ${jornadaId}: ${filas.length} trabajador(es) procesado(s).`);
+  } catch (err) {
+    console.error('[cierre-jornada] error:', err.message);
+  }
+}
+
 module.exports = {
   // jornadas
   listarJornadas, crearJornada, detalleJornada, actualizarJornada, eliminarJornada,
@@ -1092,4 +1166,5 @@ module.exports = {
   dashboard, historialTrabajador, postulantesVacante, misTrabajadores,
   crearTrabajadorExterno,
   fincaIdsDeUsuario, // reutilizado por planillaController para el matching de trabajador
+  enviarCierreJornada, // PASO 8 — resumen por WhatsApp al cerrar la jornada (usado por el hook + tests)
 };
