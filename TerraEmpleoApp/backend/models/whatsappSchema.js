@@ -129,6 +129,13 @@ async function initWhatsappSchema() {
   try { await query('ALTER TABLE postulaciones ADD COLUMN asistencia_confirmada TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
   try { await query('ALTER TABLE postulaciones ADD COLUMN asistencia_confirmada_at TIMESTAMP NULL DEFAULT NULL'); } catch (_) {}
 
+  // Fecha/hora estructurada de la jornada (para el recordatorio matutino VOY/NO VOY).
+  try { await query('ALTER TABLE vacantes ADD COLUMN fecha_jornada DATE NULL DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE vacantes ADD COLUMN hora_jornada VARCHAR(20) NULL DEFAULT NULL'); } catch (_) {}
+  // Recordatorio matutino VOY/NO VOY: control de envío y respuesta de inasistencia.
+  try { await query('ALTER TABLE postulaciones ADD COLUMN recordatorio_voy_at TIMESTAMP NULL DEFAULT NULL'); } catch (_) {}
+  try { await query('ALTER TABLE postulaciones ADD COLUMN no_asistira TINYINT(1) NOT NULL DEFAULT 0'); } catch (_) {}
+
   console.log('[WhatsApp] Schema del módulo de mensajería inicializado.');
 }
 

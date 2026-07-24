@@ -31,7 +31,7 @@ const PALABRAS_CUADERNO = ['cuaderno'];
 const PALABRAS_CONTRATE = ['contraté', 'contrate', 'ya contraté', 'ya contrate', 'conseguí', 'consegui', 'ya conseguí', 'ya consegui', 'ya la llené', 'ya la llene', 'ya contrate a alguien', 'ya la cubrí', 'ya la cubri'];
 
 // Pasos del flujo del empleador, en orden.
-const PASOS = ['finca', 'labor', 'cantidad', 'fecha', 'pago', 'descripcion', 'fotos', 'confirmar'];
+const PASOS = ['finca', 'labor', 'cantidad', 'fecha', 'hora', 'pago', 'descripcion', 'fotos', 'confirmar'];
 
 // Enlaces públicos.
 const LINK_VACANTE = 'https://app.terrampleo.com/app/vacantes/';
@@ -88,7 +88,8 @@ const PREGUNTAS = {
   finca: '🌾 ¿Para qué finca o vereda necesitas trabajadores?',
   labor: '🛠️ ¿Qué labor necesitas? (ej: recolección de café, guadaña, siembra)',
   cantidad: '👥 ¿Cuántos trabajadores necesitas?',
-  fecha: '📅 ¿Para qué día los necesitas? (ej: mañana, 15 de junio)',
+  fecha: '📅 ¿Para qué día los necesitas? Escribe *HOY*, *MAÑANA* o la fecha *DD/MM* (ej: 25/07).',
+  hora: '⏰ ¿A qué hora empiezan? (ej: 6:00 a.m.)',
   pago: '💵 ¿Cuánto pagas por jornada? (en pesos, ej: 70000)',
   descripcion: '📝 Describe la vacante: condiciones, horario, requisitos, beneficios… (o escribe NINGUNA)',
   fotos: '📷 Envía 1 a 4 *fotos* de la vacante/finca, o escribe LISTO para publicar sin fotos.',
@@ -107,6 +108,51 @@ function limpiarRespuesta(texto) {
   t = t.replace(/\s+/g, ' ').trim();
   if (!t) return String(texto || '').trim();
   return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/**
+ * Parseo determinístico de la fecha de la jornada, en zona Colombia (UTC-5).
+ * Acepta HOY / MAÑANA / PASADO MAÑANA, días de semana (→ próxima ocurrencia) y DD/MM(/AAAA).
+ * @returns {{iso:string, display:string}|null} null si no se pudo interpretar.
+ */
+function parseFechaJornada(texto) {
+  const t = String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  if (!t) return null;
+  const DIAS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+  const nowCo = new Date(Date.now() - 5 * 3600 * 1000); // desplazado a hora local Colombia
+  const baseY = nowCo.getUTCFullYear(), baseM = nowCo.getUTCMonth(), baseD = nowCo.getUTCDate();
+  const mk = (y, m, d) => {
+    const dt = new Date(Date.UTC(y, m, d));
+    const iso = dt.toISOString().slice(0, 10);
+    const display = `${DIAS[dt.getUTCDay()]} ${String(dt.getUTCDate()).padStart(2, '0')}/${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+    return { iso, display };
+  };
+  const hoyIso = mk(baseY, baseM, baseD).iso;
+
+  if (/\bhoy\b/.test(t)) return mk(baseY, baseM, baseD);
+  if (/pasado\s*manana/.test(t)) return mk(baseY, baseM, baseD + 2);
+  if (/\bmanana\b/.test(t)) return mk(baseY, baseM, baseD + 1);
+
+  for (let i = 0; i < DIAS.length; i++) {
+    if (t.includes(DIAS[i])) {
+      const hoyDow = new Date(Date.UTC(baseY, baseM, baseD)).getUTCDay();
+      let delta = (i - hoyDow + 7) % 7;
+      if (delta === 0) delta = 7; // "el lunes" = el próximo lunes, no hoy
+      return mk(baseY, baseM, baseD + delta);
+    }
+  }
+
+  const m = t.match(/(\d{1,2})\s*[\/\-.]\s*(\d{1,2})(?:\s*[\/\-.]\s*(\d{2,4}))?/);
+  if (m) {
+    const d = parseInt(m[1], 10), mes = parseInt(m[2], 10) - 1;
+    let y = m[3] ? parseInt(m[3], 10) : baseY;
+    if (y < 100) y += 2000;
+    if (mes < 0 || mes > 11 || d < 1 || d > 31) return null;
+    let cand = mk(y, mes, d);
+    if (!m[3] && cand.iso < hoyIso) cand = mk(baseY + 1, mes, d); // sin año y ya pasó → próximo año
+    return cand;
+  }
+  return null;
 }
 
 function mapDisponibilidad(t) {
@@ -290,13 +336,13 @@ async function crearVacanteDesdeWhatsapp(empleadorId, datos) {
   const titulo = `${datos.labor || 'Trabajo agrícola'}${datos.finca ? ' - ' + datos.finca : ''}`.slice(0, 250);
   const desc = (datos.descripcion && datos.descripcion.toUpperCase() !== 'NINGUNA')
     ? datos.descripcion
-    : `Solicitud por WhatsApp · ${datos.cantidad || '-'} trabajador(es) · Fecha: ${datos.fecha || '-'}`;
+    : `Solicitud por WhatsApp · ${datos.cantidad || '-'} trabajador(es) · Fecha: ${datos.fecha || '-'}${datos.hora ? ' · Hora: ' + datos.hora : ''}`;
 
   const result = await query(
     `INSERT INTO vacantes
-       (empleador_id, titulo, descripcion, tipo_pago, monto_pago, departamento, municipio, vereda, urgente)
-     VALUES (?, ?, ?, 'jornal', ?, ?, ?, ?, 1)`,
-    [empleadorId, titulo, desc, monto, departamento, municipio, datos.finca || null]
+       (empleador_id, titulo, descripcion, tipo_pago, monto_pago, departamento, municipio, vereda, urgente, fecha_jornada, hora_jornada)
+     VALUES (?, ?, ?, 'jornal', ?, ?, ?, ?, 1, ?, ?)`,
+    [empleadorId, titulo, desc, monto, departamento, municipio, datos.finca || null, datos.fecha_jornada || null, datos.hora || null]
   );
   const vacanteId = Number(result.insertId);
 
@@ -329,6 +375,7 @@ function resumenSolicitud(datos) {
     `🛠️ Labor: ${datos.labor || '-'}\n` +
     `👥 Trabajadores: ${datos.cantidad || '-'}\n` +
     `📅 Fecha: ${datos.fecha || '-'}\n` +
+    `⏰ Hora: ${datos.hora || '-'}\n` +
     `💵 Pago por jornada: ${pago}\n\n` +
     sufijoConfirmar()
   );
@@ -726,14 +773,24 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
       const limpio = textoLower.normalize('NFD').replace(/[̀-ͯ]/g, '')
         .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 
-      // PASO 5 — confirmación de asistencia tras ser aceptado: "CONFIRMO".
-      if (['confirmo', 'confirmar', 'confirmado', 'confirmada', 'confirmo asistencia', 'confirmo mi asistencia'].includes(limpio)) {
+      // PASO 5 — confirmación de asistencia tras ser aceptado: "CONFIRMO" o "VOY".
+      if (['confirmo', 'confirmar', 'confirmado', 'confirmada', 'confirmo asistencia', 'confirmo mi asistencia', 'voy', 'si voy', 'alli estare', 'ahi estare'].includes(limpio)) {
         const { confirmarAsistenciaTrabajador } = require('../controllers/vacantesController');
         const rc = await confirmarAsistenciaTrabajador(usuario.id).catch(() => ({ ok: false }));
         if (rc && rc.ok) {
           return { reply: `✅ ¡Confirmado! El empleador ya sabe que cuentas para *${rc.titulo}*. Llega puntual y mucha suerte 🌱` };
         }
-        // Sin aceptación pendiente de confirmar → sigue el flujo normal.
+        // Sin aceptación pendiente de confirmar → sigue el flujo normal (p. ej. "voy" como sí a una oferta).
+      }
+
+      // PASO 5 — respondió "NO VOY" al recordatorio: no asistirá → avisar al empleador (reemplazo).
+      if (['no voy', 'no ire', 'no puedo ir', 'no voy a poder', 'no voy a poder ir', 'no asistire', 'no podre asistir', 'no podre ir'].includes(limpio)) {
+        const { marcarNoAsiste } = require('../controllers/vacantesController');
+        const rn = await marcarNoAsiste(usuario.id).catch(() => ({ ok: false }));
+        if (rn && rn.ok) {
+          return { reply: 'Entendido 👍 Avisamos al empleador para que busque un reemplazo. Recuerda que las ausencias afectan tu calificación en TerraEmpleo.' };
+        }
+        // Sin aceptación vigente → sigue el flujo normal (p. ej. "no voy" como rechazo de una oferta).
       }
 
       const SI_OFERTA = ['si', 'sisi', 'si quiero', 'si acepto', 'acepto', 'dale', 'listo', 'voy', 'claro', 'ok', 'okay', 'vale', 'quiero', 'me interesa', '1'];
@@ -880,8 +937,19 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
         return { reply: PREGUNTAS.fecha, conversacionId: conv.id };
       }
 
-      case 'fecha':
-        datos.fecha = limpiarRespuesta(comando);
+      case 'fecha': {
+        const f = parseFechaJornada(comando);
+        if (!f) {
+          return { reply: 'No entendí la fecha 🙏. Escribe *HOY*, *MAÑANA* o la fecha como *DD/MM* (ej: 25/07).', conversacionId: conv.id };
+        }
+        datos.fecha = f.display;
+        datos.fecha_jornada = f.iso;
+        await actualizarConversacion(conv.id, { paso: 'hora', datos });
+        return { reply: PREGUNTAS.hora, conversacionId: conv.id };
+      }
+
+      case 'hora':
+        datos.hora = limpiarRespuesta(comando).slice(0, 20);
         await actualizarConversacion(conv.id, { paso: 'pago', datos });
         return { reply: PREGUNTAS.pago, conversacionId: conv.id };
 
@@ -1170,6 +1238,7 @@ module.exports = {
   nombreCorto,
   registrarLeadCuaderno,
   detenerSeguimientoVacante,
+  parseFechaJornada,
   limpiarRespuesta,
   FLUJO_EMPLEADOR,
   FLUJO_REGISTRO,

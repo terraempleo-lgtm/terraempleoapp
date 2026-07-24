@@ -202,6 +202,22 @@ function linkVacante(id) {
 }
 
 /**
+ * Línea "📅 …" con la fecha (dd/mm) y hora de la jornada, si existen. Defensivo ante
+ * DATE de MySQL (Date o 'YYYY-MM-DD'). Devuelve '' si no hay fecha ni hora.
+ */
+function formatCuando(fechaJornada, horaJornada) {
+  let fechaTxt = '';
+  if (fechaJornada) {
+    const iso = fechaJornada instanceof Date ? fechaJornada.toISOString().slice(0, 10) : String(fechaJornada).slice(0, 10);
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) fechaTxt = `${m[3]}/${m[2]}`;
+  }
+  const horaTxt = horaJornada ? String(horaJornada).trim() : '';
+  if (!fechaTxt && !horaTxt) return '';
+  return `\n📅 ${[fechaTxt, horaTxt].filter(Boolean).join(' · ')}`;
+}
+
+/**
  * Mejor destino de WhatsApp para un usuario: el JID exacto con el que escribió
  * (whatsapp_identidades, entrega segura incluso con @lid); si no, su celular.
  */
@@ -251,11 +267,12 @@ async function enviarVacanteAMatch(trabajadorId, vacante, puntaje) {
 
     const lugar = [vacante.municipio, vacante.departamento].filter(Boolean).join(', ') || 'tu zona';
     const pago = vacante.monto_pago ? `\n💵 Pago: $${Number(vacante.monto_pago).toLocaleString('es-CO')}` : '';
+    const cuando = formatCuando(vacante.fecha_jornada, vacante.hora_jornada);
     const nombre = (u.nombre_completo || '').split(' ')[0] || '';
 
     const texto =
       `Hola ${nombre} 👋, ¡hay un trabajo que encaja con tu perfil!\n\n` +
-      `🌱 *${vacante.titulo}*\n📍 ${lugar}${pago}\n\n` +
+      `🌱 *${vacante.titulo}*\n📍 ${lugar}${cuando}${pago}\n\n` +
       `¿Te interesa?\n` +
       `• Responde *SÍ* para aplicar ✅\n` +
       `• Responde *NO* si no puedes\n\n` +
@@ -351,6 +368,7 @@ module.exports = {
   notificarEmpleadorMatches,
   mejorDestino,
   linkVacante,
+  formatCuando,
   descargarMedia,
   setOptIn,
 };

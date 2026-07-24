@@ -456,7 +456,8 @@ async function actualizarPostulacion(req, res) {
 
     // Notificar al trabajador
     const postInfo = await query(`
-      SELECT p.trabajador_id, p.vacante_id, v.titulo, v.municipio, v.departamento, v.vereda, v.monto_pago
+      SELECT p.trabajador_id, p.vacante_id, v.titulo, v.municipio, v.departamento, v.vereda, v.monto_pago,
+        v.fecha_jornada, v.hora_jornada
       FROM postulaciones p
       JOIN vacantes v ON v.id = p.vacante_id
       WHERE p.id = ?
@@ -476,12 +477,16 @@ async function actualizarPostulacion(req, res) {
               const v = postInfo[0];
               const lugar = [v.vereda, v.municipio, v.departamento].filter(Boolean).join(', ') || 'la finca';
               const pago = v.monto_pago ? `\n💰 Pago: $${Number(v.monto_pago).toLocaleString('es-CO')}` : '';
+              const cuando = whatsappService.formatCuando(v.fecha_jornada, v.hora_jornada);
+              const coord = v.fecha_jornada
+                ? 'Detalles y chat con el empleador en la app'
+                : 'Coordina el *día y la hora* con el empleador en el chat de la app';
               const nombre = (t[0].nombre_completo || '').split(' ')[0] || '';
               await whatsappService.enviarTexto(
                 destino,
                 `🎉 ¡Felicidades ${nombre}! Te aceptaron para *${titulo}*.\n` +
-                `📍 ${lugar}${pago}\n\n` +
-                `Coordina el *día y la hora* con el empleador en el chat de la app 👉 ${whatsappService.linkVacante(vacante_id)}\n\n` +
+                `📍 ${lugar}${cuando}${pago}\n\n` +
+                `${coord} 👉 ${whatsappService.linkVacante(vacante_id)}\n\n` +
                 `Responde *CONFIRMO* para asegurar tu cupo. ✅`,
                 { usuarioId: trabajador_id }
               );
@@ -1239,11 +1244,65 @@ async function confirmarAsistenciaTrabajador(trabajadorId) {
   }
 }
 
+/**
+ * PASO 5 (recordatorio matutino) — el trabajador respondió *NO VOY*: marca que no asistirá a su
+ * aceptación más reciente y avisa al empleador (capataz) para buscar reemplazo. La calificación NO
+ * se modifica automáticamente (solo se informa en el texto al trabajador).
+ * @param {number} trabajadorId
+ * @returns {Promise<{ok:boolean, titulo?:string}>} ok=false si no tiene una aceptación vigente.
+ */
+async function marcarNoAsiste(trabajadorId) {
+  try {
+    const rows = await query(
+      `SELECT p.id, p.vacante_id, v.titulo, v.empleador_id
+       FROM postulaciones p
+       JOIN vacantes v ON v.id = p.vacante_id
+       WHERE p.trabajador_id = ? AND p.estado = 'aceptada'
+         AND (p.no_asistira IS NULL OR p.no_asistira = 0)
+         AND v.estado = 'activa' AND (v.eliminado IS NULL OR v.eliminado = 0)
+       ORDER BY p.updated_at DESC LIMIT 1`,
+      [trabajadorId]
+    );
+    if (!rows || rows.length === 0) return { ok: false };
+    const post = rows[0];
+
+    await query('UPDATE postulaciones SET no_asistira = 1, asistencia_confirmada = 0 WHERE id = ?', [post.id]);
+
+    const tRows = await query('SELECT nombre_completo FROM usuarios WHERE id = ?', [trabajadorId]).catch(() => []);
+    const nombreTrab = (tRows && tRows[0] && tRows[0].nombre_completo) || 'Un trabajador';
+
+    await crearNotificacion(
+      post.empleador_id, 'trabajador_no_asiste', 'Un trabajador no podrá asistir',
+      `${nombreTrab} avisó que NO podrá asistir a "${post.titulo}". Te recomendamos buscar un reemplazo.`,
+      { vacante_id: post.vacante_id }
+    ).catch(() => {});
+    try {
+      const optin = await query('SELECT whatsapp_opt_in FROM usuarios WHERE id = ?', [post.empleador_id]);
+      if (optin && optin[0] && optin[0].whatsapp_opt_in) {
+        const destino = await whatsappService.mejorDestino(post.empleador_id);
+        if (destino) {
+          await whatsappService.enviarTexto(
+            destino,
+            `⚠️ *${nombreTrab}* avisó que *no podrá asistir* a tu vacante *${post.titulo}*. ` +
+            `Te recomendamos buscar un reemplazo 👉 ${whatsappService.linkVacante(post.vacante_id)}`,
+            { usuarioId: post.empleador_id }
+          );
+        }
+      }
+    } catch (_) {}
+
+    return { ok: true, titulo: post.titulo };
+  } catch (err) {
+    console.error('[PASO5] marcarNoAsiste:', err.message);
+    return { ok: false };
+  }
+}
+
 module.exports = {
   crearVacante, actualizarVacante, eliminarVacante, misVacantes, listarVacantes, detalleVacante,
   postularse, verPostulaciones, actualizarPostulacion, responderSolicitudContacto,
   misPostulaciones, cerrarVacante, subirFotosVacante, eliminarFotoVacante,
   ejecutarMatching, ejecutarMatchingEndpoint, ejecutarMatchingParaTrabajador,
   perfilPublicoTrabajador, vacantesRecomendadas, responderOfertaTrabajador,
-  confirmarAsistenciaTrabajador
+  confirmarAsistenciaTrabajador, marcarNoAsiste
 };
