@@ -1233,15 +1233,19 @@ async function initializeDatabase() {
   // UNIQUE de asistencia_id (1 fila por asistencia → N filas). Los datos
   // existentes no se tocan: cada fila vieja ya ES un bloque válido de un
   // solo elemento, cero pérdida, cero script de migración de datos.
-  try {
-    await query('ALTER TABLE cuaderno_registros_trabajo DROP INDEX asistencia_id');
-  } catch (e) {
-    if (!/check that column\/key exists|Can't DROP/i.test(e.message)) console.warn('[Migration] drop UNIQUE asistencia_id:', e.message);
-  }
+  // El índice de reemplazo hay que crearlo ANTES de borrar el UNIQUE — la
+  // FK (asistencia_id → cuaderno_asistencias) necesita algún índice sobre
+  // la columna en todo momento, si no MariaDB rechaza el DROP con
+  // "Cannot drop index: needed in a foreign key constraint".
   try {
     await query('ALTER TABLE cuaderno_registros_trabajo ADD INDEX IF NOT EXISTS idx_cuad_reg_asistencia (asistencia_id)');
   } catch (e) {
     if (!/Duplicate key name/i.test(e.message)) console.warn('[Migration] idx_cuad_reg_asistencia:', e.message);
+  }
+  try {
+    await query('ALTER TABLE cuaderno_registros_trabajo DROP INDEX asistencia_id');
+  } catch (e) {
+    if (!/check that column\/key exists|Can't DROP/i.test(e.message)) console.warn('[Migration] drop UNIQUE asistencia_id:', e.message);
   }
   try {
     await query('ALTER TABLE cuaderno_registros_trabajo ADD COLUMN IF NOT EXISTS labor VARCHAR(150) DEFAULT NULL');
