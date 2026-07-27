@@ -44,9 +44,14 @@ router.post('/jornadas/:id/asistencias', cuaderno.agregarAsistencia);
 router.put('/asistencias/:asisId', cuaderno.actualizarAsistencia);
 router.delete('/asistencias/:asisId', cuaderno.eliminarAsistencia);
 
-// Registros de trabajo (upsert por asistencia)
+// Registros de trabajo (upsert por asistencia — legacy, 1 registro por asistencia)
 router.put('/asistencias/:asisId/registro', cuaderno.upsertRegistroTrabajo);
 router.put('/asistencias/:asisId/pago', cuaderno.marcarPagado);
+
+// Entradas (bloques de trabajo — un trabajador puede tener varios el mismo día)
+router.post('/asistencias/:asistenciaId/entradas', cuaderno.crearEntrada);
+router.put('/entradas/:entradaId', cuaderno.actualizarEntrada);
+router.delete('/entradas/:entradaId', cuaderno.eliminarEntrada);
 
 // Calificaciones internas (privadas del empleador)
 router.put('/asistencias/:asisId/calificacion', cuaderno.upsertCalificacion);

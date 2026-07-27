@@ -614,11 +614,11 @@ async function initializeDatabase() {
   await query(`
     CREATE TABLE IF NOT EXISTS cuaderno_registros_trabajo (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      asistencia_id INT NOT NULL UNIQUE,
+      asistencia_id INT NOT NULL,
       jornada_id INT NOT NULL,
       cantidad_kg DECIMAL(10,2) DEFAULT NULL,
       horas DECIMAL(5,2) DEFAULT NULL,
-      tipo_pago ENUM('jornal','por_kilo','mixto') DEFAULT 'jornal',
+      tipo_pago ENUM('jornal','por_kilo','mixto','por_hora') DEFAULT 'jornal',
       precio_jornal DECIMAL(12,2) DEFAULT NULL,
       precio_kilo DECIMAL(12,2) DEFAULT NULL,
       pago_total DECIMAL(12,2) DEFAULT 0,
@@ -629,6 +629,7 @@ async function initializeDatabase() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_cuad_reg_jornada (jornada_id),
+      INDEX idx_cuad_reg_asistencia (asistencia_id),
       FOREIGN KEY (asistencia_id) REFERENCES cuaderno_asistencias(id) ON DELETE CASCADE,
       FOREIGN KEY (jornada_id) REFERENCES cuaderno_jornadas(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -1222,6 +1223,45 @@ async function initializeDatabase() {
     await query('ALTER TABLE cuaderno_registros_trabajo ADD COLUMN IF NOT EXISTS cultivo VARCHAR(100) DEFAULT NULL');
   } catch (e) {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_registros_trabajo.cultivo:', e.message);
+  }
+
+  // Migración: bloques de trabajo — un trabajador puede tener varias
+  // "entradas" el mismo día (ej. 2h en Tomate + 4h en Café), cada una con
+  // su propio cultivo/lote/labor/tipo de pago/tarifa. El modelo de
+  // columnas no cambia (cuaderno_registros_trabajo ya tenía todo lo que
+  // necesita un bloque); lo que cambia es la cardinalidad: se quita el
+  // UNIQUE de asistencia_id (1 fila por asistencia → N filas). Los datos
+  // existentes no se tocan: cada fila vieja ya ES un bloque válido de un
+  // solo elemento, cero pérdida, cero script de migración de datos.
+  try {
+    await query('ALTER TABLE cuaderno_registros_trabajo DROP INDEX asistencia_id');
+  } catch (e) {
+    if (!/check that column\/key exists|Can't DROP/i.test(e.message)) console.warn('[Migration] drop UNIQUE asistencia_id:', e.message);
+  }
+  try {
+    await query('ALTER TABLE cuaderno_registros_trabajo ADD INDEX IF NOT EXISTS idx_cuad_reg_asistencia (asistencia_id)');
+  } catch (e) {
+    if (!/Duplicate key name/i.test(e.message)) console.warn('[Migration] idx_cuad_reg_asistencia:', e.message);
+  }
+  try {
+    await query('ALTER TABLE cuaderno_registros_trabajo ADD COLUMN IF NOT EXISTS labor VARCHAR(150) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_registros_trabajo.labor:', e.message);
+  }
+  try {
+    await query('ALTER TABLE cuaderno_registros_trabajo ADD COLUMN IF NOT EXISTS tarifa DECIMAL(12,2) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_registros_trabajo.tarifa:', e.message);
+  }
+  try {
+    await query('ALTER TABLE cuaderno_registros_trabajo ADD COLUMN IF NOT EXISTS orden INT DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_registros_trabajo.orden:', e.message);
+  }
+  try {
+    await query("ALTER TABLE cuaderno_registros_trabajo MODIFY COLUMN tipo_pago ENUM('jornal','por_kilo','mixto','por_hora') DEFAULT 'jornal'");
+  } catch (e) {
+    console.warn('[Migration] cuaderno_registros_trabajo.tipo_pago por_hora:', e.message);
   }
 
   // ── Muro de compra/venta (mercado entre agricultores) ─────────────────────

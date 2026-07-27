@@ -204,23 +204,76 @@ async function detalleJornada(req, res) {
         u.celular AS trabajador_celular,
         u.foto_selfie AS trabajador_foto,
         u.calificacion_promedio AS trabajador_calif,
-        r.id AS registro_id, r.cantidad_kg, r.horas, r.tipo_pago, r.precio_jornal AS r_precio_jornal,
-        r.precio_kilo AS r_precio_kilo, r.pago_total, r.pagado, r.estado AS registro_estado, r.notas AS registro_notas,
-        r.descuento_alimentacion, r.descuento_otro, r.descuento_nota,
-        r.finca_lote_id, fl.nombre AS finca_lote_nombre,
-        r.finca_lote_id AS lote_id, fl.nombre AS lote_nombre, -- alias para el frontend web, que usa este nombre
-        r.cultivo,
         c.id AS calificacion_id, c.nivel AS calif_nivel, c.comentario AS calif_comentario
       FROM cuaderno_asistencias a
       LEFT JOIN usuarios u ON u.id = a.trabajador_id
-      LEFT JOIN cuaderno_registros_trabajo r ON r.asistencia_id = a.id
-      LEFT JOIN finca_lotes fl ON fl.id = r.finca_lote_id
       LEFT JOIN cuaderno_calificaciones_internas c ON c.asistencia_id = a.id
       WHERE a.jornada_id = ?
       ORDER BY (a.estado = 'pendiente') DESC, COALESCE(u.nombre_completo, a.manual_nombre) ASC
     `, [jornadaId]);
 
-    res.json({ jornada, asistencias: asistencias || [] });
+    // Bloques de trabajo (entradas) de todas las asistencias de la jornada,
+    // de una sola vez — una asistencia puede tener 0, 1 o varias entradas.
+    const entradasFlat = await query(`
+      SELECT r.*, r.finca_lote_id AS lote_id, fl.nombre AS lote_nombre
+      FROM cuaderno_registros_trabajo r
+      LEFT JOIN finca_lotes fl ON fl.id = r.finca_lote_id
+      WHERE r.jornada_id = ?
+      ORDER BY r.asistencia_id ASC, r.orden ASC, r.id ASC
+    `, [jornadaId]);
+
+    const entradasPorAsistencia = new Map();
+    for (const e of entradasFlat || []) {
+      const lista = entradasPorAsistencia.get(e.asistencia_id) || [];
+      lista.push({
+        id: e.id,
+        cultivo: e.cultivo,
+        lote_id: e.lote_id,
+        lote_nombre: e.lote_nombre,
+        labor: e.labor,
+        tipo_pago: e.tipo_pago,
+        tarifa: e.tarifa != null ? Number(e.tarifa) : null,
+        horas: e.horas != null ? Number(e.horas) : null,
+        cantidad_kg: e.cantidad_kg != null ? Number(e.cantidad_kg) : null,
+        notas: e.notas,
+        estado: e.estado,
+        pagado: e.pagado,
+        subtotal: Number(e.pago_total) || 0,
+      });
+      entradasPorAsistencia.set(e.asistencia_id, lista);
+    }
+
+    // Compat: TerraEmpleoApp (mobile) todavía lee campos planos
+    // (cantidad_kg, tipo_pago, pago_total, etc.) directo en la asistencia —
+    // se rellenan con la PRIMERA entrada para no romper esa app mientras el
+    // frontend web migra al array `entradas`. `pago_total` plano siempre es
+    // la suma de todos los bloques (eso es lo que ya usa mobile para el
+    // total del día).
+    const asistenciasConEntradas = (asistencias || []).map((a) => {
+      const entradas = entradasPorAsistencia.get(a.id) || [];
+      const total = Math.round(entradas.reduce((s, e) => s + e.subtotal, 0) * 100) / 100;
+      const primera = entradas[0] || {};
+      return {
+        ...a,
+        registro_id: primera.id ?? null,
+        cantidad_kg: primera.cantidad_kg ?? null,
+        horas: primera.horas ?? null,
+        tipo_pago: primera.tipo_pago ?? null,
+        finca_lote_id: primera.lote_id ?? null,
+        finca_lote_nombre: primera.lote_nombre ?? null,
+        lote_id: primera.lote_id ?? null,
+        lote_nombre: primera.lote_nombre ?? null,
+        cultivo: primera.cultivo ?? null,
+        registro_notas: primera.notas ?? null,
+        registro_estado: primera.estado ?? null,
+        pago_total: total,
+        pagado: primera.pagado ?? 0,
+        entradas,
+        total,
+      };
+    });
+
+    res.json({ jornada, asistencias: asistenciasConEntradas });
   } catch (err) {
     console.error('detalleJornada:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -495,6 +548,137 @@ async function upsertRegistroTrabajo(req, res) {
   }
 }
 
+const TIPOS_PAGO_ENTRADA = ['jornal', 'por_kilo', 'mixto', 'por_hora'];
+
+// Un trabajador puede tener varios bloques de trabajo el mismo día (ej. 2h
+// en Tomate + 4h en Café) — cada fila de cuaderno_registros_trabajo es un
+// bloque ("entrada"), ya no 1 fila por asistencia. subtotal = tarifa ×
+// cantidad (kg u horas según el tipo), o tarifa fija si es jornal.
+function subtotalEntrada({ tipo_pago, cantidad_kg, horas, tarifa }) {
+  const t = Number(tarifa) || 0;
+  if (tipo_pago === 'por_kilo') return Math.round(t * (Number(cantidad_kg) || 0) * 100) / 100;
+  if (tipo_pago === 'por_hora') return Math.round(t * (Number(horas) || 0) * 100) / 100;
+  return Math.round(t * 100) / 100; // jornal / mixto: tarifa fija del bloque
+}
+
+// POST /cuaderno/asistencias/:asistenciaId/entradas
+async function crearEntrada(req, res) {
+  try {
+    const usuarioId = req.user.id;
+    const asisId = Number(req.params.asistenciaId);
+    const rows = await query(`
+      SELECT a.id, a.jornada_id, j.empleador_id, j.finca_id
+      FROM cuaderno_asistencias a
+      JOIN cuaderno_jornadas j ON j.id = a.jornada_id
+      WHERE a.id = ?
+    `, [asisId]);
+    const a = rows?.[0];
+    if (!a) return res.status(404).json({ error: 'Asistencia no encontrada' });
+    const acc = await permisoJornadaResuelta(a.finca_id, a.empleador_id, usuarioId, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+
+    const { cultivo, lote_id, labor, tipo_pago, tarifa, horas, cantidad_kg, notas } = req.body;
+    const tipo = TIPOS_PAGO_ENTRADA.includes(tipo_pago) ? tipo_pago : 'jornal';
+    const pagoTotal = subtotalEntrada({ tipo_pago: tipo, cantidad_kg, horas, tarifa });
+
+    const ordenRows = await query('SELECT COALESCE(MAX(orden), -1) AS m FROM cuaderno_registros_trabajo WHERE asistencia_id = ?', [asisId]);
+    const orden = Number(ordenRows?.[0]?.m ?? -1) + 1;
+
+    const result = await query(`
+      INSERT INTO cuaderno_registros_trabajo
+        (asistencia_id, jornada_id, cantidad_kg, horas, tipo_pago, tarifa, cultivo,
+         finca_lote_id, labor, notas, pago_total, estado, orden)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completo', ?)
+    `, [
+      asisId, a.jornada_id, cantidad_kg ?? null, horas ?? null, tipo, tarifa ?? null, cultivo || null,
+      lote_id || null, labor || null, notas || null, pagoTotal, orden,
+    ]);
+
+    const entradaId = Number(result.insertId);
+    const nueva = await query('SELECT * FROM cuaderno_registros_trabajo WHERE id = ?', [entradaId]);
+    res.status(201).json({ ...nueva[0], subtotal: pagoTotal });
+  } catch (err) {
+    console.error('crearEntrada:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// PUT /cuaderno/entradas/:entradaId
+async function actualizarEntrada(req, res) {
+  try {
+    const usuarioId = req.user.id;
+    const entradaId = Number(req.params.entradaId);
+    const rows = await query(`
+      SELECT r.*, j.empleador_id, j.finca_id
+      FROM cuaderno_registros_trabajo r
+      JOIN cuaderno_jornadas j ON j.id = r.jornada_id
+      WHERE r.id = ?
+    `, [entradaId]);
+    const actual = rows?.[0];
+    if (!actual) return res.status(404).json({ error: 'Entrada no encontrada' });
+    const acc = await permisoJornadaResuelta(actual.finca_id, actual.empleador_id, usuarioId, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+
+    const { cultivo, lote_id, labor, tipo_pago, tarifa, horas, cantidad_kg, notas } = req.body;
+    const tipo = tipo_pago !== undefined
+      ? (TIPOS_PAGO_ENTRADA.includes(tipo_pago) ? tipo_pago : actual.tipo_pago)
+      : actual.tipo_pago;
+    const pagoTotal = subtotalEntrada({
+      tipo_pago: tipo,
+      cantidad_kg: cantidad_kg !== undefined ? cantidad_kg : actual.cantidad_kg,
+      horas: horas !== undefined ? horas : actual.horas,
+      tarifa: tarifa !== undefined ? tarifa : actual.tarifa,
+    });
+
+    await query(`
+      UPDATE cuaderno_registros_trabajo SET
+        cultivo = ?, finca_lote_id = ?, labor = ?, tipo_pago = ?, tarifa = ?,
+        horas = ?, cantidad_kg = ?, notas = ?, pago_total = ?
+      WHERE id = ?
+    `, [
+      cultivo !== undefined ? (cultivo || null) : actual.cultivo,
+      lote_id !== undefined ? (lote_id || null) : actual.finca_lote_id,
+      labor !== undefined ? (labor || null) : actual.labor,
+      tipo,
+      tarifa !== undefined ? (tarifa ?? null) : actual.tarifa,
+      horas !== undefined ? (horas ?? null) : actual.horas,
+      cantidad_kg !== undefined ? (cantidad_kg ?? null) : actual.cantidad_kg,
+      notas !== undefined ? (notas || null) : actual.notas,
+      pagoTotal,
+      entradaId,
+    ]);
+
+    res.json({ message: 'Entrada actualizada', subtotal: pagoTotal });
+  } catch (err) {
+    console.error('actualizarEntrada:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+// DELETE /cuaderno/entradas/:entradaId
+async function eliminarEntrada(req, res) {
+  try {
+    const usuarioId = req.user.id;
+    const entradaId = Number(req.params.entradaId);
+    const rows = await query(`
+      SELECT r.id, j.empleador_id, j.finca_id
+      FROM cuaderno_registros_trabajo r
+      JOIN cuaderno_jornadas j ON j.id = r.jornada_id
+      WHERE r.id = ?
+    `, [entradaId]);
+    const actual = rows?.[0];
+    if (!actual) return res.status(404).json({ error: 'Entrada no encontrada' });
+    const acc = await permisoJornadaResuelta(actual.finca_id, actual.empleador_id, usuarioId, { escribir: true });
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+
+    await query('DELETE FROM cuaderno_registros_trabajo WHERE id = ?', [entradaId]);
+    res.json({ message: 'Entrada eliminada' });
+  } catch (err) {
+    console.error('eliminarEntrada:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 async function marcarPagado(req, res) {
   try {
     const usuarioId = req.user.id;
@@ -759,7 +943,7 @@ async function dashboard(req, res) {
         COALESCE(SUM(r.pago_total),0) AS pago_recoleccion
       FROM cuaderno_jornadas j
       JOIN cuaderno_registros_trabajo r ON r.jornada_id = j.id
-      WHERE ${scope('j')} AND j.fecha >= ? AND j.tipo_trabajo = 'Recolección'
+      WHERE ${scope('j')} AND j.fecha >= ? AND COALESCE(r.labor, j.tipo_trabajo) = 'Recolección'
       GROUP BY semana
     `, [fincaIds, usuarioId, semanaDesde]);
     const recoleccionMap = new Map((recoleccionPorSemana || []).map((r) => [String(r.semana), Number(r.pago_recoleccion)]));
@@ -1158,6 +1342,8 @@ module.exports = {
   agregarAsistencia, actualizarAsistencia, eliminarAsistencia,
   // registros
   upsertRegistroTrabajo, marcarPagado,
+  // entradas (bloques de trabajo — varios por asistencia)
+  crearEntrada, actualizarEntrada, eliminarEntrada,
   // calificaciones internas
   upsertCalificacion,
   // notas

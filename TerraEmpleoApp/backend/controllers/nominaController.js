@@ -202,20 +202,35 @@ async function planilla(req, res) {
     const desde = req.query.desde || def.desde;
     const hasta = req.query.hasta || def.hasta;
 
-    // Asistencias del rango (con su registro de pago y datos del trabajador).
+    // Asistencias del rango (sin el registro de trabajo — un trabajador
+    // puede tener varios bloques por asistencia y eso duplicaría filas acá).
     const asistencias = await query(
       `SELECT a.id AS asistencia_id, a.trabajador_id, a.manual_nombre, a.estado,
               a.firma_recibido, j.id AS jornada_id, j.fecha, j.titulo AS jornada_titulo,
-              u.nombre_completo, u.foto_selfie,
-              r.cantidad_kg, r.pago_total, r.tipo_pago, r.pagado, r.notas AS registro_notas
+              u.nombre_completo, u.foto_selfie
          FROM cuaderno_asistencias a
          JOIN cuaderno_jornadas j ON j.id = a.jornada_id
          LEFT JOIN usuarios u ON u.id = a.trabajador_id
-         LEFT JOIN cuaderno_registros_trabajo r ON r.asistencia_id = a.id
         WHERE (j.finca_id IN (?) OR (j.finca_id IS NULL AND j.empleador_id = ?)) AND j.fecha BETWEEN ? AND ?
         ORDER BY j.fecha ASC, a.id ASC`,
       [fincaIds, usuarioId, desde, hasta]
     );
+
+    // Bloques de trabajo (entradas) del rango — un trabajador puede tener
+    // varias entradas el mismo día, cada una con su propio cultivo/lote/
+    // labor/tipo de pago/tarifa.
+    const entradasRango = await query(
+      `SELECT r.*, r.finca_lote_id AS lote_id, fl.nombre AS lote_nombre
+         FROM cuaderno_registros_trabajo r
+         JOIN cuaderno_asistencias a ON a.id = r.asistencia_id
+         JOIN cuaderno_jornadas j ON j.id = a.jornada_id
+         LEFT JOIN finca_lotes fl ON fl.id = r.finca_lote_id
+        WHERE (j.finca_id IN (?) OR (j.finca_id IS NULL AND j.empleador_id = ?)) AND j.fecha BETWEEN ? AND ?
+        ORDER BY r.asistencia_id ASC, r.orden ASC, r.id ASC`,
+      [fincaIds, usuarioId, desde, hasta]
+    );
+    const entradasPorAsis = {};
+    for (const e of entradasRango || []) (entradasPorAsis[e.asistencia_id] ||= []).push(e);
 
     // Ajustes del rango.
     const ajustes = await query(
@@ -243,6 +258,7 @@ async function planilla(req, res) {
           bonificacion: 0, labor_extra: 0, descuento: 0, anticipo: 0,
           ajustes: [],
           asistencias: [],
+          entradas: [],
           _lastFecha: '',
           ajuste_target_asistencia_id: null,
           firmado: false,
@@ -250,9 +266,21 @@ async function planilla(req, res) {
         });
       }
       const f = mapa.get(key);
-      f.total_kg += Number(a.cantidad_kg) || 0;
+      const entradasAsis = entradasPorAsis[a.asistencia_id] || [];
+      for (const e of entradasAsis) {
+        f.total_kg += Number(e.cantidad_kg) || 0;
+        f.base += Number(e.pago_total) || 0;
+        f.entradas.push({
+          id: e.id, asistencia_id: a.asistencia_id, fecha: a.fecha,
+          cultivo: e.cultivo, lote_id: e.lote_id, lote_nombre: e.lote_nombre, labor: e.labor,
+          tipo_pago: e.tipo_pago, tarifa: e.tarifa != null ? Number(e.tarifa) : null,
+          horas: e.horas != null ? Number(e.horas) : null,
+          cantidad_kg: e.cantidad_kg != null ? Number(e.cantidad_kg) : null,
+          notas: e.notas, subtotal: Number(e.pago_total) || 0,
+        });
+        if (e.pagado) f.pagado_any = true; else f.pagado_all = false;
+      }
       if (['llego', 'llego_tarde'].includes(a.estado)) f.dias += 1;
-      f.base += Number(a.pago_total) || 0;
       f.asistencias.push({ asistencia_id: a.asistencia_id, fecha: a.fecha, jornada_titulo: a.jornada_titulo });
 
       // El ajuste/firma se ancla a la asistencia más reciente del trabajador.
@@ -260,9 +288,6 @@ async function planilla(req, res) {
         f._lastFecha = String(a.fecha);
         f.ajuste_target_asistencia_id = a.asistencia_id;
         f.firmado = !!a.firma_recibido;
-      }
-      if (a.pago_total != null) {
-        if (a.pagado) f.pagado_any = true; else f.pagado_all = false;
       }
 
       for (const aj of ajustesPorAsis[a.asistencia_id] || []) {

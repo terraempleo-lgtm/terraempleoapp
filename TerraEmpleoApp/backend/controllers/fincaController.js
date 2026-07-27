@@ -547,7 +547,7 @@ async function listarRendimientoCultivos(req, res) {
          FROM cuaderno_registros_trabajo r
          JOIN cuaderno_jornadas j ON j.id = r.jornada_id
         WHERE j.finca_id = ? AND j.fecha BETWEEN ? AND ?
-          AND j.tipo_trabajo = 'Recolección' AND r.cultivo IS NOT NULL
+          AND COALESCE(r.labor, j.tipo_trabajo) = 'Recolección' AND r.cultivo IS NOT NULL
         GROUP BY r.cultivo`,
       [fincaId, desde, hasta]
     );
@@ -576,7 +576,7 @@ async function listarRendimientoCultivos(req, res) {
          JOIN cuaderno_asistencias a ON a.id = r.asistencia_id
          LEFT JOIN usuarios u ON u.id = a.trabajador_id
         WHERE j.finca_id = ? AND j.fecha BETWEEN ? AND ?
-          AND j.tipo_trabajo = 'Recolección' AND r.cultivo IS NOT NULL
+          AND COALESCE(r.labor, j.tipo_trabajo) = 'Recolección' AND r.cultivo IS NOT NULL
         GROUP BY r.cultivo, a.trabajador_id, nombre, foto
         ORDER BY kg DESC`,
       [fincaId, desde, hasta]
@@ -624,7 +624,7 @@ async function listarRendimientoCultivos(req, res) {
          FROM cuaderno_registros_trabajo r
          JOIN cuaderno_jornadas j ON j.id = r.jornada_id
         WHERE j.finca_id = ? AND j.fecha BETWEEN ? AND ?
-          AND j.tipo_trabajo = 'Recolección' AND r.cultivo IS NULL`,
+          AND COALESCE(r.labor, j.tipo_trabajo) = 'Recolección' AND r.cultivo IS NULL`,
       [fincaId, desde, hasta]
     );
     const jornadas_sin_cultivo = sinCultivoRows && sinCultivoRows[0] ? Number(sinCultivoRows[0].n) : 0;
