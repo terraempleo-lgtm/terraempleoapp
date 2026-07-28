@@ -125,6 +125,22 @@ function horasEntre(entrada, salida) {
   return Math.round((mins / 60) * 10) / 10;
 }
 
+let bloqueSeq = 0;
+function nuevoBloque(base = {}) {
+  return {
+    _key: `b-${Date.now()}-${bloqueSeq++}`,
+    id: base.id || null,
+    cultivo: base.cultivo || '',
+    lote_id: base.lote_id || null,
+    lote_nombre: base.lote_nombre || null,
+    labor: base.labor || '',
+    tipo_pago: '',
+    horas: '',
+    cantidad_kg: '',
+    monto_libre: '',
+  };
+}
+
 function nuevoTrabajador(base) {
   return {
     key: base.trabajador_id ? `t-${base.trabajador_id}` : `m-${base.manual_nombre || base.nombre}`,
@@ -132,26 +148,25 @@ function nuevoTrabajador(base) {
     nombre: base.nombre,
     foto: base.foto || null,
     manual_telefono: base.manual_telefono || '',
-    tipo_pago: base.tipo_pago || 'jornal',
-    labores: base.labores || [],
     hora_entrada: '',
     hora_salida: '',
-    cantidad_kg: '',
     deuda_alimentacion: false,
     deuda_otro: '',
     deuda_concepto: '',
-    lote_id: base.lote_id || null,
-    lote_nombre: base.lote_nombre || null,
+    entradas: base.entradas?.length ? base.entradas.map((e) => nuevoBloque(e)) : [nuevoBloque({ labor: base.labores?.[0] || '' })],
   };
 }
 
+function subtotalBloque(b, precios) {
+  const tp = b.tipo_pago;
+  if (tp === 'por_kilo') return Math.round((Number(precios.kilo) || 0) * (Number(b.cantidad_kg) || 0));
+  if (tp === 'por_hora') return Math.round((Number(precios.hora) || 0) * (Number(b.horas) || 0));
+  if (tp === 'libre') return Math.round(Number(b.monto_libre) || 0);
+  if (tp === 'jornal') return Math.round(Number(precios.jornal) || 0);
+  return 0;
+}
 function pagoBruto(t, precios) {
-  const kg = Number(t.cantidad_kg) || 0;
-  const pj = Number(precios.jornal) || 0;
-  const pk = Number(precios.kilo) || 0;
-  if (t.tipo_pago === 'por_kilo') return Math.round(kg * pk);
-  if (t.tipo_pago === 'mixto') return Math.round(pj + kg * pk);
-  return pj;
+  return (t.entradas || []).reduce((s, b) => s + subtotalBloque(b, precios), 0);
 }
 function deudaDe(t, precios) {
   return (t.deuda_alimentacion ? Number(precios.alimentacion) || 0 : 0) + (Number(t.deuda_otro) || 0);
@@ -160,7 +175,8 @@ function deudaDe(t, precios) {
 const TIPOS_PAGO = [
   { key: 'jornal', label: 'Jornal' },
   { key: 'por_kilo', label: 'Por kilo' },
-  { key: 'mixto', label: 'Mixto' },
+  { key: 'por_hora', label: 'Por hora' },
+  { key: 'libre', label: 'Monto libre' },
 ];
 
 // ── Chip genérico ───────────────────────────────────────────────────────────
@@ -214,14 +230,140 @@ function PasoBadge({ n }) {
   );
 }
 
+// ── Bloque de trabajo (una labor/cultivo dentro de la tarjeta del trabajador) ──
+function resumenBloque(b, precios) {
+  const partes = [b.cultivo, b.lote_nombre, b.labor].filter(Boolean);
+  const tp = TIPOS_PAGO.find((x) => x.key === b.tipo_pago);
+  if (tp) {
+    if (b.tipo_pago === 'por_kilo' && b.cantidad_kg) partes.push(`${b.cantidad_kg} kg`);
+    else if (b.tipo_pago === 'por_hora' && b.horas) partes.push(`${b.horas} h`);
+    else partes.push(tp.label);
+  }
+  const sub = subtotalBloque(b, precios);
+  return { texto: partes.length ? partes.join(' · ') : 'Bloque sin configurar', sub };
+}
+
+function BloqueCard({ b, index, precios, cultivos, lotesFinca, laboresPersonalizadas, onAgregarLaborPersonalizada, onChange, onQuitar, ocultarQuitar }) {
+  const [open, setOpen] = useState(!b.tipo_pago);
+  const upd = (k, v) => onChange({ ...b, [k]: v });
+  const { texto, sub } = resumenBloque(b, precios);
+
+  return (
+    <View style={styles.bloqueCard}>
+      <Pressable style={styles.rowBetween} onPress={() => { animate(); setOpen((o) => !o); }}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.bloqueResumenText} numberOfLines={1}>{texto}</Text>
+          {sub > 0 && <Text style={styles.bloqueResumenSub}>{formatMoney(sub)}</Text>}
+        </View>
+        {!ocultarQuitar && (
+          <Pressable onPress={() => onQuitar(b)} hitSlop={8} style={{ padding: 6 }}>
+            <Ionicons name="trash-outline" size={15} color={COLORS.ink400} />
+          </Pressable>
+        )}
+        <Ionicons name="chevron-down" size={16} color={COLORS.ink400} style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }} />
+      </Pressable>
+
+      {open && (
+        <View style={{ marginTop: 8 }}>
+          <Text style={styles.smallLabel}>Labor</Text>
+          <View style={styles.wrapRow}>
+            {LABORES_JORNADA.map((l) => (
+              <Chip key={l.label} label={l.label} icon={l.icon} color={l.color} activo={b.labor === l.label} onPress={() => upd('labor', b.labor === l.label ? '' : l.label)} />
+            ))}
+            {laboresPersonalizadas.map((nombre) => (
+              <Chip key={nombre} label={nombre} icon="ellipsis-horizontal" color="ink" activo={b.labor === nombre} onPress={() => upd('labor', b.labor === nombre ? '' : nombre)} />
+            ))}
+            <SelectorOtro onAgregar={(nombre) => { onAgregarLaborPersonalizada(nombre); upd('labor', nombre); }} />
+          </View>
+
+          {lotesFinca.length > 0 && (
+            <>
+              <Text style={styles.smallLabel}>Lote</Text>
+              <View style={styles.wrapRow}>
+                {lotesFinca.map((l) => (
+                  <Chip
+                    key={l.id} label={l.nombre} icon="location-outline" color="primary"
+                    activo={b.lote_id === l.id}
+                    onPress={() => onChange(b.lote_id === l.id
+                      ? { ...b, lote_id: null, lote_nombre: null }
+                      : { ...b, lote_id: l.id, lote_nombre: l.nombre })}
+                  />
+                ))}
+              </View>
+            </>
+          )}
+
+          {cultivos.length > 0 && (
+            <>
+              <Text style={styles.smallLabel}>Cultivo</Text>
+              <View style={styles.wrapRow}>
+                {cultivos.map((c) => (
+                  <Chip key={c} label={c} color="primary" activo={b.cultivo === c} onPress={() => upd('cultivo', b.cultivo === c ? '' : c)} />
+                ))}
+              </View>
+            </>
+          )}
+
+          <Text style={styles.smallLabel}>Tipo de pago</Text>
+          <View style={[styles.wrapRow, { marginTop: 10 }]}>
+            {TIPOS_PAGO.map((tp) => (
+              <Pressable
+                key={tp.key}
+                onPress={() => upd('tipo_pago', tp.key)}
+                style={[styles.tipoPagoBtn, b.tipo_pago === tp.key && styles.tipoPagoBtnActivo]}
+              >
+                <Text style={[styles.tipoPagoText, b.tipo_pago === tp.key && styles.tipoPagoTextActivo]}>{tp.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {b.tipo_pago === 'por_kilo' && (
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.fieldLabel}>¿Cuántos kilos recogió?</Text>
+              <TextInput placeholderTextColor={COLORS.ink400}
+                value={String(b.cantidad_kg)} onChangeText={(v) => upd('cantidad_kg', v)}
+                keyboardType="decimal-pad" placeholder="0" style={styles.input}
+              />
+            </View>
+          )}
+          {b.tipo_pago === 'por_hora' && (
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.fieldLabel}>¿Cuántas horas?</Text>
+              <TextInput placeholderTextColor={COLORS.ink400}
+                value={String(b.horas)} onChangeText={(v) => upd('horas', v)}
+                keyboardType="decimal-pad" placeholder="0" style={styles.input}
+              />
+            </View>
+          )}
+          {b.tipo_pago === 'libre' && (
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.fieldLabel}>Monto ($)</Text>
+              <TextInput placeholderTextColor={COLORS.ink400}
+                value={String(b.monto_libre)} onChangeText={(v) => upd('monto_libre', v)}
+                keyboardType="numeric" placeholder="0" style={styles.input}
+              />
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
 // ── Tarjeta de trabajador dentro de la jornada ──────────────────────────────
-function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonalizadas, onAgregarLaborPersonalizada, onAbrirLote }) {
+function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonalizadas, onAgregarLaborPersonalizada, lotesFinca }) {
   const [open, setOpen] = useState(true);
   const bruto = pagoBruto(t, precios);
   const deuda = deudaDe(t, precios);
   const upd = (k, v) => onChange({ ...t, [k]: v });
-  const labores = t.labores || [];
-  const toggleLabor = (label) => upd('labores', labores.includes(label) ? labores.filter((l) => l !== label) : [...labores, label]);
+  const cultivos = useMemo(() => [...new Set(lotesFinca.map((l) => l.cultivo).filter(Boolean))], [lotesFinca]);
+  const entradas = t.entradas || [];
+  const setBloque = (nb) => upd('entradas', entradas.map((b) => (b._key === nb._key ? nb : b)));
+  const quitarBloque = (b) => upd('entradas', entradas.filter((x) => x._key !== b._key));
+  const agregarBloque = () => {
+    const ultimo = entradas[entradas.length - 1];
+    upd('entradas', [...entradas, nuevoBloque({ cultivo: ultimo?.cultivo, lote_id: ultimo?.lote_id, lote_nombre: ultimo?.lote_nombre, labor: ultimo?.labor })]);
+  };
 
   return (
     <View style={styles.card}>
@@ -232,14 +374,6 @@ function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonal
             <Text style={styles.cardName}>{t.nombre}</Text>
             {!t.trabajador_id && <Text style={styles.badgeExterno}>externo</Text>}
           </View>
-          {labores.length > 0 && (
-            <View style={[styles.wrapRow, { marginTop: 4 }]}>
-              {labores.map((l) => {
-                const info = laborInfo(l);
-                return <Chip key={l} label={l} icon={info.icon} color={info.color} activo small onPress={() => {}} />;
-              })}
-            </View>
-          )}
           <View style={styles.rowStart}>
             <Text style={styles.moneyPrimary}>{formatMoney(bruto)}</Text>
             {deuda > 0 && (
@@ -260,37 +394,20 @@ function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonal
 
       {open && (
         <View style={styles.cardBody}>
-          <Text style={styles.smallLabel}>¿Qué hizo hoy? (toca una o varias)</Text>
-          <View style={styles.wrapRow}>
-            {LABORES_JORNADA.map((l) => (
-              <Chip key={l.label} label={l.label} icon={l.icon} color={l.color} activo={labores.includes(l.label)} onPress={() => toggleLabor(l.label)} />
+          <Text style={styles.smallLabel}>Bloques de trabajo</Text>
+          <View style={{ gap: 8 }}>
+            {entradas.map((b, i) => (
+              <BloqueCard
+                key={b._key} b={b} index={i} precios={precios} cultivos={cultivos} lotesFinca={lotesFinca}
+                laboresPersonalizadas={laboresPersonalizadas} onAgregarLaborPersonalizada={onAgregarLaborPersonalizada}
+                onChange={setBloque} onQuitar={quitarBloque} ocultarQuitar={entradas.length === 1}
+              />
             ))}
-            {laboresPersonalizadas.map((nombre) => (
-              <Chip key={nombre} label={nombre} icon="ellipsis-horizontal" color="ink" activo={labores.includes(nombre)} onPress={() => toggleLabor(nombre)} />
-            ))}
-            <SelectorOtro onAgregar={(nombre) => { onAgregarLaborPersonalizada(nombre); toggleLabor(nombre); }} />
           </View>
-
-          <Text style={styles.smallLabel}>¿Qué lote trabajó?</Text>
-          <Pressable onPress={() => onAbrirLote(t)} style={[styles.loteBtn, t.lote_id && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}>
-            <Ionicons name="location-outline" size={14} color={t.lote_id ? '#fff' : COLORS.textSecondary} />
-            <Text style={[styles.loteBtnText, t.lote_id && { color: '#fff' }]}>
-              {t.lote_nombre || 'Elegir lote'}
-            </Text>
+          <Pressable style={styles.agregarBloqueBtn} onPress={agregarBloque}>
+            <Ionicons name="add-circle-outline" size={16} color={COLORS.primary} />
+            <Text style={styles.agregarBloqueText}>  Agregar otro cultivo</Text>
           </Pressable>
-
-          <Text style={styles.smallLabel}>Tipo de pago</Text>
-          <View style={[styles.wrapRow, { marginTop: 10 }]}>
-            {TIPOS_PAGO.map((tp) => (
-              <Pressable
-                key={tp.key}
-                onPress={() => upd('tipo_pago', tp.key)}
-                style={[styles.tipoPagoBtn, t.tipo_pago === tp.key && styles.tipoPagoBtnActivo]}
-              >
-                <Text style={[styles.tipoPagoText, t.tipo_pago === tp.key && styles.tipoPagoTextActivo]}>{tp.label}</Text>
-              </Pressable>
-            ))}
-          </View>
 
           <View style={[styles.rowStart, { marginTop: 10, gap: 8 }]}>
             <HoraField
@@ -308,16 +425,6 @@ function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonal
               style={{ flex: 1 }}
             />
           </View>
-
-          {(t.tipo_pago === 'por_kilo' || t.tipo_pago === 'mixto') && (
-            <View style={{ marginTop: 10 }}>
-              <Text style={styles.fieldLabel}>¿Cuántos kilos recogió?</Text>
-              <TextInput placeholderTextColor={COLORS.ink400}
-                value={String(t.cantidad_kg)} onChangeText={(v) => upd('cantidad_kg', v)}
-                keyboardType="decimal-pad" placeholder="0" style={styles.input}
-              />
-            </View>
-          )}
 
           <View style={styles.deudaBox}>
             <Text style={styles.smallLabel}>¿Debe algo? (opcional)</Text>
@@ -381,7 +488,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
   const [labor, setLabor] = useState([]);
   const toggleLaborGeneral = (l) => setLabor((prev) => (prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]));
   const [titulo, setTitulo] = useState('');
-  const [precios, setPrecios] = useState({ jornal: '', kilo: '', alimentacion: '' });
+  const [precios, setPrecios] = useState({ jornal: '', kilo: '', hora: '', alimentacion: '' });
   const [trabajadores, setTrabajadores] = useState([]);
   const [sugeridos, setSugeridos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
@@ -392,7 +499,6 @@ export default function CerrarJornadaScreen({ navigation, route }) {
   const [observaciones, setObservaciones] = useState('');
   const [laboresPersonalizadas, setLaboresPersonalizadas] = useState([]);
   const [lotesFinca, setLotesFinca] = useState([]);
-  const [loteModalFor, setLoteModalFor] = useState(null);
   const [showFechaPicker, setShowFechaPicker] = useState(false);
   const [cargado, setCargado] = useState(false);
 
@@ -424,7 +530,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         setVacanteId(borrador.vacante_id || '');
         setLabor(borrador.labor || []);
         setTitulo(borrador.titulo || '');
-        setPrecios(borrador.precios || preciosGuardados || { jornal: '', kilo: '', alimentacion: '' });
+        setPrecios(borrador.precios || preciosGuardados || { jornal: '', kilo: '', hora: '', alimentacion: '' });
         setSugeridos(borrador.sugeridos || []);
         setTrabajadores(borrador.trabajadores || []);
         setCostosGenerales(borrador.costosGenerales || '');
@@ -435,7 +541,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         setVacanteId(c?.vacante_id || '');
         setLabor(c?.labor || []);
         setTitulo(c?.titulo || '');
-        setPrecios(preciosGuardados || { jornal: '', kilo: '', alimentacion: '' });
+        setPrecios(preciosGuardados || { jornal: '', kilo: '', hora: '', alimentacion: '' });
         setSugeridos(c?.sugeridos || []);
         setTrabajadores((c?.trabajadores || []).map(nuevoTrabajador));
         setPreciosOpen(!preciosGuardados?.jornal);
@@ -488,7 +594,10 @@ export default function CerrarJornadaScreen({ navigation, route }) {
     if (!cargado) return;
     if (fechaPrevRef.current === fecha) return;
     fechaPrevRef.current = fecha;
-    setTrabajadores((prev) => prev.map((t) => ({ ...t, hora_entrada: '', hora_salida: '', tipo_pago: 'jornal' })));
+    setTrabajadores((prev) => prev.map((t) => ({
+      ...t, hora_entrada: '', hora_salida: '',
+      entradas: (t.entradas || []).map((b) => ({ ...b, tipo_pago: '', cantidad_kg: '', horas: '', monto_libre: '' })),
+    })));
   }, [fecha, cargado]);
 
   useEffect(() => {
@@ -560,17 +669,25 @@ export default function CerrarJornadaScreen({ navigation, route }) {
   const cerrarJornada = async () => {
     if (!fecha) { toast.error('La fecha es obligatoria'); return; }
     if (trabajadores.length === 0) { toast.error('Agrega al menos un trabajador'); return; }
-    const sinPrecio = trabajadores.some((t) =>
-      (t.tipo_pago !== 'por_kilo' && !Number(precios.jornal)) ||
-      (t.tipo_pago !== 'jornal' && !Number(precios.kilo)));
-    if (sinPrecio) { toast.error('Configura el precio del jornal y/o del kilo arriba'); setPreciosOpen(true); return; }
+    const todosBloques = trabajadores.flatMap((t) => t.entradas || []);
+    if (todosBloques.some((b) => !b.tipo_pago)) {
+      toast.error('Elige el tipo de pago de cada bloque de trabajo'); return;
+    }
+    const sinPrecio = todosBloques.some((b) =>
+      (b.tipo_pago === 'jornal' && !Number(precios.jornal)) ||
+      (b.tipo_pago === 'por_kilo' && !Number(precios.kilo)) ||
+      (b.tipo_pago === 'por_hora' && !Number(precios.hora)));
+    if (sinPrecio) { toast.error('Configura los precios arriba para los tipos de pago usados'); setPreciosOpen(true); return; }
+    if (todosBloques.some((b) => b.tipo_pago === 'libre' && !(Number(b.monto_libre) > 0))) {
+      toast.error('Escribe el monto de los bloques de "Monto libre"'); return;
+    }
 
     setSaving(true);
     try {
       const r = await cuadernoAPI.crearJornada({
         fecha, titulo: titulo || labor.join(', ') || 'Jornada', finca: fincaSel || null,
         tipo_trabajo: labor.join(',') || null, vacante_id: vacanteId ? Number(vacanteId) : null,
-        tipo_pago_default: trabajadores[0]?.tipo_pago || 'jornal',
+        tipo_pago_default: trabajadores[0]?.entradas?.[0]?.tipo_pago || 'jornal',
         precio_jornal: Number(precios.jornal) || null, precio_kilo: Number(precios.kilo) || null,
         costos_generales: Number(costosGenerales) || 0, observaciones: observaciones || null,
       });
@@ -597,18 +714,22 @@ export default function CerrarJornadaScreen({ navigation, route }) {
           hora_llegada: t.hora_entrada ? `${t.hora_entrada}:00` : null,
           hora_salida: t.hora_salida ? `${t.hora_salida}:00` : null,
         });
-        const horas = horasEntre(t.hora_entrada, t.hora_salida);
         const partesNota = [];
-        if (t.labores?.length) partesNota.push(`Labor: ${t.labores.join(', ')}`);
         if (t.hora_entrada && t.hora_salida) partesNota.push(`Entró ${t.hora_entrada} · salió ${t.hora_salida}`);
-        await cuadernoAPI.upsertRegistro(a.id, {
-          cantidad_kg: t.tipo_pago === 'jornal' ? null : Number(t.cantidad_kg) || null,
-          horas, tipo_pago: t.tipo_pago,
-          precio_jornal: t.tipo_pago === 'por_kilo' ? null : Number(precios.jornal) || null,
-          precio_kilo: t.tipo_pago === 'jornal' ? null : Number(precios.kilo) || null,
-          estado: 'completo', notas: partesNota.length ? partesNota.join(' · ') : null, pagado: 0,
-          finca_lote_id: t.lote_id || null,
-        });
+        const notas = partesNota.length ? partesNota.join(' · ') : null;
+        for (const b of (t.entradas || [])) {
+          const tarifa = b.tipo_pago === 'jornal' ? Number(precios.jornal) || 0
+            : b.tipo_pago === 'por_kilo' ? Number(precios.kilo) || 0
+            : b.tipo_pago === 'por_hora' ? Number(precios.hora) || 0
+            : Number(b.monto_libre) || 0;
+          await cuadernoAPI.crearEntrada(a.id, {
+            cultivo: b.cultivo || null, finca_lote_id: b.lote_id || null, labor: b.labor || null,
+            tipo_pago: b.tipo_pago, tarifa,
+            cantidad_kg: b.tipo_pago === 'por_kilo' ? Number(b.cantidad_kg) || null : null,
+            horas: b.tipo_pago === 'por_hora' ? Number(b.horas) || null : null,
+            notas,
+          });
+        }
         if (t.deuda_alimentacion && Number(precios.alimentacion) > 0) {
           await cuadernoAPI.agregarAjuste(a.id, { tipo: 'descuento', monto: Number(precios.alimentacion), motivo: 'Alimentación' }).catch(() => {});
         }
@@ -624,8 +745,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         trabajadores: trabajadores.map((t) => ({
           trabajador_id: t.trabajador_id, nombre: t.nombre, foto: t.foto,
           manual_nombre: t.nombre, manual_telefono: t.manual_telefono,
-          tipo_pago: t.tipo_pago, labores: t.labores,
-          lote_id: t.lote_id, lote_nombre: t.lote_nombre,
+          entradas: (t.entradas || []).map((b) => ({ cultivo: b.cultivo, lote_id: b.lote_id, lote_nombre: b.lote_nombre, labor: b.labor })),
         })),
       });
 
@@ -777,7 +897,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
           <Pressable style={[styles.rowBetween, { justifyContent: 'space-between' }]} onPress={() => { animate(); setPreciosOpen((o) => !o); }}>
             <View style={styles.rowStart}>
               <PasoBadge n={3} />
-              <Text style={styles.stepTitle}>  Precios: jornal, kilo y alimentación</Text>
+              <Text style={styles.stepTitle}>  Precios: jornal, kilo, hora y alimentación</Text>
             </View>
             <Ionicons name="chevron-down" size={16} color={COLORS.ink700} style={{ transform: [{ rotate: preciosOpen ? '180deg' : '0deg' }] }} />
           </Pressable>
@@ -787,6 +907,8 @@ export default function CerrarJornadaScreen({ navigation, route }) {
               <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.jornal)} onChangeText={(v) => setPrecios((p) => ({ ...p, jornal: v }))} keyboardType="numeric" placeholder="Ej: 70000" style={styles.input} />
               <Text style={styles.fieldLabel}>Precio por kilo (COP)</Text>
               <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.kilo)} onChangeText={(v) => setPrecios((p) => ({ ...p, kilo: v }))} keyboardType="numeric" placeholder="Ej: 1100" style={styles.input} />
+              <Text style={styles.fieldLabel}>Precio por hora (COP)</Text>
+              <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.hora)} onChangeText={(v) => setPrecios((p) => ({ ...p, hora: v }))} keyboardType="numeric" placeholder="Ej: 5000" style={styles.input} />
               <Text style={styles.fieldLabel}>Precio alimentación (COP)</Text>
               <TextInput placeholderTextColor={COLORS.ink400} value={String(precios.alimentacion)} onChangeText={(v) => setPrecios((p) => ({ ...p, alimentacion: v }))} keyboardType="numeric" placeholder="Ej: 12000" style={styles.input} />
             </View>
@@ -866,7 +988,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
                   onQuitar={(x) => setTrabajadores((prev) => prev.filter((y) => y.key !== x.key))}
                   laboresPersonalizadas={laboresPersonalizadas}
                   onAgregarLaborPersonalizada={agregarLaborPersonalizada}
-                  onAbrirLote={setLoteModalFor}
+                  lotesFinca={lotesFinca}
                 />
               ))}
             </View>
@@ -907,46 +1029,6 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         </View>
       </ScrollView>
 
-      <Modal visible={!!loteModalFor} transparent animationType="fade" onRequestClose={() => setLoteModalFor(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>¿Qué lote trabajó {loteModalFor?.nombre}?</Text>
-            {lotesFinca.length === 0 ? (
-              <Text style={styles.hintText}>No has creado lotes todavía. Ve a Configuración de finca para agregarlos.</Text>
-            ) : (
-              <View style={styles.wrapRow}>
-                {lotesFinca.map((l) => (
-                  <Chip
-                    key={l.id}
-                    label={l.nombre}
-                    icon="location-outline"
-                    color="primary"
-                    activo={loteModalFor?.lote_id === l.id}
-                    onPress={() => {
-                      setTrabajadores((prev) => prev.map((x) => (x.key === loteModalFor.key ? { ...x, lote_id: l.id, lote_nombre: l.nombre } : x)));
-                      setLoteModalFor(null);
-                    }}
-                  />
-                ))}
-              </View>
-            )}
-            {loteModalFor?.lote_id && (
-              <Pressable
-                onPress={() => {
-                  setTrabajadores((prev) => prev.map((x) => (x.key === loteModalFor.key ? { ...x, lote_id: null, lote_nombre: null } : x)));
-                  setLoteModalFor(null);
-                }}
-                style={styles.modalCancelLink}
-              >
-                <Text style={styles.modalCancelLinkText}>Quitar lote asignado</Text>
-              </Pressable>
-            )}
-            <Pressable onPress={() => setLoteModalFor(null)} style={styles.modalCancelLink}>
-              <Text style={styles.modalCancelLinkText}>Cerrar</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -1002,6 +1084,11 @@ const styles = StyleSheet.create({
   moneyBold: { fontWeight: '700', color: COLORS.ink900, fontSize: 12 },
   dotSep: { color: COLORS.ink500 },
   cardBody: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: COLORS.line },
+  bloqueCard: { borderWidth: 0.5, borderColor: COLORS.border, borderRadius: 10, padding: 10, backgroundColor: '#fff' },
+  bloqueResumenText: { fontSize: 13, fontWeight: '700', color: COLORS.ink900 },
+  bloqueResumenSub: { fontSize: 12, fontWeight: '700', color: COLORS.primary, marginTop: 2 },
+  agregarBloqueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, marginTop: 8 },
+  agregarBloqueText: { color: COLORS.primary, fontWeight: '800', fontSize: 13 },
   tipoPagoBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 0.5, borderColor: COLORS.border, backgroundColor: '#fff', alignItems: 'center' },
   tipoPagoBtnActivo: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   tipoPagoText: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary },
