@@ -548,7 +548,7 @@ async function upsertRegistroTrabajo(req, res) {
   }
 }
 
-const TIPOS_PAGO_ENTRADA = ['jornal', 'por_kilo', 'mixto', 'por_hora'];
+const TIPOS_PAGO_ENTRADA = ['jornal', 'por_kilo', 'mixto', 'por_hora', 'libre'];
 
 // Un trabajador puede tener varios bloques de trabajo el mismo día (ej. 2h
 // en Tomate + 4h en Café) — cada fila de cuaderno_registros_trabajo es un

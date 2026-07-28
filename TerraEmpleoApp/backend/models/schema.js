@@ -618,7 +618,7 @@ async function initializeDatabase() {
       jornada_id INT NOT NULL,
       cantidad_kg DECIMAL(10,2) DEFAULT NULL,
       horas DECIMAL(5,2) DEFAULT NULL,
-      tipo_pago ENUM('jornal','por_kilo','mixto','por_hora') DEFAULT 'jornal',
+      tipo_pago ENUM('jornal','por_kilo','mixto','por_hora','libre') DEFAULT 'jornal',
       precio_jornal DECIMAL(12,2) DEFAULT NULL,
       precio_kilo DECIMAL(12,2) DEFAULT NULL,
       pago_total DECIMAL(12,2) DEFAULT 0,
@@ -1263,7 +1263,7 @@ async function initializeDatabase() {
     if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] cuaderno_registros_trabajo.orden:', e.message);
   }
   try {
-    await query("ALTER TABLE cuaderno_registros_trabajo MODIFY COLUMN tipo_pago ENUM('jornal','por_kilo','mixto','por_hora') DEFAULT 'jornal'");
+    await query("ALTER TABLE cuaderno_registros_trabajo MODIFY COLUMN tipo_pago ENUM('jornal','por_kilo','mixto','por_hora','libre') DEFAULT 'jornal'");
   } catch (e) {
     console.warn('[Migration] cuaderno_registros_trabajo.tipo_pago por_hora:', e.message);
   }
