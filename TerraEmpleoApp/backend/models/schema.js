@@ -826,6 +826,7 @@ async function initializeDatabase() {
       periodicidad ENUM('semanal','mensual','bimensual') NOT NULL DEFAULT 'semanal',
       orden INT NOT NULL DEFAULT 0,
       activo TINYINT(1) NOT NULL DEFAULT 1,
+      origen ENUM('manual','balance') NOT NULL DEFAULT 'manual',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_concepto_finca_tipo (finca_id, tipo),
       FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE
@@ -889,9 +890,15 @@ async function initializeDatabase() {
       monto DECIMAL(14,2) NOT NULL,
       creado_por INT DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      fin_concepto_id INT DEFAULT NULL,
+      fin_periodo_id INT DEFAULT NULL,
+      fin_semana_id INT DEFAULT NULL,
       INDEX idx_balance_finca_fecha (finca_id, fecha),
       FOREIGN KEY (finca_id) REFERENCES fincas(id) ON DELETE CASCADE,
-      FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+      FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL,
+      FOREIGN KEY (fin_concepto_id) REFERENCES fin_conceptos(id) ON DELETE SET NULL,
+      FOREIGN KEY (fin_periodo_id) REFERENCES fin_periodos(id) ON DELETE SET NULL,
+      FOREIGN KEY (fin_semana_id) REFERENCES fin_semanas(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
@@ -1367,6 +1374,49 @@ async function initializeDatabase() {
     console.log('[Migration] fin_conceptos.tipo: agregado valor "nomina".');
   } catch (e) {
     console.warn('[Migration] fin_conceptos.tipo nomina:', e.message);
+  }
+
+  // Migración: conectar Balance con Finanzas — los aportes/retiros de
+  // finca_balance_movimientos generan su propia fila en fin_movimientos
+  // (Ingresos / Gastos variables), marcada con origen='balance' para no
+  // contarla dos veces en los totales del propio Balance.
+  try {
+    await query(`ALTER TABLE fin_conceptos ADD COLUMN IF NOT EXISTS origen ENUM('manual','balance') NOT NULL DEFAULT 'manual'`);
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fin_conceptos.origen:', e.message);
+  }
+  try {
+    await query('ALTER TABLE finca_balance_movimientos ADD COLUMN IF NOT EXISTS fin_concepto_id INT DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] finca_balance_movimientos.fin_concepto_id:', e.message);
+  }
+  try {
+    await query('ALTER TABLE finca_balance_movimientos ADD COLUMN IF NOT EXISTS fin_periodo_id INT DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] finca_balance_movimientos.fin_periodo_id:', e.message);
+  }
+  try {
+    await query('ALTER TABLE finca_balance_movimientos ADD COLUMN IF NOT EXISTS fin_semana_id INT DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] finca_balance_movimientos.fin_semana_id:', e.message);
+  }
+  try {
+    await query(`ALTER TABLE finca_balance_movimientos
+      ADD CONSTRAINT fk_balance_fin_concepto FOREIGN KEY (fin_concepto_id) REFERENCES fin_conceptos(id) ON DELETE SET NULL`);
+  } catch (e) {
+    if (!/Duplicate|already exists|Duplicate key on write/i.test(e.message)) console.warn('[Migration] fk_balance_fin_concepto:', e.message);
+  }
+  try {
+    await query(`ALTER TABLE finca_balance_movimientos
+      ADD CONSTRAINT fk_balance_fin_periodo FOREIGN KEY (fin_periodo_id) REFERENCES fin_periodos(id) ON DELETE SET NULL`);
+  } catch (e) {
+    if (!/Duplicate|already exists|Duplicate key on write/i.test(e.message)) console.warn('[Migration] fk_balance_fin_periodo:', e.message);
+  }
+  try {
+    await query(`ALTER TABLE finca_balance_movimientos
+      ADD CONSTRAINT fk_balance_fin_semana FOREIGN KEY (fin_semana_id) REFERENCES fin_semanas(id) ON DELETE SET NULL`);
+  } catch (e) {
+    if (!/Duplicate|already exists|Duplicate key on write/i.test(e.message)) console.warn('[Migration] fk_balance_fin_semana:', e.message);
   }
 
   console.log('Base de datos inicializada correctamente.');

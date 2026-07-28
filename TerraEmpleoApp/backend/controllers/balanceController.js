@@ -1,9 +1,100 @@
 const { query } = require('../config/database');
 const { accesoFinca } = require('./fincaController');
+const { ensurePeriodo } = require('./finanzasController');
 
 const TIPOS = ['aporte', 'retiro', 'otro_ingreso', 'otro_egreso'];
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const signo = (tipo) => (tipo === 'aporte' || tipo === 'otro_ingreso' ? 1 : -1);
+
+// Los movimientos de capital (aporte/retiro) se reflejan también como su
+// propia fila en Finanzas (Ingresos / Gastos variables), para que el dueño
+// los vea en un solo lugar. 'otro_ingreso'/'otro_egreso' NO se conectan.
+const TIPO_FIN_DE_BALANCE = { aporte: 'ingreso', retiro: 'gasto_variable' };
+
+// Concepto de Finanzas para un movimiento de Balance: reutiliza uno ya
+// creado desde Balance con el mismo nombre (origen='balance'); si no existe,
+// lo crea. No reutiliza conceptos creados a mano por el dueño en Finanzas,
+// para no mezclar históricos y así poder excluirlos limpio de los totales.
+async function ensureConceptoBalance(fincaId, nombre, tipoFin) {
+  const nombreNorm = String(nombre).trim();
+  const existente = await query(
+    `SELECT id FROM fin_conceptos WHERE finca_id = ? AND tipo = ? AND nombre = ? AND origen = 'balance' LIMIT 1`,
+    [fincaId, tipoFin, nombreNorm]
+  );
+  if (existente && existente.length) return existente[0].id;
+
+  const max = await query(
+    'SELECT COALESCE(MAX(orden), 0) AS m FROM fin_conceptos WHERE finca_id = ? AND tipo = ?',
+    [fincaId, tipoFin]
+  );
+  const orden = Number((max && max[0] && max[0].m) || 0) + 1;
+  const result = await query(
+    `INSERT INTO fin_conceptos (finca_id, nombre, tipo, periodicidad, orden, origen)
+     VALUES (?, ?, ?, 'semanal', ?, 'balance')`,
+    [fincaId, nombreNorm, tipoFin, orden]
+  );
+  return Number(result.insertId);
+}
+
+// Semana del período que contiene la fecha dada.
+async function ensureSemana(periodoId, fecha) {
+  const rows = await query(
+    'SELECT id FROM fin_semanas WHERE periodo_id = ? AND ? BETWEEN fecha_inicio AND fecha_fin LIMIT 1',
+    [periodoId, fecha]
+  );
+  return rows && rows.length ? Number(rows[0].id) : null;
+}
+
+// Suma `monto` al fin_movimientos de ese concepto+semana (mismo criterio de
+// upsert que ya usa la Nota Rápida de Finanzas: concepto+periodo+semana).
+async function sumarMovimientoFinanzas({ conceptoId, periodoId, semanaId, monto, fecha, nota, userId }) {
+  const existente = await query(
+    `SELECT id, monto FROM fin_movimientos WHERE concepto_id = ? AND periodo_id = ? AND (semana_id <=> ?)`,
+    [conceptoId, periodoId, semanaId]
+  );
+  if (existente && existente.length) {
+    const nuevoMonto = round2(Number(existente[0].monto) + monto);
+    await query('UPDATE fin_movimientos SET monto = ? WHERE id = ?', [nuevoMonto, existente[0].id]);
+    return existente[0].id;
+  }
+  const result = await query(
+    `INSERT INTO fin_movimientos (concepto_id, periodo_id, semana_id, monto, fecha, nota, registrado_por)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [conceptoId, periodoId, semanaId, monto, fecha, nota || null, userId]
+  );
+  return Number(result.insertId);
+}
+
+// Resta `monto` del fin_movimientos vinculado a un movimiento de Balance; si
+// queda en 0 (o menos, por redondeo) se borra la fila.
+async function restarMovimientoFinanzas({ conceptoId, periodoId, semanaId, monto }) {
+  const existente = await query(
+    `SELECT id, monto FROM fin_movimientos WHERE concepto_id = ? AND periodo_id = ? AND (semana_id <=> ?)`,
+    [conceptoId, periodoId, semanaId]
+  );
+  if (!existente || !existente.length) return;
+  const restante = round2(Number(existente[0].monto) - monto);
+  if (restante <= 0) {
+    await query('DELETE FROM fin_movimientos WHERE id = ?', [existente[0].id]);
+  } else {
+    await query('UPDATE fin_movimientos SET monto = ? WHERE id = ?', [restante, existente[0].id]);
+  }
+}
+
+// Crea/actualiza la fila espejo en Finanzas para un movimiento de Balance
+// recién insertado, y devuelve las referencias a guardar en la fila.
+async function reflejarEnFinanzas({ fincaId, tipo, categoria, descripcion, monto, fecha, userId }) {
+  const tipoFin = TIPO_FIN_DE_BALANCE[tipo];
+  if (!tipoFin) return null;
+  const [anioStr, mesStr] = String(fecha).split('-');
+  const periodo = await ensurePeriodo(fincaId, Number(anioStr), Number(mesStr));
+  const conceptoId = await ensureConceptoBalance(fincaId, categoria, tipoFin);
+  const semanaId = await ensureSemana(periodo.id, fecha);
+  await sumarMovimientoFinanzas({
+    conceptoId, periodoId: periodo.id, semanaId, monto, fecha, nota: descripcion || categoria, userId,
+  });
+  return { fin_concepto_id: conceptoId, fin_periodo_id: periodo.id, fin_semana_id: semanaId };
+}
 
 // GET /finca/:id/balance?desde=&hasta=
 // Combina lo YA registrado en Finanzas (ventas, gastos, nómina real del
@@ -29,12 +120,15 @@ async function balance(req, res) {
     if (hasta) { condPeriodo.push('p.fecha_inicio <= ?'); paramsPeriodo.push(hasta); }
     const whereRango = condPeriodo.length ? `AND ${condPeriodo.join(' AND ')}` : '';
 
+    // Excluye los conceptos origen='balance' — esos montos ya se cuentan
+    // aparte como aportes/retiros de finca_balance_movimientos más abajo;
+    // sumarlos aquí también los contaría dos veces en el saldo.
     const porTipo = await query(
       `SELECT c.tipo, COALESCE(SUM(m.monto), 0) AS total
          FROM fin_movimientos m
          JOIN fin_conceptos c ON c.id = m.concepto_id
          JOIN fin_periodos p ON p.id = m.periodo_id
-        WHERE p.finca_id = ? ${whereRango}
+        WHERE p.finca_id = ? AND c.origen != 'balance' ${whereRango}
         GROUP BY c.tipo`,
       paramsPeriodo
     );
@@ -128,7 +222,19 @@ async function crearMovimiento(req, res) {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [fincaId, fecha, tipo, String(categoria).trim(), descripcion || null, montoNum, req.user.id]
     );
-    const rows = await query('SELECT * FROM finca_balance_movimientos WHERE id = ?', [Number(result.insertId)]);
+    const movId = Number(result.insertId);
+
+    const refs = await reflejarEnFinanzas({
+      fincaId, tipo, categoria: String(categoria).trim(), descripcion, monto: montoNum, fecha, userId: req.user.id,
+    }).catch((e) => { console.error('reflejarEnFinanzas:', e); return null; });
+    if (refs) {
+      await query(
+        'UPDATE finca_balance_movimientos SET fin_concepto_id = ?, fin_periodo_id = ?, fin_semana_id = ? WHERE id = ?',
+        [refs.fin_concepto_id, refs.fin_periodo_id, refs.fin_semana_id, movId]
+      );
+    }
+
+    const rows = await query('SELECT * FROM finca_balance_movimientos WHERE id = ?', [movId]);
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('crearMovimientoBalance:', err);
@@ -143,6 +249,15 @@ async function eliminarMovimiento(req, res) {
     const movId = Number(req.params.movId);
     const acc = await accesoFinca(fincaId, req.user.id, { escribir: true });
     if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+
+    const rows = await query('SELECT * FROM finca_balance_movimientos WHERE id = ? AND finca_id = ?', [movId, fincaId]);
+    const mov = rows && rows[0];
+    if (mov && mov.fin_concepto_id) {
+      await restarMovimientoFinanzas({
+        conceptoId: mov.fin_concepto_id, periodoId: mov.fin_periodo_id, semanaId: mov.fin_semana_id,
+        monto: Number(mov.monto) || 0,
+      }).catch((e) => console.error('restarMovimientoFinanzas:', e));
+    }
 
     await query('DELETE FROM finca_balance_movimientos WHERE id = ? AND finca_id = ?', [movId, fincaId]);
     res.json({ message: 'Movimiento eliminado' });
