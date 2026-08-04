@@ -1,17 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, ScrollView, StyleSheet, Modal,
+  View, Text, TextInput, Pressable, ScrollView, StyleSheet,
   Switch, ActivityIndicator, LayoutAnimation, Platform, UIManager, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { cuadernoAPI, fincaAPI, trabajadoresAPI, vacantesAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 import Avatar from './Avatar';
 import HoraField from '../../../components/ui/HoraField';
-import { formatMoney, asText } from '../../../utils/fincaFormat';
+import CalendarioModal from '../../../components/ui/CalendarioModal';
+import { formatMoney, asText, normalizarTexto, coincideTexto } from '../../../utils/fincaFormat';
+import { leerPersonalFijo } from '../../../utils/personalFijo';
 import { useToast } from './useFincaToast';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -89,16 +90,6 @@ function formatFechaCorta(ymd) {
   if (!ymd || !/^\d{4}-\d{2}-\d{2}/.test(ymd)) return ymd || '';
   const [y, m, d] = ymd.split('-').map(Number);
   return `${d} ${MESES_CORTOS[m - 1]}`;
-}
-function fechaToDate(ymd) {
-  if (ymd && /^\d{4}-\d{2}-\d{2}/.test(ymd)) {
-    const [y, m, d] = ymd.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  }
-  return new Date();
-}
-function dateToFecha(d) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 async function leerCache() {
@@ -501,6 +492,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
   const [lotesFinca, setLotesFinca] = useState([]);
   const [showFechaPicker, setShowFechaPicker] = useState(false);
   const [cargado, setCargado] = useState(false);
+  const [huboBorradorOCache, setHuboBorradorOCache] = useState(false);
 
   useEffect(() => {
     leerJSON(LABORES_PERSONALIZADAS_KEY, []).then(setLaboresPersonalizadas);
@@ -511,9 +503,38 @@ export default function CerrarJornadaScreen({ navigation, route }) {
     if (!activeFincaId) return;
     fincaAPI.listarLotesFinca(activeFincaId).then((r) => setLotesFinca(r.data?.lotes || [])).catch(() => {});
   }, [activeFincaId]);
+
+  // Personal fijo (Configuración): siempre aparece como sugerido y, si el
+  // formulario arrancó en blanco, entra pre-seleccionado — el atajo para no
+  // agregar uno por uno a los que trabajan todas las semanas.
+  useEffect(() => {
+    if (!cargado || !activeFincaId) return;
+    let vivo = true;
+    leerPersonalFijo(activeFincaId).then((fijos) => {
+      if (!vivo || !fijos.length) return;
+      setSugeridos((prev) => {
+        const merged = [...prev];
+        for (const p of fijos) {
+          const repetido = merged.some((s) => (p.trabajador_id && s.trabajador_id === p.trabajador_id)
+            || (!p.trabajador_id && !s.trabajador_id && s.nombre === p.nombre));
+          if (!repetido) merged.push({ ...p });
+        }
+        return merged;
+      });
+      if (!huboBorradorOCache) {
+        setTrabajadores((prev) => {
+          if (prev.length) return prev;
+          return fijos.map((p) => nuevoTrabajador({ ...p, manual_nombre: p.nombre, labores: [] }));
+        });
+      }
+    });
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cargado, activeFincaId]);
   const agregarLaborPersonalizada = (nombre) => {
     setLaboresPersonalizadas((prev) => {
-      if (prev.some((l) => l.toLowerCase() === nombre.toLowerCase())) return prev;
+      // Comparación sin tildes: "Fumigación" y "fumigacion" son la misma labor.
+      if (prev.some((l) => normalizarTexto(l) === normalizarTexto(nombre))) return prev;
       const next = [...prev, nombre];
       guardarJSON(LABORES_PERSONALIZADAS_KEY, next);
       return next;
@@ -564,6 +585,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
           setSugeridos((prev) => (prev.length ? prev : propios));
         }).catch(() => {});
       }
+      setHuboBorradorOCache(!!borrador || !!(c?.trabajadores || []).length);
       setCargado(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -626,8 +648,8 @@ export default function CerrarJornadaScreen({ navigation, route }) {
       setBuscando(true);
       try {
         const r = await trabajadoresAPI.listar({});
-        const q = busqueda.trim().toLowerCase();
-        const filtrados = (r.data?.trabajadores || []).filter((x) => (x.nombre_completo || '').toLowerCase().includes(q));
+        // Búsqueda tolerante a tildes: "jose" encuentra a "José".
+        const filtrados = (r.data?.trabajadores || []).filter((x) => coincideTexto(x.nombre_completo, busqueda));
         setResultados(filtrados);
       } catch { setResultados([]); } finally { setBuscando(false); }
     }, 300);
@@ -812,47 +834,20 @@ export default function CerrarJornadaScreen({ navigation, route }) {
             <Text style={styles.stepTitle}>  ¿Cuándo fue la jornada?</Text>
           </View>
           <Text style={styles.fieldLabel}>Fecha</Text>
+          {/* Calendario propio multiplataforma — el picker nativo no abría en
+              web y dejaba este botón sin respuesta. */}
           <Pressable style={styles.fechaDropdown} onPress={() => setShowFechaPicker(true)}>
             <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
             <Text style={styles.fechaDropdownText}>{formatFechaCorta(fecha)}</Text>
             <Ionicons name="chevron-down" size={16} color={COLORS.ink400} />
           </Pressable>
-          {showFechaPicker && Platform.OS === 'android' && (
-            <DateTimePicker
-              value={fechaToDate(fecha)}
-              mode="date"
-              display="default"
-              locale="es-ES"
-              onChange={(event, selectedDate) => {
-                setShowFechaPicker(false);
-                if (event.type === 'set' && selectedDate) setFecha(dateToFecha(selectedDate));
-              }}
-            />
-          )}
-          {Platform.OS === 'ios' && (
-            <Modal visible={showFechaPicker} transparent animationType="slide" onRequestClose={() => setShowFechaPicker(false)}>
-              <View style={styles.fechaModalOverlay}>
-                <Pressable style={styles.fechaModalBackdrop} onPress={() => setShowFechaPicker(false)} />
-                <View style={styles.fechaModalCard}>
-                  <Pressable style={styles.fechaListoBtn} onPress={() => setShowFechaPicker(false)}>
-                    <Text style={styles.fechaListoText}>Listo</Text>
-                  </Pressable>
-                  <DateTimePicker
-                    value={fechaToDate(fecha)}
-                    mode="date"
-                    display="spinner"
-                    locale="es-ES"
-                    themeVariant="light"
-                    textColor={COLORS.ink900}
-                    style={styles.fechaSpinner}
-                    onChange={(event, selectedDate) => {
-                      if (selectedDate) setFecha(dateToFecha(selectedDate));
-                    }}
-                  />
-                </View>
-              </View>
-            </Modal>
-          )}
+          <CalendarioModal
+            visible={showFechaPicker}
+            fecha={fecha}
+            titulo="¿Cuándo fue la jornada?"
+            onClose={() => setShowFechaPicker(false)}
+            onSelect={setFecha}
+          />
           <Text style={styles.fieldLabel}>Vacante asociada (opcional)</Text>
           <View style={styles.wrapRow}>
             <Chip label="— Sin vacante —" activo={!vacanteId} color="ink" onPress={() => setVacanteId('')} />

@@ -517,10 +517,82 @@ async function listarPreciosVentaCultivo(req, res) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Resumen por rango de fechas (para el Balance discriminado: mensual,
+// trimestral, semestral o anual). Solo lectura — NO crea períodos.
+// GET /finanzas/resumen-rango?finca_id=&desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+// ─────────────────────────────────────────────────────────────────────────────
+async function resumenRango(req, res) {
+  try {
+    const fincaId = Number(req.query.finca_id);
+    const { desde, hasta } = req.query;
+    if (!fincaId) return res.status(400).json({ error: 'finca_id es obligatorio' });
+    if (!desde || !hasta) return res.status(400).json({ error: 'desde y hasta son obligatorios (YYYY-MM-DD)' });
+    const acc = await accesoFinca(fincaId, req.user.id);
+    if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+
+    const fincaRows = await query('SELECT id, empleador_id FROM fincas WHERE id = ?', [fincaId]);
+    const finca = fincaRows && fincaRows[0];
+    if (!finca) return res.status(404).json({ error: 'Finca no encontrada' });
+
+    // Total por concepto en el rango. Se usa la semana (o el período para
+    // facturas mensuales) para ubicar cada movimiento en el tiempo.
+    const porConcepto = await query(
+      `SELECT c.id, c.nombre, c.tipo, COALESCE(SUM(m.monto), 0) AS total
+         FROM fin_movimientos m
+         JOIN fin_conceptos c ON c.id = m.concepto_id
+         JOIN fin_periodos p ON p.id = m.periodo_id
+         LEFT JOIN fin_semanas s ON s.id = m.semana_id
+        WHERE p.finca_id = ?
+          AND COALESCE(s.fecha_inicio, p.fecha_inicio) <= ?
+          AND COALESCE(s.fecha_fin, p.fecha_fin) >= ?
+        GROUP BY c.id, c.nombre, c.tipo
+       HAVING total <> 0
+        ORDER BY c.tipo, total DESC`,
+      [fincaId, hasta, desde]
+    );
+
+    // Nómina real del Cuaderno en el rango (jornadas de la finca).
+    const nomRows = await query(
+      `SELECT COALESCE(SUM(r.pago_total), 0) AS total
+         FROM cuaderno_registros_trabajo r
+         JOIN cuaderno_jornadas j ON j.id = r.jornada_id
+        WHERE (j.finca_id = ? OR (j.finca_id IS NULL AND j.empleador_id = ?))
+          AND j.fecha BETWEEN ? AND ?`,
+      [finca.id, finca.empleador_id, desde, hasta]
+    );
+
+    const conceptos = (porConcepto || []).map((c) => ({
+      id: Number(c.id), nombre: c.nombre, tipo: c.tipo, total: Number(c.total) || 0,
+    }));
+    const totalTipo = (tipo) => conceptos.filter((c) => c.tipo === tipo).reduce((s, c) => s + c.total, 0);
+    const nominaCuaderno = Number((nomRows && nomRows[0] && nomRows[0].total) || 0);
+    const nominaManual = totalTipo('nomina');
+
+    res.json({
+      desde, hasta,
+      conceptos,
+      totales: {
+        ventas: totalTipo('ingreso'),
+        nomina_cuaderno: nominaCuaderno,
+        nomina_manual: nominaManual,
+        nomina: nominaCuaderno + nominaManual,
+        gasto_fijo: totalTipo('gasto_fijo'),
+        gasto_variable: totalTipo('gasto_variable'),
+        factura: totalTipo('factura'),
+      },
+    });
+  } catch (err) {
+    console.error('resumenRango:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 module.exports = {
   genSemanas,
   ensurePeriodo,
   tablero,
+  resumenRango,
   upsertMovimiento,
   crearConcepto,
   actualizarConcepto,

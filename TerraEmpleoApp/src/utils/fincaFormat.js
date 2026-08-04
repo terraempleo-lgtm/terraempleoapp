@@ -29,6 +29,18 @@ const LABORES_CANONICAS = [
 const sinAcentos = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 const LABOR_POR_CLAVE = new Map(LABORES_CANONICAS.map((l) => [sinAcentos(l), l]));
 
+// Clave de comparación tolerante para todo el Cuaderno: "Café" == "cafe",
+// "  Recolección " == "recoleccion". Usar SIEMPRE que se compare texto
+// escrito por el usuario (cultivos, labores, conceptos, nombres).
+export function normalizarTexto(s) {
+  return sinAcentos(s);
+}
+
+// true si `texto` contiene `busqueda` ignorando tildes y mayúsculas.
+export function coincideTexto(texto, busqueda) {
+  return normalizarTexto(texto).includes(normalizarTexto(busqueda));
+}
+
 export function formatLabor(tipo) {
   if (!tipo) return tipo;
   const clave = sinAcentos(tipo);

@@ -298,44 +298,46 @@ export default function LeerPlanillaScreen({ navigation }) {
               value={f.nombre} onChangeText={(v) => actualizarFila(f.key, 'nombre', v)} placeholder="Nombre completo"
             />
 
-            {/* Fila 2 — Cultivo / Lote */}
+            {/* Mismo orden que la planilla física: Lote, Labor, kilos por
+                cultivo, tipo de pago y horas. */}
+            {/* Fila 2 — Lote / Labor */}
             <View style={styles.rowGap}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Cultivo</Text>
-                <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.cultivo && styles.inputError]} value={f.cultivo} onChangeText={(v) => actualizarFila(f.key, 'cultivo', v)} placeholder="Ej: Café" />
-              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fieldLabel}>Lote</Text>
                 <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.lote && styles.inputError]} value={f.lote} onChangeText={(v) => actualizarFila(f.key, 'lote', v)} placeholder="Ej: Lote 1" />
               </View>
-            </View>
-
-            {/* Fila 3 — Labor / Tipo de pago */}
-            <View style={styles.rowGap}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fieldLabel}>Labor</Text>
                 <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.labor && styles.inputError]} value={f.labor} onChangeText={(v) => actualizarFila(f.key, 'labor', v)} placeholder="Ej: Recolección" />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Tipo de pago</Text>
-                <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.tipo_pago && styles.inputError]} value={f.tipo_pago} onChangeText={(v) => actualizarFila(f.key, 'tipo_pago', v)} placeholder="Jornal / Por kilo / Mixto" />
-              </View>
             </View>
 
-            {/* Fila 4 — Tarifa / Kg cereza */}
+            {/* Fila 3 — Kg cereza / Cultivo */}
             <View style={styles.rowGap}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Tarifa $</Text>
-                <TextInput placeholderTextColor={COLORS.ink400}
-                  style={[styles.input, !f.tarifa && styles.inputError]}
-                  value={f.tarifa} onChangeText={(v) => actualizarFila(f.key, 'tarifa', v)} keyboardType="numeric" placeholder="0"
-                />
-              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fieldLabel}>Kg cereza</Text>
                 <TextInput placeholderTextColor={COLORS.ink400}
                   style={[styles.input, !f.kg_cereza && styles.inputError]}
                   value={f.kg_cereza} onChangeText={(v) => actualizarFila(f.key, 'kg_cereza', v)} keyboardType="decimal-pad" placeholder="0"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Cultivo</Text>
+                <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.cultivo && styles.inputError]} value={f.cultivo} onChangeText={(v) => actualizarFila(f.key, 'cultivo', v)} placeholder="Ej: Café" />
+              </View>
+            </View>
+
+            {/* Fila 4 — Tipo de pago / Tarifa */}
+            <View style={styles.rowGap}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Tipo de pago</Text>
+                <TextInput placeholderTextColor={COLORS.ink400} style={[styles.input, !f.tipo_pago && styles.inputError]} value={f.tipo_pago} onChangeText={(v) => actualizarFila(f.key, 'tipo_pago', v)} placeholder="Jornal / Por kilo / Mixto" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Tarifa $</Text>
+                <TextInput placeholderTextColor={COLORS.ink400}
+                  style={[styles.input, !f.tarifa && styles.inputError]}
+                  value={f.tarifa} onChangeText={(v) => actualizarFila(f.key, 'tarifa', v)} keyboardType="numeric" placeholder="0"
                 />
               </View>
             </View>

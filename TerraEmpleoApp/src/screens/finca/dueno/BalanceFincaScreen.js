@@ -5,11 +5,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { fincaAPI } from '../../../services/api';
+import { fincaAPI, finanzasAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
 import { useToast } from '../shared/useFincaToast';
 import { formatMoney, formatDate } from '../../../utils/fincaFormat';
+import { useFechaRef, setFechaRef } from '../../../context/periodoStore';
 
 const COLORS = {
   primary: '#008d49', primaryDark: '#1B512D', accent: '#C1FF72',
@@ -24,6 +25,146 @@ const CATEGORIAS_RETIRO = ['Retiro personal', 'Compra de activo', 'Deuda', 'Otro
 function hoyYMD() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ── Balance discriminado por período ────────────────────────────────────────
+const MESES_L = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const PERIODOS = [
+  { key: 'mes', label: 'Mensual', meses: 1 },
+  { key: 'trimestre', label: 'Trimestral', meses: 3 },
+  { key: 'semestre', label: 'Semestral', meses: 6 },
+  { key: 'anio', label: 'Anual', meses: 12 },
+];
+const pad2 = (n) => String(n).padStart(2, '0');
+const ymdStr = (a, m, d) => `${a}-${pad2(m)}-${pad2(d)}`;
+const ultimoDia = (a, m) => new Date(a, m, 0).getDate();
+
+// Rango [desde, hasta] del período que contiene `ref` (alineado al año:
+// trimestres ene-mar/abr-jun/…, semestres ene-jun/jul-dic).
+function rangoPeriodo(ref, meses) {
+  const a = ref.getFullYear();
+  const m0 = Math.floor(ref.getMonth() / meses) * meses; // 0-based mes inicial
+  const mIni = m0 + 1;
+  const mFin = m0 + meses;
+  return {
+    desde: ymdStr(a, mIni, 1),
+    hasta: ymdStr(a, mFin, ultimoDia(a, mFin)),
+    etiqueta: meses === 1 ? `${MESES_L[m0]} ${a}`
+      : meses === 12 ? `Año ${a}`
+      : meses === 3 ? `Trimestre ${m0 / 3 + 1} · ${a}`
+      : `Semestre ${m0 / 6 + 1} · ${a}`,
+  };
+}
+
+const TIPO_META = {
+  ingreso: { label: 'Ventas', color: '#008d49' },
+  nomina: { label: 'Nómina manual', color: '#7c3aed' },
+  gasto_fijo: { label: 'Gastos fijos', color: '#d97706' },
+  gasto_variable: { label: 'Gastos variables', color: '#dc2626' },
+  factura: { label: 'Facturas', color: '#2563eb' },
+};
+
+function BalanceDiscriminado({ fincaId }) {
+  const fechaRefGlobal = useFechaRef();
+  const [periodoKey, setPeriodoKey] = React.useState('mes');
+  const [data, setData] = React.useState(null);
+  const [cargando, setCargando] = React.useState(false);
+
+  const meses = PERIODOS.find((p) => p.key === periodoKey)?.meses || 1;
+  const rango = React.useMemo(() => rangoPeriodo(fechaRefGlobal, meses), [fechaRefGlobal, meses]);
+
+  const mover = (delta) => {
+    const d = new Date(fechaRefGlobal);
+    d.setDate(1);
+    d.setMonth(d.getMonth() + delta * meses);
+    setFechaRef(d);
+  };
+
+  React.useEffect(() => {
+    if (!fincaId) return;
+    let vivo = true;
+    setCargando(true);
+    finanzasAPI.resumenRango({ finca_id: fincaId, desde: rango.desde, hasta: rango.hasta })
+      .then((r) => { if (vivo) setData(r.data); })
+      .catch((e) => console.error('resumenRango:', e))
+      .finally(() => { if (vivo) setCargando(false); });
+    return () => { vivo = false; };
+  }, [fincaId, rango.desde, rango.hasta]);
+
+  const conceptos = data?.conceptos || [];
+  const totales = data?.totales || {};
+  const gastos = conceptos.filter((c) => c.tipo !== 'ingreso');
+  const ventas = conceptos.filter((c) => c.tipo === 'ingreso');
+  const maxGasto = Math.max(1, ...gastos.map((c) => c.total), Number(totales.nomina_cuaderno) || 0);
+  const maxVenta = Math.max(1, ...ventas.map((c) => c.total));
+  const totalGastos = (Number(totales.nomina) || 0) + (Number(totales.gasto_fijo) || 0) + (Number(totales.gasto_variable) || 0) + (Number(totales.factura) || 0);
+  const totalVentas = Number(totales.ventas) || 0;
+  const dif = totalVentas - totalGastos;
+
+  const Barra = ({ nombre, valor, max, color, sub }) => (
+    <View style={{ marginTop: 8 }}>
+      <View style={styles.rowBetweenD}>
+        <Text style={styles.dLabel} numberOfLines={1}>{nombre}{sub ? <Text style={styles.dSub}>  ({sub})</Text> : null}</Text>
+        <Text style={styles.dValor}>{formatMoney(valor)}</Text>
+      </View>
+      <View style={styles.dTrack}>
+        <View style={[styles.dFill, { width: `${Math.min(100, Math.round((valor / max) * 100))}%`, backgroundColor: color }]} />
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.discCard}>
+      <Text style={styles.sectionTitle}>Balance discriminado</Text>
+      <Text style={styles.discHint}>En qué se fue la plata, por período: mes, trimestre, semestre o año.</Text>
+
+      <View style={styles.discChips}>
+        {PERIODOS.map((p) => (
+          <Pressable key={p.key} onPress={() => setPeriodoKey(p.key)} style={[styles.discChip, periodoKey === p.key && styles.discChipActivo]}>
+            <Text style={[styles.discChipText, periodoKey === p.key && styles.discChipTextActivo]}>{p.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.discNav}>
+        <Pressable onPress={() => mover(-1)} style={styles.discNavBtn}><Ionicons name="chevron-back" size={16} color={COLORS.ink700} /></Pressable>
+        <Text style={styles.discNavLabel}>{rango.etiqueta}</Text>
+        <Pressable onPress={() => mover(1)} style={styles.discNavBtn}><Ionicons name="chevron-forward" size={16} color={COLORS.ink700} /></Pressable>
+      </View>
+
+      {cargando && !data ? <ActivityIndicator style={{ marginVertical: 16 }} color={COLORS.primary} /> : (
+        <>
+          <Text style={styles.discGrupo}>Gastos · {formatMoney(totalGastos)}</Text>
+          {Number(totales.nomina_cuaderno) > 0 && (
+            <Barra nombre="Nómina (Cuaderno)" valor={Number(totales.nomina_cuaderno)} max={maxGasto} color={TIPO_META.nomina.color} />
+          )}
+          {gastos.length === 0 && !(Number(totales.nomina_cuaderno) > 0) ? (
+            <Text style={styles.emptyText}>Sin gastos registrados en este período.</Text>
+          ) : (
+            gastos.map((c) => (
+              <Barra key={c.id} nombre={c.nombre} valor={c.total} max={maxGasto} color={TIPO_META[c.tipo]?.color || COLORS.danger} sub={TIPO_META[c.tipo]?.label} />
+            ))
+          )}
+
+          <Text style={[styles.discGrupo, { marginTop: 14 }]}>Ventas · {formatMoney(totalVentas)}</Text>
+          {ventas.length === 0 ? (
+            <Text style={styles.emptyText}>Sin ventas registradas en este período.</Text>
+          ) : (
+            ventas.map((c) => (
+              <Barra key={c.id} nombre={c.nombre} valor={c.total} max={maxVenta} color={TIPO_META.ingreso.color} />
+            ))
+          )}
+
+          <View style={[styles.discDif, { backgroundColor: dif >= 0 ? '#dcfce7' : '#fee2e2' }]}>
+            <Text style={[styles.discDifLabel, { color: dif >= 0 ? '#15803d' : '#b91c1c' }]}>
+              {dif >= 0 ? 'Quedó a favor' : 'Quedó en contra'}
+            </Text>
+            <Text style={[styles.discDifValor, { color: dif >= 0 ? '#15803d' : '#b91c1c' }]}>{formatMoney(dif)}</Text>
+          </View>
+        </>
+      )}
+    </View>
+  );
 }
 
 function MovimientoModal({ visible, tipo, onClose, onGuardado }) {
@@ -165,6 +306,8 @@ export default function BalanceFincaScreen({ navigation }) {
           </View>
         </View>
 
+        <BalanceDiscriminado fincaId={activeFincaId} />
+
         <Text style={styles.sectionTitle}>Historial</Text>
         {(data.historial || []).length === 0 ? (
           <Text style={styles.emptyText}>Aún no hay movimientos manuales registrados.</Text>
@@ -216,6 +359,26 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 13, color: COLORS.ink700 },
   totalValor: { fontSize: 13, fontWeight: '700', color: COLORS.ink900 },
   sectionTitle: { fontSize: 15, fontWeight: '800', color: COLORS.ink900, marginBottom: 10 },
+  discCard: { borderWidth: 1, borderColor: COLORS.line, borderRadius: 16, padding: 14, marginBottom: 20 },
+  discHint: { fontSize: 11, color: COLORS.ink500, marginTop: -6, marginBottom: 10 },
+  discChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  discChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: COLORS.line, backgroundColor: '#fff' },
+  discChipActivo: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  discChipText: { fontSize: 12, fontWeight: '700', color: COLORS.ink500 },
+  discChipTextActivo: { color: '#fff' },
+  discNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10, marginBottom: 4 },
+  discNavBtn: { padding: 8, borderRadius: 10, backgroundColor: COLORS.lineLight },
+  discNavLabel: { fontWeight: '800', color: COLORS.ink900, fontSize: 13, minWidth: 150, textAlign: 'center' },
+  discGrupo: { fontSize: 11, fontWeight: '800', color: COLORS.ink500, textTransform: 'uppercase', marginTop: 10 },
+  rowBetweenD: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dLabel: { fontSize: 12, fontWeight: '600', color: COLORS.ink700, flex: 1, marginRight: 8 },
+  dSub: { fontSize: 10, color: COLORS.ink400, fontWeight: '400' },
+  dValor: { fontSize: 12, fontWeight: '800', color: COLORS.ink900 },
+  dTrack: { height: 7, borderRadius: 999, backgroundColor: COLORS.lineLight, overflow: 'hidden', marginTop: 3 },
+  dFill: { height: '100%', borderRadius: 999 },
+  discDif: { marginTop: 14, borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  discDifLabel: { fontWeight: '900', fontSize: 12, textTransform: 'uppercase' },
+  discDifValor: { fontWeight: '900', fontSize: 16 },
   emptyText: { fontSize: 13, color: COLORS.ink500 },
   movRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderColor: COLORS.line },
   movCategoria: { fontWeight: '700', color: COLORS.ink900, fontSize: 13 },

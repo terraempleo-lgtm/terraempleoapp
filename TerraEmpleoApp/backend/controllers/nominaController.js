@@ -206,7 +206,8 @@ async function planilla(req, res) {
     // puede tener varios bloques por asistencia y eso duplicaría filas acá).
     const asistencias = await query(
       `SELECT a.id AS asistencia_id, a.trabajador_id, a.manual_nombre, a.estado,
-              a.firma_recibido, j.id AS jornada_id, j.fecha, j.titulo AS jornada_titulo,
+              a.firma_recibido, a.hora_llegada, a.hora_salida,
+              j.id AS jornada_id, j.fecha, j.titulo AS jornada_titulo,
               u.nombre_completo, u.foto_selfie
          FROM cuaderno_asistencias a
          JOIN cuaderno_jornadas j ON j.id = a.jornada_id
@@ -263,6 +264,11 @@ async function planilla(req, res) {
           ajuste_target_asistencia_id: null,
           firmado: false,
           pagado_all: true, pagado_any: false,
+          // Campos agregados para la planilla en el orden pedido:
+          // lote, labor, tipo de pago, horas, kilos por cultivo y alimentación.
+          hora_entrada: null, hora_salida: null,
+          alimentacion: 0,
+          lotes: [], labores: [], tipos_pago: [], cultivos_kg: {},
         });
       }
       const f = mapa.get(key);
@@ -279,8 +285,20 @@ async function planilla(req, res) {
           notas: e.notas, subtotal: Number(e.pago_total) || 0,
         });
         if (e.pagado) f.pagado_any = true; else f.pagado_all = false;
+        if (e.lote_nombre && !f.lotes.includes(e.lote_nombre)) f.lotes.push(e.lote_nombre);
+        if (e.labor && !f.labores.includes(e.labor)) f.labores.push(e.labor);
+        if (e.tipo_pago && !f.tipos_pago.includes(e.tipo_pago)) f.tipos_pago.push(e.tipo_pago);
+        if (Number(e.cantidad_kg) > 0) {
+          const cult = e.cultivo || 'Sin cultivo';
+          f.cultivos_kg[cult] = (f.cultivos_kg[cult] || 0) + Number(e.cantidad_kg);
+        }
       }
       if (['llego', 'llego_tarde'].includes(a.estado)) f.dias += 1;
+      // Hora de entrada más temprana y salida más tardía de la semana.
+      const hLleg = a.hora_llegada ? String(a.hora_llegada).slice(0, 5) : null;
+      const hSal = a.hora_salida ? String(a.hora_salida).slice(0, 5) : null;
+      if (hLleg && (!f.hora_entrada || hLleg < f.hora_entrada)) f.hora_entrada = hLleg;
+      if (hSal && (!f.hora_salida || hSal > f.hora_salida)) f.hora_salida = hSal;
       f.asistencias.push({ asistencia_id: a.asistencia_id, fecha: a.fecha, jornada_titulo: a.jornada_titulo });
 
       // El ajuste/firma se ancla a la asistencia más reciente del trabajador.
@@ -293,6 +311,12 @@ async function planilla(req, res) {
       for (const aj of ajustesPorAsis[a.asistencia_id] || []) {
         f[aj.tipo] += Number(aj.monto) || 0;
         f.ajustes.push({ id: aj.id, tipo: aj.tipo, monto: Number(aj.monto) || 0, motivo: aj.motivo, fecha: a.fecha });
+        // La alimentación se registra como descuento con motivo "Alimentación" —
+        // se separa para mostrarla en su propia columna de la planilla.
+        const motivoNorm = String(aj.motivo || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+        if (aj.tipo === 'descuento' && motivoNorm.startsWith('aliment')) {
+          f.alimentacion += Number(aj.monto) || 0;
+        }
       }
     }
 

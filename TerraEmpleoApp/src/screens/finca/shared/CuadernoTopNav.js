@@ -4,14 +4,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from '../../../theme';
 import { useFinca } from '../../../context/FincaContext';
 
+// Jornadas y Nómina se fusionaron en una sola sección (con su conmutador
+// interno), y "Café" ahora dice qué hace: convertir cereza a pergamino.
 const ITEMS = [
   { key: 'ResumenFincaHome', label: 'Resumen', icon: 'book-outline' },
+  { key: 'JornadasHome', label: 'Jornadas y Nómina', icon: 'calendar-outline' },
   { key: 'FinanzasHome', label: 'Finanzas', icon: 'pulse-outline' },
   { key: 'BalanceFincaHome', label: 'Balance', icon: 'business-outline' },
-  { key: 'NominaHome', label: 'Nómina', icon: 'clipboard-outline' },
   { key: 'RendimientoHome', label: 'Rendimiento', icon: 'trending-up-outline' },
-  { key: 'JornadasHome', label: 'Jornadas', icon: 'calendar-outline' },
-  { key: 'CafeHome', label: 'Café', icon: 'cafe-outline' },
+  { key: 'CafeHome', label: 'Conversión café', icon: 'cafe-outline' },
 ];
 
 // Sub-navegación interna del Cuaderno (equivalente a las pestañas Resumen/
@@ -35,6 +36,13 @@ export default function CuadernoTopNav({ navigation, activeKey }) {
         <TouchableOpacity onPress={() => navigation.navigate('Precios')} style={styles.pillOutline}>
           <Ionicons name="pricetag-outline" size={14} color={COLORS.primary} />
           <Text style={styles.pillOutlineText}>Precios</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Herramientas')}
+          style={[styles.pillOutline, activeKey === 'Herramientas' && styles.pillActive]}
+        >
+          <Ionicons name="hammer-outline" size={14} color={activeKey === 'Herramientas' ? COLORS.white : COLORS.primary} />
+          <Text style={[styles.pillOutlineText, activeKey === 'Herramientas' && styles.pillTextActive]}>Herramientas</Text>
         </TouchableOpacity>
         {esPropietario && (
           <TouchableOpacity onPress={() => navigation.navigate('ConfiguracionFinca')} style={styles.pillOutline}>

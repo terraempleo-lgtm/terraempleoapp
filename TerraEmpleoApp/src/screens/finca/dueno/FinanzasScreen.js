@@ -8,7 +8,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { finanzasAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
-import { formatMoney } from '../../../utils/fincaFormat';
+import { formatMoney, normalizarTexto } from '../../../utils/fincaFormat';
+import { useFechaRef, setMesRef } from '../../../context/periodoStore';
 
 const COLORS = {
   primary: '#008d49', primarySoft: '#e5f6ec',
@@ -26,7 +27,7 @@ const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', '
 
 const SECCIONES = [
   { tipo: 'ingreso', titulo: 'Ventas', color: COLORS.primary, soft: COLORS.primarySoft },
-  { tipo: 'nomina', titulo: 'Nómina (manual / migrada)', color: COLORS.purple, soft: COLORS.purpleSoft },
+  { tipo: 'nomina', titulo: 'Nómina manual · nombre y pago por semana', color: COLORS.purple, soft: COLORS.purpleSoft },
   { tipo: 'gasto_fijo', titulo: 'Gastos fijos', color: COLORS.warning, soft: COLORS.warningSoft },
   { tipo: 'gasto_variable', titulo: 'Gastos variables', color: COLORS.danger, soft: COLORS.dangerSoft },
   { tipo: 'factura', titulo: 'Facturas', color: COLORS.info, soft: COLORS.infoSoft },
@@ -43,11 +44,14 @@ const TIPOS_NOTA = [
 const keyMov = (conceptoId, semanaId) => `${conceptoId}:${semanaId ?? 'mes'}`;
 const onlyNum = (s) => String(s).replace(/[^\d]/g, '');
 
-function parseLineaExcel(linea) {
+function parseLineaExcel(linea, tipo) {
   const celdas = linea.split('\t').map((c) => c.trim()).filter((c) => c !== '');
   if (celdas.length < 2) return null;
   const monto = Number(celdas[celdas.length - 1].replace(/[^\d]/g, '')) || 0;
   const nombre = celdas[0];
+  // Nómina: solo nombre y monto — el detalle de labor/kg hacía la tabla
+  // demasiado larga (pedido: "nombre y a pagar por semana, únicamente").
+  if (tipo === 'nomina') return { nombre, monto };
   const medio = celdas.slice(1, -1).filter(Boolean);
   const labor = medio.find((c) => !/^[\d.,]+$/.test(c));
   const kg = medio.find((c) => /^[\d.,]+$/.test(c));
@@ -55,11 +59,20 @@ function parseLineaExcel(linea) {
   return { nombre: etiqueta, monto };
 }
 
+// Los conceptos de nómina viejos quedaron como "Nombre — Labor (kg)" — en la
+// tabla se muestra solo el nombre para mantenerla corta.
+function nombreCortoConcepto(c) {
+  if (c.tipo !== 'nomina') return c.nombre;
+  return String(c.nombre).split(' — ')[0].split(' (')[0];
+}
+
 export default function FinanzasScreen({ navigation }) {
   const { activeFinca, activeFincaId } = useFinca();
-  const hoy = new Date();
-  const [anio, setAnio] = useState(hoy.getFullYear());
-  const [mes, setMes] = useState(hoy.getMonth() + 1);
+  // Mes/año desde la fecha de referencia global — se conserva al pasar a
+  // Jornadas, Nómina o Cuaderno y volver (antes se devolvía al mes actual).
+  const fechaRef = useFechaRef();
+  const anio = fechaRef.getFullYear();
+  const mes = fechaRef.getMonth() + 1;
   const [data, setData] = useState(null);
   const [valores, setValores] = useState({});
   const [loading, setLoading] = useState(true);
@@ -125,17 +138,21 @@ export default function FinanzasScreen({ navigation }) {
   };
 
   const eliminarConcepto = (id) => {
-    Alert.alert('Ocultar concepto', 'Sus movimientos quedan en el historial. ¿Continuar?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Ocultar', style: 'destructive', onPress: async () => { try { await finanzasAPI.eliminarConcepto(id); cargarTablero(); } catch (e) { console.error(e); } } },
-    ]);
+    Alert.alert(
+      '¿Quitar este concepto de la tabla?',
+      'El concepto deja de verse aquí, pero los valores que ya anotaste NO se borran: se conservan y siguen sumando en los totales y resúmenes del mes.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Quitar de la tabla', style: 'destructive', onPress: async () => { try { await finanzasAPI.eliminarConcepto(id); cargarTablero(); } catch (e) { console.error(e); } } },
+      ]
+    );
   };
 
   const cambiarMes = (delta) => {
     let m = mes + delta, a = anio;
     if (m < 1) { m = 12; a -= 1; }
     if (m > 12) { m = 1; a += 1; }
-    setMes(m); setAnio(a);
+    setMesRef(a, m);
   };
 
   const toggleCierre = async () => {
@@ -231,7 +248,7 @@ export default function FinanzasScreen({ navigation }) {
                     </View>
                     {items.map((c) => (
                       <View key={c.id} style={styles.tRow}>
-                        <Text style={[styles.tConcepto, { width: 140 }]} numberOfLines={1}>{c.nombre}</Text>
+                        <Text style={[styles.tConcepto, { width: 140 }]} numberOfLines={1}>{nombreCortoConcepto(c)}</Text>
                         {esFactura ? (
                           <>
                             <Celda width={100} value={valores[keyMov(c.id, null)] || ''} disabled={soloLectura}
@@ -406,7 +423,7 @@ function NotaRapida({ conceptos, semanas, movimientos, periodo, fincaId, onGuard
   const items = useMemo(() => {
     return texto.split('\n').map((l) => l.trim()).filter(Boolean).map((linea) => {
       if (linea.includes('\t')) {
-        const excel = parseLineaExcel(linea);
+        const excel = parseLineaExcel(linea, tipo);
         if (excel) return excel;
       }
       const m = linea.match(/([\d.,]{3,})\s*$/);
@@ -414,7 +431,7 @@ function NotaRapida({ conceptos, semanas, movimientos, periodo, fincaId, onGuard
       const monto = Number(m[1].replace(/[.,]/g, '')) || 0;
       return { nombre: linea.slice(0, m.index).replace(/[-–:$]+\s*$/, '').trim(), monto };
     });
-  }, [texto]);
+  }, [texto, tipo]);
 
   const semanaHoy = useMemo(() => {
     const hoy = new Date().toISOString().slice(0, 10);
@@ -440,7 +457,8 @@ function NotaRapida({ conceptos, semanas, movimientos, periodo, fincaId, onGuard
       const semanaId = tipo === 'factura' ? null : (semanaActual?.id ?? null);
       const acumulado = {};
       for (const { nombre, monto } of items) {
-        let concepto = conceptos.find((c) => c.tipo === tipo && c.nombre.trim().toLowerCase() === nombre.toLowerCase());
+        // Sin importar tildes/mayúsculas: "Café" reutiliza el concepto "cafe".
+        let concepto = conceptos.find((c) => c.tipo === tipo && normalizarTexto(c.nombre) === normalizarTexto(nombre));
         if (!concepto) {
           const r = await finanzasAPI.crearConcepto({ finca_id: fincaId, nombre, tipo });
           concepto = { id: r.data?.id || r.data?.concepto?.id, tipo, nombre };

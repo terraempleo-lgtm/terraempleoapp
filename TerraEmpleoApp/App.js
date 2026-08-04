@@ -88,6 +88,8 @@ const CuadernoAdminScreen       = lazyWeb(() => import('./src/screens/finca/capa
 const NominaScreen              = lazyWeb(() => import('./src/screens/finca/shared/NominaScreen'));
 const DetalleJornadaScreen      = lazyWeb(() => import('./src/screens/finca/shared/DetalleJornadaScreen'));
 const CerrarJornadaScreen       = lazyWeb(() => import('./src/screens/finca/shared/CerrarJornadaScreen'));
+const JornadaSemanalScreen      = lazyWeb(() => import('./src/screens/finca/shared/JornadaSemanalScreen'));
+const HerramientasScreen        = lazyWeb(() => import('./src/screens/finca/dueno/HerramientasScreen'));
 const HistorialTrabajadorScreen = lazyWeb(() => import('./src/screens/finca/shared/HistorialTrabajadorScreen'));
 const PreciosScreen             = lazyWeb(() => import('./src/screens/finca/shared/PreciosScreen'));
 
@@ -368,6 +370,7 @@ function fincaSharedScreens() {
     <>
       <Stack.Screen name="DetalleJornada" component={DetalleJornadaScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CerrarJornada" component={CerrarJornadaScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="JornadaSemanal" component={JornadaSemanalScreen} options={{ headerShown: false }} />
       <Stack.Screen name="LeerPlanilla" component={LeerPlanillaScreen} options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       <Stack.Screen name="HistorialTrabajador" component={HistorialTrabajadorScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Precios" component={PreciosScreen} options={{ headerShown: false }} />
@@ -390,6 +393,7 @@ function CuadernoStack() {
         <Stack.Screen name="FinanzasHome" component={FinanzasScreen} options={{ headerShown: false }} />
         <Stack.Screen name="BalanceFincaHome" component={BalanceFincaScreen} options={{ headerShown: false }} />
         <Stack.Screen name="RendimientoHome" component={RendimientoScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Herramientas" component={HerramientasScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Auditoria" component={AuditoriaScreen} options={{ headerShown: false }} />
         <Stack.Screen name="ConfiguracionFinca" component={ConfiguracionFincaScreen} options={{ headerShown: false }} />
         {fincaSharedScreens()}

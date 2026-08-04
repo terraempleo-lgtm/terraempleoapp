@@ -484,6 +484,13 @@ export const fincaAPI = {
   balance: (id, params) => api.get(`/finca/${id}/balance`, params ? { params } : undefined),
   crearMovimientoBalance: (id, data) => api.post(`/finca/${id}/balance/movimientos`, data),
   eliminarMovimientoBalance: (id, movId) => api.delete(`/finca/${id}/balance/movimientos/${movId}`),
+  // Herramientas, maquinaria y vehículos (inventario de la finca)
+  listarHerramientas: (id) => api.get(`/finca/${id}/herramientas`),
+  crearHerramienta: (id, data) => api.post(`/finca/${id}/herramientas`, data),
+  actualizarHerramienta: (herramientaId, data) => api.put(`/finca/herramientas/${herramientaId}`, data),
+  eliminarHerramienta: (herramientaId) => api.delete(`/finca/herramientas/${herramientaId}`),
+  crearMantenimiento: (herramientaId, data) => api.post(`/finca/herramientas/${herramientaId}/mantenimientos`, data),
+  eliminarMantenimiento: (herramientaId, mantenimientoId) => api.delete(`/finca/herramientas/${herramientaId}/mantenimientos/${mantenimientoId}`),
 };
 
 // Cuaderno (jornadas, asistencias, registros, calificaciones, notas, dashboard)
@@ -573,6 +580,7 @@ export const cafeAPI = {
 // Finanzas (tablero mensual, conceptos, movimientos, cierre de periodo)
 export const finanzasAPI = {
   tablero: (params) => api.get('/finanzas/tablero', { params }),
+  resumenRango: (params) => api.get('/finanzas/resumen-rango', { params }),
   upsertMovimiento: (data) => api.put('/finanzas/movimientos', data),
   crearConcepto: (data) => api.post('/finanzas/conceptos', data),
   actualizarConcepto: (id, data) => api.put(`/finanzas/conceptos/${id}`, data),

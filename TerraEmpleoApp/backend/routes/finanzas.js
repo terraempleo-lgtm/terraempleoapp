@@ -20,6 +20,9 @@ router.use(authMiddleware, empleadorMiddleware);
 // Tablero completo de un mes (período + semanas + conceptos + movimientos + resumen)
 router.get('/tablero', fin.tablero);
 
+// Resumen por rango de fechas (Balance discriminado: mes/trimestre/semestre/año)
+router.get('/resumen-rango', fin.resumenRango);
+
 // Movimientos (upsert por concepto + semana/período)
 router.put('/movimientos', fin.upsertMovimiento);
 router.post('/movimientos/:movimientoId/foto', uploadFotoFactura.single('foto'), fin.subirFotoMovimiento);

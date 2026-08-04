@@ -12,7 +12,9 @@ import { useFinca } from '../../../context/FincaContext';
 import { useAuth } from '../../../context/AuthContext';
 import Avatar from './Avatar';
 import CuadernoTopNav from './CuadernoTopNav';
+import JornadasNominaSwitch from './JornadasNominaSwitch';
 import { formatMoney } from '../../../utils/fincaFormat';
+import { useFechaRef, setFechaRef } from '../../../context/periodoStore';
 
 const COLORS = {
   primary: '#008d49', primaryDark: '#006635', primarySoft: '#e5f6ec',
@@ -56,6 +58,27 @@ async function guardarJSON(key, data) { try { await AsyncStorage.setItem(key, JS
 const OBS_KEY = (desde) => `nomina_observaciones_${desde}`;
 const NOTA_SEMANA_KEY = (desde) => `nomina_nota_semana_${desde}`;
 
+const TIPO_PAGO_LABEL = { jornal: 'Jornal', por_kilo: 'Kilo', por_hora: 'Hora', libre: 'Libre', mixto: 'Mixto' };
+
+// Rango de fechas trabajadas de una fila: "28/07–02/08" (o un solo día).
+function rangoFechasFila(f) {
+  const fechas = (f.asistencias || []).map((a) => String(a.fecha).slice(0, 10)).sort();
+  if (!fechas.length) return '—';
+  const corta = (ymd) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}`;
+  const ini = corta(fechas[0]);
+  const fin = corta(fechas[fechas.length - 1]);
+  return ini === fin ? ini : `${ini}–${fin}`;
+}
+
+// "120 Café · 30 Plátano" a partir del mapa cultivos_kg del backend.
+function kilosPorCultivo(f) {
+  const entradas = Object.entries(f.cultivos_kg || {});
+  if (!entradas.length) return f.total_kg ? `${Number(f.total_kg).toLocaleString('es-CO')} kg` : '—';
+  return entradas
+    .map(([cultivo, kg]) => `${Number(kg).toLocaleString('es-CO')} ${cultivo === 'Sin cultivo' ? 'kg' : cultivo}`)
+    .join(' · ');
+}
+
 export default function NominaScreen({ navigation }) {
   const { esCapataz, activeFinca } = useFinca();
   const { user, signOut } = useAuth();
@@ -65,7 +88,10 @@ export default function NominaScreen({ navigation }) {
       { text: 'Cerrar sesión', style: 'destructive', onPress: signOut },
     ]);
   };
-  const [refMonday, setRefMonday] = useState(() => lunesDe(new Date()));
+  // Semana tomada de la fecha de referencia GLOBAL del Cuaderno — así el
+  // mes/semana elegidos se mantienen al pasar entre Finanzas, Nómina, etc.
+  const fechaRefGlobal = useFechaRef();
+  const refMonday = useMemo(() => lunesDe(fechaRefGlobal), [fechaRefGlobal]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [ajusteFor, setAjusteFor] = useState(null);
@@ -91,7 +117,7 @@ export default function NominaScreen({ navigation }) {
   const filas = data?.filas || [];
   const totales = data?.totales || {};
 
-  const moverSemana = (delta) => { const d = new Date(refMonday); d.setDate(d.getDate() + delta * 7); setRefMonday(d); };
+  const moverSemana = (delta) => { const d = new Date(refMonday); d.setDate(d.getDate() + delta * 7); setFechaRef(d); };
 
   const guardarAjuste = async (asisId, payload) => {
     try { await cuadernoAPI.agregarAjuste(asisId, payload); setAjusteFor(null); cargar(); }
@@ -171,7 +197,15 @@ export default function NominaScreen({ navigation }) {
       `Planilla de jornales · ${activeFinca?.nombre || 'Finca'}`,
       `Semana del ${fechaCorta(desde)} al ${fechaCorta(hasta)}`,
       '',
-      ...filas.map((f) => `${f.nombre} — ${f.dias} días · Neto ${formatMoney(f.neto)}${f.firmado ? ' (firmado)' : ''}`),
+      ...filas.map((f) => {
+        const partes = [
+          `${f.dias} jornal${f.dias === 1 ? '' : 'es'}`,
+          (f.labores || []).length ? (f.labores || []).join('/') : null,
+          Number(f.total_kg) > 0 ? `${Number(f.total_kg).toLocaleString('es-CO')} kg` : null,
+          Number(f.alimentacion) > 0 ? `aliment. -${formatMoney(f.alimentacion)}` : null,
+        ].filter(Boolean).join(' · ');
+        return `${f.nombre} — ${partes} · A pagar ${formatMoney(f.neto)}${f.firmado ? ' (firmado)' : ''}`;
+      }),
       '',
       `TOTAL: ${formatMoney(totales.neto)}`,
     ];
@@ -182,7 +216,7 @@ export default function NominaScreen({ navigation }) {
   if (loading && !data) {
     return (
       <SafeAreaView style={styles.screen} edges={['top']}>
-        {!esCapataz && <CuadernoTopNav navigation={navigation} activeKey="NominaHome" />}
+        {!esCapataz && <CuadernoTopNav navigation={navigation} activeKey="JornadasHome" />}
         <ActivityIndicator style={{ marginTop: 40 }} size="large" color={COLORS.primary} />
       </SafeAreaView>
     );
@@ -190,14 +224,15 @@ export default function NominaScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      {!esCapataz && <CuadernoTopNav navigation={navigation} activeKey="NominaHome" />}
+      {!esCapataz && <CuadernoTopNav navigation={navigation} activeKey="JornadasHome" />}
+      {!esCapataz && <JornadasNominaSwitch navigation={navigation} active="nomina" />}
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerRow}>
           <View style={styles.rowStart}>
             <View style={styles.headerIcon}><Ionicons name="clipboard" size={22} color="#fff" /></View>
             <View style={{ marginLeft: 10 }}>
               <Text style={styles.h1}>Nómina</Text>
-              <Text style={styles.subtitle}>Planilla semanal · jornal, kilos, bonos, descuentos, anticipos</Text>
+              <Text style={styles.subtitle}>Planilla semanal · lo que se le paga a cada trabajador</Text>
             </View>
           </View>
           {esCapataz && (
@@ -237,23 +272,28 @@ export default function NominaScreen({ navigation }) {
         ) : (
           <ScrollView horizontal style={{ marginTop: 16 }}>
             <View>
+              {/* Planilla en el orden acordado: Fecha, Nombre, Lote, Labor,
+                  jornales, kilos por cultivo, tipo de pago, horas de entrada
+                  y salida, alimentación, total a pagar y firma. */}
               <View style={styles.tableHeader}>
-                <Text style={[styles.th, { width: 150 }]}>Trabajador</Text>
-                <Text style={[styles.th, { width: 50 }]}>Días</Text>
-                <Text style={[styles.th, { width: 70 }]}>Kg cereza</Text>
-                <Text style={[styles.th, styles.thPurple, { width: 80 }]}>Pergamino</Text>
-                <Text style={[styles.th, styles.thPurple, { width: 70 }]}>Arrobas</Text>
-                <Text style={[styles.th, { width: 90 }]}>Base</Text>
-                <Text style={[styles.th, { width: 90 }]}>Bonos</Text>
-                <Text style={[styles.th, { width: 80 }]}>Desc.</Text>
-                <Text style={[styles.th, { width: 90 }]}>Anticipo</Text>
-                <Text style={[styles.th, styles.thNeto, { width: 100 }]}>Neto</Text>
-                <Text style={[styles.th, { width: 70 }]}>Firma</Text>
+                <Text style={[styles.th, { width: 78 }]}>Fecha</Text>
+                <Text style={[styles.th, { width: 150 }]}>Nombre</Text>
+                <Text style={[styles.th, { width: 86 }]}>Lote</Text>
+                <Text style={[styles.th, { width: 108 }]}>Labor</Text>
+                <Text style={[styles.th, { width: 62, textAlign: 'center' }]}>Jornales</Text>
+                <Text style={[styles.th, { width: 118 }]}>Kilos × cultivo</Text>
+                <Text style={[styles.th, { width: 76 }]}>Tipo pago</Text>
+                <Text style={[styles.th, { width: 62, textAlign: 'center' }]}>H. entra</Text>
+                <Text style={[styles.th, { width: 62, textAlign: 'center' }]}>H. sale</Text>
+                <Text style={[styles.th, { width: 92, textAlign: 'right' }]}>$ Aliment.</Text>
+                <Text style={[styles.th, styles.thNeto, { width: 104, textAlign: 'right' }]}>Total a pagar</Text>
+                <Text style={[styles.th, { width: 64, textAlign: 'center' }]}>Firma</Text>
                 <Text style={[styles.th, { width: 60 }]}> </Text>
               </View>
 
               {filas.map((f) => (
                 <View key={f.key} style={styles.tableRow}>
+                  <Text style={[styles.td, { width: 78 }]}>{rangoFechasFila(f)}</Text>
                   <View style={{ width: 150, flexDirection: 'row', alignItems: 'center' }}>
                     <Avatar src={f.foto} name={f.nombre} size={28} />
                     <View style={{ marginLeft: 6, flex: 1 }}>
@@ -275,16 +315,18 @@ export default function NominaScreen({ navigation }) {
                       )}
                     </View>
                   </View>
-                  <Text style={[styles.td, { width: 50, textAlign: 'center' }]}>{f.dias}</Text>
-                  <Text style={[styles.td, { width: 70, textAlign: 'right' }]}>{f.total_kg ? Number(f.total_kg).toLocaleString('es-CO') : '—'}</Text>
-                  <Text style={[styles.td, styles.tdPurple, { width: 80, textAlign: 'right' }]}>{f.total_kg ? num1(aPergamino(f.total_kg)) : '—'}</Text>
-                  <Text style={[styles.td, styles.tdPurple, { width: 70, textAlign: 'right' }]}>{f.total_kg ? num1(aArrobas(aPergamino(f.total_kg))) : '—'}</Text>
-                  <Text style={[styles.td, { width: 90, textAlign: 'right' }]}>{formatMoney(f.base)}</Text>
-                  <Text style={[styles.td, { width: 90, textAlign: 'right', color: COLORS.primary }]}>{(f.bonificacion + f.labor_extra) ? formatMoney(f.bonificacion + f.labor_extra) : '—'}</Text>
-                  <Text style={[styles.td, { width: 80, textAlign: 'right', color: COLORS.danger }]}>{f.descuento ? formatMoney(f.descuento) : '—'}</Text>
-                  <Text style={[styles.td, { width: 90, textAlign: 'right', color: COLORS.danger }]}>{f.anticipo ? formatMoney(f.anticipo) : '—'}</Text>
-                  <Text style={[styles.td, styles.tdNeto, { width: 100, textAlign: 'right' }]}>{formatMoney(f.neto)}</Text>
-                  <View style={{ width: 70, alignItems: 'center' }}>
+                  <Text style={[styles.td, { width: 86 }]} numberOfLines={2}>{(f.lotes || []).join(', ') || '—'}</Text>
+                  <Text style={[styles.td, { width: 108 }]} numberOfLines={2}>{(f.labores || []).join(', ') || '—'}</Text>
+                  <Text style={[styles.td, { width: 62, textAlign: 'center', fontWeight: '700' }]}>{f.dias}</Text>
+                  <Text style={[styles.td, { width: 118 }]} numberOfLines={2}>{kilosPorCultivo(f)}</Text>
+                  <Text style={[styles.td, { width: 76 }]} numberOfLines={2}>{(f.tipos_pago || []).map((t) => TIPO_PAGO_LABEL[t] || t).join(', ') || '—'}</Text>
+                  <Text style={[styles.td, { width: 62, textAlign: 'center' }]}>{f.hora_entrada || '—'}</Text>
+                  <Text style={[styles.td, { width: 62, textAlign: 'center' }]}>{f.hora_salida || '—'}</Text>
+                  <Text style={[styles.td, { width: 92, textAlign: 'right', color: f.alimentacion ? COLORS.danger : COLORS.ink700 }]}>
+                    {f.alimentacion ? `-${formatMoney(f.alimentacion)}` : '—'}
+                  </Text>
+                  <Text style={[styles.td, styles.tdNeto, { width: 104, textAlign: 'right' }]}>{formatMoney(f.neto)}</Text>
+                  <View style={{ width: 64, alignItems: 'center' }}>
                     <Pressable onPress={() => toggleFirma(f)} style={[styles.firmaBtn, f.firmado && { backgroundColor: COLORS.primary }]}>
                       {f.firmado ? <Ionicons name="checkmark-circle" size={15} color="#fff" /> : <Ionicons name="create-outline" size={15} color={COLORS.ink400} />}
                     </Pressable>
@@ -306,24 +348,32 @@ export default function NominaScreen({ navigation }) {
               ))}
 
               <View style={[styles.tableRow, styles.tableFooter]}>
+                <Text style={{ width: 78 }} />
                 <Text style={[styles.tdBold, { width: 150 }]}>TOTALES</Text>
-                <Text style={{ width: 50 }} />
-                <Text style={[styles.tdBold, { width: 70, textAlign: 'right' }]}>{Number(totales.kg || 0).toLocaleString('es-CO')}</Text>
-                <Text style={[styles.tdBold, styles.tdPurple, { width: 80, textAlign: 'right' }]}>{num1(aPergamino(totales.kg))}</Text>
-                <Text style={[styles.tdBold, styles.tdPurple, { width: 70, textAlign: 'right' }]}>{num1(aArrobas(aPergamino(totales.kg)))}</Text>
-                <Text style={[styles.tdBold, { width: 90, textAlign: 'right' }]}>{formatMoney(totales.base)}</Text>
-                <Text style={[styles.tdBold, { width: 90, textAlign: 'right', color: COLORS.primary }]}>{formatMoney((totales.bonificacion || 0) + (totales.labor_extra || 0))}</Text>
-                <Text style={[styles.tdBold, { width: 80, textAlign: 'right', color: COLORS.danger }]}>{formatMoney(totales.descuento)}</Text>
-                <Text style={[styles.tdBold, { width: 90, textAlign: 'right', color: COLORS.danger }]}>{formatMoney(totales.anticipo)}</Text>
-                <Text style={[styles.tdBold, styles.tdNeto, { width: 100, textAlign: 'right' }]}>{formatMoney(totales.neto)}</Text>
-                <Text style={{ width: 130 }} />
+                <Text style={{ width: 86 }} />
+                <Text style={{ width: 108 }} />
+                <Text style={[styles.tdBold, { width: 62, textAlign: 'center' }]}>{filas.reduce((s, f) => s + (Number(f.dias) || 0), 0)}</Text>
+                <Text style={[styles.tdBold, { width: 118 }]}>{Number(totales.kg || 0).toLocaleString('es-CO')} kg</Text>
+                <Text style={{ width: 76 }} />
+                <Text style={{ width: 62 }} />
+                <Text style={{ width: 62 }} />
+                <Text style={[styles.tdBold, { width: 92, textAlign: 'right', color: COLORS.danger }]}>
+                  {filas.reduce((s, f) => s + (Number(f.alimentacion) || 0), 0) ? `-${formatMoney(filas.reduce((s, f) => s + (Number(f.alimentacion) || 0), 0))}` : '—'}
+                </Text>
+                <Text style={[styles.tdBold, styles.tdNeto, { width: 104, textAlign: 'right' }]}>{formatMoney(totales.neto)}</Text>
+                <Text style={{ width: 124 }} />
               </View>
             </View>
           </ScrollView>
         )}
 
+        {Number(totales.kg) > 0 && (
+          <Text style={styles.conversionNote}>
+            ☕ {Number(totales.kg || 0).toLocaleString('es-CO')} kg cereza ≈ {num1(aPergamino(totales.kg))} kg pergamino · {num1(aArrobas(aPergamino(totales.kg)))} @
+          </Text>
+        )}
         <Text style={styles.footNote}>
-          El Base proviene del Cuaderno (kilos/jornal de la semana). El Neto = Base + Bonos − Descuentos − Anticipos.
+          El Total a pagar sale del Cuaderno (kilos/jornales de la semana) más bonos, menos descuentos, alimentación y anticipos.
           Los ajustes se anclan a la última jornada del trabajador en la semana.
         </Text>
 
@@ -490,6 +540,7 @@ const styles = StyleSheet.create({
   lockBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   smallBtn: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, borderColor: COLORS.line, alignItems: 'center', justifyContent: 'center' },
   footNote: { fontSize: 11, color: COLORS.ink400, marginTop: 12 },
+  conversionNote: { fontSize: 12, fontWeight: '600', color: COLORS.purple, marginTop: 10 },
   notaBox: { marginTop: 16, borderRadius: 14, borderWidth: 2, borderColor: 'rgba(217,119,6,0.3)', backgroundColor: COLORS.warningSoft, padding: 14 },
   notaTitle: { fontWeight: '700', color: COLORS.ink900, fontSize: 13 },
   notaInput: { backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.line, borderRadius: 10, padding: 10, fontSize: 13, color: COLORS.ink900, minHeight: 70, marginTop: 8, textAlignVertical: 'top' },

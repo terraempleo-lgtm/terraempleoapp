@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { cuadernoAPI } from '../../../services/api';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
+import JornadasNominaSwitch from '../shared/JornadasNominaSwitch';
 import { formatMoney, formatDate, asText } from '../../../utils/fincaFormat';
 
 const COLORS = {
@@ -112,6 +113,7 @@ export default function JornadasScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <CuadernoTopNav navigation={navigation} activeKey="JornadasHome" />
+      <JornadasNominaSwitch navigation={navigation} active="jornadas" />
       <View style={styles.header}>
         <View style={styles.rowBetween}>
           <View style={styles.rowStart}>
@@ -120,17 +122,23 @@ export default function JornadasScreen({ navigation }) {
               <View style={styles.countBadge}><Text style={styles.countBadgeText}>{jornadas.length}</Text></View>
             )}
           </View>
-          <View style={styles.rowStart}>
-            <Pressable style={styles.planillaBtn} onPress={() => navigation.navigate('LeerPlanilla')}>
-              <Ionicons name="camera-outline" size={16} color={COLORS.planillaText} />
-              <Text style={styles.planillaBtnText}>  Subir planilla</Text>
-            </Pressable>
-            <Pressable style={styles.fab} onPress={() => navigation.navigate('CerrarJornada')}>
-              <Ionicons name="add" size={20} color="#fff" />
-            </Pressable>
-          </View>
+          <Pressable style={styles.planillaBtn} onPress={() => navigation.navigate('LeerPlanilla')}>
+            <Ionicons name="camera-outline" size={16} color={COLORS.planillaText} />
+            <Text style={styles.planillaBtnText}>  Subir planilla</Text>
+          </Pressable>
         </View>
-        <Text style={styles.subtitle}>Lleva control de cada día de trabajo en tus fincas</Text>
+
+        {/* Registrar día a día o la semana completa de una sola vez. */}
+        <View style={styles.registroRow}>
+          <Pressable style={styles.registroBtn} onPress={() => navigation.navigate('CerrarJornada')}>
+            <Ionicons name="sunny-outline" size={17} color="#fff" />
+            <Text style={styles.registroBtnText}>  Registrar día</Text>
+          </Pressable>
+          <Pressable style={styles.registroBtnAlt} onPress={() => navigation.navigate('JornadaSemanal')}>
+            <Ionicons name="calendar-number-outline" size={17} color={COLORS.primaryDark} />
+            <Text style={styles.registroBtnAltText}>  Registrar semana</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.filtrosRow}>
           {FILTROS.map((t) => {
@@ -178,7 +186,11 @@ const styles = StyleSheet.create({
   h1: { fontSize: 24, fontWeight: '900', color: COLORS.ink900 },
   countBadge: { minWidth: 24, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   countBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  fab: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  registroRow: { flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 12 },
+  registroBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 12 },
+  registroBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  registroBtnAlt: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.planillaBg, borderWidth: 1, borderColor: COLORS.planillaBorder, borderRadius: 12, paddingVertical: 12 },
+  registroBtnAltText: { color: COLORS.primaryDark, fontWeight: '800', fontSize: 13 },
   planillaBtn: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 9,
     borderRadius: 10, borderWidth: 0.5, borderColor: COLORS.planillaBorder, backgroundColor: COLORS.planillaBg,

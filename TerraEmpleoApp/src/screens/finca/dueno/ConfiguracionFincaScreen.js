@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Alert, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { fincaAPI, finanzasAPI } from '../../../services/api';
+import { fincaAPI, finanzasAPI, cuadernoAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
+import Avatar from '../shared/Avatar';
+import { leerPersonalFijo, guardarPersonalFijo } from '../../../utils/personalFijo';
 
 const COLORS = {
   primary: '#008d49', primarySoft: '#e5f6ec',
@@ -40,6 +42,9 @@ export default function ConfiguracionFincaScreen({ navigation }) {
   const [creando, setCreando] = useState(false);
   const [credenciales, setCredenciales] = useState(null);
   const [periodo, setPeriodo] = useState(null);
+  const [personalFijo, setPersonalFijo] = useState([]);
+  const [candidatosFijo, setCandidatosFijo] = useState([]);
+  const [nuevoFijoNombre, setNuevoFijoNombre] = useState('');
   const [unidadVenta, setUnidadVenta] = useState('pergamino');
   const [precioVenta, setPrecioVenta] = useState('');
   const [guardandoPrecio, setGuardandoPrecio] = useState(false);
@@ -55,6 +60,12 @@ export default function ConfiguracionFincaScreen({ navigation }) {
     });
     fincaAPI.listarUsuarios(activeFincaId).then((r) => setUsuarios(r.data?.usuarios || [])).catch(() => {}).finally(() => setLoading(false));
     fincaAPI.listarLotesFinca(activeFincaId).then((r) => setLotes(r.data?.lotes || [])).catch(() => {});
+    leerPersonalFijo(activeFincaId).then(setPersonalFijo);
+    cuadernoAPI.misTrabajadores().then((r) => {
+      setCandidatosFijo((r.data?.trabajadores || []).map((p) => ({
+        trabajador_id: p.trabajador_id || null, nombre: p.nombre, foto: p.foto || null, manual_telefono: p.telefono || '',
+      })));
+    }).catch(() => {});
     const hoy = new Date();
     finanzasAPI.tablero({ finca_id: activeFincaId, anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 })
       .then((r) => setPeriodo(r.data?.periodo || null))
@@ -168,14 +179,17 @@ export default function ConfiguracionFincaScreen({ navigation }) {
     } finally { setCreandoLote(false); }
   };
 
+  // "Palos de café" pasó a "Árboles sembrados": no todos cultivan café, y
+  // quien no conoce la dimensión del terreno sí sabe cuántos árboles tiene.
+  // (El campo en base de datos sigue siendo palos_cafe, solo cambia el texto.)
   const UNIDADES_TAMANO = [
     { val: 'hectareas', label: 'Hectáreas', sufijo: 'ha' },
     { val: 'metros2', label: 'Metros²', sufijo: 'm²' },
-    { val: 'palos_cafe', label: 'Palos de café', sufijo: 'palos' },
+    { val: 'palos_cafe', label: 'Árboles sembrados', sufijo: 'árboles' },
   ];
   function tamanoLote(l) {
     if (l.unidad_tamano === 'metros2' && l.metros_cuadrados != null) return `${Number(l.metros_cuadrados).toLocaleString('es-CO')} m²`;
-    if (l.unidad_tamano === 'palos_cafe' && l.palos_cafe != null) return `${Number(l.palos_cafe).toLocaleString('es-CO')} palos`;
+    if (l.unidad_tamano === 'palos_cafe' && l.palos_cafe != null) return `${Number(l.palos_cafe).toLocaleString('es-CO')} árboles`;
     if (l.hectareas != null) return `${Number(l.hectareas).toLocaleString('es-CO')} ha`;
     return null;
   }
@@ -335,6 +349,84 @@ export default function ConfiguracionFincaScreen({ navigation }) {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.cardTitle}>⭐ Personal fijo</Text>
+          <Text style={styles.cardHint}>
+            Los trabajadores de siempre. Al crear una jornada (diaria o semanal) entran ya seleccionados,
+            para no agregarlos uno por uno cada vez. Se guarda en este dispositivo.
+          </Text>
+          {personalFijo.length === 0 ? (
+            <Text style={styles.emptyLotesText}>Aún no has marcado personal fijo.</Text>
+          ) : (
+            personalFijo.map((p, i) => (
+              <View key={`${p.trabajador_id || 'm'}-${p.nombre}-${i}`} style={styles.loteRow}>
+                <Avatar src={p.foto} name={p.nombre} size={28} />
+                <Text style={[styles.userNombre, { flex: 1, marginLeft: 8 }]}>{p.nombre}</Text>
+                <Pressable
+                  onPress={() => {
+                    const next = personalFijo.filter((_, ix) => ix !== i);
+                    setPersonalFijo(next);
+                    guardarPersonalFijo(activeFincaId, next);
+                  }}
+                  style={{ padding: 6 }}
+                >
+                  <Ionicons name="trash-outline" size={15} color={COLORS.ink400} />
+                </Pressable>
+              </View>
+            ))
+          )}
+
+          {candidatosFijo.length > 0 && (
+            <>
+              <Text style={styles.fieldLabel}>Toca para marcar como fijo</Text>
+              <View style={styles.wrapRow}>
+                {candidatosFijo.map((c) => {
+                  const yaEsta = personalFijo.some((p) => (c.trabajador_id && p.trabajador_id === c.trabajador_id)
+                    || (!c.trabajador_id && p.nombre === c.nombre));
+                  return (
+                    <Pressable
+                      key={`${c.trabajador_id || 'm'}-${c.nombre}`}
+                      onPress={() => {
+                        const next = yaEsta
+                          ? personalFijo.filter((p) => !((c.trabajador_id && p.trabajador_id === c.trabajador_id) || (!c.trabajador_id && p.nombre === c.nombre)))
+                          : [...personalFijo, c];
+                        setPersonalFijo(next);
+                        guardarPersonalFijo(activeFincaId, next);
+                      }}
+                      style={[styles.fijoChip, yaEsta && styles.fijoChipActivo]}
+                    >
+                      {yaEsta && <Ionicons name="checkmark" size={12} color="#fff" style={{ marginRight: 3 }} />}
+                      <Text style={[styles.fijoChipText, yaEsta && styles.fijoChipTextActivo]}>{c.nombre}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          <Text style={styles.fieldLabel}>O escribe un nombre (externo)</Text>
+          <View style={styles.rowStart}>
+            <TextInput
+              style={[styles.input, { flex: 1 }]} placeholderTextColor={COLORS.ink400}
+              placeholder="Ej: Don Aníbal" value={nuevoFijoNombre} onChangeText={setNuevoFijoNombre}
+            />
+            <Pressable
+              onPress={() => {
+                const nombre = nuevoFijoNombre.trim();
+                if (!nombre) return;
+                if (personalFijo.some((p) => !p.trabajador_id && p.nombre === nombre)) { setNuevoFijoNombre(''); return; }
+                const next = [...personalFijo, { trabajador_id: null, nombre, foto: null, manual_telefono: '' }];
+                setPersonalFijo(next);
+                guardarPersonalFijo(activeFincaId, next);
+                setNuevoFijoNombre('');
+              }}
+              style={[styles.btnPrimarySmall, { marginLeft: 8 }]}
+            >
+              <Text style={styles.btnPrimarySmallText}>Agregar</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.cardTitle}>👥 Equipo de la finca</Text>
           <Text style={styles.cardHint}>Separación de funciones: el auxiliar registra en campo, el administrador gestiona, el propietario controla y cierra.</Text>
           {usuarios.map((u) => (
@@ -474,4 +566,8 @@ const styles = StyleSheet.create({
   modeChipText: { fontSize: 11, fontWeight: '700', color: COLORS.ink700 },
   modeChipTextActivo: { color: '#fff' },
   regenBtn: { borderWidth: 1, borderColor: COLORS.line, borderRadius: 10, padding: 10, marginLeft: 6 },
+  fijoChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: COLORS.line, backgroundColor: '#fff' },
+  fijoChipActivo: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  fijoChipText: { fontSize: 12, fontWeight: '700', color: COLORS.ink700 },
+  fijoChipTextActivo: { color: '#fff' },
 });

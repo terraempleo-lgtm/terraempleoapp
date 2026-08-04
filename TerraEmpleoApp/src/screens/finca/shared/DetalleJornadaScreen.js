@@ -10,7 +10,7 @@ import { cuadernoAPI, trabajadoresAPI, fincaAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 import Avatar from './Avatar';
 import { useToast } from './useFincaToast';
-import { formatMoney, formatDate, asText, formatLabor } from '../../../utils/fincaFormat';
+import { formatMoney, formatDate, asText, formatLabor, coincideTexto } from '../../../utils/fincaFormat';
 
 const COLORS = {
   primary: '#008d49', primaryDark: '#006635', primarySoft: '#e5f6ec',
@@ -344,8 +344,8 @@ function AgregarTrabajadorModal({ visible, onClose, jornadaId, jornada, onAgrega
       setCargandoB(true);
       try {
         const r = await trabajadoresAPI.listar({});
-        const q = busqueda.trim().toLowerCase();
-        setResultados((r.data?.trabajadores || []).filter((x) => (x.nombre_completo || '').toLowerCase().includes(q)));
+        // Tolerante a tildes: "jose" encuentra a "José".
+        setResultados((r.data?.trabajadores || []).filter((x) => coincideTexto(x.nombre_completo, busqueda)));
       } catch { setResultados([]); } finally { setCargandoB(false); }
     }, 300);
     return () => clearTimeout(t);

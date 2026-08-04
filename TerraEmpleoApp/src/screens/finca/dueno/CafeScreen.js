@@ -50,6 +50,7 @@ export default function CafeScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [openLote, setOpenLote] = useState(null);
   const [nuevo, setNuevo] = useState(false);
+  const [ayudaOpen, setAyudaOpen] = useState(false);
   const rangoInicial = route.params?.desde && route.params?.hasta ? { desde: route.params.desde, hasta: route.params.hasta } : null;
 
   useEffect(() => { if (rangoInicial) setNuevo(true); }, []);
@@ -76,14 +77,32 @@ export default function CafeScreen({ navigation, route }) {
           <View style={styles.rowStart}>
             <View style={styles.headerIcon}><Ionicons name="cafe" size={22} color="#fff" /></View>
             <View style={{ marginLeft: 10 }}>
-              <Text style={styles.h1}>Café · Conversión</Text>
-              <Text style={styles.subtitle}>Cereza → pergamino seco y control antifraude</Text>
+              <Text style={styles.h1}>Conversión de café</Text>
+              <Text style={styles.subtitle}>De kilos recogidos (cereza) a café seco para vender</Text>
             </View>
           </View>
           <Pressable onPress={() => setNuevo(true)} style={styles.btnPrimary}>
             <Ionicons name="add" size={16} color="#fff" /><Text style={styles.btnPrimaryText}>  Nuevo lote</Text>
           </Pressable>
         </View>
+
+        {/* Explicación en palabras sencillas — esta pantalla confundía. */}
+        <Pressable style={styles.ayudaToggle} onPress={() => setAyudaOpen((o) => !o)}>
+          <Ionicons name="help-circle-outline" size={15} color={COLORS.info} />
+          <Text style={styles.ayudaToggleText}>  ¿Para qué sirve esta pantalla?</Text>
+          <Ionicons name="chevron-down" size={13} color={COLORS.info} style={{ transform: [{ rotate: ayudaOpen ? '180deg' : '0deg' }] }} />
+        </Pressable>
+        {ayudaOpen && (
+          <View style={styles.ayudaBox}>
+            <Text style={styles.ayudaTexto}>
+              El café que los trabajadores recogen (cereza) pesa mucho más que el café que usted vende
+              (pergamino seco). Aquí la app toma los kilos anotados en el Cuaderno y calcula cuánto café
+              seco DEBERÍA salir. Cuando usted pesa lo que de verdad salió, la app compara: si falta mucho
+              (merma alta), le avisa — puede ser secado malo, pérdida o robo. Si usted no vende café, puede
+              ignorar esta pantalla.
+            </Text>
+          </View>
+        )}
 
         {abiertas.length > 0 && (
           <View style={[styles.alertBanner, { backgroundColor: criticas > 0 ? COLORS.dangerSoft : COLORS.warningSoft }]}>
@@ -384,6 +403,10 @@ const styles = StyleSheet.create({
   btnPrimary: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   btnPrimaryText: { color: '#fff', fontWeight: '900', fontSize: 13 },
   alertBanner: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 12, marginTop: 14 },
+  ayudaToggle: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+  ayudaToggleText: { fontSize: 12, fontWeight: '700', color: COLORS.info },
+  ayudaBox: { backgroundColor: COLORS.infoSoft, borderRadius: 12, padding: 12, marginTop: 8 },
+  ayudaTexto: { fontSize: 12, color: COLORS.ink700, lineHeight: 18 },
   alertTitle: { fontWeight: '900', fontSize: 13 },
   alertSub: { fontSize: 11, color: COLORS.ink600, marginTop: 2 },
   factorText: { fontSize: 11, color: COLORS.ink500 },

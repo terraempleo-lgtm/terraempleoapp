@@ -8,6 +8,7 @@ import { useFinca } from '../../../context/FincaContext';
 import Avatar from '../shared/Avatar';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
 import { formatMoney } from '../../../utils/fincaFormat';
+import { useFechaRef, setMesRef } from '../../../context/periodoStore';
 
 const COLORS = {
   primary: '#008d49', primarySoft: '#e5f6ec',
@@ -98,9 +99,10 @@ function DeltaPesos({ actual, anterior, favorableSiSube = true }) {
 
 export default function RendimientoScreen({ navigation }) {
   const { activeFinca, activeFincaId } = useFinca();
-  const hoy = new Date();
-  const [anio, setAnio] = useState(hoy.getFullYear());
-  const [mes, setMes] = useState(hoy.getMonth() + 1);
+  // Mes desde la fecha de referencia global (se conserva entre pestañas).
+  const fechaRefGlobal = useFechaRef();
+  const anio = fechaRefGlobal.getFullYear();
+  const mes = fechaRefGlobal.getMonth() + 1;
   const [actual, setActual] = useState(null);
   const [anterior, setAnterior] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -147,7 +149,7 @@ export default function RendimientoScreen({ navigation }) {
     let m = mes + d, a = anio;
     if (m < 1) { m = 12; a -= 1; }
     if (m > 12) { m = 1; a += 1; }
-    setMes(m); setAnio(a);
+    setMesRef(a, m);
   };
 
   // Tarjeta 1 — Ingreso por kilo: solo si hay precio configurado y más de
@@ -227,6 +229,7 @@ export default function RendimientoScreen({ navigation }) {
             detalle={actual?.jornaladas > 0 ? `Este mes pagó ${num(actual.jornaladas)} jornales con un costo promedio de ${formatMoney(actual.costoMedioJornal)} cada uno.` : 'Aún no hay jornales pagados este mes.'}
           >
             <DeltaPesos actual={actual?.costoMedioJornal} anterior={anterior?.costoMedioJornal} favorableSiSube={false} />
+            {actual?.jornaladas > 0 && <CalculoJornalDetalle actual={actual} />}
           </MetricaCard>
 
           {/* Tarjeta 3 — Por cada $1.000 en jornales */}
@@ -314,6 +317,35 @@ export default function RendimientoScreen({ navigation }) {
   );
 }
 
+// Desglose de "cuánto cuesta cada jornal" — los usuarios preguntaban de
+// dónde salía el número. Fórmula: TODA la nómina del mes (Cuaderno + nómina
+// manual de Finanzas, con bonos y extras) ÷ número de jornales del Cuaderno.
+function CalculoJornalDetalle({ actual }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ marginTop: 8 }}>
+      <Pressable onPress={() => setOpen((o) => !o)} style={styles.calcToggle}>
+        <Ionicons name="help-circle-outline" size={13} color={COLORS.ink500} />
+        <Text style={styles.calcToggleText}>  ¿Cómo se calcula?</Text>
+        <Ionicons name="chevron-down" size={12} color={COLORS.ink500} style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }} />
+      </Pressable>
+      {open && (
+        <View style={styles.calcBox}>
+          <Text style={styles.calcLinea}>Nómina total del mes: <Text style={styles.calcBold}>{formatMoney(actual.nominaTotal)}</Text></Text>
+          <Text style={styles.calcLinea}>Jornales registrados: <Text style={styles.calcBold}>{num(actual.jornaladas)}</Text></Text>
+          <Text style={styles.calcLinea}>{formatMoney(actual.nominaTotal)} ÷ {num(actual.jornaladas)} = <Text style={styles.calcBold}>{formatMoney(actual.costoMedioJornal)}</Text></Text>
+          <Text style={styles.calcNota}>
+            La nómina incluye TODO lo pagado: jornales, kilos, bonos, labores extra y la nómina manual
+            anotada en Finanzas. Los jornales son los días con asistencia en el Cuaderno (un día cuenta 1,
+            aunque haya sido medio día). Si anotas nómina en Finanzas pero no registras esos días en el
+            Cuaderno, el promedio sale más alto de lo real.
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 // Tarjeta de métrica rediseñada: ícono en círculo 36px (bg tenue del color
 // del badge), label uppercase, número 26px/500, descripción, badge opcional
 // y children para la comparación en pesos vs. mes anterior.
@@ -361,6 +393,12 @@ const styles = StyleSheet.create({
   nivelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   nivelBadgeText: { fontSize: 10, fontWeight: '800' },
   deltaText: { fontSize: 11, fontWeight: '700' },
+  calcToggle: { flexDirection: 'row', alignItems: 'center' },
+  calcToggleText: { fontSize: 11, fontWeight: '700', color: COLORS.ink500 },
+  calcBox: { backgroundColor: '#fff', borderRadius: 10, padding: 10, marginTop: 6, borderWidth: 0.5, borderColor: COLORS.border },
+  calcLinea: { fontSize: 11, color: COLORS.ink700, marginBottom: 2 },
+  calcBold: { fontWeight: '800', color: COLORS.ink900 },
+  calcNota: { fontSize: 10, color: COLORS.ink500, marginTop: 6, lineHeight: 15 },
   card: { backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.line, borderRadius: 16, padding: 16, marginTop: 16 },
   cardTitle: { fontWeight: '800', fontSize: 14, color: COLORS.ink900 },
   cardHint: { fontSize: 11, color: COLORS.ink500, marginTop: 2, marginBottom: 4 },
