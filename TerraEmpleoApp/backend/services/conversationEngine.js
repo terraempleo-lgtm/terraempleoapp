@@ -1041,6 +1041,14 @@ async function procesarMensaje({ telefono, jid = null, texto, usuario, media = n
 
   // ── Conversación activa: identificación de empleador ─────────────────────
   if (conv.flujo === FLUJO_IDENT) {
+    // Si en lugar del número escribe REGISTRARME (o "soy nuevo"), arrancamos el
+    // registro guiado por chat en vez de tratarlo como un número inexistente.
+    const textoIdent = comando.toLowerCase();
+    if (PALABRAS_REGISTRO.some((p) => textoIdent.includes(p))) {
+      await actualizarConversacion(conv.id, { estado: 'cancelada' });
+      const idReg = await crearConversacion(telefono, null, FLUJO_REGISTRO, 'rol');
+      return { reply: `${registroBienvenida()}\n\n${PREG_REG.rol}`, conversacionId: idReg };
+    }
     const u = await matchUsuarioPorCelular(comando);
     if (!u) {
       return {
