@@ -79,8 +79,10 @@ export default function TutorialOverlay({ visible, steps, onFinish, onSkip, scro
       });
     };
     if (p.scrollY !== undefined && scrollRef?.current?.scrollTo) {
-      scrollRef.current.scrollTo({ y: Math.max(0, p.scrollY), animated: true });
-      setTimeout(medir, 550); // esperar a que termine la animación del scroll
+      // Salto SIN animación: ocurre detrás del fondo oscuro y hace la medición
+      // determinista (medir en mitad de un scroll animado desalineaba el marco)
+      scrollRef.current.scrollTo({ y: Math.max(0, p.scrollY), animated: false });
+      setTimeout(medir, 250);
     } else {
       setTimeout(medir, 120);
     }

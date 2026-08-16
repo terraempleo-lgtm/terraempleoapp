@@ -71,7 +71,10 @@ export function TutorialProvider({ children }) {
       for (const key of porSincronizar) {
         try { await tutorialesAPI.marcarVisto(key); } catch (_) { sinSincronizar.push(key); }
       }
-      const todos = new Set([...servidor, ...cache.vistos, ...cache.pendientes]);
+      // El servidor es la autoridad (más lo pendiente de sincronizar): si un
+      // admin resetea tutoriales en la BD, el cache local NO los resucita y
+      // el tutorial vuelve a aparecer en todos los dispositivos.
+      const todos = new Set([...servidor, ...porSincronizar]);
       setVistos(todos);
       setEstado('listo');
       escribirCache([...todos].filter((k) => !sinSincronizar.includes(k)), sinSincronizar);
