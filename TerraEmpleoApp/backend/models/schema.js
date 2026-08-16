@@ -1419,6 +1419,20 @@ async function initializeDatabase() {
     if (!/Duplicate|already exists|Duplicate key on write/i.test(e.message)) console.warn('[Migration] fk_balance_fin_semana:', e.message);
   }
 
+  // Tutoriales de primera vez (Cuaderno, Finanzas…) — el "ya lo vio" se
+  // guarda por usuario (no por dispositivo) para que persista entre
+  // reinstalaciones y cambios de celular. Una fila por (usuario, tutorial).
+  await query(`
+    CREATE TABLE IF NOT EXISTS tutoriales_vistos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      usuario_id INT NOT NULL,
+      tutorial_key VARCHAR(60) NOT NULL,
+      visto_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_usuario_tutorial (usuario_id, tutorial_key),
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    )
+  `);
+
   console.log('Base de datos inicializada correctamente.');
 }
 

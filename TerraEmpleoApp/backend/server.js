@@ -27,6 +27,7 @@ const fincaRoutes = require('./routes/finca');
 const finanzasRoutes = require('./routes/finanzas');
 const cafeRoutes = require('./routes/cafe');
 const muroRoutes = require('./routes/muro');
+const tutorialesRoutes = require('./routes/tutoriales');
 const whatsappRoutes = require('./routes/whatsapp');
 const { initWhatsappSchema } = require('./models/whatsappSchema');
 
@@ -96,6 +97,7 @@ app.use('/api/finca', fincaRoutes);
 app.use('/api/finanzas', finanzasRoutes);
 app.use('/api/cafe', cafeRoutes);
 app.use('/api/muro', muroRoutes);
+app.use('/api/tutoriales', tutorialesRoutes);
 // Módulo WhatsApp: define rutas bajo /api/webhooks/whatsapp
 app.use('/api', whatsappRoutes);
 

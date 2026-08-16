@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -6,6 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { cuadernoAPI, fincaAPI, finanzasAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
+import { TUTORIALES } from '../../../context/TutorialContext';
+import useTutorialPrimeraVez from '../../../hooks/useTutorialPrimeraVez';
+import TutorialOverlay from '../../../components/tutorial/TutorialOverlay';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
 import { formatMoney, formatDate, formatLabor } from '../../../utils/fincaFormat';
 import {
@@ -84,6 +87,44 @@ export default function ResumenFincaScreen({ navigation }) {
   const [lotesRendimiento, setLotesRendimiento] = useState([]);
   const [cultivosRendimiento, setCultivosRendimiento] = useState({ cultivos: [], jornadas_sin_cultivo: 0 });
 
+  // Tutorial de primera vez del Cuaderno — solo se abre si el usuario nunca
+  // lo ha visto (estado por usuario en el servidor) y la pantalla ya cargó.
+  const scrollTutorialRef = useRef(null);
+  const topNavRef = useRef(null);
+  const accionesRef = useRef(null);
+  const kpisRef = useRef(null);
+  const heroRef = useRef(null);
+  const [heroY, setHeroY] = useState(0);
+  const { mostrar: mostrarTutorial, finalizar: finalizarTutorial, saltar: saltarTutorial } =
+    useTutorialPrimeraVez(TUTORIALES.CUADERNO, { listo: !loading });
+
+  const pasosTutorial = [
+    {
+      icon: 'book', title: '¡Bienvenido al Cuaderno!',
+      text: 'Este es el cuaderno digital de tu finca: aquí registras jornadas, asistencia, producción y pagos. Te mostramos lo básico en unos pocos pasos.',
+    },
+    {
+      targetRef: topNavRef, scrollY: 0, icon: 'apps-outline', title: 'Secciones del cuaderno',
+      text: 'Con estas pestañas te mueves entre Resumen, Jornadas y Nómina, Finanzas, Balance, Rendimiento y Conversión café.',
+    },
+    {
+      targetRef: accionesRef, scrollY: 0, icon: 'add-circle-outline', title: 'Registra tus jornadas',
+      text: 'Con "Nueva jornada" anotas quién trabajó, qué labor hizo y cuánto se recogió. Con "Ver jornadas" revisas el historial completo.',
+    },
+    {
+      targetRef: kpisRef, scrollY: 0, icon: 'stats-chart-outline', title: 'Tu finca de un vistazo',
+      text: 'Aquí ves los trabajadores contratados, las jornadas registradas y el total pagado.',
+    },
+    {
+      targetRef: heroRef, scrollY: Math.max(0, heroY - 90), icon: 'trending-up-outline', title: 'Pagos por mes',
+      text: 'La tendencia de pagos de los últimos 6 meses, para saber cómo va el gasto de la finca.',
+    },
+    {
+      icon: 'sparkles-outline', title: 'Y mucho más abajo',
+      text: 'Desplázate para ver rendimiento por tipo de trabajo, por trabajador, por lote y por cultivo, además del historial de pagos. ¡Listo, a usar el Cuaderno!',
+    },
+  ];
+
   useFocusEffect(
     React.useCallback(() => {
       let mounted = true;
@@ -159,8 +200,10 @@ export default function ResumenFincaScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <CuadernoTopNav navigation={navigation} activeKey="ResumenFincaHome" />
-      <ScrollView contentContainerStyle={styles.container}>
+      <View ref={topNavRef} collapsable={false}>
+        <CuadernoTopNav navigation={navigation} activeKey="ResumenFincaHome" />
+      </View>
+      <ScrollView ref={scrollTutorialRef} contentContainerStyle={styles.container}>
         <View style={[styles.rowBetween, { marginBottom: 16 }]}>
           <View style={styles.rowStart}>
             <View style={styles.headerIcon}><Ionicons name="book" size={22} color="#fff" /></View>
@@ -170,7 +213,7 @@ export default function ResumenFincaScreen({ navigation }) {
             </View>
           </View>
         </View>
-        <View style={[styles.rowStart, { gap: 8, marginBottom: 16 }]}>
+        <View ref={accionesRef} collapsable={false} style={[styles.rowStart, { gap: 8, marginBottom: 16 }]}>
           <Pressable style={styles.btnOutline} onPress={() => navigation.navigate('JornadasHome')}>
             <Ionicons name="calendar-outline" size={16} color={COLORS.ink700} />
             <Text style={styles.btnOutlineText}>  Ver jornadas</Text>
@@ -193,7 +236,7 @@ export default function ResumenFincaScreen({ navigation }) {
         )}
 
         {/* KPIs */}
-        <View style={styles.grid2}>
+        <View ref={kpisRef} collapsable={false} style={styles.grid2}>
           <StatCard icon="people-outline" label="Trabajadores" value={resumen.trabajadores_contratados || 0} accent="primary" hint="contratados" />
           <StatCard icon="calendar-outline" label="Jornadas" value={resumen.jornadas_total || 0} accent="accent"
             hint={`${resumen.jornadas_activas || 0} activas · ${resumen.jornadas_pendientes || 0} pendientes`} />
@@ -204,7 +247,7 @@ export default function ResumenFincaScreen({ navigation }) {
         </View>
 
         {/* Tendencia mensual */}
-        <View style={styles.heroCard}>
+        <View ref={heroRef} collapsable={false} onLayout={(e) => setHeroY(e.nativeEvent.layout.y)} style={styles.heroCard}>
           <View style={styles.rowBetween}>
             <View>
               <Text style={styles.heroKicker}>TENDENCIA MENSUAL</Text>
@@ -345,6 +388,13 @@ export default function ResumenFincaScreen({ navigation }) {
           <StatCard icon="alert-circle-outline" label="Sin cerrar" value={resumen.jornadas_activas || 0} accent="warning" hint="jornadas en curso" />
         </View>
       </ScrollView>
+      <TutorialOverlay
+        visible={mostrarTutorial}
+        steps={pasosTutorial}
+        scrollRef={scrollTutorialRef}
+        onFinish={finalizarTutorial}
+        onSkip={saltarTutorial}
+      />
     </SafeAreaView>
   );
 }

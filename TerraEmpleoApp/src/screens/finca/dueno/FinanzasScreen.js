@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, TextInput, StyleSheet, ActivityIndicator, Alert, Image, Modal,
 } from 'react-native';
@@ -7,6 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { finanzasAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
+import { TUTORIALES } from '../../../context/TutorialContext';
+import useTutorialPrimeraVez from '../../../hooks/useTutorialPrimeraVez';
+import TutorialOverlay from '../../../components/tutorial/TutorialOverlay';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
 import { formatMoney, normalizarTexto } from '../../../utils/fincaFormat';
 import { useFechaRef, setMesRef } from '../../../context/periodoStore';
@@ -103,6 +106,47 @@ export default function FinanzasScreen({ navigation }) {
   const cerrado = periodo.estado === 'cerrado';
   const soloLectura = rol === 'auxiliar' || (cerrado && rol !== 'propietario');
 
+  // Tutorial de primera vez de Finanzas — independiente del de Cuaderno.
+  // Solo llega aquí quien tiene acceso a la sección (la navegación del
+  // capataz no incluye Finanzas), y solo se abre si nunca lo ha visto.
+  const scrollTutorialRef = useRef(null);
+  const mesRef = useRef(null);
+  const cierreRef = useRef(null);
+  const notaRef = useRef(null);
+  const ventasRef = useRef(null);
+  const resumenRef = useRef(null);
+  const [ventasY, setVentasY] = useState(0);
+  const [resumenY, setResumenY] = useState(0);
+  const { mostrar: mostrarTutorial, finalizar: finalizarTutorial, saltar: saltarTutorial } =
+    useTutorialPrimeraVez(TUTORIALES.FINANZAS, { listo: !loading && !!data });
+
+  const pasosTutorial = [
+    {
+      icon: 'cash', title: '¡Bienvenido a Finanzas!',
+      text: 'Aquí llevas las cuentas del mes de tu finca: ventas, nómina, gastos y facturas, organizadas por semanas.',
+    },
+    {
+      targetRef: mesRef, scrollY: 0, icon: 'calendar-outline', title: 'Elige el mes',
+      text: 'Con las flechas cambias de mes; cada mes tiene su propio tablero de cuentas.',
+    },
+    rol === 'propietario' && {
+      targetRef: cierreRef, scrollY: 0, icon: 'lock-closed-outline', title: 'Cierra el mes',
+      text: 'Cuando termines de anotar, cierra el mes para que las cifras queden protegidas. Puedes reabrirlo cuando quieras.',
+    },
+    !soloLectura && {
+      targetRef: notaRef, icon: 'document-text-outline', title: 'Nota rápida',
+      text: 'Escribe el gasto como en el cuaderno físico — por ejemplo "Gasolina guadaña 25000" — elige el tipo y el sistema lo organiza solo.',
+    },
+    {
+      targetRef: ventasRef, scrollY: Math.max(0, ventasY - 80), icon: 'grid-outline', title: 'Tablas por categoría',
+      text: 'Ventas, nómina manual, gastos fijos, gastos variables y facturas. Anota los valores por semana; los totales se calculan solos.',
+    },
+    {
+      targetRef: resumenRef, scrollY: Math.max(0, resumenY - 60), icon: 'wallet-outline', title: 'Resumen del mes',
+      text: 'El balance final: total de gastos frente a ventas y la diferencia. La nómina de las jornadas del Cuaderno entra automáticamente.',
+    },
+  ].filter(Boolean);
+
   const porTipo = useMemo(() => {
     const g = { ingreso: [], nomina: [], gasto_fijo: [], gasto_variable: [], factura: [] };
     for (const c of conceptos) (g[c.tipo] || (g[c.tipo] = [])).push(c);
@@ -179,7 +223,7 @@ export default function FinanzasScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <CuadernoTopNav navigation={navigation} activeKey="FinanzasHome" />
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView ref={scrollTutorialRef} contentContainerStyle={styles.container}>
         <View style={styles.rowStart}>
           <View style={styles.headerIcon}><Ionicons name="cash" size={22} color="#fff" /></View>
           <View style={{ marginLeft: 10, flex: 1 }}>
@@ -189,13 +233,13 @@ export default function FinanzasScreen({ navigation }) {
         </View>
 
         <View style={[styles.rowStart, { flexWrap: 'wrap', gap: 8, marginTop: 12 }]}>
-          <View style={styles.monthNav}>
+          <View ref={mesRef} collapsable={false} style={styles.monthNav}>
             <Pressable onPress={() => cambiarMes(-1)} style={styles.monthBtn}><Ionicons name="chevron-back" size={16} color={COLORS.ink700} /></Pressable>
             <Text style={styles.monthLabel}>{MESES[mes - 1]} {anio}</Text>
             <Pressable onPress={() => cambiarMes(1)} style={styles.monthBtn}><Ionicons name="chevron-forward" size={16} color={COLORS.ink700} /></Pressable>
           </View>
           {rol === 'propietario' && (
-            <Pressable onPress={toggleCierre} style={[styles.pillBtn, cerrado && { backgroundColor: COLORS.warningSoft }]}>
+            <Pressable ref={cierreRef} onPress={toggleCierre} style={[styles.pillBtn, cerrado && { backgroundColor: COLORS.warningSoft }]}>
               {cerrado ? <Ionicons name="lock-open-outline" size={15} color={COLORS.warning} /> : <Ionicons name="lock-closed-outline" size={15} color={COLORS.ink700} />}
               <Text style={[styles.pillBtnText, cerrado && { color: COLORS.warning }]}>  {cerrado ? 'Reabrir' : 'Cerrar mes'}</Text>
             </Pressable>
@@ -210,21 +254,30 @@ export default function FinanzasScreen({ navigation }) {
         )}
 
         {!soloLectura && (
-          <NotaRapida
-            conceptos={conceptos}
-            semanas={semanas}
-            movimientos={data?.movimientos || []}
-            periodo={periodo}
-            fincaId={activeFincaId}
-            onGuardado={cargarTablero}
-          />
+          <View ref={notaRef} collapsable={false}>
+            <NotaRapida
+              conceptos={conceptos}
+              semanas={semanas}
+              movimientos={data?.movimientos || []}
+              periodo={periodo}
+              fincaId={activeFincaId}
+              onGuardado={cargarTablero}
+            />
+          </View>
         )}
 
         {SECCIONES.map((sec) => {
           const items = porTipo[sec.tipo] || [];
           const esFactura = sec.tipo === 'factura';
+          const esVentas = sec.tipo === 'ingreso';
           return (
-            <View key={sec.tipo} style={styles.seccionCard}>
+            <View
+              key={sec.tipo}
+              ref={esVentas ? ventasRef : undefined}
+              collapsable={esVentas ? false : undefined}
+              onLayout={esVentas ? (e) => setVentasY(e.nativeEvent.layout.y) : undefined}
+              style={styles.seccionCard}
+            >
               <View style={[styles.seccionHeader, { backgroundColor: sec.soft }]}>
                 <Text style={[styles.seccionTitulo, { color: sec.color }]}>{sec.titulo}</Text>
                 {!soloLectura && (
@@ -293,7 +346,7 @@ export default function FinanzasScreen({ navigation }) {
           );
         })}
 
-        <View style={styles.resumenCard}>
+        <View ref={resumenRef} collapsable={false} onLayout={(e) => setResumenY(e.nativeEvent.layout.y)} style={styles.resumenCard}>
           <View style={styles.resumenHeader}><Text style={styles.resumenHeaderText}>Resumen — {MESES[mes - 1]}</Text></View>
           <View style={{ padding: 14, gap: 6 }}>
             <Fila label="Nómina" value={nominaTotal} />
@@ -316,6 +369,13 @@ export default function FinanzasScreen({ navigation }) {
         </View>
         {saving && <Text style={styles.savingText}>Guardando…</Text>}
       </ScrollView>
+      <TutorialOverlay
+        visible={mostrarTutorial}
+        steps={pasosTutorial}
+        scrollRef={scrollTutorialRef}
+        onFinish={finalizarTutorial}
+        onSkip={saltarTutorial}
+      />
     </SafeAreaView>
   );
 }

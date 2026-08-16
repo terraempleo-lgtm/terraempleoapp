@@ -13,6 +13,7 @@ import { MotiView } from 'moti';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { FincaProvider, useFinca } from './src/context/FincaContext';
+import { TutorialProvider } from './src/context/TutorialContext';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
 import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 import { navigationRef } from './src/navigation/navigationRef';
@@ -905,12 +906,14 @@ function AppShell() {
       <SafeAreaProvider>
       <AuthProvider>
         <OfflineSyncManager />
-        <NavigationContainer ref={navigationRef} theme={navigationTheme}>
-          <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.primaryDark} />
-          <RootNavigator />
-          <Toast ref={toastRef} />
-          <AppAlert ref={alertRef} />
-        </NavigationContainer>
+        <TutorialProvider>
+          <NavigationContainer ref={navigationRef} theme={navigationTheme}>
+            <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.primaryDark} />
+            <RootNavigator />
+            <Toast ref={toastRef} />
+            <AppAlert ref={alertRef} />
+          </NavigationContainer>
+        </TutorialProvider>
       </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

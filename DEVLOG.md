@@ -79,6 +79,20 @@ Registro de sesiones de trabajo del equipo.
 
 ---
 
+## 2026-08-15 — Tutorial interactivo de primera vez: Cuaderno y Finanzas
+
+**Participantes:** Juan
+
+### ✅ Hecho (2026-08-15)
+
+- **Tutorial de primera vez (onboarding)** para **Cuaderno** y **Finanzas**: coach-marks que oscurecen la pantalla, resaltan el elemento explicado y muestran tarjeta con progreso (`1 de N`), Atrás/Siguiente/Finalizar y "Saltar tutorial". Cada tutorial aparece solo la primera vez que el usuario entra a esa sección.
+- **Persistencia por usuario (no por dispositivo)**: tabla nueva `tutoriales_vistos` (`usuario_id` + `tutorial_key`, UNIQUE) + endpoints `GET /api/tutoriales` y `POST /api/tutoriales/:key/visto` (idempotente, allowlist de claves). Cerrar sesión, cambiar de celular o reinstalar no repite un tutorial ya visto.
+- **Mecanismo reutilizable**: `TutorialProvider` (`src/context/TutorialContext.js`, carga perezosa + cache AsyncStorage por usuario + cola de sincronización offline), hook `useTutorialPrimeraVez(key, { listo })` y componente `TutorialOverlay` (`src/components/tutorial/`). Agregar un tutorial nuevo = 1 clave en backend/frontend + pasos en la pantalla.
+- **Integración**: `ResumenFincaScreen` (Cuaderno dueño, 6 pasos), `CuadernoAdminScreen` (Cuaderno capataz, 5 pasos — misma clave `cuaderno`), `FinanzasScreen` (6 pasos; el paso "Cerrar mes" solo aparece a propietarios). Permisos: el tutorial vive en la pantalla, así que solo se ejecuta para roles que pueden montarla (capataz nunca ve el de Finanzas).
+- **Robustez**: no se muestra nada mientras se consulta el estado (sin "flash"), guard contra doble apertura por re-renders, fallback a tarjeta centrada si un elemento no se puede medir, y ante error de red sin cache el tutorial se omite (mejor omitir que repetir).
+
+---
+
 ## 2026-03-27 — AppAlert branded + preparación Play Store
 
 **Participantes:** Vero

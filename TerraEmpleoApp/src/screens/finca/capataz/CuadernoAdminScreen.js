@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -6,6 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from '../../../theme';
 import { cuadernoAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
+import { TUTORIALES } from '../../../context/TutorialContext';
+import useTutorialPrimeraVez from '../../../hooks/useTutorialPrimeraVez';
+import TutorialOverlay from '../../../components/tutorial/TutorialOverlay';
 
 function inicioSemana(d = new Date()) {
   const dia = d.getDay(); // 0=domingo
@@ -23,6 +26,38 @@ export default function CuadernoAdminScreen({ navigation }) {
   const [jornadas, setJornadas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Tutorial de primera vez del Cuaderno (versión capataz) — misma clave
+  // 'cuaderno' que el dueño: es la misma sección, con pasos propios de esta vista.
+  const ctaRef = useRef(null);
+  const kpiRowRef = useRef(null);
+  const preciosRef = useRef(null);
+  const recientesRef = useRef(null);
+  const { mostrar: mostrarTutorial, finalizar: finalizarTutorial, saltar: saltarTutorial } =
+    useTutorialPrimeraVez(TUTORIALES.CUADERNO, { listo: !loading });
+
+  const pasosTutorial = [
+    {
+      icon: 'book', title: '¡Bienvenido al Cuaderno!',
+      text: 'Aquí registras la jornada de cada día: quién asistió, cuántos kilos se recogieron y cuánto se pagó.',
+    },
+    {
+      targetRef: ctaRef, icon: 'checkmark-done-circle-outline', title: 'La jornada de hoy',
+      text: 'Este botón es tu día a día: cierra la jornada de hoy o ábrela para revisar lo registrado.',
+    },
+    {
+      targetRef: kpiRowRef, icon: 'stats-chart-outline', title: 'Resumen de la semana',
+      text: 'Jornadas registradas, kilos recogidos y total pagado en lo que va de la semana.',
+    },
+    {
+      targetRef: recientesRef, icon: 'time-outline', title: 'Jornadas recientes',
+      text: 'Toca cualquier jornada de la lista para ver su detalle o corregirla.',
+    },
+    {
+      targetRef: preciosRef, icon: 'pricetag-outline', title: 'Precios',
+      text: 'Aquí consultas y ajustas los precios por kilo o por labor con los que se calculan los pagos.',
+    },
+  ];
 
   const confirmarSalir = () => {
     Alert.alert('Cerrar sesión', `¿Salir de la cuenta de ${user?.nombre_completo || 'este usuario'}?`, [
@@ -71,7 +106,7 @@ export default function CuadernoAdminScreen({ navigation }) {
         <View style={styles.header}>
           <Text style={styles.title}>Cuaderno</Text>
           <View style={styles.headerBtns}>
-            <TouchableOpacity onPress={() => navigation.navigate('Precios')} style={styles.preciosBtn}>
+            <TouchableOpacity ref={preciosRef} onPress={() => navigation.navigate('Precios')} style={styles.preciosBtn}>
               <Ionicons name="pricetag-outline" size={16} color={COLORS.primary} />
               <Text style={styles.preciosText}>Precios</Text>
             </TouchableOpacity>
@@ -82,6 +117,7 @@ export default function CuadernoAdminScreen({ navigation }) {
         </View>
 
         <TouchableOpacity
+          ref={ctaRef}
           style={styles.cta}
           onPress={() => navigation.navigate(jornadaHoy ? 'DetalleJornada' : 'CerrarJornada', jornadaHoy ? { jornadaId: jornadaHoy.id } : { fecha: hoyStr() })}
         >
@@ -89,7 +125,7 @@ export default function CuadernoAdminScreen({ navigation }) {
           <Text style={styles.ctaText}>{jornadaHoy ? 'Ver la jornada de hoy' : 'Cerrar la jornada de hoy'}</Text>
         </TouchableOpacity>
 
-        <View style={styles.kpiRow}>
+        <View ref={kpiRowRef} collapsable={false} style={styles.kpiRow}>
           <View style={styles.kpiCard}>
             <Text style={styles.kpiValue}>{kpis.jornadas}</Text>
             <Text style={styles.kpiLabel}>Jornadas esta semana</Text>
@@ -104,7 +140,9 @@ export default function CuadernoAdminScreen({ navigation }) {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Jornadas recientes</Text>
+        <View ref={recientesRef} collapsable={false}>
+          <Text style={styles.sectionTitle}>Jornadas recientes</Text>
+        </View>
         {jornadas.length === 0 ? (
           <Text style={styles.empty}>Sin jornadas registradas esta semana.</Text>
         ) : jornadas.map(j => (
@@ -117,6 +155,12 @@ export default function CuadernoAdminScreen({ navigation }) {
           </TouchableOpacity>
         ))}
       </ScrollView>
+      <TutorialOverlay
+        visible={mostrarTutorial}
+        steps={pasosTutorial}
+        onFinish={finalizarTutorial}
+        onSkip={saltarTutorial}
+      />
     </SafeAreaView>
   );
 }

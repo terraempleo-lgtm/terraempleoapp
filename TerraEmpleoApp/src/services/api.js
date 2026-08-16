@@ -611,4 +611,10 @@ export const finanzasAPI = {
   eliminarFotoMovimiento: (movId) => api.delete(`/finanzas/movimientos/${movId}/foto`),
 };
 
+// Tutoriales de primera vez (estado "ya visto" asociado al usuario)
+export const tutorialesAPI = {
+  vistos: () => api.get('/tutoriales'),
+  marcarVisto: (key) => api.post(`/tutoriales/${key}/visto`),
+};
+
 export default api;
