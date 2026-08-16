@@ -20,15 +20,23 @@ import { MotiView } from 'moti';
  *   scrollY?:  posición Y del ScrollView (prop scrollRef) a la que hay que
  *              desplazarse para que el target quede visible
  * }
+ *
+ * Posicionamiento: el elemento y el contenedor del modal se miden ambos con
+ * measureInWindow y el hueco se ubica por la DIFERENCIA entre los dos. Así el
+ * resaltado no se corre por la barra de estado de Android ni por dónde ancle
+ * su origen el Modal en cada plataforma (ese desfase hacía que el recuadro
+ * quedara más arriba o más abajo del elemento explicado).
  */
 const HOLE_PAD = 8;
 
 export default function TutorialOverlay({ visible, steps, onFinish, onSkip, scrollRef }) {
   const { width: winW, height: winH } = useWindowDimensions();
   const [indice, setIndice] = useState(0);
-  const [hole, setHole] = useState(null); // {x,y,w,h} o null → tarjeta centrada
+  const [hole, setHole] = useState(null); // {x,y,w,h} relativo al modal, o null → tarjeta centrada
   const [midiendo, setMidiendo] = useState(true);
   const [cardH, setCardH] = useState(230);
+  const [rootSize, setRootSize] = useState(null); // tamaño real del modal (onLayout)
+  const rootRef = useRef(null);
   const vivoRef = useRef(false);
 
   useEffect(() => {
@@ -45,26 +53,38 @@ export default function TutorialOverlay({ visible, steps, onFinish, onSkip, scro
   const paso = steps[Math.min(indice, total - 1)] || null;
   const esUltimo = indice >= total - 1;
 
+  // Dimensiones reales del lienzo del modal (más confiables que las de la
+  // ventana en Android, donde pueden excluir barras del sistema)
+  const lienzoW = rootSize?.w || winW;
+  const lienzoH = rootSize?.h || winH;
+
   const medirPaso = useCallback((p) => {
     setMidiendo(true);
     const terminar = (rect) => { if (vivoRef.current) { setHole(rect); setMidiendo(false); } };
     if (!p || !p.targetRef?.current?.measureInWindow) { terminar(null); return; }
     const medir = () => {
       const nodo = p.targetRef.current;
-      if (!nodo?.measureInWindow) { terminar(null); return; }
-      nodo.measureInWindow((x, y, w, h) => {
-        // Si el elemento no es medible o quedó fuera de pantalla → tarjeta centrada
-        if (!w || !h || y == null || y > winH - 80 || y + h < 0) { terminar(null); return; }
-        terminar({ x, y, w, h });
+      const raiz = rootRef.current;
+      if (!nodo?.measureInWindow || !raiz?.measureInWindow) { terminar(null); return; }
+      raiz.measureInWindow((rx, ry, rw, rh) => {
+        nodo.measureInWindow((x, y, w, h) => {
+          const alto = rh || lienzoH;
+          // Coordenadas del elemento RELATIVAS al lienzo del modal
+          const relX = x - (rx || 0);
+          const relY = y - (ry || 0);
+          // Elemento no medible o fuera de la zona visible → tarjeta centrada
+          if (!w || !h || relY > alto - 80 || relY + h < 40) { terminar(null); return; }
+          terminar({ x: relX, y: relY, w, h });
+        });
       });
     };
     if (p.scrollY !== undefined && scrollRef?.current?.scrollTo) {
       scrollRef.current.scrollTo({ y: Math.max(0, p.scrollY), animated: true });
-      setTimeout(medir, 450); // esperar a que termine el scroll
+      setTimeout(medir, 550); // esperar a que termine la animación del scroll
     } else {
-      setTimeout(medir, 80);
+      setTimeout(medir, 120);
     }
-  }, [scrollRef, winH]);
+  }, [scrollRef, lienzoH]);
 
   useEffect(() => {
     if (visible) medirPaso(steps[Math.min(indice, steps.length - 1)]);
@@ -76,25 +96,31 @@ export default function TutorialOverlay({ visible, steps, onFinish, onSkip, scro
   const siguiente = () => (esUltimo ? onFinish() : setIndice((i) => i + 1));
   const atras = () => setIndice((i) => Math.max(0, i - 1));
 
-  // Geometría del "hueco" resaltado
+  // Geometría del "hueco" resaltado, acotada al lienzo del modal
   const hx = hole ? Math.max(0, hole.x - HOLE_PAD) : 0;
   const hy = hole ? Math.max(0, hole.y - HOLE_PAD) : 0;
-  const hw = hole ? Math.min(winW - hx, hole.w + HOLE_PAD * 2) : 0;
-  const hh = hole ? hole.h + HOLE_PAD * 2 : 0;
+  const hw = hole ? Math.min(lienzoW - hx, hole.w + HOLE_PAD * 2) : 0;
+  const hh = hole ? Math.min(lienzoH - hy - 8, hole.h + HOLE_PAD * 2) : 0;
 
   // Posición de la tarjeta: debajo del hueco si cabe, si no encima; centrada si no hay target
-  const cardW = Math.min(winW - 32, 360);
+  const cardW = Math.min(lienzoW - 32, 360);
   let cardTop = null;
-  let cardLeft = (winW - cardW) / 2;
+  let cardLeft = (lienzoW - cardW) / 2;
   if (hole) {
     const abajo = hy + hh + 14;
-    cardTop = abajo + cardH + 24 <= winH ? abajo : Math.max(24, hy - 14 - cardH);
-    cardLeft = Math.min(Math.max(16, hx + hw / 2 - cardW / 2), winW - 16 - cardW);
+    cardTop = abajo + cardH + 24 <= lienzoH ? abajo : Math.max(24, hy - 14 - cardH);
+    cardLeft = Math.min(Math.max(16, hx + hw / 2 - cardW / 2), lienzoW - 16 - cardW);
   }
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onSkip}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <View
+        ref={rootRef}
+        collapsable={false}
+        onLayout={(e) => setRootSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="box-none"
+      >
         {/* Fondo oscurecido: 4 rectángulos alrededor del hueco (o pantalla completa) */}
         {hole ? (
           <>
@@ -124,7 +150,7 @@ export default function TutorialOverlay({ visible, steps, onFinish, onSkip, scro
             style={[
               styles.card,
               { width: cardW, left: cardLeft },
-              cardTop === null ? { top: winH / 2 - cardH / 2 } : { top: cardTop },
+              cardTop === null ? { top: lienzoH / 2 - cardH / 2 } : { top: cardTop },
             ]}
           >
             <View style={styles.cardHeader}>
