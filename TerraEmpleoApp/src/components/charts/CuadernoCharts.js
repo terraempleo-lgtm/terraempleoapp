@@ -92,7 +92,7 @@ export function KilosPorSemanaChart({ semanal = [], metaKgSemanal, onGuardarMeta
 
 // ── 2) Costo por kilo por semana ────────────────────────────────────────────
 const LINE_CHART_H = 170;
-const LINE_CHART_PAD_TOP = 26; // espacio para el label de valor sobre cada punto
+const LINE_CHART_PAD_TOP = 30; // espacio para el label de valor sobre cada punto
 const Y_AXIS_WIDTH = 52;
 
 const UNIDADES_COSTO = [
@@ -228,20 +228,29 @@ export function CostoPorKiloChart({ semanal = [], finca, precios = {}, onGuardar
                 const activo = sel === i;
                 const color = p.sobrePrecio ? '#C0392B' : CHART_COLORS.primary;
                 return (
-                  <Tocable
-                    key={d.semana}
-                    onPress={() => setSel(activo ? null : i)}
-                    style={{ position: 'absolute', left: p.x - 16, top: p.y - 16, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Text style={styles.puntoValorLabel}>{formatMoney(Math.round(d.costoUnidad))}</Text>
-                    {p.sobrePrecio && <Ionicons name="warning" size={11} color="#C0392B" style={{ marginBottom: 1 }} />}
-                    <MotiView
-                      from={{ opacity: 0, scale: 0 }}
-                      animate={{ opacity: 1, scale: activo ? 1.3 : 1 }}
-                      transition={{ type: 'timing', duration: 300, delay: i * 50 }}
-                      style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, borderWidth: 2, borderColor: '#fff' }}
-                    />
-                  </Tocable>
+                  <React.Fragment key={d.semana}>
+                    {/* Ancho propio y centrado independiente del área táctil
+                        (32px) para que valores largos como "$14.500" no se
+                        partan en dos líneas. */}
+                    <Text
+                      style={[styles.puntoValorLabel, { position: 'absolute', left: p.x - 34, top: p.y - 30, width: 68, textAlign: 'center' }]}
+                      numberOfLines={1}
+                    >
+                      {formatMoney(Math.round(d.costoUnidad))}
+                    </Text>
+                    <Tocable
+                      onPress={() => setSel(activo ? null : i)}
+                      style={{ position: 'absolute', left: p.x - 16, top: p.y - 16, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      {p.sobrePrecio && <Ionicons name="warning" size={11} color="#C0392B" style={{ marginBottom: 1 }} />}
+                      <MotiView
+                        from={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: 1, scale: activo ? 1.3 : 1 }}
+                        transition={{ type: 'timing', duration: 300, delay: i * 50 }}
+                        style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, borderWidth: 2, borderColor: '#fff' }}
+                      />
+                    </Tocable>
+                  </React.Fragment>
                 );
               })}
             </>
