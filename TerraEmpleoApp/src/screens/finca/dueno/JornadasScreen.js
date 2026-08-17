@@ -5,7 +5,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { cuadernoAPI } from '../../../services/api';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
-import JornadasNominaSwitch from '../shared/JornadasNominaSwitch';
 import { formatMoney, formatDate, asText } from '../../../utils/fincaFormat';
 
 const COLORS = {
@@ -113,7 +112,6 @@ export default function JornadasScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <CuadernoTopNav navigation={navigation} activeKey="JornadasHome" />
-      <JornadasNominaSwitch navigation={navigation} active="jornadas" />
       <View style={styles.header}>
         <View style={styles.rowBetween}>
           <View style={styles.rowStart}>

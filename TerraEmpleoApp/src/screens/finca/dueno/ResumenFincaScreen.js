@@ -105,7 +105,7 @@ export default function ResumenFincaScreen({ navigation }) {
     },
     {
       targetRef: topNavRef, scrollY: 0, icon: 'apps-outline', title: 'Secciones del cuaderno',
-      text: 'Con estas pestañas te mueves entre Resumen, Jornadas y Nómina, Finanzas, Balance, Rendimiento y Conversión café.',
+      text: 'Con estas pestañas te mueves entre Resumen, Jornadas, Nómina, Finanzas, Balance, Rendimiento y Conversión café.',
     },
     {
       targetRef: accionesRef, scrollY: 0, icon: 'add-circle-outline', title: 'Registra tus jornadas',

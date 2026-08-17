@@ -12,7 +12,6 @@ import { useFinca } from '../../../context/FincaContext';
 import { useAuth } from '../../../context/AuthContext';
 import Avatar from './Avatar';
 import CuadernoTopNav from './CuadernoTopNav';
-import JornadasNominaSwitch from './JornadasNominaSwitch';
 import { formatMoney } from '../../../utils/fincaFormat';
 import { useFechaRef, setFechaRef } from '../../../context/periodoStore';
 
@@ -216,7 +215,7 @@ export default function NominaScreen({ navigation }) {
   if (loading && !data) {
     return (
       <SafeAreaView style={styles.screen} edges={['top']}>
-        {!esCapataz && <CuadernoTopNav navigation={navigation} activeKey="JornadasHome" />}
+        {!esCapataz && <CuadernoTopNav navigation={navigation} activeKey="NominaHome" />}
         <ActivityIndicator style={{ marginTop: 40 }} size="large" color={COLORS.primary} />
       </SafeAreaView>
     );
@@ -224,8 +223,7 @@ export default function NominaScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      {!esCapataz && <CuadernoTopNav navigation={navigation} activeKey="JornadasHome" />}
-      {!esCapataz && <JornadasNominaSwitch navigation={navigation} active="nomina" />}
+      {!esCapataz && <CuadernoTopNav navigation={navigation} activeKey="NominaHome" />}
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerRow}>
           <View style={styles.rowStart}>

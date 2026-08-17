@@ -5,11 +5,13 @@ import { COLORS, SPACING, RADIUS } from '../../../theme';
 import { useFinca } from '../../../context/FincaContext';
 import { useCongelado, toggleCongelado } from '../../../context/periodoStore';
 
-// Jornadas y Nómina se fusionaron en una sola sección (con su conmutador
-// interno), y "Café" ahora dice qué hace: convertir cereza a pergamino.
+// "Café" dice qué hace: convertir cereza a pergamino. Jornadas y Nómina
+// viven como pestañas independientes (antes iban fusionadas en una sola
+// sección con un conmutador interno).
 const ITEMS = [
   { key: 'ResumenFincaHome', label: 'Resumen', icon: 'book-outline' },
-  { key: 'JornadasHome', label: 'Jornadas y Nómina', icon: 'calendar-outline' },
+  { key: 'JornadasHome', label: 'Jornadas', icon: 'calendar-outline' },
+  { key: 'NominaHome', label: 'Nómina', icon: 'clipboard-outline' },
   { key: 'FinanzasHome', label: 'Finanzas', icon: 'pulse-outline' },
   { key: 'BalanceFincaHome', label: 'Balance', icon: 'business-outline' },
   { key: 'RendimientoHome', label: 'Rendimiento', icon: 'trending-up-outline' },

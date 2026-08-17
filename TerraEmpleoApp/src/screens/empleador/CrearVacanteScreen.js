@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, Alert,
   KeyboardAvoidingView, Platform, TouchableOpacity, Switch, Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Button, Input, ChipSelector, PickerModal, FechaInicioField } from '../../components/ui';
@@ -17,6 +17,7 @@ import { showAlert } from '../../utils/alertService';
 import { useFormDraft } from '../../hooks/useFormDraft';
 
 export default function CrearVacanteScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [cultivosV, setCultivosV] = useState([]);
@@ -212,7 +213,10 @@ export default function CrearVacanteScreen({ navigation }) {
         <View style={{ width: 34 }} />
       </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(120, insets.bottom + 96) }]}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.card}>
             <Text style={styles.title}>Nueva Vacante</Text>
 
