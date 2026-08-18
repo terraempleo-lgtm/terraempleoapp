@@ -1,24 +1,74 @@
-import React, { useState } from 'react';
-import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { FlatList, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, RADIUS, SPACING, FONTS } from '../../theme';
 
-function parseToDate(valor) {
-  const d = new Date();
+// Selector de hora 100% JS (sin @react-native-community/datetimepicker).
+// El módulo nativo requiere un build nuevo para llegarle a celulares con la
+// app ya instalada — un OTA no alcanza a instalarlo — así que la rueda de
+// hora/minuto se dibuja a mano con FlatList y funciona en cualquier binario.
+const ITEM_H = 40;
+const VISIBLE = 5;
+const WHEEL_H = ITEM_H * VISIBLE;
+const PAD_V = (WHEEL_H - ITEM_H) / 2;
+
+const HORAS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTOS = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+
+function parseValor(valor) {
   if (valor && /^\d{1,2}:\d{2}/.test(valor)) {
     const [h, m] = valor.split(':').map(Number);
-    d.setHours(h, m, 0, 0);
-  } else {
-    d.setSeconds(0, 0);
+    return {
+      hIdx: Math.min(23, Math.max(0, h || 0)),
+      mIdx: Math.min(11, Math.max(0, Math.round((m || 0) / 5))),
+    };
   }
-  return d;
+  const ahora = new Date();
+  return { hIdx: ahora.getHours(), mIdx: Math.round(ahora.getMinutes() / 5) % 12 };
 }
 
-function formatHora(date) {
-  const h = date.getHours().toString().padStart(2, '0');
-  const m = date.getMinutes().toString().padStart(2, '0');
-  return `${h}:${m}`;
+function Rueda({ datos, indiceInicial, onCambiar }) {
+  const listRef = useRef(null);
+  const [indice, setIndice] = useState(indiceInicial);
+
+  const seleccionar = (i) => {
+    setIndice(i);
+    onCambiar(i);
+  };
+
+  const onMomentumEnd = (e) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const i = Math.min(datos.length - 1, Math.max(0, Math.round(y / ITEM_H)));
+    seleccionar(i);
+  };
+
+  const tocarItem = (i) => {
+    listRef.current?.scrollToOffset({ offset: i * ITEM_H, animated: true });
+    seleccionar(i);
+  };
+
+  return (
+    <View style={styles.wheelWrap}>
+      <View style={styles.wheelBanda} pointerEvents="none" />
+      <FlatList
+        ref={listRef}
+        data={datos}
+        keyExtractor={(v) => v}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_H}
+        decelerationRate="fast"
+        contentContainerStyle={{ paddingVertical: PAD_V }}
+        getItemLayout={(_, i) => ({ length: ITEM_H, offset: ITEM_H * i, index: i })}
+        initialScrollIndex={indiceInicial}
+        onMomentumScrollEnd={onMomentumEnd}
+        renderItem={({ item, index: i }) => (
+          <TouchableOpacity style={styles.wheelItem} onPress={() => tocarItem(i)} activeOpacity={0.6}>
+            <Text style={[styles.wheelText, i === indice && styles.wheelTextActivo]}>{item}</Text>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
 }
 
 function abrirSelectorHoraWeb(valorActual, onSelect) {
@@ -54,24 +104,20 @@ function abrirSelectorHoraWeb(valorActual, onSelect) {
 
 export default function HoraField({ label, value, onChange, placeholder = '--:--', style }) {
   const [showPicker, setShowPicker] = useState(false);
+  const [seleccion, setSeleccion] = useState(() => parseValor(value));
 
   const abrirSelector = () => {
     if (Platform.OS === 'web') {
       abrirSelectorHoraWeb(value, onChange);
       return;
     }
+    setSeleccion(parseValor(value));
     setShowPicker(true);
   };
 
-  const handleNativeChange = (event, selectedDate) => {
-    if (Platform.OS === 'android') {
-      setShowPicker(false);
-      if (event.type === 'set' && selectedDate) {
-        onChange(formatHora(selectedDate));
-      }
-    } else if (selectedDate) {
-      onChange(formatHora(selectedDate));
-    }
+  const confirmar = () => {
+    onChange(`${HORAS[seleccion.hIdx]}:${MINUTOS[seleccion.mIdx]}`);
+    setShowPicker(false);
   };
 
   return (
@@ -92,40 +138,24 @@ export default function HoraField({ label, value, onChange, placeholder = '--:--
         )}
       </TouchableOpacity>
 
-      {showPicker && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={parseToDate(value)}
-          mode="time"
-          is24Hour
-          display="default"
-          locale="es-ES"
-          onChange={handleNativeChange}
-        />
-      )}
-
-      {Platform.OS === 'ios' && (
-        <Modal visible={showPicker} transparent animationType="slide" onRequestClose={() => setShowPicker(false)}>
-          <View style={styles.modalOverlay}>
-            <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowPicker(false)} />
-            <View style={styles.modalCard}>
-              <TouchableOpacity style={styles.iosCloseBtn} onPress={() => setShowPicker(false)}>
+      <Modal visible={showPicker} transparent animationType="slide" onRequestClose={() => setShowPicker(false)}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowPicker(false)} />
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{label || 'Selecciona la hora'}</Text>
+              <TouchableOpacity style={styles.iosCloseBtn} onPress={confirmar}>
                 <Text style={styles.iosCloseText}>Listo</Text>
               </TouchableOpacity>
-              <DateTimePicker
-                value={parseToDate(value)}
-                mode="time"
-                is24Hour
-                display="spinner"
-                locale="es-ES"
-                themeVariant="light"
-                textColor={COLORS.ink900}
-                style={styles.iosSpinner}
-                onChange={handleNativeChange}
-              />
+            </View>
+            <View style={styles.ruedasRow}>
+              <Rueda datos={HORAS} indiceInicial={seleccion.hIdx} onCambiar={(i) => setSeleccion((s) => ({ ...s, hIdx: i }))} />
+              <Text style={styles.dosPuntos}>:</Text>
+              <Rueda datos={MINUTOS} indiceInicial={seleccion.mIdx} onCambiar={(i) => setSeleccion((s) => ({ ...s, mIdx: i }))} />
             </View>
           </View>
-        </Modal>
-      )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -168,9 +198,59 @@ const styles = StyleSheet.create({
     borderTopRightRadius: RADIUS.lg,
     paddingBottom: SPACING.lg,
   },
-  iosSpinner: {
-    height: 216,
-    width: '100%',
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.ink900,
+  },
+  ruedasRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+  },
+  wheelWrap: {
+    height: WHEEL_H,
+    width: 90,
+  },
+  wheelBanda: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: PAD_V,
+    height: ITEM_H,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.primary + '10',
+  },
+  wheelItem: {
+    height: ITEM_H,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wheelText: {
+    fontSize: 18,
+    color: COLORS.ink400,
+    fontWeight: '600',
+  },
+  wheelTextActivo: {
+    color: COLORS.primary,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  dosPuntos: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.ink900,
+    marginHorizontal: 4,
   },
   iosCloseBtn: {
     alignSelf: 'flex-end',
