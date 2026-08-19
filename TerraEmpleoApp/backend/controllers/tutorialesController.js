@@ -3,7 +3,7 @@ const { query } = require('../config/database');
 // Claves válidas de tutoriales de primera vez. Al crear un tutorial nuevo,
 // agregar la clave aquí y en TUTORIALES del frontend
 // (src/context/TutorialContext.js).
-const TUTORIALES_VALIDOS = ['cuaderno', 'finanzas'];
+const TUTORIALES_VALIDOS = ['cuaderno', 'finanzas', 'nueva_jornada'];
 
 // GET /api/tutoriales — claves de los tutoriales que el usuario ya vio
 async function misTutoriales(req, res) {

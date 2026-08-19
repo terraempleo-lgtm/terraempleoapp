@@ -10,6 +10,7 @@ import { useAuth } from './AuthContext';
 export const TUTORIALES = {
   CUADERNO: 'cuaderno',
   FINANZAS: 'finanzas',
+  NUEVA_JORNADA: 'nueva_jornada',
 };
 
 // Cache local POR USUARIO: respaldo offline del estado del servidor.

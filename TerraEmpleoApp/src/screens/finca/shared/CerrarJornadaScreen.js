@@ -8,6 +8,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { cuadernoAPI, fincaAPI, trabajadoresAPI, vacantesAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
+import { TUTORIALES } from '../../../context/TutorialContext';
+import useTutorialPrimeraVez from '../../../hooks/useTutorialPrimeraVez';
+import TutorialOverlay from '../../../components/tutorial/TutorialOverlay';
 import Avatar from './Avatar';
 import HoraField from '../../../components/ui/HoraField';
 import CalendarioModal from '../../../components/ui/CalendarioModal';
@@ -494,6 +497,16 @@ export default function CerrarJornadaScreen({ navigation, route }) {
   const [cargado, setCargado] = useState(false);
   const [huboBorradorOCache, setHuboBorradorOCache] = useState(false);
 
+  // Tutorial de primera vez de Nueva jornada
+  const scrollTutorialRef = useRef(null);
+  const encabezadoRef = useRef(null);
+  const fechaRef = useRef(null);
+  const laborRef = useRef(null);
+  const preciosRef = useRef(null);
+  const trabajadoresRef = useRef(null);
+  const { mostrar: mostrarTutorial, finalizar: finalizarTutorial, saltar: saltarTutorial } =
+    useTutorialPrimeraVez(TUTORIALES.NUEVA_JORNADA, { listo: cargado });
+
   useEffect(() => {
     leerJSON(LABORES_PERSONALIZADAS_KEY, []).then(setLaboresPersonalizadas);
     vacantesAPI.misVacantes().then((r) => setVacantes(r.data?.vacantes || [])).catch(() => {});
@@ -781,16 +794,43 @@ export default function CerrarJornadaScreen({ navigation, route }) {
     }
   };
 
+  const pasosTutorial = [
+    {
+      icon: 'document-text-outline', title: '¡Nueva jornada!',
+      text: 'Llena este formulario una sola vez al final del día para registrar quién trabajó, qué hizo cada uno y cuánto se les paga. Te mostramos los pasos.',
+    },
+    {
+      targetRef: fechaRef, scrollY: 0, icon: 'calendar-outline', title: '¿Cuándo fue la jornada?',
+      text: 'Selecciona la fecha de hoy o de cualquier día pasado. Si tienes una vacante abierta, puedes asociarla aquí.',
+    },
+    {
+      targetRef: laborRef, scrollY: 0, icon: 'briefcase-outline', title: '¿Qué trabajo se realizó?',
+      text: 'Elige las labores generales: recolección, desyerba, fumigación, etc. Cada trabajador puede hacer trabajo diferente más abajo.',
+    },
+    {
+      targetRef: preciosRef, scrollY: 0, icon: 'cash-outline', title: 'Configura los precios',
+      text: 'Define cuánto pagas por jornal completo, por kilo, por hora, o deducción de alimentación. Estos precios se guardan para las próximas jornadas.',
+    },
+    {
+      targetRef: trabajadoresRef, scrollY: 0, icon: 'people-outline', title: 'Agrega trabajadores',
+      text: 'Selecciona de tus trabajadores habituales o agrega uno nuevo. Para cada uno, marca su labor específica y cómo se le paga.',
+    },
+    {
+      icon: 'checkmark-circle-outline', title: 'Revisa y guarda',
+      text: 'Verifica el cálculo automático de pagos, agrega notas si es necesario, y guarda la jornada. ¡El sistema hace el resto!',
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <View style={styles.modalHeader}>
+      <View ref={encabezadoRef} collapsable={false} style={styles.modalHeader}>
         <Pressable onPress={() => !saving && navigation.goBack()} hitSlop={8}>
           <Ionicons name="chevron-back" size={24} color={COLORS.ink900} />
         </Pressable>
         <Text style={styles.modalTitle}>Nueva jornada</Text>
         <View style={{ width: 24 }} />
       </View>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollTutorialRef} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Pressable style={styles.ayudaBtn} onPress={() => { animate(); setAyudaOpen((o) => !o); }}>
           <View style={styles.rowStart}>
             <Ionicons name="help-circle-outline" size={16} color={COLORS.info} />
@@ -828,7 +868,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         )}
 
         {/* Paso 1 */}
-        <View style={styles.step}>
+        <View ref={fechaRef} collapsable={false} style={styles.step}>
           <View style={styles.rowStart}>
             <PasoBadge n={1} />
             <Text style={styles.stepTitle}>  ¿Cuándo fue la jornada?</Text>
@@ -869,7 +909,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         )}
 
         {/* Paso 2 */}
-        <View style={[styles.step, styles.stepAlt]}>
+        <View ref={laborRef} collapsable={false} style={[styles.step, styles.stepAlt]}>
           <View style={styles.rowStart}>
             <PasoBadge n={2} />
             <Text style={styles.stepTitle}>  ¿Qué se va a hacer, en general?</Text>
@@ -888,7 +928,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         </View>
 
         {/* Precios (colapsable) */}
-        <View style={styles.step}>
+        <View ref={preciosRef} collapsable={false} style={styles.step}>
           <Pressable style={[styles.rowBetween, { justifyContent: 'space-between' }]} onPress={() => { animate(); setPreciosOpen((o) => !o); }}>
             <View style={styles.rowStart}>
               <PasoBadge n={3} />
@@ -911,7 +951,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         </View>
 
         {/* Trabajadores */}
-        <View style={[styles.step, styles.stepAlt]}>
+        <View ref={trabajadoresRef} collapsable={false} style={[styles.step, styles.stepAlt]}>
           <View style={styles.rowStart}>
             <PasoBadge n={4} />
             <Text style={styles.stepTitle}>  Trabajadores de la jornada</Text>
@@ -1024,6 +1064,13 @@ export default function CerrarJornadaScreen({ navigation, route }) {
         </View>
       </ScrollView>
 
+      <TutorialOverlay
+        visible={mostrarTutorial}
+        steps={pasosTutorial}
+        scrollRef={scrollTutorialRef}
+        onFinish={finalizarTutorial}
+        onSkip={saltarTutorial}
+      />
     </SafeAreaView>
   );
 }
