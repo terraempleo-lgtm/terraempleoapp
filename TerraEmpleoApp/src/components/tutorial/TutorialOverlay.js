@@ -26,8 +26,12 @@ import { MotiView } from 'moti';
  * resaltado no se corre por la barra de estado de Android ni por dónde ancle
  * su origen el Modal en cada plataforma (ese desfase hacía que el recuadro
  * quedara más arriba o más abajo del elemento explicado).
+ *
+ * HOLE_PAD: margen adicional alrededor del elemento resaltado para que el
+ * marco no toque exactamente los bordes. Se calibra para que coincida
+ * visualmente con el elemento sin grandes espacios.
  */
-const HOLE_PAD = 8;
+const HOLE_PAD = 6;
 
 export default function TutorialOverlay({ visible, steps, onFinish, onSkip, scrollRef }) {
   const { width: winW, height: winH } = useWindowDimensions();
@@ -82,9 +86,9 @@ export default function TutorialOverlay({ visible, steps, onFinish, onSkip, scro
       // Salto SIN animación: ocurre detrás del fondo oscuro y hace la medición
       // determinista (medir en mitad de un scroll animado desalineaba el marco)
       scrollRef.current.scrollTo({ y: Math.max(0, p.scrollY), animated: false });
-      setTimeout(medir, 250);
+      setTimeout(medir, 350);
     } else {
-      setTimeout(medir, 120);
+      setTimeout(medir, 180);
     }
   }, [scrollRef, lienzoH]);
 

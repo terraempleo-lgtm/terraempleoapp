@@ -31,11 +31,11 @@ export default function useTutorialPrimeraVez(key, { listo = true, habilitado = 
   useEffect(() => {
     if (!habilitado || !listo || !isFocused || mostrar || lanzadoRef.current) return;
     if (estado !== 'listo' || haVisto(key)) return;
-    // Pequeña espera para que el layout se asiente antes de medir elementos
+    // Espera para que el layout se asiente completamente antes de medir elementos
     const t = setTimeout(() => {
       lanzadoRef.current = true;
       setMostrar(true);
-    }, 650);
+    }, 800);
     return () => clearTimeout(t);
   }, [habilitado, listo, isFocused, mostrar, estado, key, haVisto]);
 
