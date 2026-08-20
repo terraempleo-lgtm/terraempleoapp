@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { finanzasAPI } from '../../../services/api';
+import { finanzasAPI, fincaAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 import { TUTORIALES } from '../../../context/TutorialContext';
 import useTutorialPrimeraVez from '../../../hooks/useTutorialPrimeraVez';
@@ -46,6 +46,7 @@ const TIPOS_NOTA = [
 
 const keyMov = (conceptoId, semanaId) => `${conceptoId}:${semanaId ?? 'mes'}`;
 const onlyNum = (s) => String(s).replace(/[^\d]/g, '');
+const toggleInArray = (arr, val) => (arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
 
 function parseLineaExcel(linea, tipo) {
   const celdas = linea.split('\t').map((c) => c.trim()).filter((c) => c !== '');
@@ -81,6 +82,19 @@ export default function FinanzasScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [nuevoConcepto, setNuevoConcepto] = useState(null);
+  const [lotesFinca, setLotesFinca] = useState([]);
+
+  // Lotes de la finca (parcelas físicas, NO lotes de café/beneficio) para
+  // etiquetar gastos/ingresos. Cultivo se deriva de los lotes — mismo
+  // criterio que CerrarJornadaScreen/JornadaSemanalScreen — porque no hay
+  // un catálogo de cultivos propio en el perfil de la finca.
+  useEffect(() => {
+    if (!activeFincaId) { setLotesFinca([]); return; }
+    fincaAPI.listarLotesFinca(activeFincaId)
+      .then((r) => setLotesFinca(r.data?.lotes || []))
+      .catch(() => setLotesFinca([]));
+  }, [activeFincaId]);
+  const cultivosFinca = useMemo(() => [...new Set(lotesFinca.map((l) => l.cultivo).filter(Boolean))], [lotesFinca]);
 
   const cargarTablero = useCallback(() => {
     if (!activeFincaId) return;
@@ -174,6 +188,26 @@ export default function FinanzasScreen({ navigation }) {
     } catch (e) { console.error('guardar movimiento:', e); } finally { setSaving(false); }
   };
 
+  // Etiquetar (o quitar la etiqueta de) un movimiento ya guardado con su
+  // lote y/o cultivo — reenvía el mismo monto para no perderlo (el PUT es
+  // parcial, pero acá SÍ mandamos lote_id/cultivo siempre, con null
+  // explícito si el usuario los quitó, porque es una edición deliberada).
+  const etiquetarMovimiento = async (movimiento, valor) => {
+    if (!movimiento || soloLectura) return;
+    try {
+      setSaving(true);
+      await finanzasAPI.upsertMovimiento({
+        concepto_id: movimiento.concepto_id,
+        periodo_id: periodo.id,
+        semana_id: movimiento.semana_id,
+        monto: Number(movimiento.monto) || 0,
+        lote_id: valor?.loteId ?? null,
+        cultivo: valor?.cultivo ?? null,
+      });
+      cargarTablero();
+    } catch (e) { console.error('etiquetar movimiento:', e); } finally { setSaving(false); }
+  };
+
   const crearConcepto = async (tipo, nombre) => {
     const n = (nombre || '').trim();
     if (!n) { setNuevoConcepto(null); return; }
@@ -261,6 +295,8 @@ export default function FinanzasScreen({ navigation }) {
               movimientos={data?.movimientos || []}
               periodo={periodo}
               fincaId={activeFincaId}
+              lotesFinca={lotesFinca}
+              cultivosFinca={cultivosFinca}
               onGuardado={cargarTablero}
             />
           </View>
@@ -304,16 +340,28 @@ export default function FinanzasScreen({ navigation }) {
                         <Text style={[styles.tConcepto, { width: 140 }]} numberOfLines={1}>{nombreCortoConcepto(c)}</Text>
                         {esFactura ? (
                           <>
-                            <Celda width={100} value={valores[keyMov(c.id, null)] || ''} disabled={soloLectura}
-                              onChange={(v) => setValores((p) => ({ ...p, [keyMov(c.id, null)]: v }))} onBlur={() => guardar(c.id, null)} />
+                            <View style={{ width: 100 }}>
+                              <Celda width={100} value={valores[keyMov(c.id, null)] || ''} disabled={soloLectura}
+                                onChange={(v) => setValores((p) => ({ ...p, [keyMov(c.id, null)]: v }))} onBlur={() => guardar(c.id, null)} />
+                              <EtiquetaMovimiento
+                                movimiento={movimientosMap.get(keyMov(c.id, null))} lotes={lotesFinca} cultivos={cultivosFinca}
+                                soloLectura={soloLectura} onGuardar={(v) => etiquetarMovimiento(movimientosMap.get(keyMov(c.id, null)), v)}
+                              />
+                            </View>
                             {!soloLectura && (
                               <FotoFacturaButton movimiento={movimientosMap.get(keyMov(c.id, null))} onSubido={cargarTablero} />
                             )}
                           </>
                         ) : (
                           semanas.map((s) => (
-                            <Celda key={s.id} width={90} value={valores[keyMov(c.id, s.id)] || ''} disabled={soloLectura}
-                              onChange={(v) => setValores((p) => ({ ...p, [keyMov(c.id, s.id)]: v }))} onBlur={() => guardar(c.id, s.id)} />
+                            <View key={s.id} style={{ width: 90 }}>
+                              <Celda width={90} value={valores[keyMov(c.id, s.id)] || ''} disabled={soloLectura}
+                                onChange={(v) => setValores((p) => ({ ...p, [keyMov(c.id, s.id)]: v }))} onBlur={() => guardar(c.id, s.id)} />
+                              <EtiquetaMovimiento
+                                movimiento={movimientosMap.get(keyMov(c.id, s.id))} lotes={lotesFinca} cultivos={cultivosFinca}
+                                soloLectura={soloLectura} onGuardar={(v) => etiquetarMovimiento(movimientosMap.get(keyMov(c.id, s.id)), v)}
+                              />
+                            </View>
                           ))
                         )}
                         <Text style={[styles.tTotal, { width: 100, textAlign: 'right' }]}>{totalConcepto(c) ? formatMoney(totalConcepto(c)) : '—'}</Text>
@@ -345,6 +393,8 @@ export default function FinanzasScreen({ navigation }) {
             </View>
           );
         })}
+
+        <AnalisisLoteCultivo analisis={data?.analisis_lote_cultivo} />
 
         <View ref={resumenRef} collapsable={false} onLayout={(e) => setResumenY(e.nativeEvent.layout.y)} style={styles.resumenCard}>
           <View style={styles.resumenHeader}><Text style={styles.resumenHeaderText}>Resumen — {MESES[mes - 1]}</Text></View>
@@ -469,16 +519,200 @@ function Fila({ label, value, bold }) {
   );
 }
 
+// Botón/pastilla genérico reutilizado en Nota rápida y en el selector de
+// lote/cultivo de cada movimiento — activo en negro (ink900), igual que la
+// pastilla de semana ya existente.
+function Chip({ label, icon, activo, onPress }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.chipTag, activo && styles.chipTagActivo]}>
+      {icon && <Ionicons name={icon} size={11} color={activo ? '#fff' : COLORS.ink500} />}
+      <Text style={[styles.chipTagText, activo && styles.chipTagTextActivo]}>{icon ? '  ' : ''}{label}</Text>
+    </Pressable>
+  );
+}
+
+// Etiqueta de lote/cultivo de UN movimiento (concepto+semana, o
+// concepto+mes en facturas) — insignia si ya tiene una, botón discreto si
+// no. Solo aplica sobre un movimiento YA guardado (con id), igual que la
+// foto de factura: hay que anotar un valor primero.
+function EtiquetaMovimiento({ movimiento, lotes, cultivos, soloLectura, onGuardar }) {
+  const [abierto, setAbierto] = useState(false);
+  if (lotes.length === 0 && cultivos.length === 0) return null;
+  if (!movimiento) return null;
+
+  const cultivosMov = movimiento.cultivo ? movimiento.cultivo.split(',').map((c) => c.trim()).filter(Boolean) : [];
+  const loteNombre = movimiento.lote_id ? (lotes.find((l) => l.id === movimiento.lote_id)?.nombre || null) : null;
+  const tieneEtiqueta = !!(movimiento.lote_id || cultivosMov.length);
+
+  if (soloLectura) {
+    return tieneEtiqueta ? <EtiquetaBadge loteNombre={loteNombre} cultivos={cultivosMov} /> : null;
+  }
+
+  return (
+    <>
+      <Pressable onPress={() => setAbierto(true)} style={styles.etiquetaBtn} hitSlop={6}>
+        {tieneEtiqueta ? <EtiquetaBadge loteNombre={loteNombre} cultivos={cultivosMov} /> : (
+          <View style={styles.rowStart}>
+            <Ionicons name="pricetag-outline" size={9} color={COLORS.ink400} />
+            <Text style={styles.etiquetarText}>  Etiquetar</Text>
+          </View>
+        )}
+      </Pressable>
+      <SelectorEtiquetaModal
+        visible={abierto}
+        lotes={lotes}
+        cultivos={cultivos}
+        loteIdInicial={movimiento.lote_id || null}
+        cultivosInicial={cultivosMov}
+        onCancelar={() => setAbierto(false)}
+        onGuardar={(v) => { onGuardar(v); setAbierto(false); }}
+      />
+    </>
+  );
+}
+
+function EtiquetaBadge({ loteNombre, cultivos }) {
+  return (
+    <View style={[styles.rowStart, { flexWrap: 'wrap' }]}>
+      {loteNombre && (
+        <View style={styles.badgeLote}>
+          <Ionicons name="location" size={8} color={COLORS.info} />
+          <Text style={styles.badgeLoteText}> {loteNombre}</Text>
+        </View>
+      )}
+      {cultivos.map((c) => (
+        <View key={c} style={styles.badgeCultivo}>
+          <Ionicons name="leaf" size={8} color={COLORS.primary} />
+          <Text style={styles.badgeCultivoText}> {c}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// Selector de lote (uno solo) y cultivo (varios) de un movimiento —
+// reutilizado desde la tabla (re-etiquetar un movimiento ya guardado) y
+// desde Nota rápida. Bottom sheet, mismo patrón que HoraField/CalendarioModal.
+function SelectorEtiquetaModal({ visible, lotes, cultivos, loteIdInicial, cultivosInicial, onCancelar, onGuardar }) {
+  const [loteId, setLoteId] = useState(loteIdInicial);
+  const [cultivosSel, setCultivosSel] = useState(cultivosInicial);
+
+  useEffect(() => {
+    if (visible) { setLoteId(loteIdInicial); setCultivosSel(cultivosInicial); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  const guardar = () => onGuardar({ loteId: loteId || null, cultivo: cultivosSel.length ? cultivosSel.join(', ') : null });
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancelar}>
+      <View style={styles.modalOverlay}>
+        <Pressable style={styles.modalBackdrop} onPress={onCancelar} />
+        <View style={styles.modalCard}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Lote y cultivo</Text>
+            <Pressable onPress={guardar}><Text style={styles.modalListo}>Listo</Text></Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 }}>
+            {lotes.length > 0 && (
+              <View style={{ marginBottom: 14 }}>
+                <Text style={styles.smallLabel}>Lote</Text>
+                <View style={[styles.rowStart, { flexWrap: 'wrap', gap: 6, marginTop: 6 }]}>
+                  <Chip label="Sin lote" activo={!loteId} onPress={() => setLoteId(null)} />
+                  {lotes.map((l) => (
+                    <Chip key={l.id} label={l.nombre} icon="location-outline" activo={loteId === l.id} onPress={() => setLoteId(l.id)} />
+                  ))}
+                </View>
+              </View>
+            )}
+            {cultivos.length > 0 && (
+              <View>
+                <Text style={styles.smallLabel}>Cultivo (puedes elegir varios)</Text>
+                <View style={[styles.rowStart, { flexWrap: 'wrap', gap: 6, marginTop: 6 }]}>
+                  <Chip label="Sin cultivo" activo={cultivosSel.length === 0} onPress={() => setCultivosSel([])} />
+                  {cultivos.map((c) => (
+                    <Chip key={c} label={c} icon="leaf-outline" activo={cultivosSel.includes(c)} onPress={() => setCultivosSel(toggleInArray(cultivosSel, c))} />
+                  ))}
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// Cuánto se ha gastado y vendido por lote y por cultivo en el mes — ya viene
+// sumado del servidor (analisis_lote_cultivo en GET /finanzas/tablero), acá
+// solo se dibuja.
+function AnalisisLoteCultivo({ analisis }) {
+  const porLote = analisis?.por_lote || [];
+  const porCultivo = analisis?.por_cultivo || [];
+  return (
+    <View style={styles.analisisCard}>
+      <View style={styles.analisisHeader}>
+        <Ionicons name="pie-chart-outline" size={14} color={COLORS.ink700} />
+        <Text style={styles.analisisTitulo}>  Gasto e ingreso por lote y cultivo</Text>
+      </View>
+      <View style={styles.analisisBody}>
+        <AnalisisLista
+          titulo="Por lote" icon="location-outline"
+          items={porLote.map((l) => ({ key: String(l.lote_id), nombre: l.lote_nombre || 'Lote', gasto: Number(l.gasto) || 0, ingreso: Number(l.ingreso) || 0 }))}
+        />
+        <AnalisisLista
+          titulo="Por cultivo" icon="leaf-outline"
+          items={porCultivo.map((c) => ({ key: c.cultivo, nombre: c.cultivo, gasto: Number(c.gasto) || 0, ingreso: Number(c.ingreso) || 0 }))}
+        />
+      </View>
+    </View>
+  );
+}
+
+function AnalisisLista({ titulo, icon, items }) {
+  const max = Math.max(1, ...items.map((i) => i.gasto + i.ingreso));
+  return (
+    <View style={{ marginTop: 10 }}>
+      <View style={styles.rowStart}>
+        <Ionicons name={icon} size={12} color={COLORS.ink700} />
+        <Text style={styles.analisisListaTitulo}>  {titulo}</Text>
+      </View>
+      {items.length === 0 ? (
+        <Text style={styles.analisisVacio}>Aún no hay conceptos etiquetados.</Text>
+      ) : items.map((it) => (
+        <View key={it.key} style={{ marginTop: 8 }}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.analisisItemNombre} numberOfLines={1}>{it.nombre}</Text>
+            <View style={styles.rowStart}>
+              {it.gasto > 0 && <Text style={styles.analisisItemGasto}>-{formatMoney(it.gasto)}</Text>}
+              {it.ingreso > 0 && <Text style={styles.analisisItemIngreso}>  +{formatMoney(it.ingreso)}</Text>}
+            </View>
+          </View>
+          <View style={styles.analisisBarTrack}>
+            {it.gasto > 0 && <View style={[styles.analisisBarGasto, { width: `${(it.gasto / max) * 100}%` }]} />}
+            {it.ingreso > 0 && <View style={[styles.analisisBarIngreso, { width: `${(it.ingreso / max) * 100}%` }]} />}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /**
  * Nota rápida: se escribe "Gasolina guadaña 25000" por línea, se elige el
  * tipo y el sistema crea/reutiliza el concepto y suma el valor a la semana.
  */
-function NotaRapida({ conceptos, semanas, movimientos, periodo, fincaId, onGuardado }) {
+function NotaRapida({ conceptos, semanas, movimientos, periodo, fincaId, lotesFinca = [], cultivosFinca = [], onGuardado }) {
   const [texto, setTexto] = useState('');
   const [tipo, setTipo] = useState('gasto_variable');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
+  // Lote/cultivo de la nota (opcionales): se aplican a todos los ítems que
+  // se guarden en esta nota, para poder ver después cuánto se gastó o
+  // vendió por lote/cultivo. Cultivo admite varios a la vez.
+  const [loteId, setLoteId] = useState(null);
+  const [cultivosSel, setCultivosSel] = useState([]);
 
   const items = useMemo(() => {
     return texto.split('\n').map((l) => l.trim()).filter(Boolean).map((linea) => {
@@ -529,9 +763,17 @@ function NotaRapida({ conceptos, semanas, movimientos, periodo, fincaId, onGuard
         const base = acumulado[concepto.id] ?? (Number(previo?.monto) || 0);
         const total = base + monto;
         acumulado[concepto.id] = total;
-        await finanzasAPI.upsertMovimiento({ concepto_id: concepto.id, periodo_id: periodo.id, semana_id: semanaId, monto: total });
+        // Si se eligió lote y/o cultivo para esta nota, se manda con el
+        // movimiento (el PUT es parcial: si no se elige nada, no se manda
+        // la llave y no se toca lo que ya estuviera etiquetado).
+        const payload = { concepto_id: concepto.id, periodo_id: periodo.id, semana_id: semanaId, monto: total };
+        if (loteId) payload.lote_id = loteId;
+        if (cultivosSel.length) payload.cultivo = cultivosSel.join(', ');
+        await finanzasAPI.upsertMovimiento(payload);
       }
       setTexto('');
+      setLoteId(null);
+      setCultivosSel([]);
       setOk(items.length === 1
         ? `Anotado: ${items[0].nombre} — ${formatMoney(items[0].monto)}.`
         : `Anotados ${items.length} ítems.`);
@@ -576,6 +818,24 @@ function NotaRapida({ conceptos, semanas, movimientos, periodo, fincaId, onGuard
             <Pressable key={s.id} onPress={() => setSemanaElegidaId(s.id)} style={[styles.semanaChip, semanaElegidaId === s.id && styles.semanaChipActivo]}>
               <Text style={[styles.semanaChipText, semanaElegidaId === s.id && styles.semanaChipTextActivo]}>Sem {s.numero_semana}</Text>
             </Pressable>
+          ))}
+        </View>
+      )}
+      {lotesFinca.length > 0 && (
+        <View style={[styles.rowStart, { flexWrap: 'wrap', gap: 6, marginTop: 8 }]}>
+          <Text style={styles.semanaLabel}>Lote:</Text>
+          <Chip label="Sin lote" activo={!loteId} onPress={() => setLoteId(null)} />
+          {lotesFinca.map((l) => (
+            <Chip key={l.id} label={l.nombre} icon="location-outline" activo={loteId === l.id} onPress={() => setLoteId(l.id)} />
+          ))}
+        </View>
+      )}
+      {cultivosFinca.length > 0 && (
+        <View style={[styles.rowStart, { flexWrap: 'wrap', gap: 6, marginTop: 8 }]}>
+          <Text style={styles.semanaLabel}>Cultivo:</Text>
+          <Chip label="Sin cultivo" activo={cultivosSel.length === 0} onPress={() => setCultivosSel([])} />
+          {cultivosFinca.map((c) => (
+            <Chip key={c} label={c} icon="leaf-outline" activo={cultivosSel.includes(c)} onPress={() => setCultivosSel(toggleInArray(cultivosSel, c))} />
           ))}
         </View>
       )}
@@ -671,4 +931,41 @@ const styles = StyleSheet.create({
   fotoModalBtnGhostText: { color: COLORS.ink700, fontWeight: '700' },
   fotoModalBtnPrimary: { flex: 1, backgroundColor: COLORS.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   fotoModalBtnPrimaryText: { color: '#fff', fontWeight: '900' },
+
+  // Chip genérico (Nota rápida y selector de lote/cultivo)
+  chipTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: COLORS.line, backgroundColor: '#fff' },
+  chipTagActivo: { backgroundColor: COLORS.ink900, borderColor: COLORS.ink900 },
+  chipTagText: { fontSize: 11, fontWeight: '700', color: COLORS.ink500 },
+  chipTagTextActivo: { color: '#fff' },
+
+  // Etiqueta de lote/cultivo bajo cada celda de la tabla
+  etiquetaBtn: { marginTop: 3, minHeight: 13 },
+  etiquetarText: { fontSize: 9, color: COLORS.ink400, fontWeight: '600' },
+  badgeLote: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.infoSoft, borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1, marginRight: 3, marginBottom: 2 },
+  badgeLoteText: { fontSize: 9, fontWeight: '700', color: COLORS.info },
+  badgeCultivo: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primarySoft, borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1, marginRight: 3, marginBottom: 2 },
+  badgeCultivoText: { fontSize: 9, fontWeight: '700', color: COLORS.primary },
+
+  // Modal (bottom sheet) del selector de lote/cultivo
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject },
+  modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 18, borderTopRightRadius: 18, maxHeight: '78%' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10, borderBottomWidth: 1, borderColor: COLORS.lineLight },
+  modalTitle: { fontSize: 15, fontWeight: '900', color: COLORS.ink900 },
+  modalListo: { color: COLORS.primary, fontWeight: '700', fontSize: 14 },
+  smallLabel: { fontSize: 11, fontWeight: '700', color: COLORS.ink500, textTransform: 'uppercase' },
+
+  // Análisis por lote y cultivo
+  analisisCard: { backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', marginTop: 14, borderWidth: 1, borderColor: COLORS.line },
+  analisisHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.lineLight, paddingHorizontal: 14, paddingVertical: 10 },
+  analisisTitulo: { fontWeight: '900', fontSize: 12, textTransform: 'uppercase', color: COLORS.ink700 },
+  analisisBody: { padding: 14 },
+  analisisListaTitulo: { fontWeight: '800', fontSize: 12, color: COLORS.ink700 },
+  analisisVacio: { fontSize: 11, color: COLORS.ink400, marginTop: 6 },
+  analisisItemNombre: { fontSize: 12, fontWeight: '700', color: COLORS.ink900, flexShrink: 1, marginRight: 6 },
+  analisisItemGasto: { fontSize: 11, fontWeight: '700', color: COLORS.danger },
+  analisisItemIngreso: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
+  analisisBarTrack: { flexDirection: 'row', height: 6, borderRadius: 3, backgroundColor: COLORS.lineLight, overflow: 'hidden', marginTop: 4 },
+  analisisBarGasto: { height: '100%', backgroundColor: COLORS.danger },
+  analisisBarIngreso: { height: '100%', backgroundColor: COLORS.primary },
 });
