@@ -1419,6 +1419,35 @@ async function initializeDatabase() {
     if (!/Duplicate|already exists|Duplicate key on write/i.test(e.message)) console.warn('[Migration] fk_balance_fin_semana:', e.message);
   }
 
+  // Migración: etiquetar cada movimiento de Finanzas con el lote y/o
+  // cultivo al que corresponde (Nota rápida → "Gasto e ingreso por lote y
+  // cultivo"). lote_id apunta a finca_lotes — la parcela física, NO
+  // cafe_lotes (lote de beneficio cereza→pergamino) — misma tabla que usan
+  // GET /finca/:id/lotes y los bloques de trabajo del Cuaderno. cultivo es
+  // texto libre, igual que finca_lotes.cultivo y
+  // cuaderno_registros_trabajo.cultivo: no vive en una tabla propia.
+  try {
+    await query('ALTER TABLE fin_movimientos ADD COLUMN IF NOT EXISTS lote_id INT DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fin_movimientos.lote_id:', e.message);
+  }
+  try {
+    await query('ALTER TABLE fin_movimientos ADD COLUMN IF NOT EXISTS cultivo VARCHAR(100) DEFAULT NULL');
+  } catch (e) {
+    if (!/Duplicate column/i.test(e.message)) console.warn('[Migration] fin_movimientos.cultivo:', e.message);
+  }
+  try {
+    await query('ALTER TABLE fin_movimientos ADD INDEX IF NOT EXISTS idx_mov_lote (lote_id)');
+  } catch (e) {
+    if (!/Duplicate/i.test(e.message)) console.warn('[Migration] idx_mov_lote:', e.message);
+  }
+  try {
+    await query(`ALTER TABLE fin_movimientos
+      ADD CONSTRAINT fk_fin_mov_lote FOREIGN KEY (lote_id) REFERENCES finca_lotes(id) ON DELETE SET NULL`);
+  } catch (e) {
+    if (!/Duplicate|already exists|Duplicate key on write/i.test(e.message)) console.warn('[Migration] fk_fin_mov_lote:', e.message);
+  }
+
   // Tutoriales de primera vez (Cuaderno, Finanzas…) — el "ya lo vio" se
   // guarda por usuario (no por dispositivo) para que persista entre
   // reinstalaciones y cambios de celular. Una fila por (usuario, tutorial).

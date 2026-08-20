@@ -102,6 +102,48 @@ async function calcularResumen(finca, periodo) {
   };
 }
 
+// Gasto/ingreso del período agrupado por lote_id y por cultivo — para la
+// tarjeta "Gasto e ingreso por lote y cultivo" de Nota rápida, sin que el
+// frontend tenga que sumarlo a mano en meses con muchos movimientos.
+async function calcularAnalisisLoteCultivo(periodo) {
+  const porLote = await query(
+    `SELECT m.lote_id, l.nombre AS lote_nombre,
+            COALESCE(SUM(CASE WHEN c.tipo = 'ingreso' THEN m.monto ELSE 0 END), 0) AS ingreso,
+            COALESCE(SUM(CASE WHEN c.tipo <> 'ingreso' THEN m.monto ELSE 0 END), 0) AS gasto
+       FROM fin_movimientos m
+       JOIN fin_conceptos c ON c.id = m.concepto_id
+       LEFT JOIN finca_lotes l ON l.id = m.lote_id
+      WHERE m.periodo_id = ? AND m.lote_id IS NOT NULL
+      GROUP BY m.lote_id, l.nombre
+      ORDER BY l.nombre ASC`,
+    [periodo.id]
+  );
+  const porCultivo = await query(
+    `SELECT m.cultivo,
+            COALESCE(SUM(CASE WHEN c.tipo = 'ingreso' THEN m.monto ELSE 0 END), 0) AS ingreso,
+            COALESCE(SUM(CASE WHEN c.tipo <> 'ingreso' THEN m.monto ELSE 0 END), 0) AS gasto
+       FROM fin_movimientos m
+       JOIN fin_conceptos c ON c.id = m.concepto_id
+      WHERE m.periodo_id = ? AND m.cultivo IS NOT NULL AND m.cultivo <> ''
+      GROUP BY m.cultivo
+      ORDER BY m.cultivo ASC`,
+    [periodo.id]
+  );
+  return {
+    por_lote: (porLote || []).map((r) => ({
+      lote_id: Number(r.lote_id),
+      lote_nombre: r.lote_nombre || null,
+      ingreso: Number(r.ingreso) || 0,
+      gasto: Number(r.gasto) || 0,
+    })),
+    por_cultivo: (porCultivo || []).map((r) => ({
+      cultivo: r.cultivo,
+      ingreso: Number(r.ingreso) || 0,
+      gasto: Number(r.gasto) || 0,
+    })),
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tablero: todo lo que la pantalla de Finanzas necesita en una sola llamada.
 // GET /finanzas/tablero?finca_id=&anio=&mes=
@@ -139,6 +181,7 @@ async function tablero(req, res) {
     // cliente, hay que firmarla igual que el resto de fotos del proyecto.
     await signArrayField(movimientos, 'foto_url');
     const resumen = await calcularResumen(finca, periodo);
+    const analisis_lote_cultivo = await calcularAnalisisLoteCultivo(periodo);
 
     res.json({
       finca,
@@ -148,6 +191,7 @@ async function tablero(req, res) {
       conceptos: conceptos || [],
       movimientos: movimientos || [],
       resumen,
+      analisis_lote_cultivo,
     });
   } catch (err) {
     console.error('tablero:', err);
@@ -157,7 +201,14 @@ async function tablero(req, res) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Movimientos (upsert por concepto + semana/período)
-// PUT /finanzas/movimientos  { concepto_id, periodo_id, semana_id|null, monto, nota }
+// PUT /finanzas/movimientos  { concepto_id, periodo_id, semana_id|null, monto, nota,
+//                               lote_id|null, cultivo|null }
+// lote_id/cultivo son opcionales y "parciales": si la llave no viene en el
+// body, el valor ya guardado se conserva; solo se limpia si viene null
+// explícito. Le dan a cada movimiento (gasto/ingreso) del Cuaderno una
+// etiqueta de lote de finca (finca_lotes, NO cafe_lotes) y/o cultivo (texto
+// libre, igual que finca_lotes.cultivo) para el análisis "Gasto e ingreso
+// por lote y cultivo" de Nota rápida.
 // ─────────────────────────────────────────────────────────────────────────────
 async function upsertMovimiento(req, res) {
   try {
@@ -190,6 +241,22 @@ async function upsertMovimiento(req, res) {
       semIdNorm = Number(semana_id);
     }
 
+    // lote_id/cultivo: "ausente" (llave no viene en el body) conserva el
+    // valor ya guardado; null explícito lo limpia.
+    const tieneLote = Object.prototype.hasOwnProperty.call(req.body, 'lote_id');
+    const tieneCultivo = Object.prototype.hasOwnProperty.call(req.body, 'cultivo');
+    let loteIdNorm = null;
+    if (tieneLote && req.body.lote_id !== null) {
+      loteIdNorm = Number(req.body.lote_id) || null;
+      if (loteIdNorm) {
+        const l = await query('SELECT id FROM finca_lotes WHERE id = ? AND finca_id = ?', [loteIdNorm, fincaId]);
+        if (!l || !l.length) return res.status(400).json({ error: 'El lote no pertenece a esta finca' });
+      }
+    }
+    const cultivoNorm = tieneCultivo && req.body.cultivo !== null
+      ? (String(req.body.cultivo).trim() || null)
+      : null;
+
     // Auditoría: editar un movimiento en un período YA cerrado es sensible.
     if (p[0].estado === 'cerrado') {
       await registrarAuditoria({
@@ -212,18 +279,20 @@ async function upsertMovimiento(req, res) {
         await query('DELETE FROM fin_movimientos WHERE id = ?', [existente[0].id]);
         return res.json({ ok: true, deleted: true });
       }
-      await query(
-        'UPDATE fin_movimientos SET monto = ?, nota = ?, registrado_por = ? WHERE id = ?',
-        [monto, nota || null, req.user.id, existente[0].id]
-      );
+      const sets = ['monto = ?', 'nota = ?', 'registrado_por = ?'];
+      const vals = [monto, nota || null, req.user.id];
+      if (tieneLote) { sets.push('lote_id = ?'); vals.push(loteIdNorm); }
+      if (tieneCultivo) { sets.push('cultivo = ?'); vals.push(cultivoNorm); }
+      vals.push(existente[0].id);
+      await query(`UPDATE fin_movimientos SET ${sets.join(', ')} WHERE id = ?`, vals);
       return res.json({ ok: true, id: existente[0].id });
     }
 
     if (monto === 0 && (nota == null || nota === '')) return res.json({ ok: true });
     const result = await query(
-      `INSERT INTO fin_movimientos (concepto_id, periodo_id, semana_id, monto, nota, registrado_por)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [concepto_id, periodo_id, semIdNorm, monto, nota || null, req.user.id]
+      `INSERT INTO fin_movimientos (concepto_id, periodo_id, semana_id, monto, nota, registrado_por, lote_id, cultivo)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [concepto_id, periodo_id, semIdNorm, monto, nota || null, req.user.id, loteIdNorm, cultivoNorm]
     );
     res.status(201).json({ ok: true, id: Number(result.insertId) });
   } catch (err) {
