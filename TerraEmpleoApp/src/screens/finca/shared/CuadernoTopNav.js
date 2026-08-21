@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from '../../../theme';
 import { useFinca } from '../../../context/FincaContext';
-import { useCongelado, toggleCongelado } from '../../../context/periodoStore';
 
 // "Café" dice qué hace: convertir cereza a pergamino. Jornadas y Nómina
 // viven como pestañas independientes (antes iban fusionadas en una sola
@@ -23,7 +22,6 @@ const ITEMS = [
 // la barra inferior, viven dentro de la vista de Cuaderno.
 export default function CuadernoTopNav({ navigation, activeKey }) {
   const { esPropietario } = useFinca();
-  const congelado = useCongelado();
   return (
     <View style={styles.wrap}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
@@ -37,10 +35,6 @@ export default function CuadernoTopNav({ navigation, activeKey }) {
             <Text style={[styles.pillText, activeKey === it.key && styles.pillTextActive]}>{it.label}</Text>
           </TouchableOpacity>
         ))}
-        <TouchableOpacity onPress={() => navigation.navigate('Precios')} style={styles.pillOutline}>
-          <Ionicons name="pricetag-outline" size={14} color={COLORS.primary} />
-          <Text style={styles.pillOutlineText}>Precios</Text>
-        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => navigation.navigate('Herramientas')}
           style={[styles.pillOutline, activeKey === 'Herramientas' && styles.pillActive]}
@@ -54,15 +48,6 @@ export default function CuadernoTopNav({ navigation, activeKey }) {
             <Text style={styles.pillOutlineText}>Configurar</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-          onPress={toggleCongelado}
-          style={[styles.pillOutline, congelado && styles.pillCongelado]}
-        >
-          <Ionicons name={congelado ? 'snow' : 'snow-outline'} size={14} color={congelado ? COLORS.info : COLORS.primary} />
-          <Text style={[styles.pillOutlineText, congelado && { color: COLORS.info }]}>
-            {congelado ? '  Mes congelado' : '  Congelar mes'}
-          </Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -77,5 +62,4 @@ const styles = StyleSheet.create({
   pillTextActive: { color: COLORS.white },
   pillOutline: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: RADIUS.pill, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.primary },
   pillOutlineText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
-  pillCongelado: { borderColor: COLORS.info, backgroundColor: COLORS.infoSoft },
 });

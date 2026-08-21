@@ -5,7 +5,7 @@ import { MotiView } from 'moti';
 import { formatMoney } from '../../utils/fincaFormat';
 import {
   CHART_COLORS, ChartCard, AnalisisCard, ChartTooltip, TooltipLine,
-  ChartEmptyState, Tocable, CampoConfigurable, colorMaloBueno,
+  ChartEmptyState, Tocable, CampoConfigurable,
 } from './ChartKit';
 
 function fechaCorta(iso) {
@@ -361,6 +361,10 @@ export function RendimientoTrabajadorChart({ topTrabajadores = [] }) {
 }
 
 // ── 4) Rendimiento por lote (mapa de calor) ─────────────────────────────────
+// Un color oscuro distinto por lote (no por rendimiento) para que se
+// distingan a simple vista, incluso los que aún no tienen datos.
+const LOTE_COLORS = ['#1B512D', '#2563eb', '#7c3aed', '#C0652A', '#065f46', '#7c2d12', '#3730a3', '#134e4a', '#78350f', '#581c87'];
+
 export function RendimientoLoteChart({ lotes = [] }) {
   const [sel, setSel] = useState(null);
   const datos = useMemo(() => lotes.map((l) => ({
@@ -388,8 +392,7 @@ export function RendimientoLoteChart({ lotes = [] }) {
       <View style={styles.heatWrap}>
         {datos.map((l, i) => {
           const flex = Math.max(0.6, (Number(l.hectareas) || 1) / totalHa * datos.length);
-          const t = l.jornales > 0 ? Math.min(1, l.kgPorJornal / 100) : 0;
-          const color = l.jornales > 0 ? colorMaloBueno(t) : CHART_COLORS.grid;
+          const color = LOTE_COLORS[i % LOTE_COLORS.length];
           const activo = sel === i;
           return (
             <Tocable key={l.id} onPress={() => setSel(activo ? null : i)} style={[styles.heatCell, { flexGrow: flex, backgroundColor: color, borderWidth: activo ? 2 : 0, borderColor: CHART_COLORS.ink900 }]}>

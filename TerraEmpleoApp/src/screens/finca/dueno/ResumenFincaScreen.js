@@ -381,11 +381,9 @@ export default function ResumenFincaScreen({ navigation }) {
           )}
         </View>
 
-        {/* Cards de producción total */}
-        <View style={styles.grid2}>
-          <StatCard icon="scale-outline" label="Kg producidos" value={Number(resumen.total_kg || 0).toLocaleString()} accent="accent" />
-          <StatCard icon="wallet-outline" label="Total pagado" value={formatMoney(resumen.total_pagado || 0)} accent="primary" />
-          <StatCard icon="alert-circle-outline" label="Sin cerrar" value={resumen.jornadas_activas || 0} accent="warning" hint="jornadas en curso" />
+        {/* Producción total */}
+        <View style={{ marginBottom: 16 }}>
+          <StatCard icon="scale-outline" label="Kg producidos" value={Number(resumen.total_kg || 0).toLocaleString()} accent="accent" full />
         </View>
       </ScrollView>
       <TutorialOverlay
