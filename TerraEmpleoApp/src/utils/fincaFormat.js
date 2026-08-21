@@ -20,6 +20,13 @@ export function asText(v) {
   return v.titulo || v.nombre || v.nombre_completo || '';
 }
 
+// Filas de empleador_cultivos/empleador_labores (perfil de authAPI.getPerfil)
+// llegan como objetos { cultivo/labor, es_personalizado } — normaliza a
+// strings planos, con tildes tal cual quedaron guardadas.
+export function nombresDe(arr, campo) {
+  return (arr || []).map((x) => (typeof x === 'string' ? x : x?.[campo])).filter(Boolean);
+}
+
 // tipo_trabajo/labor queda guardado tal cual se escribió en la jornada — datos
 // viejos pueden tener "recoleccion" sin tilde/mayúscula. Normaliza a la
 // etiqueta canónica de los chips de labor dondequiera que se muestre.

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
   Switch, ActivityIndicator, LayoutAnimation, Platform, UIManager, Alert,
@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { cuadernoAPI, fincaAPI, trabajadoresAPI, vacantesAPI } from '../../../services/api';
+import { cuadernoAPI, fincaAPI, authAPI, trabajadoresAPI, vacantesAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 import { TUTORIALES } from '../../../context/TutorialContext';
 import useTutorialPrimeraVez from '../../../hooks/useTutorialPrimeraVez';
@@ -14,7 +14,7 @@ import TutorialOverlay from '../../../components/tutorial/TutorialOverlay';
 import Avatar from './Avatar';
 import HoraField from '../../../components/ui/HoraField';
 import CalendarioModal from '../../../components/ui/CalendarioModal';
-import { formatMoney, asText, normalizarTexto, coincideTexto } from '../../../utils/fincaFormat';
+import { formatMoney, asText, normalizarTexto, coincideTexto, nombresDe } from '../../../utils/fincaFormat';
 import { leerPersonalFijo } from '../../../utils/personalFijo';
 import { useToast } from './useFincaToast';
 
@@ -345,12 +345,11 @@ function BloqueCard({ b, index, precios, cultivos, lotesFinca, laboresPersonaliz
 }
 
 // ── Tarjeta de trabajador dentro de la jornada ──────────────────────────────
-function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonalizadas, onAgregarLaborPersonalizada, lotesFinca }) {
+function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonalizadas, onAgregarLaborPersonalizada, lotesFinca, cultivosFinca }) {
   const [open, setOpen] = useState(true);
   const bruto = pagoBruto(t, precios);
   const deuda = deudaDe(t, precios);
   const upd = (k, v) => onChange({ ...t, [k]: v });
-  const cultivos = useMemo(() => [...new Set(lotesFinca.map((l) => l.cultivo).filter(Boolean))], [lotesFinca]);
   const entradas = t.entradas || [];
   const setBloque = (nb) => upd('entradas', entradas.map((b) => (b._key === nb._key ? nb : b)));
   const quitarBloque = (b) => upd('entradas', entradas.filter((x) => x._key !== b._key));
@@ -392,7 +391,7 @@ function TrabajadorJornadaCard({ t, precios, onChange, onQuitar, laboresPersonal
           <View style={{ gap: 8 }}>
             {entradas.map((b, i) => (
               <BloqueCard
-                key={b._key} b={b} index={i} precios={precios} cultivos={cultivos} lotesFinca={lotesFinca}
+                key={b._key} b={b} index={i} precios={precios} cultivos={cultivosFinca} lotesFinca={lotesFinca}
                 laboresPersonalizadas={laboresPersonalizadas} onAgregarLaborPersonalizada={onAgregarLaborPersonalizada}
                 onChange={setBloque} onQuitar={quitarBloque} ocultarQuitar={entradas.length === 1}
               />
@@ -493,6 +492,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
   const [observaciones, setObservaciones] = useState('');
   const [laboresPersonalizadas, setLaboresPersonalizadas] = useState([]);
   const [lotesFinca, setLotesFinca] = useState([]);
+  const [cultivosFinca, setCultivosFinca] = useState([]);
   const [showFechaPicker, setShowFechaPicker] = useState(false);
   const [cargado, setCargado] = useState(false);
   const [huboBorradorOCache, setHuboBorradorOCache] = useState(false);
@@ -516,6 +516,12 @@ export default function CerrarJornadaScreen({ navigation, route }) {
     if (!activeFincaId) return;
     fincaAPI.listarLotesFinca(activeFincaId).then((r) => setLotesFinca(r.data?.lotes || [])).catch(() => {});
   }, [activeFincaId]);
+
+  // Cultivos de la finca (Configuración) — mismo catálogo con tildes en vez
+  // de derivarlo del texto libre que cada lote tenga en su campo cultivo.
+  useEffect(() => {
+    authAPI.getPerfil().then((r) => setCultivosFinca(nombresDe(r.data?.perfil?.cultivos, 'cultivo'))).catch(() => {});
+  }, []);
 
   // Personal fijo (Configuración): siempre aparece como sugerido y, si el
   // formulario arrancó en blanco, entra pre-seleccionado — el atajo para no
@@ -1024,6 +1030,7 @@ export default function CerrarJornadaScreen({ navigation, route }) {
                   laboresPersonalizadas={laboresPersonalizadas}
                   onAgregarLaborPersonalizada={agregarLaborPersonalizada}
                   lotesFinca={lotesFinca}
+                  cultivosFinca={cultivosFinca}
                 />
               ))}
             </View>

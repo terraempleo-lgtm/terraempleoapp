@@ -4,16 +4,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from '../../../theme';
 import { useFinca } from '../../../context/FincaContext';
 
-// "Café" dice qué hace: convertir cereza a pergamino. Jornadas y Nómina
-// viven como pestañas independientes (antes iban fusionadas en una sola
-// sección con un conmutador interno).
+// "Jornadas" ya no vive acá: se accede desde el botón "Ver jornadas" en
+// Resumen, para no repetir la misma entrada dos veces. "Rendimiento" se
+// fusionó al final de Resumen (era contenido redundante en su propia
+// pestaña) — ver RendimientoSection en ResumenFincaScreen.js.
 const ITEMS = [
   { key: 'ResumenFincaHome', label: 'Resumen', icon: 'book-outline' },
-  { key: 'JornadasHome', label: 'Jornadas', icon: 'calendar-outline' },
-  { key: 'NominaHome', label: 'Nómina', icon: 'clipboard-outline' },
   { key: 'FinanzasHome', label: 'Finanzas', icon: 'pulse-outline' },
+  { key: 'NominaHome', label: 'Nómina', icon: 'clipboard-outline' },
   { key: 'BalanceFincaHome', label: 'Balance', icon: 'business-outline' },
-  { key: 'RendimientoHome', label: 'Rendimiento', icon: 'trending-up-outline' },
   { key: 'CafeHome', label: 'Conversión café', icon: 'cafe-outline' },
 ];
 

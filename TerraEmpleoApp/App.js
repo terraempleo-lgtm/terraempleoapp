@@ -82,7 +82,6 @@ const PublicarMuroScreen        = lazyWeb(() => import('./src/screens/finca/duen
 const CafeScreen                = lazyWeb(() => import('./src/screens/finca/dueno/CafeScreen'));
 const FinanzasScreen            = lazyWeb(() => import('./src/screens/finca/dueno/FinanzasScreen'));
 const BalanceFincaScreen        = lazyWeb(() => import('./src/screens/finca/dueno/BalanceFincaScreen'));
-const RendimientoScreen         = lazyWeb(() => import('./src/screens/finca/dueno/RendimientoScreen'));
 const AuditoriaScreen           = lazyWeb(() => import('./src/screens/finca/dueno/AuditoriaScreen'));
 const ConfiguracionFincaScreen  = lazyWeb(() => import('./src/screens/finca/dueno/ConfiguracionFincaScreen'));
 const CuadernoAdminScreen       = lazyWeb(() => import('./src/screens/finca/capataz/CuadernoAdminScreen'));
@@ -212,7 +211,6 @@ const tabScreenOptions = ({ route }) => ({
       case 'Nomina': iconName = focused ? 'wallet' : 'wallet-outline'; break;
       case 'Cafe': iconName = focused ? 'cafe' : 'cafe-outline'; break;
       case 'Finanzas': iconName = focused ? 'cash' : 'cash-outline'; break;
-      case 'Rendimiento': iconName = focused ? 'trending-up' : 'trending-up-outline'; break;
       case 'CuadernoAdmin': iconName = focused ? 'book' : 'book-outline'; break;
       case 'Cuaderno': iconName = focused ? 'book' : 'book-outline'; break;
       default: iconName = 'ellipse';
@@ -379,10 +377,12 @@ function fincaSharedScreens() {
   );
 }
 
-// Cuaderno del dueño: Resumen/Jornadas/Nómina/Café/Finanzas/Rendimiento viven
-// como pantallas hermanas dentro de un único tab "Cuaderno" — la navegación
-// entre ellas la resuelve CuadernoTopNav (pills internas, como en el panel web),
-// no la barra de tabs inferior.
+// Cuaderno del dueño: Resumen/Jornadas/Nómina/Café/Finanzas viven como
+// pantallas hermanas dentro de un único tab "Cuaderno" — la navegación entre
+// ellas la resuelve CuadernoTopNav (pills internas, como en el panel web),
+// no la barra de tabs inferior. "Jornadas" no tiene pill propia (se entra
+// desde el botón "Ver jornadas" de Resumen) y "Rendimiento" se fusionó al
+// final de Resumen — ya no es una pantalla aparte.
 function CuadernoStack() {
   return (
     <S>
@@ -393,7 +393,6 @@ function CuadernoStack() {
         <Stack.Screen name="CafeHome" component={CafeScreen} options={{ headerShown: false }} />
         <Stack.Screen name="FinanzasHome" component={FinanzasScreen} options={{ headerShown: false }} />
         <Stack.Screen name="BalanceFincaHome" component={BalanceFincaScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="RendimientoHome" component={RendimientoScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Herramientas" component={HerramientasScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Auditoria" component={AuditoriaScreen} options={{ headerShown: false }} />
         <Stack.Screen name="ConfiguracionFinca" component={ConfiguracionFincaScreen} options={{ headerShown: false }} />
@@ -415,8 +414,8 @@ function MuroStack() {
 }
 
 // ── Capataz: guard estructural — su navegador solo expone Cuaderno y Nómina,
-// no puede navegar a Café/Finanzas/Rendimiento/Muro/Auditoría porque esas
-// rutas no existen en su árbol de navegación. ──
+// no puede navegar a Café/Finanzas/Muro/Auditoría porque esas rutas no
+// existen en su árbol de navegación. ──
 function CuadernoAdminStack() {
   return (
     <S>

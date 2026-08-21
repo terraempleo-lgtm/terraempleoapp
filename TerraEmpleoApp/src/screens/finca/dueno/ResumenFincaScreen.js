@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,7 +10,9 @@ import { TUTORIALES } from '../../../context/TutorialContext';
 import useTutorialPrimeraVez from '../../../hooks/useTutorialPrimeraVez';
 import TutorialOverlay from '../../../components/tutorial/TutorialOverlay';
 import CuadernoTopNav from '../shared/CuadernoTopNav';
+import Avatar from '../shared/Avatar';
 import { formatMoney, formatDate, formatLabor } from '../../../utils/fincaFormat';
+import { useFechaRef, setMesRef } from '../../../context/periodoStore';
 import {
   KilosPorSemanaChart, CostoPorKiloChart, RendimientoTrabajadorChart,
   RendimientoLoteChart, MargenDonaChart, ComparativaFincasChart, RendimientoCultivoSection,
@@ -18,13 +20,338 @@ import {
 
 const COLORS = {
   primary: '#008d49', primaryDark: '#006635', primaryLight: '#55c53e', primarySoft: '#e5f6ec',
-  accent: '#c1ff72', accentSoft: '#f3ffd9', accentDark: '#5a7d12',
+  accent: '#c1ff72', accentSoft: '#f3ffd9', accentDark: '#5a7d12', terracota: '#C0652A',
   warning: '#d97706', warningSoft: '#fef3c7',
   info: '#2563eb', infoSoft: '#e0edff',
   danger: '#dc2626', dangerSoft: '#fee2e2',
   ink900: '#171a15', ink700: '#3f4438', ink500: '#6b7060', ink400: '#8b9080',
   line: '#e4e6de', lineLight: '#f4f5f0',
 };
+
+const MESES_RENDIMIENTO = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const numRendimiento = (n) => Number(n || 0).toLocaleString('es-CO', { maximumFractionDigits: 1 });
+const keyMovRendimiento = (conceptoId, semanaId) => `${conceptoId}:${semanaId ?? 'mes'}`;
+
+// Badges: solo 3 estados posibles, colores fijos.
+const BADGE_RENDIMIENTO = {
+  bien: { bg: '#EAF3DE', fg: '#27500A', label: 'Bien' },
+  revisar: { bg: '#FAEEDA', fg: '#633806', label: 'Revisar' },
+  alerta: { bg: '#FCEBEB', fg: '#791F1F', label: 'Alerta' },
+};
+
+function procesarMesRendimiento(tableroData, jornaladas, trabajadoresAgg, kgTotal) {
+  const semanas = tableroData?.semanas || [];
+  const conceptos = tableroData?.conceptos || [];
+  const resumen = tableroData?.resumen || {};
+  const periodo = tableroData?.periodo || {};
+  const valores = {};
+  for (const m of tableroData?.movimientos || []) valores[keyMovRendimiento(m.concepto_id, m.semana_id)] = Number(m.monto) || 0;
+
+  const totalConcepto = (c) => (c.tipo === 'factura' ? (valores[keyMovRendimiento(c.id, null)] || 0) : semanas.reduce((acc, s) => acc + (valores[keyMovRendimiento(c.id, s.id)] || 0), 0));
+  const totalSemanaTipo = (tipo, semanaId) => conceptos.filter((c) => c.tipo === tipo).reduce((acc, c) => acc + (valores[keyMovRendimiento(c.id, semanaId)] || 0), 0);
+  const totalTipo = (tipo) => conceptos.filter((c) => c.tipo === tipo).reduce((acc, c) => acc + totalConcepto(c), 0);
+
+  const ingresos = conceptos.filter((c) => c.tipo === 'ingreso');
+  const totalVentas = ingresos.reduce((acc, c) => acc + totalConcepto(c), 0);
+  const cultivos = ingresos.map((c) => ({ nombre: c.nombre, ventas: totalConcepto(c), pct: totalVentas > 0 ? (totalConcepto(c) / totalVentas) * 100 : 0 })).sort((a, b) => b.ventas - a.ventas);
+
+  const nominaTotal = Number(resumen.total_nomina || 0) + totalTipo('nomina');
+  const gastoFijo = Number(resumen.total_gastos_fijos || 0);
+  const gastoVariable = Number(resumen.total_gastos_variables || 0);
+  const totalGastos = nominaTotal + gastoFijo + gastoVariable;
+
+  const costoMedioJornal = jornaladas > 0 ? nominaTotal / jornaladas : 0;
+  const roiPersonal = nominaTotal > 0 ? totalVentas / nominaTotal : 0;
+  const semanasConVenta = semanas.filter((s) => totalSemanaTipo('ingreso', s.id) > 0).length;
+  const mayorCultivo = cultivos[0] || null;
+  const balance = totalVentas - totalGastos;
+
+  const costoPorKg = kgTotal > 0 ? nominaTotal / kgTotal : null;
+  const precioVentaKilo = periodo.precio_venta_kilo != null ? Number(periodo.precio_venta_kilo) : null;
+  const ingresoPorKilo = precioVentaKilo != null && costoPorKg != null ? precioVentaKilo - costoPorKg : null;
+
+  const mayorGasto = [
+    { nombre: 'Nómina', valor: nominaTotal },
+    { nombre: 'Gastos fijos', valor: gastoFijo },
+    { nombre: 'Gastos variables', valor: gastoVariable },
+  ].sort((a, b) => b.valor - a.valor)[0];
+  const mayorGastoPct = totalGastos > 0 && mayorGasto ? (mayorGasto.valor / totalGastos) * 100 : 0;
+
+  return {
+    semanas, totalVentas, nominaTotal, gastoFijo, gastoVariable, totalGastos, jornaladas,
+    costoMedioJornal, roiPersonal, semanasConVenta, cultivos, mayorCultivo, balance,
+    trabajadores: trabajadoresAgg || [], kgTotal, costoPorKg, precioVentaKilo, ingresoPorKilo,
+    mayorGasto, mayorGastoPct,
+  };
+}
+
+// Diferencia en pesos vs. mes anterior — los finqueros entienden pesos, no
+// porcentajes. `favorableSiSube` decide el color/flecha (para nómina, que
+// baje es lo bueno).
+function DeltaPesosRendimiento({ actual, anterior, favorableSiSube = true }) {
+  if (actual == null || anterior == null || !(Math.abs(anterior) > 0)) return null;
+  const diff = actual - anterior;
+  if (Math.abs(diff) < 1) return null;
+  const subio = diff > 0;
+  const bueno = subio === favorableSiSube;
+  const color = bueno ? COLORS.primary : COLORS.terracota;
+  const icon = subio ? 'arrow-up' : 'arrow-down';
+  return (
+    <View style={[styles.rowStart, { marginTop: 6 }]}>
+      <Ionicons name={icon} size={11} color={color} />
+      <Text style={[styles.rendDeltaText, { color }]}>  {subio ? 'Subió' : 'Bajó'} {formatMoney(Math.abs(diff))} frente al mes pasado</Text>
+    </View>
+  );
+}
+
+// Desglose de "cuánto cuesta cada jornal" — los usuarios preguntaban de
+// dónde salía el número. Fórmula: TODA la nómina del mes (Cuaderno + nómina
+// manual de Finanzas, con bonos y extras) ÷ número de jornales del Cuaderno.
+function CalculoJornalDetalle({ actual }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ marginTop: 8 }}>
+      <Pressable onPress={() => setOpen((o) => !o)} style={styles.rendCalcToggle}>
+        <Ionicons name="help-circle-outline" size={13} color={COLORS.ink500} />
+        <Text style={styles.rendCalcToggleText}>  ¿Cómo se calcula?</Text>
+        <Ionicons name="chevron-down" size={12} color={COLORS.ink500} style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }} />
+      </Pressable>
+      {open && (
+        <View style={styles.rendCalcBox}>
+          <Text style={styles.rendCalcLinea}>Nómina total del mes: <Text style={styles.rendCalcBold}>{formatMoney(actual.nominaTotal)}</Text></Text>
+          <Text style={styles.rendCalcLinea}>Jornales registrados: <Text style={styles.rendCalcBold}>{numRendimiento(actual.jornaladas)}</Text></Text>
+          <Text style={styles.rendCalcLinea}>{formatMoney(actual.nominaTotal)} ÷ {numRendimiento(actual.jornaladas)} = <Text style={styles.rendCalcBold}>{formatMoney(actual.costoMedioJornal)}</Text></Text>
+          <Text style={styles.rendCalcNota}>
+            La nómina incluye TODO lo pagado: jornales, kilos, bonos, labores extra y la nómina manual
+            anotada en Finanzas. Los jornales son los días con asistencia en el Cuaderno (un día cuenta 1,
+            aunque haya sido medio día). Si anotas nómina en Finanzas pero no registras esos días en el
+            Cuaderno, el promedio sale más alto de lo real.
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// Tarjeta de métrica: ícono en círculo (bg tenue del color del badge),
+// label uppercase, número grande, descripción, badge opcional y children
+// para la comparación en pesos vs. mes anterior.
+function MetricaCard({ icon, titulo, valor, detalle, badge, children }) {
+  const iconBg = badge ? badge.bg : COLORS.lineLight;
+  const iconFg = badge ? badge.fg : COLORS.ink500;
+  return (
+    <View style={styles.metricaCard}>
+      <View style={styles.rowBetween}>
+        <View style={[styles.metricaIcon, { backgroundColor: iconBg }]}><Ionicons name={icon} size={16} color={iconFg} /></View>
+        {badge && (
+          <View style={[styles.nivelBadge, { backgroundColor: badge.bg }]}>
+            <Text style={[styles.nivelBadgeText, { color: badge.fg }]}>{badge.label}</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.metricaTitulo}>{titulo}</Text>
+      {valor != null && <Text style={styles.metricaValor}>{valor}</Text>}
+      {!!detalle && <Text style={styles.metricaDetalle}>{detalle}</Text>}
+      {children}
+    </View>
+  );
+}
+
+// Rendimiento — "salud del negocio" del mes, fusionado al final de Resumen
+// (antes vivía en su propia pestaña "Rendimiento", redundante con el resto
+// del Cuaderno). Tiene su propio mes (independiente del resto de Resumen,
+// que no tiene concepto de mes) porque compara el mes actual contra el
+// anterior.
+function RendimientoSection() {
+  const { activeFincaId } = useFinca();
+  const fechaRefRend = useFechaRef();
+  const anio = fechaRefRend.getFullYear();
+  const mes = fechaRefRend.getMonth() + 1;
+  const [actual, setActual] = useState(null);
+  const [anterior, setAnterior] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const cargarMes = useCallback(async (a, m) => {
+    const r = await finanzasAPI.tablero({ finca_id: activeFincaId, anio: a, mes: m });
+    const semanas = r.data?.semanas || [];
+    let jornaladas = 0;
+    let kgTotal = 0;
+    const porTrabajador = new Map();
+    try {
+      const porSemana = await Promise.all(semanas.map((s) => cuadernoAPI.nomina({ desde: s.fecha_inicio, hasta: s.fecha_fin }).catch(() => null)));
+      for (const resp of porSemana) {
+        for (const f of (resp?.data?.filas || [])) {
+          jornaladas += Number(f.dias) || 0;
+          kgTotal += Number(f.total_kg) || 0;
+          const key = f.key || f.nombre;
+          const prev = porTrabajador.get(key) || { nombre: f.nombre, foto: f.foto, dias: 0, kg: 0, neto: 0 };
+          prev.dias += Number(f.dias) || 0; prev.kg += Number(f.total_kg) || 0; prev.neto += Number(f.neto) || 0;
+          porTrabajador.set(key, prev);
+        }
+      }
+    } catch { /* usa lo que se alcanzó a sumar */ }
+    return { tableroData: r.data, jornaladas, kgTotal, trabajadoresAgg: Array.from(porTrabajador.values()) };
+  }, [activeFincaId]);
+
+  const cargar = useCallback(() => {
+    if (!activeFincaId) return;
+    setLoading(true);
+    let mesAnt = mes - 1, anioAnt = anio;
+    if (mesAnt < 1) { mesAnt = 12; anioAnt -= 1; }
+    Promise.all([cargarMes(anio, mes), cargarMes(anioAnt, mesAnt)])
+      .then(([act, ant]) => {
+        setActual(procesarMesRendimiento(act.tableroData, act.jornaladas, act.trabajadoresAgg, act.kgTotal));
+        setAnterior(procesarMesRendimiento(ant.tableroData, ant.jornaladas, ant.trabajadoresAgg, ant.kgTotal));
+      })
+      .catch((e) => console.error('rendimiento:', e))
+      .finally(() => setLoading(false));
+  }, [activeFincaId, anio, mes, cargarMes]);
+
+  useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
+
+  const cambiarMes = (d) => {
+    let m = mes + d, a = anio;
+    if (m < 1) { m = 12; a -= 1; }
+    if (m > 12) { m = 1; a += 1; }
+    setMesRef(a, m);
+  };
+
+  const mostrarIngresoKilo = (actual?.cultivos?.length || 0) > 1;
+  const nivelRoi = useMemo(() => (actual?.roiPersonal >= 2 ? 'bien' : 'revisar'), [actual]);
+  const nivelConsistencia = useMemo(() => {
+    if (!actual?.semanas?.length) return null;
+    const n = actual.semanasConVenta;
+    if (n >= 4) return 'bien';
+    if (n >= 2) return 'revisar';
+    return 'alerta';
+  }, [actual]);
+  const nivelBalance = useMemo(() => (!actual ? null : actual.balance >= 0 ? 'bien' : 'alerta'), [actual]);
+
+  const ranking = useMemo(() => {
+    if (!actual?.trabajadores) return [];
+    return [...actual.trabajadores].map((t) => ({ ...t, costoKg: t.kg > 0 ? t.neto / t.kg : null }))
+      .sort((a, b) => {
+        if (a.costoKg == null && b.costoKg == null) return b.neto - a.neto;
+        if (a.costoKg == null) return 1;
+        if (b.costoKg == null) return -1;
+        return a.costoKg - b.costoKg;
+      });
+  }, [actual]);
+
+  return (
+    <View style={{ marginTop: 8 }}>
+      <View style={styles.rowBetween}>
+        <SectionHeader icon="pulse-outline" title="Rendimiento" />
+        <View style={styles.rendMonthNav}>
+          <Pressable onPress={() => cambiarMes(-1)} style={{ padding: 6 }}><Ionicons name="chevron-back" size={16} color={COLORS.ink700} /></Pressable>
+          <Text style={styles.rendMonthLabel}>{MESES_RENDIMIENTO[mes - 1]} {anio}</Text>
+          <Pressable onPress={() => cambiarMes(1)} style={{ padding: 6 }}><Ionicons name="chevron-forward" size={16} color={COLORS.ink700} /></Pressable>
+        </View>
+      </View>
+
+      {loading && !actual ? <ActivityIndicator style={{ marginTop: 20 }} color={COLORS.primary} /> : (
+        <>
+          <View style={styles.grid2}>
+            {mostrarIngresoKilo && actual?.precioVentaKilo == null ? (
+              <MetricaCard icon="pricetag-outline" titulo="Ingreso por kilo este mes">
+                <Text style={styles.rendAvisoText}>Configure el precio de venta para ver esta métrica.</Text>
+              </MetricaCard>
+            ) : mostrarIngresoKilo && actual?.ingresoPorKilo != null ? (
+              <MetricaCard icon="pricetag-outline" titulo="Ingreso por kilo este mes"
+                valor={formatMoney(actual.ingresoPorKilo)}
+                detalle={`Por cada kilo que vende le quedan ${formatMoney(actual.ingresoPorKilo)} después de pagar jornales.`}
+              />
+            ) : null}
+
+            <MetricaCard icon="wallet-outline" titulo="Cuánto le cuesta cada jornal"
+              valor={actual?.jornaladas > 0 ? formatMoney(actual.costoMedioJornal) : '—'}
+              detalle={actual?.jornaladas > 0 ? `Este mes pagó ${numRendimiento(actual.jornaladas)} jornales con un costo promedio de ${formatMoney(actual.costoMedioJornal)} cada uno.` : 'Aún no hay jornales pagados este mes.'}
+            >
+              <DeltaPesosRendimiento actual={actual?.costoMedioJornal} anterior={anterior?.costoMedioJornal} favorableSiSube={false} />
+              {actual?.jornaladas > 0 && <CalculoJornalDetalle actual={actual} />}
+            </MetricaCard>
+
+            <MetricaCard icon="trending-up-outline" titulo="Por cada $1.000 invertido en personal"
+              badge={actual?.nominaTotal > 0 ? BADGE_RENDIMIENTO[nivelRoi] : null}
+              valor={actual?.nominaTotal > 0 ? formatMoney(Math.round(actual.roiPersonal * 1000)) : '—'}
+              detalle={actual?.nominaTotal > 0 ? `Este mes la nómina generó ${numRendimiento(actual.roiPersonal)} veces su valor en ventas.` : 'Aún no hay ventas o nómina este mes.'}
+            />
+
+            <MetricaCard icon="calendar-outline" titulo="Semanas que vendió este mes"
+              badge={nivelConsistencia ? BADGE_RENDIMIENTO[nivelConsistencia] : null}
+              valor={actual?.semanas?.length ? `${actual.semanasConVenta} de ${actual.semanas.length} semanas` : '—'}
+              detalle={
+                !actual?.semanas?.length ? 'Aún no hay semanas registradas este mes.'
+                : actual.semanasConVenta >= 4
+                  ? 'Vendió todas las semanas del mes — buen flujo de caja.'
+                  : `Tuvo ${actual.semanas.length - actual.semanasConVenta} semana(s) sin registrar ventas. Si tiene café listo para vender, puede estar dejando dinero sin cobrar.`
+              }
+            />
+
+            {actual?.mayorGasto && actual.mayorGasto.valor > 0 && (
+              <MetricaCard icon="bar-chart-outline" titulo={actual.mayorGasto.nombre.toUpperCase()}
+                valor={formatMoney(actual.mayorGasto.valor)}
+                detalle={
+                  `${actual.mayorGasto.nombre} representó el ${numRendimiento(actual.mayorGastoPct)}% de sus gastos totales este mes.`
+                  + (actual.mayorGastoPct > 60 ? ' Eso es alto para un mes de cosecha — normal. En meses sin cosecha debería bajar.' : '')
+                }
+              />
+            )}
+
+            <MetricaCard icon="shield-checkmark-outline" titulo="Lo que le sobró este mes"
+              badge={nivelBalance ? BADGE_RENDIMIENTO[nivelBalance] : null}
+              valor={actual ? formatMoney(actual.balance) : '—'}
+              detalle={
+                !actual ? ''
+                : actual.balance >= 0
+                  ? `Después de pagar jornales y gastos le sobraron ${formatMoney(actual.balance)}.`
+                  : `Este mes los gastos superaron las ventas por ${formatMoney(Math.abs(actual.balance))}.`
+              }
+            >
+              <DeltaPesosRendimiento actual={actual?.balance} anterior={anterior?.balance} favorableSiSube />
+            </MetricaCard>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>📊 Ventas por cultivo</Text>
+            {!actual?.cultivos?.length ? <Text style={styles.emptyText}>Aún no hay ventas registradas este mes en Finanzas.</Text> : (
+              actual.cultivos.map((c) => (
+                <View key={c.nombre} style={{ marginTop: 8 }}>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.barLabel}>{c.nombre}</Text>
+                    <Text style={styles.barSub}>{formatMoney(c.ventas)} · {numRendimiento(c.pct)}%</Text>
+                  </View>
+                  <View style={styles.barTrack}><View style={[styles.barFill, { width: `${c.pct}%`, backgroundColor: c.pct >= 60 ? COLORS.warning : COLORS.primary }]} /></View>
+                </View>
+              ))
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>🏆 Trabajadores más rentables</Text>
+            <Text style={styles.cardHint}>Menor costo por kilo producido primero.</Text>
+            {ranking.length === 0 ? <Text style={styles.emptyText}>Aún no hay jornadas registradas este mes.</Text> : (
+              ranking.map((t, i) => (
+                <View key={t.nombre + i} style={styles.rankRow}>
+                  <Avatar src={t.foto} name={t.nombre} size={26} />
+                  <View style={{ flex: 1, marginLeft: 8 }}>
+                    <Text style={styles.rankNombre}>{t.nombre}{i < 3 && t.costoKg != null ? ' 🏅' : ''}</Text>
+                    <Text style={styles.rankMeta}>{t.dias} días · {numRendimiento(t.kg)} kg</Text>
+                  </View>
+                  <Text style={styles.rankCosto}>{t.costoKg != null ? formatMoney(t.costoKg) : '—'}</Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          <Text style={styles.footNote}>
+            Estos indicadores se calculan con lo que ya registras en Finanzas y en el Cuaderno — no necesitas anotar nada extra.
+          </Text>
+        </>
+      )}
+    </View>
+  );
+}
 
 function StatCard({ icon, label, value, accent = 'primary', hint, full }) {
   const palette = {
@@ -105,7 +432,7 @@ export default function ResumenFincaScreen({ navigation }) {
     },
     {
       targetRef: topNavRef, scrollY: 0, icon: 'apps-outline', title: 'Secciones del cuaderno',
-      text: 'Con estas pestañas te mueves entre Resumen, Jornadas, Nómina, Finanzas, Balance, Rendimiento y Conversión café.',
+      text: 'Con estas pestañas te mueves entre Resumen, Finanzas, Nómina, Balance y Conversión café. Jornadas y Rendimiento están aquí mismo, en Resumen.',
     },
     {
       targetRef: accionesRef, scrollY: 0, icon: 'add-circle-outline', title: 'Registra tus jornadas',
@@ -214,9 +541,13 @@ export default function ResumenFincaScreen({ navigation }) {
           </View>
         </View>
         <View ref={accionesRef} collapsable={false} style={{ marginBottom: 16 }}>
-          <Pressable style={styles.btnOutline} onPress={() => navigation.navigate('JornadasHome')}>
-            <Ionicons name="calendar-outline" size={16} color={COLORS.ink700} />
-            <Text style={styles.btnOutlineText}>  Ver jornadas</Text>
+          <Pressable style={styles.verJornadasBtn} onPress={() => navigation.navigate('JornadasHome')}>
+            <View style={styles.verJornadasIcon}><Ionicons name="calendar-outline" size={18} color={COLORS.primary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.verJornadasTitle}>Ver jornadas</Text>
+              <Text style={styles.verJornadasSub}>Historial completo, filtros y detalle</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.ink400} />
           </Pressable>
           <Pressable style={styles.nuevaJornadaBanner} onPress={() => navigation.navigate('CerrarJornada')}>
             <View style={{ flex: 1 }}>
@@ -391,6 +722,9 @@ export default function ResumenFincaScreen({ navigation }) {
         <View style={{ marginBottom: 16 }}>
           <StatCard icon="scale-outline" label="Kg producidos" value={Number(resumen.total_kg || 0).toLocaleString()} accent="accent" full />
         </View>
+
+        {/* Rendimiento — antes su propia pestaña, ahora al final de Resumen */}
+        <RendimientoSection />
       </ScrollView>
       <TutorialOverlay
         visible={mostrarTutorial}
@@ -411,8 +745,10 @@ const styles = StyleSheet.create({
   headerIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   h1: { fontSize: 26, fontWeight: '900', color: COLORS.ink900 },
   subtitle: { fontSize: 13, color: COLORS.ink500, marginTop: 2 },
-  btnOutline: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', borderWidth: 1, borderColor: COLORS.line, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#fff', marginBottom: 10 },
-  btnOutlineText: { fontWeight: '700', color: COLORS.ink700, fontSize: 13 },
+  verJornadasBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: COLORS.line, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#fff', marginBottom: 10 },
+  verJornadasIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: COLORS.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  verJornadasTitle: { fontWeight: '800', fontSize: 14, color: COLORS.ink900 },
+  verJornadasSub: { fontSize: 11, color: COLORS.ink500, marginTop: 1 },
   btnPrimary: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   btnPrimarySmall: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start', marginTop: 10 },
   btnPrimaryText: { color: '#fff', fontWeight: '900', fontSize: 13 },
@@ -470,4 +806,30 @@ const styles = StyleSheet.create({
   pagoJornada: { fontSize: 11, color: COLORS.ink500 },
   pagoMonto: { fontWeight: '900', color: COLORS.ink900, fontSize: 13 },
   pagoEstado: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, marginTop: 2 },
+
+  // ── Rendimiento (fusionado desde su propia pestaña) ──
+  cardTitle: { fontWeight: '800', fontSize: 14, color: COLORS.ink900 },
+  cardHint: { fontSize: 11, color: COLORS.ink500, marginTop: 2, marginBottom: 4 },
+  rendMonthNav: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.line, borderRadius: 12 },
+  rendMonthLabel: { fontWeight: '700', color: COLORS.ink900, fontSize: 12, minWidth: 90, textAlign: 'center' },
+  metricaCard: { width: '47%', backgroundColor: COLORS.lineLight, borderWidth: 0.5, borderColor: COLORS.line, borderRadius: 12, padding: 14 },
+  metricaIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  metricaTitulo: { fontSize: 10, fontWeight: '700', color: COLORS.ink500, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10 },
+  metricaValor: { fontSize: 26, fontWeight: '500', color: COLORS.ink900, marginTop: 4 },
+  metricaDetalle: { fontSize: 12, color: COLORS.ink500, marginTop: 6, lineHeight: 18 },
+  rendAvisoText: { fontSize: 12, color: COLORS.ink500, marginTop: 10, lineHeight: 18, fontStyle: 'italic' },
+  nivelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  nivelBadgeText: { fontSize: 10, fontWeight: '800' },
+  rendDeltaText: { fontSize: 11, fontWeight: '700' },
+  rendCalcToggle: { flexDirection: 'row', alignItems: 'center' },
+  rendCalcToggleText: { fontSize: 11, fontWeight: '700', color: COLORS.ink500 },
+  rendCalcBox: { backgroundColor: '#fff', borderRadius: 10, padding: 10, marginTop: 6, borderWidth: 0.5, borderColor: COLORS.line },
+  rendCalcLinea: { fontSize: 11, color: COLORS.ink700, marginBottom: 2 },
+  rendCalcBold: { fontWeight: '800', color: COLORS.ink900 },
+  rendCalcNota: { fontSize: 10, color: COLORS.ink500, marginTop: 6, lineHeight: 15 },
+  rankRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderColor: COLORS.lineLight },
+  rankNombre: { fontWeight: '700', color: COLORS.ink900, fontSize: 13 },
+  rankMeta: { fontSize: 11, color: COLORS.ink500 },
+  rankCosto: { fontWeight: '900', color: COLORS.ink900, fontSize: 13 },
+  footNote: { fontSize: 11, color: COLORS.ink400, marginTop: 16 },
 });

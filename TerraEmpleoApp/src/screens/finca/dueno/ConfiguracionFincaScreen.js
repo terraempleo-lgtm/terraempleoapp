@@ -7,10 +7,7 @@ import { useFinca } from '../../../context/FincaContext';
 import Avatar from '../shared/Avatar';
 import { leerPersonalFijo, guardarPersonalFijo } from '../../../utils/personalFijo';
 import { CULTIVOS } from '../../../data/options';
-
-// Filas de empleador_cultivos/empleador_labores llegan como objetos
-// { cultivo/labor, es_personalizado } — normaliza siempre a string plano.
-const nombresDe = (arr, campo) => (arr || []).map((x) => (typeof x === 'string' ? x : x?.[campo])).filter(Boolean);
+import { nombresDe } from '../../../utils/fincaFormat';
 
 const COLORS = {
   primary: '#008d49', primarySoft: '#e5f6ec',

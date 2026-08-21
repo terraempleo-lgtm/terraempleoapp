@@ -6,11 +6,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { cuadernoAPI, fincaAPI, trabajadoresAPI } from '../../../services/api';
+import { cuadernoAPI, fincaAPI, authAPI, trabajadoresAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 import Avatar from './Avatar';
 import HoraField from '../../../components/ui/HoraField';
-import { formatMoney, coincideTexto } from '../../../utils/fincaFormat';
+import { formatMoney, coincideTexto, nombresDe } from '../../../utils/fincaFormat';
 import { leerPersonalFijo } from '../../../utils/personalFijo';
 import { setFechaRef } from '../../../context/periodoStore';
 import { useToast } from './useFincaToast';
@@ -108,9 +108,9 @@ function Chip({ label, activo, onPress, icon }) {
 }
 
 // ── Bloque: una labor de la semana (ej. "Recolección · 3 jornales · por kilo") ──
-function BloqueSemana({ b, precios, lotesFinca, onChange, onQuitar, ocultarQuitar }) {
+function BloqueSemana({ b, precios, lotesFinca, cultivosFinca, onChange, onQuitar, ocultarQuitar }) {
   const upd = (k, v) => onChange({ ...b, [k]: v });
-  const cultivos = useMemo(() => [...new Set(lotesFinca.map((l) => l.cultivo).filter(Boolean))], [lotesFinca]);
+  const cultivos = cultivosFinca;
   const sub = pagoBloque(b, precios);
   return (
     <View style={styles.bloqueCard}>
@@ -185,7 +185,7 @@ function BloqueSemana({ b, precios, lotesFinca, onChange, onQuitar, ocultarQuita
 }
 
 // ── Tarjeta de trabajador (semana completa) ────────────────────────────────
-function TrabajadorSemanaCard({ t, precios, lotesFinca, onChange, onQuitar }) {
+function TrabajadorSemanaCard({ t, precios, lotesFinca, cultivosFinca, onChange, onQuitar }) {
   const [open, setOpen] = useState(true);
   const bruto = brutoDe(t, precios);
   const alim = alimentacionDe(t, precios);
@@ -222,7 +222,7 @@ function TrabajadorSemanaCard({ t, precios, lotesFinca, onChange, onQuitar }) {
           <View style={{ gap: 8 }}>
             {bloques.map((b) => (
               <BloqueSemana
-                key={b._key} b={b} precios={precios} lotesFinca={lotesFinca}
+                key={b._key} b={b} precios={precios} lotesFinca={lotesFinca} cultivosFinca={cultivosFinca}
                 onChange={(nb) => upd('bloques', bloques.map((x) => (x._key === nb._key ? nb : x)))}
                 onQuitar={() => upd('bloques', bloques.filter((x) => x._key !== b._key))}
                 ocultarQuitar={bloques.length === 1}
@@ -285,6 +285,7 @@ export default function JornadaSemanalScreen({ navigation }) {
   const [externoOpen, setExternoOpen] = useState(false);
   const [externo, setExterno] = useState({ nombre: '', telefono: '' });
   const [lotesFinca, setLotesFinca] = useState([]);
+  const [cultivosFinca, setCultivosFinca] = useState([]);
 
   const domingo = useMemo(() => { const d = new Date(lunes); d.setDate(d.getDate() + 6); return d; }, [lunes]);
   const moverSemana = (delta) => { const d = new Date(lunes); d.setDate(d.getDate() + delta * 7); setLunes(d); };
@@ -304,6 +305,12 @@ export default function JornadaSemanalScreen({ navigation }) {
       } catch { /* no-op */ }
     })();
   }, [activeFinca]);
+
+  // Cultivos de la finca (Configuración) — mismo catálogo con tildes en vez
+  // de derivarlo del texto libre que cada lote tenga en su campo cultivo.
+  useEffect(() => {
+    authAPI.getPerfil().then((r) => setCultivosFinca(nombresDe(r.data?.perfil?.cultivos, 'cultivo'))).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!activeFincaId) return;
@@ -585,7 +592,7 @@ export default function JornadaSemanalScreen({ navigation }) {
           <View style={{ gap: 10 }}>
             {trabajadores.map((t) => (
               <TrabajadorSemanaCard
-                key={t.key} t={t} precios={precios} lotesFinca={lotesFinca}
+                key={t.key} t={t} precios={precios} lotesFinca={lotesFinca} cultivosFinca={cultivosFinca}
                 onChange={(nt) => setTrabajadores((prev) => prev.map((x) => (x.key === nt.key ? nt : x)))}
                 onQuitar={(x) => setTrabajadores((prev) => prev.filter((y) => y.key !== x.key))}
               />
