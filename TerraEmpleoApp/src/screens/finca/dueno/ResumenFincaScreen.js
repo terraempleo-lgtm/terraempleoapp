@@ -213,14 +213,20 @@ export default function ResumenFincaScreen({ navigation }) {
             </View>
           </View>
         </View>
-        <View ref={accionesRef} collapsable={false} style={[styles.rowStart, { gap: 8, marginBottom: 16 }]}>
+        <View ref={accionesRef} collapsable={false} style={{ marginBottom: 16 }}>
           <Pressable style={styles.btnOutline} onPress={() => navigation.navigate('JornadasHome')}>
             <Ionicons name="calendar-outline" size={16} color={COLORS.ink700} />
             <Text style={styles.btnOutlineText}>  Ver jornadas</Text>
           </Pressable>
-          <Pressable style={styles.btnPrimary} onPress={() => navigation.navigate('CerrarJornada')}>
-            <Ionicons name="add" size={16} color="#fff" />
-            <Text style={styles.btnPrimaryText}>  Nueva jornada</Text>
+          <Pressable style={styles.nuevaJornadaBanner} onPress={() => navigation.navigate('CerrarJornada')}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.nuevaJornadaKicker}>AL FINAL DEL DÍA</Text>
+              <Text style={styles.nuevaJornadaTitle}>Nueva jornada</Text>
+              <Text style={styles.nuevaJornadaSub}>Kilos, horas y pagos de todos los trabajadores en un solo formulario</Text>
+            </View>
+            <View style={styles.nuevaJornadaPlus}>
+              <Ionicons name="add" size={26} color="#fff" />
+            </View>
           </Pressable>
         </View>
 
@@ -405,11 +411,16 @@ const styles = StyleSheet.create({
   headerIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   h1: { fontSize: 26, fontWeight: '900', color: COLORS.ink900 },
   subtitle: { fontSize: 13, color: COLORS.ink500, marginTop: 2 },
-  btnOutline: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.line, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#fff' },
+  btnOutline: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', borderWidth: 1, borderColor: COLORS.line, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#fff', marginBottom: 10 },
   btnOutlineText: { fontWeight: '700', color: COLORS.ink700, fontSize: 13 },
   btnPrimary: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   btnPrimarySmall: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start', marginTop: 10 },
   btnPrimaryText: { color: '#fff', fontWeight: '900', fontSize: 13 },
+  nuevaJornadaBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: 20, padding: 20 },
+  nuevaJornadaKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase' },
+  nuevaJornadaTitle: { fontSize: 20, fontWeight: '900', color: '#fff', marginTop: 4 },
+  nuevaJornadaSub: { fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 4 },
+  nuevaJornadaPlus: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginLeft: 12 },
   emptyCard: { borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(0,141,73,0.3)', borderRadius: 16, padding: 16, marginBottom: 16 },
   emptyTitle: { fontWeight: '700', color: COLORS.ink900, marginTop: 6, marginBottom: 4 },
   emptyText: { fontSize: 13, color: COLORS.ink500, paddingVertical: 8 },

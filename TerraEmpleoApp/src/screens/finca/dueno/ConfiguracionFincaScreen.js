@@ -2,10 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Alert, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { fincaAPI, finanzasAPI, cuadernoAPI } from '../../../services/api';
+import { fincaAPI, finanzasAPI, cuadernoAPI, authAPI } from '../../../services/api';
 import { useFinca } from '../../../context/FincaContext';
 import Avatar from '../shared/Avatar';
 import { leerPersonalFijo, guardarPersonalFijo } from '../../../utils/personalFijo';
+import { CULTIVOS } from '../../../data/options';
+
+// Filas de empleador_cultivos/empleador_labores llegan como objetos
+// { cultivo/labor, es_personalizado } — normaliza siempre a string plano.
+const nombresDe = (arr, campo) => (arr || []).map((x) => (typeof x === 'string' ? x : x?.[campo])).filter(Boolean);
 
 const COLORS = {
   primary: '#008d49', primarySoft: '#e5f6ec',
@@ -48,6 +53,59 @@ export default function ConfiguracionFincaScreen({ navigation }) {
   const [unidadVenta, setUnidadVenta] = useState('pergamino');
   const [precioVenta, setPrecioVenta] = useState('');
   const [guardandoPrecio, setGuardandoPrecio] = useState(false);
+
+  // Cultivos de la finca: se toman del perfil del empleador (los que marcó
+  // al registrarse) y se pueden agregar más aquí — un solo lugar para toda
+  // la finca, usados luego en el selector "¿Qué cultivo trabajó?" al
+  // cerrar una jornada. perfilBase guarda el resto del perfil tal cual
+  // llegó del servidor para reenviarlo sin cambios al guardar (el endpoint
+  // reemplaza el perfil completo, no hace parche parcial).
+  const [perfilBase, setPerfilBase] = useState(null);
+  const [cultivosFinca, setCultivosFinca] = useState([]);
+  const [nuevoCultivo, setNuevoCultivo] = useState('');
+  const [guardandoCultivo, setGuardandoCultivo] = useState(false);
+
+  useEffect(() => {
+    authAPI.getPerfil().then((r) => {
+      const usr = r.data?.user || {};
+      const perfil = r.data?.perfil || {};
+      setPerfilBase({ usr, perfil });
+      setCultivosFinca(nombresDe(perfil.cultivos, 'cultivo'));
+    }).catch(() => {});
+  }, []);
+
+  const guardarCultivos = async (lista) => {
+    if (!perfilBase) return;
+    setCultivosFinca(lista);
+    setGuardandoCultivo(true);
+    try {
+      const { usr, perfil } = perfilBase;
+      await authAPI.actualizarPerfil({
+        nombre_completo: usr.nombre_completo || '',
+        departamento: usr.departamento || null,
+        municipio: usr.municipio || null,
+        vereda: usr.vereda || null,
+        nombre_empresa_finca: perfil.nombre_empresa_finca || usr.nombre_completo || 'Mi finca',
+        acerca_de: perfil.acerca_de || null,
+        tipo_pago: perfil.tipo_pago || null,
+        ofrece_alojamiento: !!perfil.ofrece_alojamiento,
+        ofrece_alimentacion: !!perfil.ofrece_alimentacion,
+        beneficios_extra: perfil.beneficios_extra || null,
+        cultivos_empleador: lista.map((c) => ({ nombre: c, es_personalizado: !CULTIVOS.includes(c) })),
+        labores: nombresDe(perfil.labores, 'labor').map((l) => ({ nombre: l, es_personalizada: false })),
+      });
+    } catch (e) { console.error('guardar cultivos:', e); }
+    finally { setGuardandoCultivo(false); }
+  };
+  const toggleCultivo = (c) => {
+    guardarCultivos(cultivosFinca.includes(c) ? cultivosFinca.filter((x) => x !== c) : [...cultivosFinca, c]);
+  };
+  const agregarCultivoNuevo = () => {
+    const n = nuevoCultivo.trim();
+    if (!n || cultivosFinca.includes(n)) { setNuevoCultivo(''); return; }
+    guardarCultivos([...cultivosFinca, n]);
+    setNuevoCultivo('');
+  };
 
   useEffect(() => {
     if (!activeFinca) return;
@@ -237,12 +295,52 @@ export default function ConfiguracionFincaScreen({ navigation }) {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Modalidad de alimentación</Text>
-          <View style={styles.wrapRow}>
-            {[['incluida', 'Incluida en el jornal'], ['independiente', 'Gasto independiente']].map(([val, t]) => (
-              <Pressable key={val} disabled={!esPropietario} onPress={() => set('modalidad_alimentacion', val)} style={[styles.modChip, form.modalidad_alimentacion === val && styles.modChipActivo]}>
-                <Text style={[styles.modChipText, form.modalidad_alimentacion === val && styles.modChipTextActivo]}>{t}</Text>
+          <Text style={styles.cardHint}>Define si la comida de los trabajadores es un gasto aparte o ya va incluida en el pago.</Text>
+          <View style={styles.alimGrid}>
+            {[
+              ['incluida', 'Incluida en el jornal', 'El valor pagado ya incluye alimentación (tu caso).'],
+              ['independiente', 'Gasto independiente', 'La alimentación se registra como gasto aparte.'],
+            ].map(([val, t, d]) => (
+              <Pressable key={val} disabled={!esPropietario} onPress={() => set('modalidad_alimentacion', val)} style={[styles.alimBox, form.modalidad_alimentacion === val && styles.alimBoxActivo]}>
+                <Text style={styles.alimBoxTitle}>{t}</Text>
+                <Text style={styles.alimBoxDesc}>{d}</Text>
               </Pressable>
             ))}
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.rowStart}>
+            <Ionicons name="leaf-outline" size={18} color={COLORS.primary} />
+            <Text style={[styles.cardTitle, { marginLeft: 6 }]}>Cultivos de la finca</Text>
+          </View>
+          <Text style={styles.cardHint}>
+            Estos son los que marcaste al registrarte; agrega más si hace falta. Se usan para elegir "¿Qué cultivo trabajó?" al cerrar una jornada.
+          </Text>
+          <View style={styles.wrapRow}>
+            {CULTIVOS.map((c) => {
+              const activo = cultivosFinca.includes(c);
+              return (
+                <Pressable key={c} disabled={guardandoCultivo} onPress={() => toggleCultivo(c)} style={[styles.fijoChip, activo && styles.fijoChipActivo]}>
+                  <Text style={[styles.fijoChipText, activo && styles.fijoChipTextActivo]}>{c}</Text>
+                </Pressable>
+              );
+            })}
+            {cultivosFinca.filter((c) => !CULTIVOS.includes(c)).map((c) => (
+              <Pressable key={c} disabled={guardandoCultivo} onPress={() => toggleCultivo(c)} style={[styles.fijoChip, styles.fijoChipActivo]}>
+                <Text style={[styles.fijoChipText, styles.fijoChipTextActivo]}>{c}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={[styles.rowStart, { marginTop: 10 }]}>
+            <TextInput
+              style={[styles.input, { flex: 1 }]} placeholderTextColor={COLORS.ink400}
+              placeholder="Otro cultivo…" value={nuevoCultivo} onChangeText={setNuevoCultivo}
+              onSubmitEditing={agregarCultivoNuevo}
+            />
+            <Pressable onPress={agregarCultivoNuevo} disabled={guardandoCultivo} style={[styles.btnPrimarySmall, { marginLeft: 8 }]}>
+              <Ionicons name="add" size={14} color="#fff" /><Text style={styles.btnPrimarySmallText}>  Agregar</Text>
+            </Pressable>
           </View>
         </View>
 
@@ -541,6 +639,11 @@ const styles = StyleSheet.create({
   modChipActivo: { borderColor: COLORS.primary, backgroundColor: COLORS.primarySoft },
   modChipText: { fontSize: 12, fontWeight: '700', color: COLORS.ink700 },
   modChipTextActivo: { color: COLORS.primary },
+  alimGrid: { gap: 10, marginTop: 8 },
+  alimBox: { padding: 14, borderRadius: 14, borderWidth: 2, borderColor: COLORS.line, backgroundColor: '#fff' },
+  alimBoxActivo: { borderColor: COLORS.primary, backgroundColor: COLORS.primarySoft },
+  alimBoxTitle: { fontWeight: '800', fontSize: 14, color: COLORS.ink900 },
+  alimBoxDesc: { fontSize: 12, color: COLORS.ink500, marginTop: 3 },
   ejemploBox: { backgroundColor: COLORS.lineLight, borderRadius: 10, padding: 10, marginTop: 10 },
   ejemploText: { fontSize: 11, color: COLORS.ink700 },
   btnPrimary: { backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 14 },
