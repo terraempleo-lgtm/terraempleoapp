@@ -120,36 +120,45 @@ async function balance(req, res) {
     if (hasta) { condPeriodo.push('p.fecha_inicio <= ?'); paramsPeriodo.push(hasta); }
     const whereRango = condPeriodo.length ? `AND ${condPeriodo.join(' AND ')}` : '';
 
+    // Línea a línea de Finanzas (ventas y gastos) — no solo el total: cada
+    // fila se vuelve un renglón del historial. fin_movimientos.fecha casi
+    // nunca está poblada (solo la usa el espejo de Balance), por eso la
+    // fecha real sale de la semana (o del período si es mensual/factura).
     // Excluye los conceptos origen='balance' — esos montos ya se cuentan
     // aparte como aportes/retiros de finca_balance_movimientos más abajo;
-    // sumarlos aquí también los contaría dos veces en el saldo.
-    const porTipo = await query(
-      `SELECT c.tipo, COALESCE(SUM(m.monto), 0) AS total
+    // sumarlos aquí también los contaría dos veces en el saldo. 'nomina'
+    // (nómina manual/migrada de Finanzas) tampoco entra: el balance usa la
+    // nómina REAL del Cuaderno, igual que ya hacía el total anterior.
+    const finRows = await query(
+      `SELECT m.id, m.monto, c.tipo, c.nombre AS concepto_nombre,
+              COALESCE(s.fecha_inicio, p.fecha_inicio) AS fecha
          FROM fin_movimientos m
          JOIN fin_conceptos c ON c.id = m.concepto_id
          JOIN fin_periodos p ON p.id = m.periodo_id
-        WHERE p.finca_id = ? AND c.origen != 'balance' ${whereRango}
-        GROUP BY c.tipo`,
+         LEFT JOIN fin_semanas s ON s.id = m.semana_id
+        WHERE p.finca_id = ? AND c.origen != 'balance'
+          AND c.tipo IN ('ingreso','gasto_fijo','gasto_variable','factura') ${whereRango}
+        ORDER BY fecha ASC, m.id ASC`,
       paramsPeriodo
     );
-    const totalesFin = { ingreso: 0, gasto_fijo: 0, gasto_variable: 0, factura: 0 };
-    for (const r of porTipo || []) totalesFin[r.tipo] = Number(r.total) || 0;
-    const ventas = totalesFin.ingreso;
-    const gastosFinanzas = totalesFin.gasto_fijo + totalesFin.gasto_variable + totalesFin.factura;
 
-    // Nómina real: se lee del Cuaderno (jornadas de esta finca), no de Finanzas.
+    // Nómina real, línea a línea: se lee del Cuaderno (jornadas de esta
+    // finca), no de Finanzas — una fila por bloque de trabajo pagado.
     const condNomina = ['(j.finca_id = ? OR (j.finca_id IS NULL AND j.empleador_id = ?))'];
     const paramsNomina = [finca.id, finca.empleador_id];
     if (desde) { condNomina.push('j.fecha >= ?'); paramsNomina.push(desde); }
     if (hasta) { condNomina.push('j.fecha <= ?'); paramsNomina.push(hasta); }
     const nomRows = await query(
-      `SELECT COALESCE(SUM(r.pago_total), 0) AS total
+      `SELECT r.id, r.pago_total AS monto, j.fecha,
+              COALESCE(u.nombre_completo, a.manual_nombre, 'Trabajador') AS nombre_trabajador
          FROM cuaderno_registros_trabajo r
          JOIN cuaderno_jornadas j ON j.id = r.jornada_id
-        WHERE ${condNomina.join(' AND ')}`,
+         LEFT JOIN cuaderno_asistencias a ON a.id = r.asistencia_id
+         LEFT JOIN usuarios u ON u.id = a.trabajador_id
+        WHERE ${condNomina.join(' AND ')}
+        ORDER BY j.fecha ASC, r.id ASC`,
       paramsNomina
     );
-    const nomina = Number((nomRows && nomRows[0] && nomRows[0].total) || 0);
 
     // Movimientos manuales (capital) en el rango.
     const condMov = ['finca_id = ?'];
@@ -169,21 +178,52 @@ async function balance(req, res) {
       else retiros += monto;
     }
 
-    // Saldo base = todo lo de Finanzas/Cuaderno (ventas y aportes suman,
-    // nómina y gastos restan), sobre el que se acumulan los movimientos
-    // manuales en orden cronológico para el historial con saldo corriente.
-    const saldoBase = ventas - nomina - gastosFinanzas;
-    let corriendo = saldoBase;
-    const historialAsc = (movimientos || []).map((m) => {
-      const montoFirmado = round2(signo(m.tipo) * (Number(m.monto) || 0));
-      corriendo = round2(corriendo + montoFirmado);
+    const TIPO_LABEL_FIN = { ingreso: 'Venta', gasto_fijo: 'Gasto fijo', gasto_variable: 'Gasto variable', factura: 'Factura' };
+    let ventas = 0;
+    let gastosFinanzas = 0;
+    let nomina = 0;
+
+    // Se combinan las tres fuentes (manual + Finanzas + Cuaderno) en un solo
+    // historial cronológico, cada una con su propio signo — así el saldo
+    // corriente arranca en 0 y no hay que sumar aparte un "saldo base": los
+    // totales de abajo salen de sumar estas mismas filas, para que nunca
+    // puedan desalinearse del historial. Solo los movimientos manuales son
+    // editables/eliminables desde acá (tipo dentro del enum de
+    // finca_balance_movimientos) — Finanzas y Cuaderno se editan en su
+    // propia pantalla, por eso llevan un `tipo` fuera de ese enum.
+    const combinado = [
+      ...(movimientos || []).map((m) => ({
+        id: m.id, fecha: m.fecha, tipo: m.tipo, categoria: m.categoria, descripcion: m.descripcion,
+        montoFirmado: signo(m.tipo) * (Number(m.monto) || 0),
+      })),
+      ...(finRows || []).map((r) => {
+        const monto = Number(r.monto) || 0;
+        if (r.tipo === 'ingreso') ventas += monto; else gastosFinanzas += monto;
+        return {
+          id: r.id, fecha: r.fecha, tipo: r.tipo, categoria: TIPO_LABEL_FIN[r.tipo] || r.tipo, descripcion: r.concepto_nombre,
+          montoFirmado: (r.tipo === 'ingreso' ? 1 : -1) * monto,
+        };
+      }),
+      ...(nomRows || []).map((r) => {
+        const monto = Number(r.monto) || 0;
+        nomina += monto;
+        return {
+          id: r.id, fecha: r.fecha, tipo: 'nomina', categoria: 'Nómina', descripcion: r.nombre_trabajador,
+          montoFirmado: -monto,
+        };
+      }),
+    ].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime() || a.id - b.id);
+
+    let corriendo = 0;
+    const historialAsc = combinado.map((h) => {
+      corriendo = round2(corriendo + round2(h.montoFirmado));
       return {
-        id: m.id,
-        fecha: m.fecha,
-        tipo: m.tipo,
-        categoria: m.categoria,
-        descripcion: m.descripcion,
-        monto: montoFirmado,
+        id: h.id,
+        fecha: h.fecha,
+        tipo: h.tipo,
+        categoria: h.categoria,
+        descripcion: h.descripcion,
+        monto: round2(h.montoFirmado),
         saldo_despues: corriendo,
       };
     });
