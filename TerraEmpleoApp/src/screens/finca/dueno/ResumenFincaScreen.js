@@ -39,6 +39,92 @@ const BADGE_RENDIMIENTO = {
   alerta: { bg: '#FCEBEB', fg: '#791F1F', label: 'Alerta' },
 };
 
+// Referencia de recolección de café en Colombia: 40-50 kg/día en mitaca,
+// 80-120 kg/día en cosecha principal en un lote bien cargado.
+const NIVEL_LOTE = {
+  bien: { bg: COLORS.primarySoft, fg: COLORS.primary, icon: 'checkmark-circle', label: 'Bien' },
+  regular: { bg: COLORS.warningSoft, fg: COLORS.warning, icon: 'alert-circle', label: 'Atención' },
+  alerta: { bg: COLORS.dangerSoft, fg: COLORS.danger, icon: 'warning', label: 'Alerta' },
+  sinDatos: { bg: COLORS.lineLight, fg: COLORS.ink500, icon: 'help-circle', label: 'Sin datos' },
+};
+function nivelKgPorJornal(kg) {
+  if (kg == null) return 'sinDatos';
+  if (kg >= 80) return 'bien';
+  if (kg >= 40) return 'regular';
+  return 'alerta';
+}
+
+// Tarjeta de un lote: kg/jornal, costo de mano de obra por kilo y
+// producción por hectárea del mes visible — con lo que ya se registra en
+// el Cuaderno al elegir el lote de cada trabajador, sin anotar nada extra.
+function LoteRendimientoCard({ lote: l }) {
+  const kg = Number(l.kg_total || 0);
+  const jornales = Number(l.jornales || 0);
+  const costoManoObra = Number(l.costo_mano_obra || 0);
+  const hectareas = Number(l.hectareas || 0);
+  const kgPorJornal = jornales > 0 ? kg / jornales : null;
+  const costoPorKg = kg > 0 ? costoManoObra / kg : null;
+  const kgPorHa = hectareas > 0 ? kg / hectareas : null;
+  const nivel = nivelKgPorJornal(kgPorJornal);
+  const info = NIVEL_LOTE[nivel];
+  const kgPorJornalColor = nivel === 'alerta' ? COLORS.danger : nivel === 'regular' ? COLORS.warning : COLORS.primary;
+  const mensaje = nivel === 'alerta' && kgPorJornal != null ? 'Rendimiento bajo: el café está disperso o el grano es pequeño en este lote.'
+    : nivel === 'regular' ? 'Rendimiento típico de mitaca/traviesa (40-50 kg/día).'
+    : nivel === 'bien' ? 'Buen rendimiento de cosecha principal (80-120 kg/día).'
+    : 'Sin jornales registrados en este lote este mes.';
+
+  return (
+    <View style={styles.loteCard}>
+      <View style={styles.rowBetween}>
+        <View style={[styles.rowStart, { flex: 1, marginRight: 8 }]}>
+          <View style={styles.loteIcon}><Ionicons name="location" size={15} color="#7c3aed" /></View>
+          <View style={{ marginLeft: 8, flex: 1 }}>
+            <Text style={styles.loteNombre} numberOfLines={1}>{l.nombre}</Text>
+            {(l.cultivo || hectareas > 0) && (
+              <Text style={styles.loteMeta} numberOfLines={1}>{[l.cultivo, hectareas > 0 ? `${hectareas} ha` : null].filter(Boolean).join(' · ')}</Text>
+            )}
+          </View>
+        </View>
+        <View style={[styles.nivelBadge, { backgroundColor: info.bg, flexDirection: 'row', alignItems: 'center' }]}>
+          <Ionicons name={info.icon} size={11} color={info.fg} />
+          <Text style={[styles.nivelBadgeText, { color: info.fg }]}>  {info.label}</Text>
+        </View>
+      </View>
+
+      <View style={styles.loteGrid}>
+        <View style={styles.loteGridItem}>
+          <Text style={styles.loteGridLabel}>Kg recolectados</Text>
+          <Text style={styles.loteGridValor}>{numRendimiento(kg)} kg</Text>
+        </View>
+        <View style={styles.loteGridItem}>
+          <Text style={styles.loteGridLabel}>Jornales</Text>
+          <Text style={styles.loteGridValor}>{jornales}</Text>
+        </View>
+        <View style={styles.loteGridItem}>
+          <Text style={styles.loteGridLabel}>Kg por jornal</Text>
+          <Text style={[styles.loteGridValor, { color: kgPorJornalColor }]}>{kgPorJornal != null ? `${numRendimiento(kgPorJornal)} kg` : '—'}</Text>
+        </View>
+        <View style={styles.loteGridItem}>
+          <Text style={styles.loteGridLabel}>Costo mano de obra/kg</Text>
+          <Text style={styles.loteGridValor}>{costoPorKg != null ? formatMoney(costoPorKg) : '—'}</Text>
+        </View>
+      </View>
+
+      {kgPorHa != null && (
+        <View style={styles.loteHaRow}>
+          <Text style={styles.loteHaLabel}>Producción del periodo por hectárea</Text>
+          <Text style={styles.loteHaValor}>{numRendimiento(kgPorHa)} kg/ha</Text>
+        </View>
+      )}
+
+      <View style={[styles.rowStart, { marginTop: 8, alignItems: 'flex-start' }]}>
+        <Ionicons name={info.icon} size={11} color={COLORS.ink400} style={{ marginTop: 1 }} />
+        <Text style={styles.loteMensaje}>  {mensaje}</Text>
+      </View>
+    </View>
+  );
+}
+
 function procesarMesRendimiento(tableroData, jornaladas, trabajadoresAgg, kgTotal) {
   const semanas = tableroData?.semanas || [];
   const conceptos = tableroData?.conceptos || [];
@@ -170,6 +256,7 @@ function RendimientoSection() {
   const [actual, setActual] = useState(null);
   const [anterior, setAnterior] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [lotesRend, setLotesRend] = useState([]);
 
   const cargarMes = useCallback(async (a, m) => {
     const r = await finanzasAPI.tablero({ finca_id: activeFincaId, anio: a, mes: m });
@@ -198,10 +285,18 @@ function RendimientoSection() {
     setLoading(true);
     let mesAnt = mes - 1, anioAnt = anio;
     if (mesAnt < 1) { mesAnt = 12; anioAnt -= 1; }
-    Promise.all([cargarMes(anio, mes), cargarMes(anioAnt, mesAnt)])
-      .then(([act, ant]) => {
+    const ultimoDia = new Date(anio, mes, 0).getDate();
+    const desde = `${anio}-${String(mes).padStart(2, '0')}-01`;
+    const hasta = `${anio}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+    Promise.all([
+      cargarMes(anio, mes),
+      cargarMes(anioAnt, mesAnt),
+      fincaAPI.rendimientoLotes(activeFincaId, { desde, hasta }).catch(() => ({ data: { lotes: [] } })),
+    ])
+      .then(([act, ant, rl]) => {
         setActual(procesarMesRendimiento(act.tableroData, act.jornaladas, act.trabajadoresAgg, act.kgTotal));
         setAnterior(procesarMesRendimiento(ant.tableroData, ant.jornaladas, ant.trabajadoresAgg, ant.kgTotal));
+        setLotesRend(rl.data?.lotes || []);
       })
       .catch((e) => console.error('rendimiento:', e))
       .finally(() => setLoading(false));
@@ -341,6 +436,23 @@ function RendimientoSection() {
                   <Text style={styles.rankCosto}>{t.costoKg != null ? formatMoney(t.costoKg) : '—'}</Text>
                 </View>
               ))
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.rowStart}>
+              <Ionicons name="location-outline" size={16} color="#7c3aed" />
+              <Text style={[styles.cardTitle, { marginLeft: 6 }]}>Rendimiento por lote</Text>
+            </View>
+            <Text style={styles.cardHint}>
+              Kilos por jornal, costo de mano de obra por kilo y producción por hectárea — con lo que ya registras en el Cuaderno al elegir el lote de cada trabajador.
+            </Text>
+            {lotesRend.length === 0 ? (
+              <Text style={styles.emptyText}>Aún no hay datos de lotes este mes. Crea tus lotes en Configuración y elígelos por trabajador al cerrar una jornada.</Text>
+            ) : (
+              <View style={{ gap: 10, marginTop: 6 }}>
+                {lotesRend.map((l) => <LoteRendimientoCard key={l.id} lote={l} />)}
+              </View>
             )}
           </View>
 
@@ -832,4 +944,16 @@ const styles = StyleSheet.create({
   rankMeta: { fontSize: 11, color: COLORS.ink500 },
   rankCosto: { fontWeight: '900', color: COLORS.ink900, fontSize: 13 },
   footNote: { fontSize: 11, color: COLORS.ink400, marginTop: 16 },
+  loteCard: { borderWidth: 2, borderColor: COLORS.line, borderRadius: 12, padding: 14 },
+  loteIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#f3e8ff', alignItems: 'center', justifyContent: 'center' },
+  loteNombre: { fontWeight: '800', fontSize: 13, color: COLORS.ink900 },
+  loteMeta: { fontSize: 11, color: COLORS.ink500, marginTop: 1 },
+  loteGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, gap: 10 },
+  loteGridItem: { width: '45%' },
+  loteGridLabel: { fontSize: 10, textTransform: 'uppercase', color: COLORS.ink400, fontWeight: '700', letterSpacing: 0.4 },
+  loteGridValor: { fontSize: 15, fontWeight: '900', color: COLORS.ink900, marginTop: 2 },
+  loteHaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: COLORS.line },
+  loteHaLabel: { fontSize: 12, color: COLORS.ink500 },
+  loteHaValor: { fontSize: 12, fontWeight: '800', color: COLORS.ink900 },
+  loteMensaje: { fontSize: 10, color: COLORS.ink400, flex: 1 },
 });
