@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, Pressable, TextInput, StyleSheet, ActivityIndicator, Modal, Alert,
+  View, Text, ScrollView, Pressable, TextInput, StyleSheet, ActivityIndicator, Modal, Alert, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -64,33 +64,11 @@ const TIPO_META = {
   factura: { label: 'Facturas', color: '#2563eb' },
 };
 
-function BalanceDiscriminado({ fincaId }) {
-  const fechaRefGlobal = useFechaRef();
-  const [periodoKey, setPeriodoKey] = React.useState('mes');
-  const [data, setData] = React.useState(null);
-  const [cargando, setCargando] = React.useState(false);
-
-  const meses = PERIODOS.find((p) => p.key === periodoKey)?.meses || 1;
-  const rango = React.useMemo(() => rangoPeriodo(fechaRefGlobal, meses), [fechaRefGlobal, meses]);
-
-  const mover = (delta) => {
-    const d = new Date(fechaRefGlobal);
-    d.setDate(1);
-    d.setMonth(d.getMonth() + delta * meses);
-    setFechaRef(d);
-  };
-
-  React.useEffect(() => {
-    if (!fincaId) return;
-    let vivo = true;
-    setCargando(true);
-    finanzasAPI.resumenRango({ finca_id: fincaId, desde: rango.desde, hasta: rango.hasta })
-      .then((r) => { if (vivo) setData(r.data); })
-      .catch((e) => console.error('resumenRango:', e))
-      .finally(() => { if (vivo) setCargando(false); });
-    return () => { vivo = false; };
-  }, [fincaId, rango.desde, rango.hasta]);
-
+// El período (periodoKey/rango) y los datos de resumenRango viven en el
+// padre (BalanceFincaScreen) — no acá — porque el historial de movimientos
+// de abajo se filtra por el mismo período elegido acá, para que ambos
+// cambien juntos.
+function BalanceDiscriminado({ periodoKey, onPeriodoKeyChange, rango, onMover, data, cargando }) {
   const conceptos = data?.conceptos || [];
   const totales = data?.totales || {};
   const gastos = conceptos.filter((c) => c.tipo !== 'ingreso');
@@ -120,16 +98,16 @@ function BalanceDiscriminado({ fincaId }) {
 
       <View style={styles.discChips}>
         {PERIODOS.map((p) => (
-          <Pressable key={p.key} onPress={() => setPeriodoKey(p.key)} style={[styles.discChip, periodoKey === p.key && styles.discChipActivo]}>
+          <Pressable key={p.key} onPress={() => onPeriodoKeyChange(p.key)} style={[styles.discChip, periodoKey === p.key && styles.discChipActivo]}>
             <Text style={[styles.discChipText, periodoKey === p.key && styles.discChipTextActivo]}>{p.label}</Text>
           </Pressable>
         ))}
       </View>
 
       <View style={styles.discNav}>
-        <Pressable onPress={() => mover(-1)} style={styles.discNavBtn}><Ionicons name="chevron-back" size={16} color={COLORS.ink700} /></Pressable>
+        <Pressable onPress={() => onMover(-1)} style={styles.discNavBtn}><Ionicons name="chevron-back" size={16} color={COLORS.ink700} /></Pressable>
         <Text style={styles.discNavLabel}>{rango.etiqueta}</Text>
-        <Pressable onPress={() => mover(1)} style={styles.discNavBtn}><Ionicons name="chevron-forward" size={16} color={COLORS.ink700} /></Pressable>
+        <Pressable onPress={() => onMover(1)} style={styles.discNavBtn}><Ionicons name="chevron-forward" size={16} color={COLORS.ink700} /></Pressable>
       </View>
 
       {cargando && !data ? <ActivityIndicator style={{ marginVertical: 16 }} color={COLORS.primary} /> : (
@@ -230,12 +208,41 @@ function MovimientoModal({ visible, tipo, onClose, onGuardado }) {
   );
 }
 
+const MOV_TIPOS_BORRABLES = ['aporte', 'retiro', 'otro_ingreso', 'otro_egreso'];
+
 export default function BalanceFincaScreen({ navigation }) {
-  const { activeFincaId } = useFinca();
+  const { activeFinca, activeFincaId } = useFinca();
   const toast = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modalTipo, setModalTipo] = useState(null);
+
+  // Período de "Balance discriminado" — vive acá (no dentro del
+  // componente) porque el historial de movimientos de abajo se filtra por
+  // el mismo período/mes elegido ahí, para que ambos cambien juntos.
+  const fechaRefGlobal = useFechaRef();
+  const [periodoKey, setPeriodoKey] = useState('mes');
+  const meses = PERIODOS.find((p) => p.key === periodoKey)?.meses || 1;
+  const rango = React.useMemo(() => rangoPeriodo(fechaRefGlobal, meses), [fechaRefGlobal, meses]);
+  const moverPeriodo = (delta) => {
+    const d = new Date(fechaRefGlobal);
+    d.setDate(1);
+    d.setMonth(d.getMonth() + delta * meses);
+    setFechaRef(d);
+  };
+
+  const [discData, setDiscData] = useState(null);
+  const [discCargando, setDiscCargando] = useState(false);
+  React.useEffect(() => {
+    if (!activeFincaId) return;
+    let vivo = true;
+    setDiscCargando(true);
+    finanzasAPI.resumenRango({ finca_id: activeFincaId, desde: rango.desde, hasta: rango.hasta })
+      .then((r) => { if (vivo) setDiscData(r.data); })
+      .catch((e) => console.error('resumenRango:', e))
+      .finally(() => { if (vivo) setDiscCargando(false); });
+    return () => { vivo = false; };
+  }, [activeFincaId, rango.desde, rango.hasta]);
 
   const cargar = React.useCallback(() => {
     if (!activeFincaId) return;
@@ -246,6 +253,40 @@ export default function BalanceFincaScreen({ navigation }) {
   }, [activeFincaId]);
 
   useFocusEffect(React.useCallback(() => { cargar(); }, [cargar]));
+
+  // Movimientos del período elegido en "Balance discriminado" — se
+  // muestran de a 20, con botón para ir viendo más del mismo período.
+  const historialDelPeriodo = React.useMemo(
+    () => (data?.historial || []).filter((h) => {
+      const f = String(h.fecha || '').slice(0, 10);
+      return f && f >= rango.desde && f <= rango.hasta;
+    }),
+    [data, rango.desde, rango.hasta]
+  );
+  const [mostrarHasta, setMostrarHasta] = useState(20);
+  React.useEffect(() => { setMostrarHasta(20); }, [rango.desde, rango.hasta]);
+  const historialVisible = historialDelPeriodo.slice(0, mostrarHasta);
+
+  // Compartir: ingresos/egresos totales (histórico completo), el balance
+  // discriminado del período elegido y los movimientos de los últimos 3
+  // meses — aparte de lo que se ve en pantalla, que solo trae el período
+  // actual paginado. Texto plano (sin expo-print/expo-sharing: son módulos
+  // nativos que no llegan por OTA a celulares con la app ya instalada).
+  const compartir = async () => {
+    const hace3Meses = new Date();
+    hace3Meses.setMonth(hace3Meses.getMonth() - 3);
+    const desde3Meses = hace3Meses.toISOString().slice(0, 10);
+    const movimientos3m = (data?.historial || []).filter((h) => String(h.fecha || '').slice(0, 10) >= desde3Meses);
+    const texto = buildBalanceTexto({
+      finca: activeFinca?.nombre || 'Finca',
+      saldo: Number(data?.saldo_actual || 0),
+      ingresos: data?.ingresos_totales || {},
+      egresos: data?.egresos_totales || {},
+      discriminado: { etiqueta: rango.etiqueta, conceptos: discData?.conceptos || [], totales: discData?.totales || {} },
+      movimientos3m,
+    });
+    try { await Share.share({ message: texto }); } catch (e) { console.error('compartir balance:', e); }
+  };
 
   const eliminarMovimiento = (mov) => {
     Alert.alert('¿Eliminar movimiento?', `¿Eliminar "${mov.categoria}" de ${formatMoney(Math.abs(mov.monto))}?`, [
@@ -290,6 +331,9 @@ export default function BalanceFincaScreen({ navigation }) {
             <Ionicons name="remove-circle-outline" size={16} color={COLORS.danger} />
             <Text style={styles.btnRetiroText}>  Retiro</Text>
           </Pressable>
+          <Pressable onPress={compartir} style={styles.btnCompartir}>
+            <Ionicons name="share-outline" size={16} color={COLORS.ink700} />
+          </Pressable>
         </View>
 
         <View style={styles.totalesGrid}>
@@ -306,38 +350,114 @@ export default function BalanceFincaScreen({ navigation }) {
           </View>
         </View>
 
-        <BalanceDiscriminado fincaId={activeFincaId} />
+        <BalanceDiscriminado
+          periodoKey={periodoKey}
+          onPeriodoKeyChange={setPeriodoKey}
+          rango={rango}
+          onMover={moverPeriodo}
+          data={discData}
+          cargando={discCargando}
+        />
 
-        <Text style={styles.sectionTitle}>Historial</Text>
-        {(data.historial || []).length === 0 ? (
-          <Text style={styles.emptyText}>Aún no hay movimientos manuales registrados.</Text>
+        <Text style={styles.sectionTitle}>Historial de movimientos</Text>
+        <Text style={styles.discHint}>{rango.etiqueta} — mismo período elegido arriba en "Balance discriminado".</Text>
+        {historialDelPeriodo.length === 0 ? (
+          <Text style={styles.emptyText}>Sin movimientos en este período.</Text>
         ) : (
-          data.historial.map((m) => {
+          historialVisible.map((m) => {
             const esIngreso = m.monto >= 0;
+            const borrable = MOV_TIPOS_BORRABLES.includes(m.tipo);
             return (
-              <View key={m.id} style={styles.movRow}>
+              <View key={`${m.tipo}-${m.id}`} style={styles.movRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.movCategoria}>{m.categoria}</Text>
-                  <Text style={styles.movMeta}>{formatDate(m.fecha)}{m.descripcion ? ` · ${m.descripcion}` : ''}</Text>
+                  <Text style={styles.movCategoria}>{m.categoria || m.descripcion || '—'}</Text>
+                  <Text style={styles.movMeta}>{formatDate(m.fecha)}{m.categoria && m.descripcion ? ` · ${m.descripcion}` : ''}</Text>
                   <Text style={styles.movSaldo}>Saldo: {formatMoney(m.saldo_despues)}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={[styles.movMonto, { color: esIngreso ? COLORS.primary : COLORS.danger }]}>
                     {esIngreso ? '+' : ''}{formatMoney(m.monto)}
                   </Text>
-                  <Pressable onPress={() => eliminarMovimiento(m)} hitSlop={8} style={{ marginTop: 4 }}>
-                    <Ionicons name="trash-outline" size={14} color={COLORS.ink400} />
-                  </Pressable>
+                  {borrable && (
+                    <Pressable onPress={() => eliminarMovimiento(m)} hitSlop={8} style={{ marginTop: 4 }}>
+                      <Ionicons name="trash-outline" size={14} color={COLORS.ink400} />
+                    </Pressable>
+                  )}
                 </View>
               </View>
             );
           })
+        )}
+        {historialDelPeriodo.length > historialVisible.length && (
+          <Pressable onPress={() => setMostrarHasta((n) => n + 20)} style={styles.verMasBtn}>
+            <Text style={styles.verMasText}>Ver más movimientos ({historialDelPeriodo.length - historialVisible.length} más)</Text>
+          </Pressable>
         )}
       </ScrollView>
 
       <MovimientoModal visible={!!modalTipo} tipo={modalTipo} onClose={() => setModalTipo(null)} onGuardado={cargar} />
     </SafeAreaView>
   );
+}
+
+// Reporte en texto plano (para compartir por WhatsApp, correo, etc.) con
+// ingresos/egresos totales, el balance discriminado del período elegido y
+// los movimientos de los últimos 3 meses — mismo contenido que
+// buildBalanceHTML de la web, en texto porque acá no hay expo-print.
+function buildBalanceTexto({ finca, saldo, ingresos, egresos, discriminado, movimientos3m }) {
+  const totalIngresos = Object.values(ingresos).reduce((a, b) => a + (Number(b) || 0), 0);
+  const totalEgresos = Object.values(egresos).reduce((a, b) => a + (Number(b) || 0), 0);
+  const gastosDisc = (discriminado.conceptos || []).filter((c) => c.tipo !== 'ingreso');
+  const ventasDisc = (discriminado.conceptos || []).filter((c) => c.tipo === 'ingreso');
+  const totales = discriminado.totales || {};
+  const totalGastosDisc = (Number(totales.nomina) || 0) + (Number(totales.gasto_fijo) || 0) + (Number(totales.gasto_variable) || 0) + (Number(totales.factura) || 0);
+  const totalVentasDisc = Number(totales.ventas) || 0;
+
+  const lineas = [];
+  lineas.push(`BALANCE — ${finca}`);
+  lineas.push(`Generado el ${new Date().toLocaleDateString('es-CO')}`);
+  lineas.push('');
+  lineas.push(`SALDO ACTUAL DE LA FINCA: ${formatMoney(saldo)}`);
+  lineas.push('');
+  lineas.push('INGRESOS TOTALES');
+  lineas.push(`  Ventas: ${formatMoney(ingresos.ventas)}`);
+  lineas.push(`  Aportes de capital: ${formatMoney(ingresos.aportes)}`);
+  lineas.push(`  Total: ${formatMoney(totalIngresos)}`);
+  lineas.push('');
+  lineas.push('EGRESOS TOTALES');
+  lineas.push(`  Nómina: ${formatMoney(egresos.nomina)}`);
+  lineas.push(`  Gastos: ${formatMoney(egresos.gastos)}`);
+  lineas.push(`  Retiros: ${formatMoney(egresos.retiros)}`);
+  lineas.push(`  Total: ${formatMoney(totalEgresos)}`);
+  lineas.push('');
+  lineas.push(`BALANCE DISCRIMINADO — ${discriminado.etiqueta}`);
+  if (gastosDisc.length === 0 && ventasDisc.length === 0) {
+    lineas.push('  Sin movimientos en este período.');
+  } else {
+    if (gastosDisc.length) {
+      lineas.push('  Gastos:');
+      for (const c of gastosDisc) lineas.push(`    ${c.nombre}: ${formatMoney(c.total)}`);
+    }
+    if (ventasDisc.length) {
+      lineas.push('  Ventas:');
+      for (const c of ventasDisc) lineas.push(`    ${c.nombre}: ${formatMoney(c.total)}`);
+    }
+  }
+  lineas.push(`  Total gastos: ${formatMoney(totalGastosDisc)}`);
+  lineas.push(`  Total ventas: ${formatMoney(totalVentasDisc)}`);
+  lineas.push('');
+  lineas.push('MOVIMIENTOS — últimos 3 meses');
+  if (movimientos3m.length === 0) {
+    lineas.push('  Sin movimientos en los últimos 3 meses.');
+  } else {
+    for (const h of movimientos3m) {
+      const fecha = String(h.fecha || '').slice(0, 10);
+      const nombre = h.categoria || h.descripcion || '—';
+      const signo = Number(h.monto) >= 0 ? '+' : '';
+      lineas.push(`  ${fecha} · ${nombre} · ${signo}${formatMoney(h.monto)} · saldo: ${formatMoney(h.saldo_despues)}`);
+    }
+  }
+  return lineas.join('\n');
 }
 
 const styles = StyleSheet.create({
@@ -352,6 +472,9 @@ const styles = StyleSheet.create({
   btnAporteText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   btnRetiro: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.dangerSoft, borderRadius: 12, paddingVertical: 12 },
   btnRetiroText: { color: COLORS.danger, fontWeight: '800', fontSize: 14 },
+  btnCompartir: { width: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: COLORS.line, backgroundColor: '#fff' },
+  verMasBtn: { marginTop: 10, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.line, alignItems: 'center' },
+  verMasText: { fontSize: 13, fontWeight: '700', color: COLORS.ink500 },
   totalesGrid: { gap: 10, marginBottom: 20 },
   totalCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: COLORS.line },
   totalTitulo: { fontSize: 12, fontWeight: '800', color: COLORS.ink500, textTransform: 'uppercase', marginBottom: 8 },
