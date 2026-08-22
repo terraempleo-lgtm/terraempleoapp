@@ -366,7 +366,14 @@ async function actualizarConcepto(req, res) {
   }
 }
 
-// Borrado suave: se desactiva para no perder histórico de movimientos.
+// El concepto se desactiva (no se borra la fila, para no romper el FK de
+// fin_movimientos ni el historial de auditoría) PERO sus movimientos SÍ se
+// borran de verdad, de todos los períodos/semanas — no solo el mes visible
+// en el tablero. Si solo se desactivara el concepto, montos de meses
+// anteriores seguirían sumando en Balance (acumulado de toda la vida de la
+// finca: ingresos_totales/egresos_totales/saldo_actual e historial), aunque
+// el concepto ya no aparezca en Finanzas. Esto es irreversible — coincide
+// con el aviso "no se puede deshacer" del modal de confirmación del cliente.
 async function eliminarConcepto(req, res) {
   try {
     const id = Number(req.params.id);
@@ -374,10 +381,21 @@ async function eliminarConcepto(req, res) {
     if (!rows || !rows.length) return res.status(404).json({ error: 'Concepto no encontrado' });
     const acc = await accesoFinca(Number(rows[0].finca_id), req.user.id, { escribir: true });
     if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
+
+    const movimientos = await query('SELECT id, monto, foto_url FROM fin_movimientos WHERE concepto_id = ?', [id]);
+    for (const m of movimientos || []) {
+      if (m.foto_url) await deleteFromS3(m.foto_url).catch((e) => console.warn('eliminarConcepto: foto S3:', e.message));
+    }
+    await query('DELETE FROM fin_movimientos WHERE concepto_id = ?', [id]);
     await query('UPDATE fin_conceptos SET activo = 0 WHERE id = ?', [id]);
+
+    const montoTotal = (movimientos || []).reduce((s, m) => s + (Number(m.monto) || 0), 0);
     await registrarAuditoria({
       usuarioId: req.user.id, fincaId: Number(rows[0].finca_id), entidad: 'fin_concepto', registroId: id,
-      accion: 'eliminar', descripcion: 'Concepto financiero desactivado', ip: ipDe(req),
+      accion: 'eliminar',
+      anterior: { movimientos_eliminados: (movimientos || []).length, monto_total_eliminado: montoTotal },
+      descripcion: 'Concepto financiero desactivado y sus movimientos borrados de todos los períodos (irreversible)',
+      ip: ipDe(req),
     });
     res.json({ ok: true });
   } catch (err) {
