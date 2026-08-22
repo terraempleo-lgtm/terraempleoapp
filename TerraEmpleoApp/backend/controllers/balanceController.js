@@ -130,7 +130,7 @@ async function balance(req, res) {
     // (nómina manual/migrada de Finanzas) tampoco entra: el balance usa la
     // nómina REAL del Cuaderno, igual que ya hacía el total anterior.
     const finRows = await query(
-      `SELECT m.id, m.monto, c.tipo, c.nombre AS concepto_nombre,
+      `SELECT m.id, m.concepto_id, m.monto, c.tipo, c.nombre AS concepto_nombre,
               COALESCE(s.fecha_inicio, p.fecha_inicio) AS fecha
          FROM fin_movimientos m
          JOIN fin_conceptos c ON c.id = m.concepto_id
@@ -194,6 +194,7 @@ async function balance(req, res) {
     const combinado = [
       ...(movimientos || []).map((m) => ({
         id: m.id, fecha: m.fecha, tipo: m.tipo, categoria: m.categoria, descripcion: m.descripcion,
+        concepto_id: null,
         montoFirmado: signo(m.tipo) * (Number(m.monto) || 0),
       })),
       ...(finRows || []).map((r) => {
@@ -201,6 +202,7 @@ async function balance(req, res) {
         if (r.tipo === 'ingreso') ventas += monto; else gastosFinanzas += monto;
         return {
           id: r.id, fecha: r.fecha, tipo: r.tipo, categoria: TIPO_LABEL_FIN[r.tipo] || r.tipo, descripcion: r.concepto_nombre,
+          concepto_id: Number(r.concepto_id),
           montoFirmado: (r.tipo === 'ingreso' ? 1 : -1) * monto,
         };
       }),
@@ -209,6 +211,7 @@ async function balance(req, res) {
         nomina += monto;
         return {
           id: r.id, fecha: r.fecha, tipo: 'nomina', categoria: 'Nómina', descripcion: r.nombre_trabajador,
+          concepto_id: null,
           montoFirmado: -monto,
         };
       }),
@@ -223,6 +226,7 @@ async function balance(req, res) {
         tipo: h.tipo,
         categoria: h.categoria,
         descripcion: h.descripcion,
+        concepto_id: h.concepto_id,
         monto: round2(h.montoFirmado),
         saldo_despues: corriendo,
       };
